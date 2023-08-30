@@ -1,0 +1,17 @@
+/*
+ * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+#ifndef _AIC_DRV_WDT_H_
+#define _AIC_DRV_WDT_H_
+
+
+/* aic_wdt_cmd*/
+#define RT_DEVICE_CTRL_WDT_SET_IRQ_TIMEOUT  (RT_DEVICE_CTRL_BASE(WDT) + 7)
+#define RT_DEVICE_CTRL_WDT_IRQ_ENABLE       (RT_DEVICE_CTRL_BASE(WDT) + 8)
+#define RT_DEVICE_CTRL_WDT_IRQ_DISABLE      (RT_DEVICE_CTRL_BASE(WDT) + 9)
+#define RT_DEVICE_CTRL_WDT_SET_CLR_THD      (RT_DEVICE_CTRL_BASE(WDT) + 10)
+
+#endif /* _AIC_DRV_WDT_H_ */

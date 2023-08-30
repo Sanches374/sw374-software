@@ -1,0 +1,25 @@
+#-----------------------------
+# RTP devices local parameter
+#-----------------------------
+
+menu "RTP parameter"
+    depends on AIC_USING_RTP
+
+    config AIC_RTP_PERIOD_MS
+        int "The sample period of RTP(in cycle mode)"
+        default 15
+
+    config AIC_RTP_MAX_PRESSURE
+        int "The pressure threshold of RTP"
+        default 800
+
+    config AIC_RTP_X_PLATE
+        int "The x-plate value of RTP touchscreen"
+        range 0 1024
+        default 235
+
+    config AIC_RTP_Y_PLATE
+        int "The Y-plate value of RTP touchscreen"
+        range 0 1024
+        default 0
+endmenu

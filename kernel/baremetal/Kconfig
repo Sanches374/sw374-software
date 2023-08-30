@@ -1,0 +1,79 @@
+menu "Baremetal options"
+
+config KERNEL_BAREMETAL
+    bool
+    default y
+
+config DRIVER_HAL_EN
+    bool
+    default y
+
+config DRIVER_BARE_DRV_EN
+    bool
+    default y
+
+config AIC_NORMALSTACK_SIZE
+    int "Main loop stack"
+    default 8092
+
+if ! AIC_BOOTLOADER
+    config AIC_BAREMETAL_CONSOLE_UART
+        int "Baremetal console UART ID"
+        range 0 8
+        default 0
+endif
+
+config ARCH_RISCV
+    bool
+
+config ARCH_RISCV_FPU
+    bool
+
+config ARCH_RISCV_FPU_S
+    select ARCH_RISCV_FPU
+    bool
+
+config ARCH_RISCV_FPU_D
+    select ARCH_RISCV_FPU
+    bool
+
+config ARCH_RISCV32
+    select ARCH_RISCV
+    bool
+
+config ARCH_RISCV64
+    select ARCH_RISCV
+    select ARCH_CPU_64BIT
+    bool
+
+choice
+    prompt "Log level"
+    default AIC_BAREMETAL_LOG_WARN
+
+config AIC_BAREMETAL_LOG_NONE
+    bool "none"
+
+config AIC_BAREMETAL_LOG_ERR
+    bool "error"
+
+config AIC_BAREMETAL_LOG_WARN
+    bool "warn"
+
+config AIC_BAREMETAL_LOG_INFO
+    bool "info"
+
+config AIC_BAREMETAL_LOG_DEBUG
+    bool "debug"
+
+endchoice
+
+config AIC_BAREMETAL_LOG_LEVEL
+    int
+    default 0 if AIC_BAREMETAL_LOG_NONE
+    default 3 if AIC_BAREMETAL_LOG_ERR
+    default 4 if AIC_BAREMETAL_LOG_WARN
+    default 6 if AIC_BAREMETAL_LOG_INFO
+    default 7 if AIC_BAREMETAL_LOG_DEBUG
+
+endmenu
+

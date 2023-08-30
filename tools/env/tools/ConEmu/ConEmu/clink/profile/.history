@@ -1,0 +1,24 @@
+list
+lunch 0 
+m
+lunch 0 
+scons --target=eclipse
+scons --menuconfig
+set
+lunch 4
+17
+lunch 17
+scons --target=eclipse 
+lunch.bat 22
+list
+lunch.bat 24
+cd target\
+c
+ct
+cd d21x\demo88-nor\
+ls
+vi board.c 
+vim board.c 
+me
+cr
+m

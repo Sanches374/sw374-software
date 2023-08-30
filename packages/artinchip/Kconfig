@@ -1,0 +1,5 @@
+menu "ArtInChip packages options"
+
+source "packages/artinchip/mpp/Kconfig"
+
+endmenu

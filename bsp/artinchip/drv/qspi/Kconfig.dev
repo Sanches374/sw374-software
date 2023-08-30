@@ -1,0 +1,43 @@
+#-----------------------------
+# qspi devices local parameter
+#-----------------------------
+
+menu "Qspi0 Parameter"
+    depends on AIC_USING_QSPI0
+
+    config AIC_DEV_QSPI0_MAX_SRC_FREQ_HZ
+        int "Max frequency(Hz)"
+        default 100000000
+
+endmenu
+
+menu "Qspi1 Parameter"
+    depends on AIC_USING_QSPI1
+
+    config AIC_DEV_QSPI1_MAX_SRC_FREQ_HZ
+        int "Max frequency(Hz)"
+        default 100000000
+
+endmenu
+
+menu "Qspi2 Parameter"
+    depends on AIC_USING_QSPI2
+
+    config AIC_DEV_QSPI2_MAX_SRC_FREQ_HZ
+        int "Max frequency(Hz)"
+        default 100000000
+
+endmenu
+
+menu "Qspi3 Parameter"
+    depends on AIC_USING_QSPI3
+
+    config AIC_DEV_QSPI3_MAX_SRC_FREQ_HZ
+        int "Max frequency(Hz)"
+        default 100000000
+
+endmenu
+
+source "bsp/artinchip/drv/spinor/Kconfig.dev"
+source "bsp/artinchip/drv/spinand/Kconfig.dev"
+

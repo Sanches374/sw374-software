@@ -842,10 +842,11 @@ def mkimage_prebuild(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_def
     eclipse_sdk_post_build = eclipse_sdk_post_build.replace(aic_root_n, '${ProjDirPath}')
     eclipse_sdk_post_build = eclipse_sdk_post_build.replace('\\', '/')
 
+    post_objcopy = "${cross_prefix}${cross_objcopy}${cross_suffix} -O binary ${ProjName}.elf ${ProjName}.bin;"
     os.environ["eclipse_pre_build"] = eclipse_pre_build
-    os.environ["eclipse_post_build"] = eclipse_post_build
+    os.environ["eclipse_post_build"] = post_objcopy + eclipse_post_build
     os.environ["eclipse_sdk_pre_build"] = eclipse_sdk_pre_build
-    os.environ["eclipse_sdk_post_build"] = eclipse_sdk_post_build
+    os.environ["eclipse_sdk_post_build"] = post_objcopy + eclipse_sdk_post_build
 
     # complete flag
     POST_ACTION += '@echo \n@echo Luban-Lite is built successfully \n@echo \n'

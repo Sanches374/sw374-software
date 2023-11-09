@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ * Authors:  dwj <weijie.ding@artinchip.com>
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -8,6 +14,7 @@
 #include <hal_audio.h>
 #include <unistd.h>
 #include "ringbuffer.h"
+#include "sound.h"
 
 #ifdef LPKG_USING_DFS
 #include <dfs.h>
@@ -19,47 +26,10 @@
 
 aic_audio_ctrl audio_ctrl;
 ringbuf_t *ring_buf;
-#define TX_FIFO_SIZE                    81920
-#define TX_FIFO_PERIOD_COUNT            4
+#define TX_FIFO_SIZE                    4096
+#define TX_FIFO_PERIOD_COUNT            2
 #define BUFFER_SIZE                     2048
 rt_uint8_t audio_tx_fifo[TX_FIFO_SIZE] __attribute__((aligned(64)));
-
-struct RIFF_HEADER_DEF
-{
-    char riff_id[4];     // 'R','I','F','F'
-    uint32_t riff_size;
-    char riff_format[4]; // 'W','A','V','E'
-};
-
-struct WAVE_FORMAT_DEF
-{
-    uint16_t FormatTag;
-    uint16_t Channels;
-    unsigned int SamplesPerSec;
-    unsigned int AvgBytesPerSec;
-    uint16_t BlockAlign;
-    uint16_t BitsPerSample;
-};
-
-struct FMT_BLOCK_DEF
-{
-    char fmt_id[4];    // 'f','m','t',' '
-    uint32_t fmt_size;
-    struct WAVE_FORMAT_DEF wav_format;
-};
-
-struct DATA_BLOCK_DEF
-{
-    char data_id[4];     // 'R','I','F','F'
-    uint32_t data_size;
-};
-
-struct wav_info
-{
-    struct RIFF_HEADER_DEF header;
-    struct FMT_BLOCK_DEF   fmt_block;
-    struct DATA_BLOCK_DEF  data_block;
-};
 
 static void drv_audio_callback(aic_audio_ctrl *pcodec, void *arg)
 {
@@ -70,6 +40,7 @@ static void drv_audio_callback(aic_audio_ctrl *pcodec, void *arg)
     case AUDIO_TX_PERIOD_INT:
         ring_buf->read += pcodec->tx_info.buf_info.period_len;
         ring_buf->data_len -= pcodec->tx_info.buf_info.period_len;
+        aicos_dcache_clean_range((void *)audio_tx_fifo, TX_FIFO_SIZE);
         break;
     default:
         hal_log_err("%s(%d)\n", __func__, __LINE__);
@@ -81,7 +52,7 @@ static void drv_audio_callback(aic_audio_ctrl *pcodec, void *arg)
 static int sound_aplay(int argc, char *argv[])
 {
     int fd;
-    struct wav_info *info = NULL;
+    struct wav_header *info = NULL;
     uint8_t *buffer = NULL;
     unsigned int pa, group, pin;
     uint8_t start_flag = 0;
@@ -89,7 +60,7 @@ static int sound_aplay(int argc, char *argv[])
     if (argc != 2)
     {
         hal_log_err("Usage:\n");
-        hal_log_err("sound_aplay song.wav\n");
+        hal_log_err("aplay song.wav\n");
         return 0;
     }
 
@@ -100,14 +71,14 @@ static int sound_aplay(int argc, char *argv[])
         goto __exit;
     }
 
-    buffer = aicos_malloc(MEM_PSRAM_CMA, BUFFER_SIZE);
+    buffer = aicos_malloc(MEM_CMA, BUFFER_SIZE);
     if (!buffer)
     {
         hal_log_err("buffer malloc error!\n");
         goto __exit;
     }
 
-    ring_buf = aicos_malloc(MEM_PSRAM_CMA, sizeof(ringbuf_t));
+    ring_buf = aicos_malloc(MEM_CMA, sizeof(ringbuf_t));
     if (!ring_buf)
     {
         hal_log_err("ring_buf malloc error!\n");
@@ -120,34 +91,22 @@ static int sound_aplay(int argc, char *argv[])
     ring_buf->read = 0;
     ring_buf->data_len = 0;
 
-    info = aicos_malloc(MEM_PSRAM_CMA, sizeof(struct wav_info));
+    info = aicos_malloc(MEM_CMA, sizeof(struct wav_header));
     if (!info)
     {
         hal_log_err("malloc error!\n");
         goto __exit;
     }
 
-    if (read(fd, &(info->header), sizeof(struct RIFF_HEADER_DEF)) <= 0)
+    if (read(fd, info, sizeof(struct wav_header)) <= 0)
     {
-        hal_log_err("wav header parse error!\n");
-        goto __exit;
-    }
-
-    if (read(fd, &(info->fmt_block), sizeof(struct FMT_BLOCK_DEF)) <= 0)
-    {
-        hal_log_err("wav fmt_block parse error!\n");
-        goto __exit;
-    }
-
-    if (read(fd, &(info->data_block), sizeof(struct DATA_BLOCK_DEF)) <= 0)
-    {
-        hal_log_err("wav data_block parse error!\n");
+        hal_log_err("read info error\n");
         goto __exit;
     }
 
     hal_log_info("wav information:\n");
-    hal_log_info("samplerate %u\n", info->fmt_block.wav_format.SamplesPerSec);
-    hal_log_info("channel %u\n", info->fmt_block.wav_format.Channels);
+    hal_log_info("samplerate %u\n", info->fmt_sample_rate);
+    hal_log_info("channel %u\n", info->fmt_channels);
 
     audio_ctrl.tx_info.buf_info.buf = (void *)audio_tx_fifo;
     audio_ctrl.tx_info.buf_info.buf_len = TX_FIFO_SIZE;
@@ -158,10 +117,10 @@ static int sound_aplay(int argc, char *argv[])
 
     /* Configure audio format */
     /* AudioCodec only support 16 bits */
-    hal_audio_set_playback_channel(&audio_ctrl, info->fmt_block.wav_format.Channels);
-    hal_audio_set_samplerate(&audio_ctrl, info->fmt_block.wav_format.SamplesPerSec);
-    audio_ctrl.config.samplerate = info->fmt_block.wav_format.SamplesPerSec;
-    audio_ctrl.config.channel = info->fmt_block.wav_format.Channels;
+    hal_audio_set_playback_channel(&audio_ctrl, info->fmt_channels);
+    hal_audio_set_samplerate(&audio_ctrl, info->fmt_sample_rate);
+    audio_ctrl.config.samplerate = info->fmt_sample_rate;
+    audio_ctrl.config.channel = info->fmt_channels;
     audio_ctrl.config.samplebits = 16;
 
 #ifdef AIC_AUDIO_SPK_0
@@ -238,6 +197,14 @@ static int sound_aplay(int argc, char *argv[])
     hal_audio_playback_stop(&audio_ctrl);
 
 __exit:
+    if (fd >= 0)
+        close(fd);
+    if (buffer != NULL)
+        aicos_free(MEM_CMA, buffer);
+    if (ring_buf != NULL)
+        aicos_free(MEM_CMA, ring_buf);
+    if (info != NULL)
+        aicos_free(MEM_CMA, info);
     return 0;
 }
 

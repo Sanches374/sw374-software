@@ -32,6 +32,12 @@ if os.getenv('RTT_EXEC_PATH'):
 
 # BUILD = 'debug'
 BUILD = 'release'
+if BUILD == 'debug':
+    CFLAGS_DBG = ' -O0 -gdwarf-2'
+    AFLAGS_DBG = ' -gdwarf-2'
+else:
+    CFLAGS_DBG = ' -O2 -g2'
+    AFLAGS_DBG = ''
 
 prj_out_dir = ''
 if os.environ.get('PRJ_OUT_DIR'):
@@ -71,24 +77,38 @@ if PLATFORM == 'gcc':
         DEVICE = ' -march=rv64imafdc_xthead -mabi=lp64d -mcmodel=medlow'
     if CPUNAME == 'c906fd':
         DEVICE = ' -march=rv64imafdc_xtheadc -mabi=lp64d -mcmodel=medany'
+        M_DEVICE = ' -march=rv64imafdc -mabi=lp64d -mcmodel=medany'
     if CPUNAME == 'c906fdv':
         DEVICE = ' -march=rv64imafdcv0p7_zfh_xtheadc -mabi=lp64d -mcmodel=medany'
     if CPUNAME == 'c906v':
         DEVICE = ' -march=rv64imafdcv_xtheadc -mabi=lp64dv -mcmodel=medany'
 
-    CFLAGS  = DEVICE + ' -c -g -ffunction-sections -fdata-sections -Wall'
-    AFLAGS  = ' -c' + DEVICE + ' -x assembler-with-cpp' + ' -D__ASSEMBLY__'
+    B_CFLAGS = ' -c -g -ffunction-sections -fdata-sections -Wall'
+    B_AFLAGS = ' -c' +' -x assembler-with-cpp' + ' -D__ASSEMBLY__'
+    CFLAGS  = DEVICE + B_CFLAGS + CFLAGS_DBG
+    AFLAGS  = DEVICE + B_AFLAGS + AFLAGS_DBG
+    CXXFLAGS = CFLAGS
     LFLAGS  = DEVICE + ' -nostartfiles -Wl,--no-whole-archive -lm -lc -lgcc -Wl,-gc-sections -Wl,-zmax-page-size=1024 -Wl,-Map=' + prj_out_dir + SOC + '.map'
     CPATH   = ''
     LPATH   = ''
 
-    if BUILD == 'debug':
-        CFLAGS += ' -O0 -gdwarf-2'
-        AFLAGS += ' -gdwarf-2'
-    else:
-        CFLAGS += ' -O2 -g2'
-
-    CXXFLAGS = CFLAGS
+    # module setting
+    M_PREFIX  = 'riscv-none-embed-'
+    M_CC      = M_PREFIX + 'gcc'
+    M_CXX     = M_PREFIX + 'g++'
+    M_AS      = M_PREFIX + 'gcc'
+    M_AR      = M_PREFIX + 'ar'
+    M_LINK    = M_PREFIX + 'g++'
+    M_SIZE    = M_PREFIX + 'size'
+    M_OBJDUMP = M_PREFIX + 'objdump'
+    M_OBJCPY  = M_PREFIX + 'objcopy'
+    M_STRIP   = M_PREFIX + 'strip'
+    M_CFLAGS  = M_DEVICE + B_CFLAGS + CFLAGS_DBG + ' -fPIC -shared'
+    M_AFLAGS  = M_DEVICE + B_AFLAGS + AFLAGS_DBG
+    M_CXXFLAGS = M_CFLAGS
+    M_LFLAGS  = M_DEVICE + ' -Wl,--gc-sections,-z,max-page-size=0x4 -shared -fPIC -nostartfiles -nostdlib -static-libgcc'
+    M_POST_ACTION = M_STRIP + ' -R .hash $TARGET\n' + M_SIZE + ' $TARGET \n'
+    M_BIN_PATH = ''
 
 DUMP_ACTION = OBJDUMP + ' -D -S $TARGET > ' + prj_out_dir + SOC + '.asm\n'
 POST_ACTION = '@ls -og $TARGET\n@echo\n'

@@ -30,6 +30,9 @@ add_library(openmax SHARED
 	OMX_Core.c
 )
 
+if (AAC_DECODER)
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DAAC_DECODER")
+endif()
 target_link_libraries(openmax mpp_audio_decoder mpp_decoder openmax_base base)
 
 target_include_directories(openmax PUBLIC

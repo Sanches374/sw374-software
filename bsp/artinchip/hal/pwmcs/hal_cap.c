@@ -36,10 +36,17 @@
 #define CAP_IN_SRC(n)           (CAP_BASE(n) + 0x34)
 #define CAP_VER(n)              (CAP_BASE(n) + 0xfc)
 
+#ifdef AIC_HRTIMER_DRV_V10
 #define GLB_CLK_CTL             (GLB_BASE + 0x00)
+#define GLB_CLK_CTL_CAP_EN(n)   (BIT(16) << (n))
+#endif
+#ifdef AIC_HRTIMER_DRV_V11
+#define GLB_CLK_CTL             (GLB_BASE + 0x24)
+#define GLB_CLK_CTL_CAP_EN(n)   BIT(n)
+#endif
+
 #define GLB_CAP_INT_STS         (GLB_BASE + 0x0C)
 
-#define GLB_CLK_CTL_CAP_EN(n)   (BIT(16) << (n))
 #define GLB_CAP_INT_STS_MASK(n) (1 << (n))
 
 #define CAP_CONF2_PWM_MODE      BIT(9)
@@ -233,13 +240,20 @@ int hal_cap_get(u32 ch)
 int hal_cap_init(void)
 {
     int i, ret = 0;
+    u32 clk_id = 0;
 
     if (g_cap_inited) {
         hal_log_debug("PWMCS was already inited\n");
         return 0;
     }
 
-    ret = hal_clk_set_freq(CLK_PWMCS, PWMCS_CLK_RATE);
+#ifdef AIC_HRTIMER_DRV_V10
+    clk_id = CLK_PWMCS;
+#endif
+#ifdef AIC_HRTIMER_DRV_V11
+    clk_id = CLK_PWMCS_SDFM;
+#endif
+    ret = hal_clk_set_freq(clk_id, PWMCS_CLK_RATE);
     if (ret < 0) {
         hal_log_err("Failed to set PWMCS clk %d\n", PWMCS_CLK_RATE);
         return -1;

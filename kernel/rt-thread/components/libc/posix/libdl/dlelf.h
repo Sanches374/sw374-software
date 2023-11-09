@@ -12,6 +12,33 @@
 #ifndef DL_ELF_H__
 #define DL_ELF_H__
 
+#include <aic_core.h>
+
+#if defined(RT_MODULE_MEM_SYS)
+#define DM_MEM MEM_DEFAULT
+#elif defined(RT_MODULE_MEM_DRAM_CMA)
+#define DM_MEM MEM_DRAM_CMA
+#elif defined(RT_MODULE_MEM_PSRAM_SW)
+#define DM_MEM MEM_PSRAM_SW
+#elif defined(RT_MODULE_MEM_PSRAM_CMA)
+#define DM_MEM MEM_PSRAM_CMA
+#elif defined(RT_MODULE_MEM_SRAM1_SW)
+#define DM_MEM MEM_SRAM1_SW
+#elif defined(RT_MODULE_MEM_SRAM1_CMA)
+#define DM_MEM MEM_SRAM1_CMA
+#elif defined(RT_MODULE_MEM_SRAM_SW)
+#define DM_MEM MEM_SRAM_SW
+#elif defined(RT_MODULE_MEM_SRAM_CMA)
+#define DM_MEM MEM_SRAM_CMA
+#else
+#define DM_MEM MEM_DEFAULT
+#endif
+
+#define rt_malloc(s)            aicos_malloc(DM_MEM, (s))
+#define rt_malloc_align(s, c)   aicos_malloc_align(DM_MEM, (s), (c))
+#define rt_free(p)              aicos_free(DM_MEM, (p))
+#define rt_free_align(s)        aicos_free_align(DM_MEM, (s))
+
 typedef rt_uint8_t              Elf_Byte;
 
 typedef rt_uint32_t             Elf32_Addr;    /* Unsigned program address */
@@ -362,7 +389,7 @@ typedef struct
 #define phdr              ((Elf32_Phdr *)((rt_uint8_t *)module_ptr + elf_module->e_phoff))
 
 typedef Elf32_Sym       Elf_Sym;
-typedef Elf32_Rel       Elf_Rel;
+typedef Elf32_Rela      Elf_Rel;
 typedef Elf32_Addr      Elf_Addr;
 #elif (defined(__aarch64__) || defined(__x86_64__) || (__riscv_xlen == 64))
 #define elf_module        ((Elf64_Ehdr *)module_ptr)

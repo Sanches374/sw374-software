@@ -12,7 +12,11 @@
 /*
    -------------- NO SYS --------------
 */
+#ifdef KERNEL_BAREMETAL
+#define NO_SYS                          1
+#else
 #define NO_SYS                          0
+#endif
 #define NO_SYS_NO_TIMERS                0
 #define LWIP_TIMERS                     1
 #define LWIP_TIMERS_CUSTOM              0
@@ -82,8 +86,8 @@ MEM_SIZE and MEMP_NUM_XXX will be invalid */
 #define MEMP_NUM_NETCONN                LPKG_MEMP_NUM_NETCONN
 #endif
 #define MEMP_NUM_SELECT_CB              4
-#define MEMP_NUM_TCPIP_MSG_API          32
-#define MEMP_NUM_TCPIP_MSG_INPKT        32
+#define MEMP_NUM_TCPIP_MSG_API          8
+#define MEMP_NUM_TCPIP_MSG_INPKT        8
 #define MEMP_NUM_NETDB                  1
 #define MEMP_NUM_LOCALHOSTLIST          1
 #ifdef LPKG_LWIP_PBUF_NUM
@@ -310,7 +314,7 @@ MEM_SIZE and MEMP_NUM_XXX will be invalid */
 /*
    ---------- Sequential layer options ----------
 */
-#define LWIP_NETCONN                    1
+#define LWIP_NETCONN                    (NO_SYS==0)
 #define LWIP_TCPIP_TIMEOUT              0
 #define LWIP_NETCONN_SEM_PER_THREAD     0
 #define LWIP_NETCONN_FULLDUPLEX         0
@@ -318,7 +322,7 @@ MEM_SIZE and MEMP_NUM_XXX will be invalid */
 /*
    ---------- Socket options ----------
 */
-#define LWIP_SOCKET                     1
+#define LWIP_SOCKET                     (NO_SYS==0)
 /*
  * LWIP_COMPAT_SOCKETS==1: Enable BSD-style sockets functions names.
  * (only used if you use sockets.c)
@@ -942,11 +946,11 @@ MEM_SIZE and MEMP_NUM_XXX will be invalid */
 #endif
 
 /* the number of simultaneously queued TCP */
-//#ifdef LPKG_LWIP_TCP_SEG_NUM
-//#define MEMP_NUM_TCP_SEG            LPKG_LWIP_TCP_SEG_NUM
-//#else
+#ifdef LPKG_LWIP_TCP_SEG_NUM
+#define MEMP_NUM_TCP_SEG            LPKG_LWIP_TCP_SEG_NUM
+#else
 #define MEMP_NUM_TCP_SEG            TCP_SND_QUEUELEN
-//#endif
+#endif
 
 /*
  * You can re-define following setting in rtcofnig.h to overwrite the default

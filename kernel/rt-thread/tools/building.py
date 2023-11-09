@@ -321,8 +321,8 @@ def PrepareBuilding(env, root_directory, has_libcpu=False, remove_components = [
             with open(".Kconfig.prj", "w") as f:
                 f.write('source "bsp/artinchip/sys/{}/Kconfig.chip"\n'.format(prj_chip))
                 f.write('source "target/{}/{}/Kconfig.board"\n'.format(prj_chip, prj_board))
-                f.write('source "application/{}/{}/Kconfig"\n'.format(app_os, prj_app))
                 f.write('source "kernel/{}/Kconfig"\n'.format(prj_kernel))
+                f.write('source "application/{}/{}/Kconfig"\n'.format(app_os, prj_app))
                 if prj_kernel == 'rt-thread':
                     f.write('source "$PKGS_DIR/Kconfig"\n')
             # call menuconfig
@@ -925,6 +925,9 @@ def EndBuilding(target, program = None):
 
     if GetOption('target'):
         GenTargetProject(program)
+    # always make rtua.py
+    from ua import PrepareUA
+    PrepareUA(Projects, Rtt_Root, str(Dir('#')))
 
     '''
     BSP_ROOT = Dir('#').abspath

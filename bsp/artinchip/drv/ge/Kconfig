@@ -2,6 +2,9 @@
 # devices local parameter
 #-----------------------------
 
+menu "Graphics Engine Parameter"
+depends on AIC_GE_DRV
+
 choice
     prompt "Select Graphics Engine Mode"
     default AIC_GE_NORMAL
@@ -16,11 +19,10 @@ config AIC_GE_NORMAL
     bool "normal mode"
     help
       Disable CMD Queue
-
 endchoice
 
-menu "Graphics Engine Parameter"
 config AIC_GE_DITHER
+    depends on AIC_GE_DRV
     bool "Dither function"
     default y
     help

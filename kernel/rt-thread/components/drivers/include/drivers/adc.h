@@ -19,6 +19,9 @@ struct rt_adc_ops
 {
     rt_err_t (*enabled)(struct rt_adc_device *device, rt_uint32_t channel, rt_bool_t enabled);
     rt_err_t (*convert)(struct rt_adc_device *device, rt_uint32_t channel, rt_uint32_t *value);
+#ifdef AIC_GPAI_DRV
+    rt_err_t (*get_irq_count)(struct rt_adc_device *device, rt_uint32_t channel);
+#endif
     rt_uint8_t (*get_resolution)(struct rt_adc_device *device);
     rt_int16_t (*get_vref) (struct rt_adc_device *device);
 };
@@ -36,6 +39,9 @@ typedef enum
     RT_ADC_CMD_DISABLE = RT_DEVICE_CTRL_BASE(ADC) + 2,
     RT_ADC_CMD_GET_RESOLUTION = RT_DEVICE_CTRL_BASE(ADC) + 3, /* get the resolution in bits */
     RT_ADC_CMD_GET_VREF = RT_DEVICE_CTRL_BASE(ADC) + 4, /* get reference voltage */
+#ifdef AIC_GPAI_DRV
+    RT_ADC_CMD_IRQ_COUNT = RT_DEVICE_CTRL_BASE(ADC) + 5,
+#endif
 } rt_adc_cmd_t;
 
 rt_err_t rt_hw_adc_register(rt_adc_device_t adc,const char *name, const struct rt_adc_ops *ops, const void *user_data);
@@ -44,5 +50,8 @@ rt_uint32_t rt_adc_read(rt_adc_device_t dev, rt_uint32_t channel);
 rt_err_t rt_adc_enable(rt_adc_device_t dev, rt_uint32_t channel);
 rt_err_t rt_adc_disable(rt_adc_device_t dev, rt_uint32_t channel);
 rt_int16_t rt_adc_voltage(rt_adc_device_t dev, rt_uint32_t channel);
+#ifdef AIC_GPAI_DRV
+rt_err_t rt_adc_control(rt_adc_device_t dev, int cmd, void *args);
+#endif
 
 #endif /* __ADC_H__ */

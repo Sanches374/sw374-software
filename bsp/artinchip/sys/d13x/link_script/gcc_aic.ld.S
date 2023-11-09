@@ -71,9 +71,9 @@ MEMORY
 #ifdef AIC_TCM_EN
     ITCM        : ORIGIN = 0x30040000                                             , LENGTH = AIC_ITCM_SIZE
     DTCM        : ORIGIN = 0x30040000 + AIC_ITCM_SIZE                             , LENGTH = AIC_DTCM_SIZE
-    SRAM_S0     : ORIGIN = 0x30040100 + AIC_ITCM_SIZE + AIC_DTCM_SIZE             , LENGTH = AIC_SRAM_TOTAL_SIZE - AIC_SRAM_S1_SIZE - AIC_ITCM_SIZE - AIC_DTCM_SIZE - 0x100
+    SRAM_S0     : ORIGIN = 0x30040000 + AIC_ITCM_SIZE + AIC_DTCM_SIZE             , LENGTH = AIC_SRAM_TOTAL_SIZE - AIC_SRAM_S1_SIZE - AIC_ITCM_SIZE - AIC_DTCM_SIZE - 0x100
 #else
-    SRAM_S0     : ORIGIN = 0x30040100                                             , LENGTH = AIC_SRAM_TOTAL_SIZE - AIC_SRAM_S1_SIZE - 0x100
+    SRAM_S0     : ORIGIN = 0x30040000                                             , LENGTH = AIC_SRAM_TOTAL_SIZE - AIC_SRAM_S1_SIZE - 0x100
 #endif
     SRAM_S1_SW  : ORIGIN = 0x40000000 - AIC_SRAM_S1_SIZE                          , LENGTH = AIC_SRAM1_SW_SIZE
     SRAM_S1_CMA : ORIGIN = 0x40000000 - AIC_SRAM_S1_SIZE + AIC_SRAM1_SW_SIZE      , LENGTH = AIC_SRAM_S1_SIZE - AIC_SRAM1_SW_SIZE
@@ -145,12 +145,21 @@ REGION_ALIAS("REGION_PSRAM_SW"      , PSRAM_SW);
 #ifdef AIC_XIP
 REGION_ALIAS("REGION_TEXT"          , FLASH_XIP);
 REGION_ALIAS("REGION_RODATA"        , FLASH_XIP);
+#elif defined(LPKG_USING_AWTK)
+REGION_ALIAS("REGION_TEXT"          , PSRAM_CMA);
+REGION_ALIAS("REGION_RODATA"        , PSRAM_CMA);
 #else
 REGION_ALIAS("REGION_TEXT"          , SRAM_S0);
 REGION_ALIAS("REGION_RODATA"        , SRAM_S0);
 #endif
+
+#ifdef LPKG_USING_AWTK
+REGION_ALIAS("REGION_DATA"          , PSRAM_CMA);
+REGION_ALIAS("REGION_BSS"           , PSRAM_CMA);
+#else
 REGION_ALIAS("REGION_DATA"          , SRAM_S0);
 REGION_ALIAS("REGION_BSS"           , PSRAM_CMA);
+#endif
 
 #ifdef FPGA_BOARD_ARTINCHIP
 PROVIDE (__psram_ext_start         = __psram_end);
@@ -227,6 +236,15 @@ SECTIONS
   __rt_init_end = .;
   . = ALIGN(4);
   . = ALIGN(0x10) ;
+
+#ifdef RT_USING_MODULE
+  /* section information for modules */
+  . = ALIGN(4);
+  __rtmsymtab_start = .;
+  KEEP(*(RTMSymTab))
+  __rtmsymtab_end = .;
+#endif
+
   __etext = . ;
  } > REGION_TEXT
  .eh_frame_hdr : {

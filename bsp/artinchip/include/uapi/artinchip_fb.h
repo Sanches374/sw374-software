@@ -195,6 +195,22 @@ struct aicfb_disp_prop {
     unsigned int hue;
 };
 
+struct aicfb_ccm_config {
+    unsigned int enable;
+    int ccm_table[12];
+};
+
+enum gamma_lut {
+    GAMMA_RED,
+    GAMMA_GREEN,
+    GAMMA_BLUE,
+};
+
+struct aicfb_gamma_config {
+    unsigned int enable;
+    unsigned int gamma_lut[3][64];
+};
+
 /*
  * struct aicfb_screeninfo - aicfb screen info
  *
@@ -263,6 +279,18 @@ struct aicfb_screeninfo {
 
 /** get display property */
 #define AICFB_GET_DISP_PROP _IOR(IOC_TYPE_FB, 0x61, struct aicfb_disp_prop)
+
+/** set ccm config */
+#define AICFB_SET_CCM_CONFIG _IOR(IOC_TYPE_FB, 0x65, struct aicfb_ccm_config)
+
+/** get ccm config */
+#define AICFB_GET_CCM_CONFIG _IOR(IOC_TYPE_FB, 0x66, struct aicfb_ccm_config)
+
+/** set gamma config */
+#define AICFB_SET_GAMMA_CONFIG _IOR(IOC_TYPE_FB, 0x67, struct aicfb_gamma_config)
+
+/** get gamma config */
+#define AICFB_GET_GAMMA_CONFIG _IOR(IOC_TYPE_FB, 0x68, struct aicfb_gamma_config)
 
 /* get screen info */
 #define AICFB_GET_SCREENINFO _IOR(IOC_TYPE_FB, 0x62, struct aicfb_screeninfo)

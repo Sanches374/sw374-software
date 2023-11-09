@@ -30,15 +30,11 @@
 #include <dfs_fs.h>
 #include <dfs_file.h>
 #include <diskio.h>
+#include <dfs_elm.h>
 
 #include "boot_param.h"
 
-/* Definitions of physical drive number for each drive */
-#define SDMC_DISK        0
-#define USB_DISK         1       /* usb disk */
-#define RAM_DISK         2       /* Example: ram disk */
-
-static rt_device_t disk[FF_VOLUMES] = {0};
+static struct dev_info disk[FF_VOLUMES] = {0};
 
 static int elm_result_to_dfs(FRESULT result)
 {
@@ -97,7 +93,7 @@ static int get_disk(rt_device_t id)
 
     for (index = 0; index < FF_VOLUMES; index ++)
     {
-        if (disk[index] == id)
+        if (disk[index].dev_name == id)
             return index;
     }
 
@@ -126,7 +122,9 @@ int dfs_elm_mount(struct dfs_filesystem *fs, unsigned long rwflag, const void *d
     logic_nbr[0] = '0' + index;
 
     /* save device */
-    disk[index] = fs->dev_id;
+    disk[index].dev_name = fs->dev_id;
+    disk[index].dev_type = (long)data;
+
     /* check sector size */
     get_disk_info(&geometry);
     if (geometry.bytes_per_sector > FF_MAX_SS)
@@ -138,7 +136,7 @@ int dfs_elm_mount(struct dfs_filesystem *fs, unsigned long rwflag, const void *d
     fat = (FATFS *)rt_malloc_align(sizeof(FATFS), CACHE_LINE_SIZE);
     if (fat == RT_NULL)
     {
-        disk[index] = RT_NULL;
+        disk[index].dev_name = RT_NULL;
         return -ENOMEM;
     }
 
@@ -154,7 +152,7 @@ int dfs_elm_mount(struct dfs_filesystem *fs, unsigned long rwflag, const void *d
         if (dir == RT_NULL)
         {
             f_mount(RT_NULL, (const TCHAR *)logic_nbr, 1);
-            disk[index] = RT_NULL;
+            disk[index].dev_name = RT_NULL;
             rt_free_align(fat);
             return -ENOMEM;
         }
@@ -172,7 +170,7 @@ int dfs_elm_mount(struct dfs_filesystem *fs, unsigned long rwflag, const void *d
 
 __err:
     f_mount(RT_NULL, (const TCHAR *)logic_nbr, 1);
-    disk[index] = RT_NULL;
+    disk[index].dev_name = RT_NULL;
     rt_free_align(fat);
     return elm_result_to_dfs(result);
 }
@@ -199,7 +197,7 @@ int dfs_elm_unmount(struct dfs_filesystem *fs)
         return elm_result_to_dfs(result);
 
     fs->data = RT_NULL;
-    disk[index] = RT_NULL;
+    disk[index].dev_name = RT_NULL;
     rt_free_align(fat);
 
     return RT_EOK;
@@ -256,7 +254,7 @@ int dfs_elm_mkfs(rt_device_t dev_id)
 
             flag = FSM_STATUS_USE_TEMP_DRIVER;
 
-            disk[index] = dev_id;
+            disk[index].dev_name = dev_id;
 
             /* just fill the FatFs[vol] in ff.c, or mkfs will failded!
              * consider this condition: you just umount the elm fat,
@@ -287,7 +285,7 @@ int dfs_elm_mkfs(rt_device_t dev_id)
     {
         rt_free_align(fat);
         f_mount(RT_NULL, logic_nbr, (BYTE)index);
-        disk[index] = RT_NULL;
+        disk[index].dev_name = RT_NULL;
     }
 
     if (result != FR_OK)
@@ -871,12 +869,18 @@ INIT_COMPONENT_EXPORT(elm_init);
 #include "sdmc_disk/sdmc_disk.h"
 #endif
 
+#ifdef AIC_SPINAND_DRV
+#include "spinand_disk/spinand_disk.h"
+#endif
+
 /* Initialize a Drive */
 DSTATUS disk_initialize(BYTE pdrv)
 {
     DSTATUS stat = STA_NOINIT;
+    int dev_type = disk[pdrv].dev_type;
+    const char *device_name = disk[pdrv].dev_name;
 
-    switch (pdrv) {
+    switch (dev_type) {
 #ifdef RAM_DISK_ENABLE
         case RAM_DISK:
             stat = ram_disk_initialize(pdrv);
@@ -889,7 +893,12 @@ DSTATUS disk_initialize(BYTE pdrv)
 #endif
 #ifdef AIC_SDMC_DRV
         case SDMC_DISK:
-            stat = sdmc_disk_initialize(1);
+            stat = sdmc_disk_initialize(1, device_name);
+            return stat;
+#endif
+#ifdef AIC_SPINAND_DRV
+        case SPINAND_DISK:
+            stat = spinand_disk_initialize(device_name);
             return stat;
 #endif
         default:
@@ -909,8 +918,10 @@ DSTATUS disk_status(BYTE pdrv)
 DRESULT disk_read(BYTE pdrv, BYTE *buff, DWORD sector, UINT count)
 {
     DRESULT res = RES_PARERR;
+    int dev_type = disk[pdrv].dev_type;
+    const char *device_name = disk[pdrv].dev_name;
 
-    switch (pdrv) {
+    switch (dev_type) {
 #ifdef RAM_DISK_ENABLE
         case RAM_DISK:
             res = ram_disk_read(pdrv, buff, sector, count);
@@ -923,7 +934,12 @@ DRESULT disk_read(BYTE pdrv, BYTE *buff, DWORD sector, UINT count)
 #endif
 #ifdef AIC_SDMC_DRV
         case SDMC_DISK:
-            res = sdmc_disk_read(pdrv, buff, sector, count);
+            res = sdmc_disk_read(pdrv, device_name, buff, sector, count);
+            return res;
+#endif
+#ifdef AIC_SPINAND_DRV
+        case SPINAND_DISK:
+            res = spinand_disk_read(device_name, buff, sector, count);
             return res;
 #endif
         default:
@@ -937,8 +953,10 @@ DRESULT disk_read(BYTE pdrv, BYTE *buff, DWORD sector, UINT count)
 DRESULT disk_write(BYTE pdrv, const BYTE *buff, DWORD sector, UINT count)
 {
     DRESULT res = RES_PARERR;
+    int dev_type = disk[pdrv].dev_type;
+    const char *device_name = disk[pdrv].dev_name;
 
-    switch (pdrv) {
+    switch (dev_type) {
 #ifdef RAM_DISK_ENABLE
         case RAM_DISK:
             res = ram_disk_write(pdrv, buff, sector, count);
@@ -951,7 +969,12 @@ DRESULT disk_write(BYTE pdrv, const BYTE *buff, DWORD sector, UINT count)
 #endif
 #ifdef AIC_SDMC_DRV
         case SDMC_DISK:
-            res = sdmc_disk_write(pdrv, buff, sector, count);
+            res = sdmc_disk_write(pdrv, device_name, buff, sector, count);
+            return res;
+#endif
+#ifdef AIC_SPINAND_DRV
+        case SPINAND_DISK:
+            res = spinand_disk_write(device_name, buff, sector, count);
             return res;
 #endif
         default:
@@ -965,8 +988,10 @@ DRESULT disk_write(BYTE pdrv, const BYTE *buff, DWORD sector, UINT count)
 DRESULT disk_ioctl(BYTE pdrv, BYTE cmd, void *buff)
 {
      DRESULT res = RES_PARERR;
+     int dev_type = disk[pdrv].dev_type;
+     const char *device_name = disk[pdrv].dev_name;
 
-    switch (pdrv) {
+    switch (dev_type) {
 #ifdef RAM_DISK_ENABLE
         case RAM_DISK:
             res = ram_disk_ioctl(pdrv, cmd, buff);
@@ -979,7 +1004,12 @@ DRESULT disk_ioctl(BYTE pdrv, BYTE cmd, void *buff)
 #endif
 #ifdef AIC_SDMC_DRV
         case SDMC_DISK:
-            res = sdmc_disk_ioctl(pdrv, cmd, buff);
+            res = sdmc_disk_ioctl(pdrv, device_name, cmd, buff);
+            return res;
+#endif
+#ifdef AIC_SPINAND_DRV
+        case SPINAND_DISK:
+            res = spinand_disk_ioctl(device_name, cmd, buff);
             return res;
 #endif
         default:

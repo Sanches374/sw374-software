@@ -75,10 +75,6 @@ sfud_err set_write_enabled(const sfud_flash *flash, bool enabled);
 static sfud_err set_4_byte_address_mode(sfud_flash *flash, bool enabled);
 static void make_adress_byte_array(const sfud_flash *flash, uint32_t addr, uint8_t *array);
 
-/* ../port/sfup_port.c */
-extern void sfud_log_debug(const char *file, const long line, const char *format, ...);
-extern void sfud_log_info(const char *format, ...);
-
 /**
  * SFUD initialize by flash device
  *
@@ -418,7 +414,8 @@ static sfud_err sfud_read_data(const sfud_flash *flash, uint32_t addr, size_t si
     if (flash->read_cmd_format.instruction != SFUD_CMD_READ_DATA) {
         result = spi->qspi_read(spi, addr, (sfud_qspi_read_cmd_format *)&flash->read_cmd_format,
                                 data, size);
-    } else
+        return result;
+    }
 #endif
     {
         cmd_data[0] = SFUD_CMD_READ_DATA;
@@ -1049,6 +1046,15 @@ sfud_err sfud_read_status(const sfud_flash *flash, uint8_t *status) {
     return flash->spi.wr(&flash->spi, &cmd, 1, status, 1);
 }
 
+sfud_err sfud_read_cr(const sfud_flash *flash, uint8_t *status) {
+    uint8_t cmd = SFUD_CMD_READ_CONFIG_REGISTER;
+
+    SFUD_ASSERT(flash);
+    SFUD_ASSERT(status);
+
+    return flash->spi.wr(&flash->spi, &cmd, 1, status, 1);
+}
+
 static sfud_err wait_busy(const sfud_flash *flash) {
     sfud_err result = SFUD_SUCCESS;
     uint8_t status;
@@ -1118,7 +1124,10 @@ sfud_err sfud_write_status(const sfud_flash *flash, bool is_volatile, uint8_t st
         SFUD_INFO("Error: Write_status register failed.");
     }
 
-    return result;
+    if (result == SFUD_SUCCESS)
+        return wait_busy(flash);
+    else
+        return result;
 }
 
 sfud_err sfud_write_status2(const sfud_flash *flash, uint8_t *status) {
@@ -1141,7 +1150,20 @@ sfud_err sfud_write_status2(const sfud_flash *flash, uint8_t *status) {
         SFUD_INFO("Error: Write_status register failed.");
     }
 
-    return result;
+    if (result == SFUD_SUCCESS)
+        return wait_busy(flash);
+    else
+        return result;
+}
+
+sfud_err sfud_write_cr(const sfud_flash *flash, uint8_t *cr) {
+    sfud_err result = SFUD_SUCCESS;
+
+    result = sfud_write_reg(flash, SFUD_CMD_WRITE_STATUS2_REGISTER, cr);
+    if (result == SFUD_SUCCESS)
+        return wait_busy(flash);
+    else
+        return result;
 }
 
 sfud_err sfud_write_reg(const sfud_flash *flash, uint8_t reg, uint8_t *status) {

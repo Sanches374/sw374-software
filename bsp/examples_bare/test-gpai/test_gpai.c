@@ -81,6 +81,38 @@ struct aic_gpai_ch aic_gpai_chs[] = {
         .fifo_depth = 8,
     },
 #endif
+#ifdef AIC_USING_GPAI8
+    {
+        .id = 8,
+        .available = 1,
+        .mode = AIC_GPAI_MODE_SINGLE,
+        .fifo_depth = 8,
+    },
+#endif
+#ifdef AIC_USING_GPAI9
+    {
+        .id = 9,
+        .available = 1,
+        .mode = AIC_GPAI_MODE_SINGLE,
+        .fifo_depth = 8,
+    },
+#endif
+#ifdef AIC_USING_GPAI10
+    {
+        .id = 10,
+        .available = 1,
+        .mode = AIC_GPAI_MODE_SINGLE,
+        .fifo_depth = 8,
+    },
+#endif
+#ifdef AIC_USING_GPAI11
+    {
+        .id = 11,
+        .available = 1,
+        .mode = AIC_GPAI_MODE_SINGLE,
+        .fifo_depth = 8,
+    },
+#endif
 };
 
 static char sopts[] = "c:t:h";
@@ -91,21 +123,20 @@ static struct option lopts[] = {
     {0, 0, 0, 0}
     };
 
-#define AIC_GPAI_CH_NUM             8
-#define AIC_GPAI_DEFAULT_VOLTAGE    3
-#define AIC_GPAI_ADC_MAX_VAL        0xFFF
+#define AIC_GPAI_DEFAULT_VOLTAGE        3
+#define AIC_GPAI_ADC_MAX_VAL            0xFFF
+#define AIC_GPAI_VOLTAGE_ACCURACY       100
 
-#define GPAI_HELP                                                       \
-    "Usage: test_gpai [options]\n"                                      \
-    "\t -c, --channel\t\tSelect one channel in [0, 7], default is 0\n"  \
-    "\t -t, --voltage\t\tInput standard voltage, default is 3\n"        \
-    "\t -h, --help \n"                                                  \
-    "\n"                                                                \
-    "Example: test_gpai -c 4 -t 3\n"
-
-static void gpai_help(void)
+static void cmd_gpai_usage(char *program)
 {
-    puts(GPAI_HELP);
+    printf("Compile time: %s %s\n", __DATE__, __TIME__);
+    printf("Usage: %s [options]\n", program);
+    printf("\t -c, --channel\t\tSelect one channel in [0, %d], default is 0\n",
+           AIC_GPAI_CH_NUM);
+    printf("\t -t, --voltage\t\tInput standard voltage, default is 3\n");
+    printf("\t -h, --help \n");
+    printf("\n");
+    printf("Example: %s -c 4 -t 3\n", program);
 }
 
 static int test_gpai_init(int ch)
@@ -143,12 +174,15 @@ static int test_gpai_read(int ch)
     return value;
 }
 
-static void test_adc2voltage(int adc_value,int chan,int st_voltage)
+static void test_adc2voltage(int adc_value, int chan, int st_voltage)
 {
     int voltage;
+    int scale = AIC_GPAI_VOLTAGE_ACCURACY;
 
-    voltage = (adc_value * st_voltage * 100) / AIC_GPAI_ADC_MAX_VAL;
-    printf("GPAI ch%d-voltage:%d.%2d\n", chan, voltage / 100, voltage % 100);
+    voltage = hal_adcim_auto_calibration(adc_value, st_voltage, scale,
+                                         AIC_GPAI_ADC_MAX_VAL);
+    printf("GPAI ch%d-voltage:%d.%02d\n", chan, voltage / scale,
+           voltage % scale);
     return;
 }
 
@@ -161,7 +195,7 @@ static int cmd_test_gpai(int argc, char *argv[])
     float st_voltage = AIC_GPAI_DEFAULT_VOLTAGE;
 
     if (argc < 3) {
-        gpai_help();
+        cmd_gpai_usage(argv[0]);
         return 0;
     }
 
@@ -178,7 +212,7 @@ static int cmd_test_gpai(int argc, char *argv[])
             st_voltage = atof(optarg);
             break;
         case 'h':
-            gpai_help();
+            cmd_gpai_usage(argv[0]);
         default:
             return 0;
         }

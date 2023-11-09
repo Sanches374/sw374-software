@@ -15,6 +15,7 @@
 #include <dfs_bare.h>
 #include <dfs_fs.h>
 #include <dfs_file.h>
+#include <dfs_elm.h>
 #include "dfs_private.h"
 
 /**
@@ -235,6 +236,8 @@ int dfs_mount(const char   *device_name,
     {
         /* which is a non-device filesystem mount */
         dev_id = NULL;
+    }  else {
+        dev_id = (void *)device_name;
     }
 
     /* find out the specific filesystem */

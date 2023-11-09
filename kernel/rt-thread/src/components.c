@@ -19,6 +19,7 @@
 
 #include <rthw.h>
 #include <rtthread.h>
+#include <aic_time.h>
 
 #ifdef RT_USING_USER_MAIN
 #ifndef RT_MAIN_THREAD_STACK_SIZE
@@ -111,13 +112,17 @@ void rt_components_init(void)
 #if RT_DEBUG_INIT
     int result;
     const struct rt_init_desc *desc;
+    uint32_t s_time = 0;
+    uint32_t e_time = 0;
 
     rt_kprintf("do components initialization.\n");
     for (desc = &__rt_init_desc_rti_board_end; desc < &__rt_init_desc_rti_end; desc ++)
     {
         rt_kprintf("initialize %s", desc->fn_name);
+        s_time = aic_get_time_us();
         result = desc->fn();
-        rt_kprintf(":%d done\n", result);
+        e_time = aic_get_time_us();
+        rt_kprintf(":%d done (%d -> %d: %d us)\n", result, s_time, e_time, e_time-s_time);
     }
 #else
     volatile const init_fn_t *fn_ptr;

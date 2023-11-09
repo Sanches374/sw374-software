@@ -124,15 +124,15 @@ typedef enum {
 } can_state_t;
 
 struct can_bittiming_const {
-    uint32_t sync_seg;
-    uint32_t tseg1_min;
-    uint32_t tseg1_max;
-    uint32_t tseg2_min;
-    uint32_t tseg2_max;
-    uint32_t sjw_max;
-    uint32_t brp_min;
-    uint32_t brp_max;
-    uint32_t brp_inc;
+    u32 sync_seg;
+    u32 tseg1_min;
+    u32 tseg1_max;
+    u32 tseg2_min;
+    u32 tseg2_max;
+    u32 sjw_max;
+    u32 brp_min;
+    u32 brp_max;
+    u32 brp_inc;
 };
 
 typedef enum {
@@ -152,43 +152,43 @@ typedef enum {
 } can_op_req_t;
 
 typedef struct {
-    uint8_t code;
+    u8 code;
     char *msg;
 } bus_err_msg_t;
 
 typedef struct can_status {
     can_state_t current_state;
-    uint32_t    recverrcnt;
-    uint32_t    snderrcnt;
-    uint32_t    rxovercnt;
-    uint32_t    arblostcnt;
-    uint32_t    biterrcnt;
-    uint32_t    formaterrcnt;
-    uint32_t    stufferrcnt;
-    uint32_t    othererrcnt;
-    uint32_t    recvpkgcnt;
-    uint32_t    sndpkgcnt;
-    uint32_t    rxerr;
-    uint32_t    txerr;
+    u32    recverrcnt;
+    u32    snderrcnt;
+    u32    rxovercnt;
+    u32    arblostcnt;
+    u32    biterrcnt;
+    u32    formaterrcnt;
+    u32    stufferrcnt;
+    u32    othererrcnt;
+    u32    recvpkgcnt;
+    u32    sndpkgcnt;
+    u32    rxerr;
+    u32    txerr;
 } can_status_t;
 
 typedef struct {
-    uint32_t    id;
-    uint8_t     rtr;
-    uint8_t     ide;
-    uint8_t     dlc;
-    uint8_t     data[8];
+    u32    id;
+    u8     rtr;
+    u8     ide;
+    u8     dlc;
+    u8     data[8];
 } can_msg_t;
 
 typedef struct can_handle can_handle;
 struct can_handle {
 	unsigned long can_base;
-	uint32_t irq_num;
-	uint32_t clk_id;
-	uint32_t idx;
+	u32 irq_num;
+	u32 clk_id;
+	u32 idx;
 	void (*callback)(can_handle * phandle, void *arg);
 	void *arg;
-	uint32_t baudrate;
+	u32 baudrate;
 	can_msg_t msg;
 	can_status_t status;
 };
@@ -201,35 +201,35 @@ typedef enum {
 
 typedef union {
     struct single_filter_std {
-        uint16_t    id_filter;
-        uint8_t     rtr_filter;
-        uint8_t     data0_filter;
-        uint8_t     data1_filter;
+        u16    id_filter;
+        u8     rtr_filter;
+        u8     data0_filter;
+        u8     data1_filter;
     } sfs;
 
     struct single_filter_ext {
-        uint32_t    id_filter;
-        uint8_t     rtr_filter;
+        u32    id_filter;
+        u8     rtr_filter;
     } sfe;
 
     struct dual_filter_std {
-        uint16_t    id_filter0;
-        uint8_t     rtr_filter0;
-        uint8_t     data0_filter0;
-        uint16_t    id_filter1;
-        uint8_t     rtr_filter1;
+        u16    id_filter0;
+        u8     rtr_filter0;
+        u8     data0_filter0;
+        u16    id_filter1;
+        u8     rtr_filter1;
     } dfs;
 
     struct dual_filter_ext {
-        uint16_t    id_filter0;
-        uint16_t    id_filter1;
+        u16    id_filter0;
+        u16    id_filter1;
     } dfe;
 } can_filter_t;
 
 typedef struct can_filter_config {
     can_filter_mode_t   filter_mode;
     /* is_eff indicates whether the filter is used to filter extended frame */
-    uint8_t             is_eff;
+    u8                  is_eff;
     can_filter_t        rxcode;
     can_filter_t        rxmask;
 } can_filter_config_t;
@@ -254,9 +254,10 @@ static inline void hal_can_disable_interrupt(can_handle *phandle)
 #define CAN_EVENT_TX_FAIL        0x03    /* Tx fail   */
 #define CAN_EVENT_RXOF_IND       0x06    /* Rx overflow */
 
-int hal_can_init(can_handle *phandle, uint32_t can_idx);
+int hal_can_init(can_handle *phandle, u32 can_idx);
 void hal_can_uninit(can_handle *phandle);
-void hal_can_tx_frame(can_handle *phandle, can_msg_t * msg, can_op_req_t req);
+void hal_can_send_frame(can_handle *phandle, can_msg_t * msg, can_op_req_t req);
+void hal_can_receive_frame(can_handle *phandle, can_msg_t * msg);
 int hal_can_ioctl(can_handle *phandle, int cmd, void *arg);
 int hal_can_attach_callback(can_handle *phandle, void *callback, void *arg);
 void hal_can_detach_callback(can_handle *phandle);

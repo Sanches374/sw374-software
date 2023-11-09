@@ -67,7 +67,7 @@ void aic_board_sysclk_init(void)
     hal_clk_enable_deassertrst_iter(CLK_GPIO);
     hal_clk_enable_deassertrst_iter(CLK_GTC);
 #ifdef AIC_USING_GMAC0
-    hal_clk_enable_deassertrst_iter(CLK_OUT2);
+    hal_clk_enable_iter(CLK_OUT2);
 #endif
 }
 

@@ -1073,3 +1073,28 @@ out:
 
     return -1;
 }
+
+s32 mmc_deinit(int id)
+{
+    struct aic_sdmc *p = (struct aic_sdmc *)mmc_dev[id];
+
+    if (id < 0 || id > MAX_MMC_DEV_NUM - 1) {
+        pr_err("Invalid SDMC ID %d\n", id);
+        return -1;
+    }
+
+    if (p == NULL) {
+        pr_info("SDMC%d was already deinited\n", id);
+        return 0;
+    }
+
+    if (p->dev)
+        free(p->dev);
+
+    if (p) {
+        free(p);
+        mmc_dev[id] = NULL;
+    }
+
+    return 0;
+}

@@ -33,7 +33,7 @@
 #include "aic_message.h"
 #include "mpp_decoder.h"
 #include "aic_render.h"
-
+#include "mpp_ge.h"
 
 OMX_ERRORTYPE OMX_VideoRenderComponentDeInit(
         OMX_IN    OMX_HANDLETYPE hComponent);
@@ -107,6 +107,13 @@ typedef struct VIDEO_RENDER_DATA_TYPE {
 
     pthread_mutex_t sWaitReayFrameLock;
     OMX_S32 nWaitReayFrameFlag;
+    //rotation
+    OMX_S32 nInitRotationParam; // -1-init fail,0-not init,1-init ok
+    OMX_S32 nRotationAngleChange;
+    OMX_S32 nRotationAngle;
+    struct mpp_frame sRotationFrames[2];
+    struct mpp_frame *pCurDisplayFrame;
+    struct mpp_ge *sGeHandle;
 }VIDEO_RENDER_DATA_TYPE;
 
 

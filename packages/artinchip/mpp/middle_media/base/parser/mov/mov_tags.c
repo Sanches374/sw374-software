@@ -7,7 +7,19 @@
 
 #include "mov_tags.h"
 
+const struct codec_tag mp4_obj_type[] = {
+    { CODEC_ID_AAC         , 0x40 },
+    { CODEC_ID_AAC         , 0x66 }, /* MPEG-2 AAC Main */
+    { CODEC_ID_AAC         , 0x67 }, /* MPEG-2 AAC Low */
+    { CODEC_ID_AAC         , 0x68 }, /* MPEG-2 AAC SSR */
+    { CODEC_ID_MP3         , 0x69 }, /* 13818-3 */
+    { CODEC_ID_MP3         , 0x6B }, /* 11172-3 */
+    { CODEC_ID_MJPEG       , 0x6C }, /* 10918-1 */
+    { CODEC_ID_NONE        ,    0 },
+};
+
 const struct codec_tag mov_audio_tags[] = {
+    { CODEC_ID_AAC,             MKTAG('m', 'p', '4', 'a') },
     { CODEC_ID_MP3,             MKTAG('.', 'm', 'p', '3') },
     { CODEC_ID_MP3,             MKTAG('m', 'p', '3', ' ') }, /* vlc */
     { CODEC_ID_MP3,             0x6D730055                },

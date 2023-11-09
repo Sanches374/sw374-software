@@ -36,10 +36,13 @@ if GetDepend('AIC_SYSCFG_DRV'):
         src += Glob('hal/syscfg/*.c')
 
 if GetDepend('AIC_DMA_DRV'):
+    ver = GetConfigValue('AIC_DMA_DRV_VER')
+    ver = ver.replace('"','')
     if GetDepend('DRIVER_DRV_EN') or GetDepend('DRIVER_BARE_DRV_EN'):
         src += Glob('drv/dma/*.c')
     if GetDepend('DRIVER_HAL_EN'):
-        src += Glob('hal/dma/*.c')
+        src += Glob('hal/dma/*.c', exclude=['hal/dma/*def_v*.c'])
+        src += Glob('hal/dma/*def_v%sx.c' % (ver[0]))
 
 # UART driver
 if GetDepend('AIC_UART_DRV'):
@@ -94,6 +97,15 @@ if GetDepend('AIC_XSPI_DRV'):
         src += Glob('hal/xspi/*.c')
     if GetDepend('DRIVER_BARE_DRV_EN'):
         src += Glob('drv_bare/psram/*.c')
+
+# AXICFG driver
+if GetDepend('AIC_AXICFG_DRV'):
+    if GetDepend('DRIVER_DRV_EN'):
+        src += Glob('drv/axicfg/*.c')
+    if GetDepend('DRIVER_HAL_EN'):
+        src += Glob('hal/axicfg/*.c')
+    if GetDepend('DRIVER_BARE_DRV_EN'):
+        src += Glob('drv_bare/axicfg/*.c')
 
 if GetDepend('AIC_WRI_DRV'):
     if GetDepend('DRIVER_DRV_EN'):
@@ -189,7 +201,7 @@ if GetDepend('AIC_DISP_MIPI_DSI'):
     src += Glob('hal/display/aic_hal_dsi.c')
 
 # MIPI-DBI-SPI interface driver
-if GetDepend('AIC_DISP_MIPI_DBI_SPI'):
+if GetDepend('AIC_DISP_MIPI_DBI'):
     src += Glob('drv/display/drv_dbi.c')
     src += Glob('hal/display/aic_hal_dbi.c')
 
@@ -205,7 +217,7 @@ if GetDepend('AIC_DISPLAY_DRV'):
 if GetDepend('AIC_DISP_MIPI_DSI'):
     src += Glob('drv/display/panel/panel_dsi.c')
 
-if GetDepend('AIC_DISP_MIPI_DBI_SPI'):
+if GetDepend('AIC_DISP_MIPI_DBI'):
     src += Glob('drv/display/panel/panel_dbi.c')
 
 if GetDepend('AIC_SIMPLE_PANEL'):
@@ -213,6 +225,9 @@ if GetDepend('AIC_SIMPLE_PANEL'):
 
 if GetDepend('AIC_PANEL_DSI_XM91080'):
     src += Glob('drv/display/panel/panel_dsi_xm91080.c')
+
+if GetDepend('AIC_PANEL_DSI_ST7797'):
+    src += Glob('drv/display/panel/panel_dsi_st7797.c')
 
 if GetDepend('AIC_PANEL_DBI_ILI9488'):
     src += Glob('drv/display/panel/panel_dbi_ili9488.c')
@@ -222,6 +237,12 @@ if GetDepend('AIC_PANEL_DBI_ILI9341'):
 
 if GetDepend('AIC_PANEL_DBI_ST77903'):
     src += Glob('drv/display/panel/panel_dbi_st77903.c')
+
+if GetDepend('AIC_PANEL_DBI_ILI9486L'):
+    src += Glob('drv/display/panel/panel_dbi_ili9486l.c')
+
+if GetDepend('AIC_PANEL_SRGB_HX8238'):
+    src += Glob('drv/display/panel/panel_srgb_hx8238.c')
 
 # GE driver
 if GetDepend('AIC_GE_DRV'):
@@ -300,6 +321,8 @@ if GetDepend('AIC_SID_DRV'):
         src += Glob('drv/efuse/*.c')
     if GetDepend('DRIVER_HAL_EN'):
         src += Glob('hal/efuse/*.c')
+    if GetDepend('DRIVER_BARE_DRV_EN'):
+            src += Glob('drv_bare/efuse/*.c')
 
 if GetDepend('AIC_CIR_DRV'):
     if GetDepend('DRIVER_DRV_EN'):
@@ -317,6 +340,12 @@ if GetDepend('AIC_CE_DRV'):
         src += Glob('drv/ce/*.c')
     if GetDepend('DRIVER_HAL_EN'):
         src += Glob('hal/ce/*.c')
+
+if GetDepend('AIC_LPCE_DRV'):
+    if GetDepend('DRIVER_DRV_EN'):
+        src += Glob('drv/lpce/*.c')
+    if GetDepend('DRIVER_HAL_EN'):
+        src += Glob('hal/lpce/*.c')
 
 if GetDepend('AIC_I2S_DRV'):
     if GetDepend('DRIVER_DRV_EN'):

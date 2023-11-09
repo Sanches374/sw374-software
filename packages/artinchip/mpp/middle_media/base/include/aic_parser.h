@@ -9,6 +9,7 @@
 #define __AIC_PARSER_H__
 
 #include "mpp_dec_type.h"
+#include "aic_audio_decoder.h"
 #include "aic_stream.h"
 #include "mpp_log.h"
 
@@ -27,10 +28,6 @@ enum aic_parser_stream_type {
 	MPP_MEDIA_TYPE_VIDEO,
 	MPP_MEDIA_TYPE_AUDIO,
 	MPP_MEDIA_TYPE_OTHER
-};
-
-enum mpp_audio_codec_type {
-	MPP_CODEC_AUDI_DECODER_MP3 = 0x0,//decoder
 };
 
 enum parse_status {
@@ -57,7 +54,7 @@ struct aic_parser_video_stream {
 };
 
 struct aic_parser_audio_stream {
-	enum mpp_audio_codec_type codec_type;
+	enum aic_audio_codec_type codec_type;
 	s32 nb_channel;
 	s32 bits_per_sample;
 	s32 sample_rate;

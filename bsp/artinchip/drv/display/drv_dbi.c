@@ -10,6 +10,23 @@
 
 #include "disp_com.h"
 
+/*
+ * DOC: overview
+ *
+ * This library provides helpers for MIPI Display Bus Interface (DBI)
+ * compatible display controllers.
+ *
+ * There are 3 MIPI DBI implementation types:
+ *
+ * A. Motorola 6800 type parallel bus
+ *
+ * B. Intel 8080 type parallel bus
+ *
+ * C. SPI type parallel bus
+ *
+ * Currently aic mipi dbi only supports Type B and Type C.
+ */
+
 struct aic_dbi_comp
 {
     void *regs;
@@ -62,7 +79,7 @@ static int aic_dbi_clk_disable(void)
     return 0;
 }
 
-static void aic_dbi_type2_cfg(void)
+static void aic_dbi_i8080_cfg(void)
 {
     struct aic_dbi_comp *comp = aic_dbi_request_drvdata();
     struct panel_dbi *dbi = comp->panel->dbi;
@@ -95,29 +112,27 @@ static int aic_dbi_enable(void)
     struct panel_dbi *dbi = comp->panel->dbi;
 
     reg_set_bits(comp->regs + DBI_CTL,
-            DBI_CTL_MODE_MASK,
-            DBI_CTL_MODE(dbi->mode));
+            DBI_CTL_TYPE_MASK,
+            DBI_CTL_TYPE(dbi->type));
 
-    switch (dbi->mode) {
+    switch (dbi->type) {
     case I8080:
         reg_set_bits(comp->regs + DBI_CTL,
-                DBI_CTL_I8080_MODE_MASK,
-                DBI_CTL_I8080_MODE(dbi->format));
-        aic_dbi_type2_cfg();
+                DBI_CTL_I8080_TYPE_MASK,
+                DBI_CTL_I8080_TYPE(dbi->format));
+        aic_dbi_i8080_cfg();
         break;
     case SPI:
         reg_set_bits(comp->regs + DBI_CTL,
-                DBI_CTL_SPI_MODE_MASK,
-                DBI_CTL_SPI_MODE(
-                    dbi->format / SPI_MODE_NUM));
+                DBI_CTL_SPI_TYPE_MASK,
+                DBI_CTL_SPI_TYPE(dbi->format / SPI_MODE_NUM));
         reg_set_bits(comp->regs + DBI_CTL,
                 DBI_CTL_SPI_FORMAT_MASK,
-                DBI_CTL_SPI_FORMAT(
-                    dbi->format % SPI_MODE_NUM));
+                DBI_CTL_SPI_FORMAT(dbi->format % SPI_MODE_NUM));
         aic_dbi_spi_cfg();
         break;
     default:
-        pr_err("Invalid mode %d\n", dbi->mode);
+        pr_err("Invalid type %d\n", dbi->type);
         break;
     }
 
@@ -146,11 +161,12 @@ static int aic_dbi_attach_panel(struct aic_panel *panel)
 
     comp->panel = panel;
 
-    if (dbi->mode == I8080)
+    if (dbi->type == I8080)
         comp->sclk_rate = pixclk * i8080_clk[dbi->format];
-    else if (dbi->mode == SPI)
+    else if (dbi->type == SPI)
         comp->sclk_rate = pixclk * spi_clk[dbi->format];
 
+    pll_disp_rate = comp->sclk_rate;
     while (pll_disp_rate < PLL_DISP_FREQ_MIN)
     {
         pll_disp_rate = comp->sclk_rate * (2 << i);
@@ -167,10 +183,10 @@ int aic_dbi_send_cmd(u32 dt, u32 vc, const u8 *data, u32 len)
     struct aic_dbi_comp *comp = aic_dbi_request_drvdata();
     struct panel_dbi *dbi = comp->panel->dbi;
 
-    if (dbi->mode == I8080)
+    if (dbi->type == I8080)
         i8080_cmd_wr(comp->regs, dt, len, data);
 
-    if (dbi->mode == SPI)
+    if (dbi->type == SPI)
         spi_cmd_wr(comp->regs, dt, len, data);
 
     return 0;
@@ -210,8 +226,8 @@ static void aic_dbi_remove(void)
 }
 
 struct platform_driver artinchip_dbi_driver = {
-    .name = "artinchip-dbi-spi",
-    .component_type = AIC_DBI_SPI_COM,
+    .name = "artinchip-dbi",
+    .component_type = AIC_DBI_COM,
     .probe = aic_dbi_probe,
     .remove = aic_dbi_remove,
     .di_funcs = &aic_dbi_func,

@@ -181,13 +181,10 @@ static void rtp_draw_cross(calibration *cal, int index, char *name, int y,
 
 static void rtp_entry(void *parameter)
 {
-    u32 max;
     int cnt = 0;
-    rt_uint32_t value;
     struct rt_touch_data *data;
+    int max = *((int*)parameter);
 
-    value = (rt_uint32_t)parameter;
-    max = (u32)value;
     pr_info("Try to read %d points from RTP ...\n", max);
 
     while (cnt < max){
@@ -286,7 +283,8 @@ static int rtp_perform_calibration(calibration *cal)
 /* Calculate the average value of multiple points triggered by one click as
  * the calibration point. Among them, the calibration point is the touch
  * screen coordinate system */
-static void rtp_getxy(calibration *cal,int index, struct rt_touch_data *data)
+static void rtp_get_valid_point(calibration *cal, int index,
+                                      struct rt_touch_data *data)
 {
     int x=0, y=0;
     int cnt = 0;
@@ -349,21 +347,21 @@ static void rtp_calibrate(calibration *cal)
     memset(cal, 0, sizeof(&cal));
 
     rtp_draw_cross(cal, 0, "Top left", height, width);
-    rtp_getxy(cal, 0, data);
+    rtp_get_valid_point(cal, 0, data);
 
     rtp_draw_cross(cal, 1, "Top right", height, g_xres - width - length);
-    rtp_getxy(cal, 1, data);
+    rtp_get_valid_point(cal, 1, data);
 
     rtp_draw_cross(cal, 2, "Bot right", g_yres - height - length,
                    g_xres - width - length);
-    rtp_getxy(cal, 2, data);
+    rtp_get_valid_point(cal, 2, data);
 
     rtp_draw_cross(cal, 3, "Bot left", g_yres - height - length, width);
-    rtp_getxy(cal, 3, data);
+    rtp_get_valid_point(cal, 3, data);
 
     rtp_draw_cross(cal, 4, "Center", (g_yres - length) / 2,
                    (g_xres - length) / 2);
-    rtp_getxy(cal, 4, data);
+    rtp_get_valid_point(cal, 4, data);
 
     memset(g_fb_info.framebuffer, 0, g_fb_info.smem_len);
     rtp_perform_calibration(cal);
@@ -371,7 +369,7 @@ static void rtp_calibrate(calibration *cal)
     return;
 }
 
-static void rtp_draw(int cnt)
+static void rtp_draw(long cnt)
 {
     g_rtp_sem = rt_sem_create("dsem", 0,RT_IPC_FLAG_PRIO);
     if (g_rtp_sem == RT_NULL) {

@@ -46,7 +46,9 @@ extern "C" {
 #define SFUD_DEBUG(...) sfud_log_debug(__FILE__, __LINE__, __VA_ARGS__)
 #endif /* SFUD_DEBUG */
 #else
+#ifndef SFUD_DEBUG
 #define SFUD_DEBUG(...)
+#endif /* SFUD_DEBUG */
 #endif /* SFUD_DEBUG_MODE */
 
 #ifndef SFUD_INFO
@@ -65,6 +67,8 @@ if (!(EXPR))                                                                   \
 #define SFUD_ASSERT(EXPR)
 #endif
 
+extern void sfud_log_debug(const char *file, const long line, const char *format, ...);
+extern void sfud_log_info(const char *format, ...);
 /**
  * retry process
  *

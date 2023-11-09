@@ -45,6 +45,8 @@ struct aic_de_comp {
     struct aicfb_alpha_config alpha[MAX_LAYER_NUM];
     struct aicfb_ck_config ck[MAX_LAYER_NUM];
     struct aicfb_disp_prop disp_prop;
+    struct aicfb_ccm_config ccm;
+    struct aicfb_gamma_config gamma;
 
     const struct display_timing *timing;
     aicos_event_t vsync_event;
@@ -240,6 +242,14 @@ static int aic_de_timing_enable(void)
     de_soft_reset_ctrl(comp->regs, 1);
 
     de_set_qos(comp->regs);
+
+    de_set_mode(comp->regs, DE_MODE);
+#if DE_AUTO_MODE
+    if (de_set_te_pinmux(TE_PIN) < 0)
+        pr_err("Invalid TE pin\n");
+
+    de_set_te_pulse_width(comp->regs, TE_PULSE_WIDTH);
+#endif
 
     if (comp->dither.enable)
         de_set_dither(comp->regs,
@@ -1235,6 +1245,64 @@ static int aic_de_get_display_prop(struct aicfb_disp_prop *disp_prop)
     return 0;
 }
 
+static int aic_de_set_ccm_config(struct aicfb_ccm_config *ccm)
+{
+    struct aic_de_comp *comp = aic_de_request_drvdata();
+
+    de_config_update_enable(comp->regs, 0);
+
+    if (ccm->enable) {
+        de_config_ccm(comp->regs, ccm->ccm_table);
+        de_ccm_ctrl(comp->regs, 1);
+    } else {
+        de_ccm_ctrl(comp->regs, 0);
+    }
+
+    memcpy(&comp->ccm, ccm, sizeof(struct aicfb_ccm_config));
+    de_config_update_enable(comp->regs, 1);
+    aic_de_release_drvdata();
+    return 0;
+}
+
+static int aic_de_get_ccm_config(struct aicfb_ccm_config *ccm)
+{
+    struct aic_de_comp *comp = aic_de_request_drvdata();
+
+    memcpy(ccm, &comp->ccm, sizeof(struct aicfb_ccm_config));
+
+    aic_de_release_drvdata();
+    return 0;
+}
+
+static int aic_de_set_gamma_config(struct aicfb_gamma_config *gamma)
+{
+    struct aic_de_comp *comp = aic_de_request_drvdata();
+    int i;
+
+    if (gamma->enable) {
+        for (i = 0; i < 3; i++)
+            de_config_gamma_lut(comp->regs, gamma->gamma_lut[i], i);
+
+        de_gamma_ctrl(comp->regs, 1);
+    } else {
+        de_gamma_ctrl(comp->regs, 0);
+    }
+
+    memcpy(&comp->gamma, gamma, sizeof(struct aicfb_gamma_config));
+    aic_de_release_drvdata();
+    return 0;
+}
+
+static int aic_de_get_gamma_config(struct aicfb_gamma_config *gamma)
+{
+    struct aic_de_comp *comp = aic_de_request_drvdata();
+
+    memcpy(gamma, &comp->gamma, sizeof(struct aicfb_gamma_config));
+
+    aic_de_release_drvdata();
+    return 0;
+}
+
 struct de_funcs aic_de_funcs = {
     .set_mode                 = aic_de_set_mode,
     .clk_enable               = aic_de_clk_enable,
@@ -1251,6 +1319,10 @@ struct de_funcs aic_de_funcs = {
     .update_layer_config_list = aic_de_update_layer_config_list,
     .set_display_prop         = aic_de_set_display_prop,
     .get_display_prop         = aic_de_get_display_prop,
+    .set_ccm_config           = aic_de_set_ccm_config,
+    .get_ccm_config           = aic_de_get_ccm_config,
+    .set_gamma_config         = aic_de_set_gamma_config,
+    .get_gamma_config         = aic_de_get_gamma_config,
 };
 
 static const struct aicfb_layer_num layer_num = {
@@ -1312,6 +1384,9 @@ static int aic_de_probe(void)
     comp->disp_prop.contrast = 50;
     comp->disp_prop.saturation = 50;
     comp->disp_prop.hue = 50;
+
+    memset(&comp->ccm, 0x0, sizeof(struct aicfb_ccm_config));
+    memset(&comp->gamma, 0x0, sizeof(struct aicfb_gamma_config));
 
     g_aic_de_comp = comp;
 

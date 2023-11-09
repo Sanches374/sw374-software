@@ -42,6 +42,16 @@ struct aic_pinmux aic_pinmux_config[] = {
     {4, PIN_PULL_DIS, 3, "PA.4"},
     {4, PIN_PULL_DIS, 3, "PA.5"},
 #endif
+#ifdef AIC_USING_AUDIO
+#ifdef AIC_AUDIO_DMIC
+    {4, PIN_PULL_DIS, 3, "PD.16"},
+    {4, PIN_PULL_DIS, 3, "PD.17"},
+#endif
+#ifdef AIC_AUDIO_PLAYBACK
+    {5, PIN_PULL_DIS, 3, "PE.12"},
+    {1, PIN_PULL_DIS, 3, AIC_AUDIO_PA_ENABLE_GPIO},
+#endif
+#endif
 #ifdef AIC_USING_RTP
     {2, PIN_PULL_DIS, 3, "PA.8"},
     {2, PIN_PULL_DIS, 3, "PA.9"},
@@ -141,6 +151,12 @@ struct aic_pinmux aic_pinmux_config[] = {
     {2, PIN_PULL_DIS, 3, "PO.0"},   // USB-DM
     {2, PIN_PULL_DIS, 3, "PO.1"},   // USB-DP
     {1, PIN_PULL_DIS, 3, "PD.8"},   // USB-ID
+#endif
+#ifdef AIC_USING_RTP
+    {2, PIN_PULL_DIS, 3, "PA.8"},
+    {2, PIN_PULL_DIS, 3, "PA.9"},
+    {2, PIN_PULL_DIS, 3, "PA.10"},
+    {2, PIN_PULL_DIS, 3, "PA.11"},
 #endif
 };
 

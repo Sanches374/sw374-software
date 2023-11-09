@@ -7,10 +7,10 @@
  * Date           Author       Notes
  */
 
-#include <rtthread.h>
 #include <dfs.h>
 #include <dfs_fs.h>
 #include <dfs_file.h>
+#include <dfs_bare.h>
 
 #include "dfs_romfs.h"
 
@@ -37,7 +37,7 @@ int dfs_romfs_ioctl(struct dfs_fd *file, int cmd, void *args)
     return -EIO;
 }
 
-rt_inline int check_dirent(struct romfs_dirent *dirent)
+int check_dirent(struct romfs_dirent *dirent)
 {
     if ((dirent->type != ROMFS_DIRENT_FILE && dirent->type != ROMFS_DIRENT_DIR)
         || dirent->size == ~0U)
@@ -85,7 +85,7 @@ struct romfs_dirent *dfs_romfs_lookup(struct romfs_dirent *root_dirent, const ch
             if (check_dirent(&dirent[index]) != 0)
                 return NULL;
             if (rt_strlen(dirent[index].name) ==  (rt_size_t)(subpath_end - subpath) &&
-                    rt_strncmp(dirent[index].name, subpath, (subpath_end - subpath)) == 0)
+                    strncmp(dirent[index].name, subpath, (subpath_end - subpath)) == 0)
             {
                 dirent_size = dirent[index].size;
 
@@ -147,7 +147,7 @@ int dfs_romfs_read(struct dfs_fd *file, void *buf, size_t count)
         length = file->size - file->pos;
 
     if (length > 0)
-        rt_memcpy(buf, &(dirent->data[file->pos]), length);
+        memcpy(buf, &(dirent->data[file->pos]), length);
 
     /* update file current position */
     file->pos += length;

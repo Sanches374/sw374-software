@@ -57,6 +57,7 @@ enum CodecID {
     CODEC_ID_PCM_SGA,
 
     CODEC_ID_MP3, ///< preferred ID for decoding MPEG audio layer 1, 2 or 3
+    CODEC_ID_AAC,
 };
 
 struct codec_tag {
@@ -66,6 +67,7 @@ struct codec_tag {
 
 extern const struct codec_tag mov_audio_tags[];
 extern const struct codec_tag mov_video_tags[];
+extern const struct codec_tag mp4_obj_type[];
 
 enum CodecID codec_get_id(const struct codec_tag *tags, unsigned int tag);
 

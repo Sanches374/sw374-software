@@ -330,7 +330,7 @@ enum ethtool_link_mode_bit_indices {
 #define MII_MMD_CTRL_INCR_ON_WT 0xC000 /* post increment on writes only */
 
 int aicphy_init(uint32_t port);
-
+void aic_phy_poll(void);
 #ifdef __cplusplus
 }
 #endif

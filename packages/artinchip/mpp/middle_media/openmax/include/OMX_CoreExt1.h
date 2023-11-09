@@ -72,9 +72,11 @@ typedef enum OMX_EXTEVENTTYPE
 
 	//VideoRender 0x7F001000 - 0x7F001FFF
 	OMX_EventVideoRenderPts = 0x7F001000,
+	OMX_EventVideoRenderFirstFrame = 0x7F001001,
 
 	//AudioRender 0x7F002000 - 0x7F002FFF
-	OMX_EventAudioRenderPts = 0x7F002000
+	OMX_EventAudioRenderPts = 0x7F002000,
+	OMX_EventAudioRenderFirstFrame = 0x7F002001
 
 }OMX_EXTEVENTTYPE;
 

@@ -17,8 +17,7 @@
 
 #define ASYNC_DATA_SIZE 64
 
-struct aic_qspi
-{
+struct aic_qspi {
     struct rt_spi_bus dev;
     char *name;
     uint32_t idx;
@@ -27,7 +26,7 @@ struct aic_qspi
     uint32_t dma_port_id;
     uint32_t irq_num;
     qspi_master_handle handle;
-    struct rt_qspi_configuration  configuration;
+    struct rt_qspi_configuration configuration;
     rt_sem_t xfer_sem;
     bool inited;
 };
@@ -80,7 +79,7 @@ void dump_cmd(uint8_t *data, uint32_t len)
 {
     uint32_t i;
 
-    printf("CMD: (%lu) ", len);
+    printf("CMD: (%lu) ", (unsigned long)len);
     for (i = 0; i < len; i++)
         printf("%02X ", data[i]);
     printf("\n");
@@ -99,7 +98,8 @@ static uint32_t address_copy(uint32_t addr, uint32_t size, uint8_t *dst)
     return i;
 }
 
-static rt_err_t qspi_send_command(struct aic_qspi *qspi, struct rt_qspi_message *qspi_message)
+static rt_err_t qspi_send_command(struct aic_qspi *qspi,
+                                  struct rt_qspi_message *qspi_message)
 {
     uint32_t single_cnt, rest_cnt, cmd_rest_bw, dmycnt, dmybw;
     uint8_t cmdbuf1[16], cmdbuf2[16];
@@ -118,13 +118,17 @@ static rt_err_t qspi_send_command(struct aic_qspi *qspi, struct rt_qspi_message 
         dmybw = qspi_message->instruction.qspi_lines;
     }
 
-    if ((qspi_message->address.size != 0) && (qspi_message->address.qspi_lines == 1)) {
-        single_cnt += address_copy(qspi_message->address.content, qspi_message->address.size,
-                                   &cmdbuf1[single_cnt]);
+    if ((qspi_message->address.size != 0) &&
+        (qspi_message->address.qspi_lines == 1)) {
+        single_cnt +=
+            address_copy(qspi_message->address.content,
+                         qspi_message->address.size, &cmdbuf1[single_cnt]);
         dmybw = qspi_message->address.qspi_lines;
-    } else if ((qspi_message->address.size != 0) && (qspi_message->address.qspi_lines > 1)) {
-        rest_cnt += address_copy(qspi_message->address.content, qspi_message->address.size,
-                                 &cmdbuf2[rest_cnt]);
+    } else if ((qspi_message->address.size != 0) &&
+               (qspi_message->address.qspi_lines > 1)) {
+        rest_cnt +=
+            address_copy(qspi_message->address.content,
+                         qspi_message->address.size, &cmdbuf2[rest_cnt]);
         cmd_rest_bw = qspi_message->address.qspi_lines;
         dmybw = qspi_message->address.qspi_lines;
     }
@@ -173,7 +177,8 @@ static rt_err_t qspi_send_command(struct aic_qspi *qspi, struct rt_qspi_message 
     return 0;
 }
 
-static rt_uint32_t drv_qspi_send(struct aic_qspi *qspi, struct rt_spi_message *message,
+static rt_uint32_t drv_qspi_send(struct aic_qspi *qspi,
+                                 struct rt_spi_message *message,
                                  const uint8_t *tx, uint32_t size)
 {
     struct rt_qspi_message *qspi_message;
@@ -182,8 +187,16 @@ static rt_uint32_t drv_qspi_send(struct aic_qspi *qspi, struct rt_spi_message *m
 
     RT_ASSERT(qspi != RT_NULL);
     RT_ASSERT(message != RT_NULL);
-    RT_ASSERT(tx != RT_NULL);
-    RT_ASSERT(size != 0);
+
+    qspi_master_handle *h;
+    struct qspi_bm_transfer bm_t = {0};
+    h = &qspi->handle;
+    if (h->bit_mode) {
+        bm_t.tx_data = (uint8_t *)tx;
+        bm_t.tx_len = size;
+        ret = hal_qspi_master_transfer_bit_mode(h, &bm_t);
+        return ret;
+    }
 
     qspi_message = (struct rt_qspi_message *)message;
 
@@ -195,9 +208,11 @@ static rt_uint32_t drv_qspi_send(struct aic_qspi *qspi, struct rt_spi_message *m
     /* Data stage */
     if (size > 0) {
 #ifdef AIC_QSPI_DRV_DEBUG
-        printf("tx data bus width: %u, len %lu\n", qspi_message->qspi_data_lines, size);
+        printf("tx data bus width: %u, len %lu\n",
+               qspi_message->qspi_data_lines, (unsigned long)size);
 #endif
-        hal_qspi_master_set_bus_width(&qspi->handle, qspi_message->qspi_data_lines);
+        hal_qspi_master_set_bus_width(&qspi->handle,
+                                      qspi_message->qspi_data_lines);
         t.rx_data = NULL;
         t.tx_data = (uint8_t *)tx;
         t.data_len = size;
@@ -212,8 +227,9 @@ static rt_uint32_t drv_qspi_send(struct aic_qspi *qspi, struct rt_spi_message *m
 err:
     return 0;
 }
-static rt_uint32_t drv_qspi_receive(struct aic_qspi *qspi, struct rt_spi_message *message,
-                                    uint8_t *rx, uint32_t size)
+static rt_uint32_t drv_qspi_receive(struct aic_qspi *qspi,
+                                    struct rt_spi_message *message, uint8_t *rx,
+                                    uint32_t size)
 {
     struct rt_qspi_message *qspi_message;
     struct qspi_transfer t;
@@ -223,6 +239,16 @@ static rt_uint32_t drv_qspi_receive(struct aic_qspi *qspi, struct rt_spi_message
     RT_ASSERT(message != RT_NULL);
     RT_ASSERT(rx != RT_NULL);
     RT_ASSERT(size != 0);
+
+    qspi_master_handle *h;
+    struct qspi_bm_transfer bm_t = {0};
+    h = &qspi->handle;
+    if (h->bit_mode) {
+        bm_t.rx_data = rx;
+        bm_t.rx_len = size;
+        ret = hal_qspi_master_transfer_bit_mode(h, &bm_t);
+        return ret;
+    }
 
     qspi_message = (struct rt_qspi_message *)message;
 
@@ -234,9 +260,11 @@ static rt_uint32_t drv_qspi_receive(struct aic_qspi *qspi, struct rt_spi_message
     /* Data stage */
     if (size > 0) {
 #ifdef AIC_QSPI_DRV_DEBUG
-        printf("rx data bus width: %u, len %lu\n", qspi_message->qspi_data_lines, size);
+        printf("rx data bus width: %u, len %lu\n",
+               qspi_message->qspi_data_lines, (unsigned long)size);
 #endif
-        hal_qspi_master_set_bus_width(&qspi->handle, qspi_message->qspi_data_lines);
+        hal_qspi_master_set_bus_width(&qspi->handle,
+                                      qspi_message->qspi_data_lines);
         t.tx_data = NULL;
         t.rx_data = (uint8_t *)rx;
         t.data_len = size;
@@ -252,7 +280,8 @@ err:
     return 0;
 }
 
-static rt_uint32_t qspi_xfer(struct rt_spi_device *device, struct rt_spi_message *message)
+static rt_uint32_t qspi_xfer(struct rt_spi_device *device,
+                             struct rt_spi_message *message)
 {
     const rt_uint8_t *sndb = message->send_buf;
     rt_uint8_t *rcvb = message->recv_buf;
@@ -310,10 +339,23 @@ static rt_err_t qspi_configure(struct rt_spi_device *device,
     RT_ASSERT(device != RT_NULL);
     RT_ASSERT(configuration != RT_NULL);
 
-    qspi = (struct aic_qspi *) device->bus;
+    qspi = (struct aic_qspi *)device->bus;
 
-    if (rt_memcmp(&qspi->configuration, configuration, sizeof(struct rt_spi_configuration)) != 0) {
-        rt_memcpy(&qspi->configuration, configuration, sizeof(struct rt_spi_configuration));
+#ifdef AIC_SUPPORT_SPI_IN_BIT_MODE
+    if (configuration->mode & RT_SPI_3WIRE) {
+        qspi->handle.bit_mode = true;
+    } else {
+        qspi->handle.bit_mode = false;
+    }
+#else
+    qspi->handle.bit_mode = false;
+#endif
+
+    if ((rt_memcmp(&qspi->configuration, configuration,
+                   sizeof(struct rt_spi_configuration)) != 0) ||
+        (qspi->handle.bit_mode == true)) {
+        rt_memcpy(&qspi->configuration, configuration,
+                  sizeof(struct rt_spi_configuration));
         rt_memset(&cfg, 0, sizeof(cfg));
         cfg.idx = qspi->idx;
         cfg.clk_in_hz = qspi->clk_in_hz;
@@ -322,22 +364,22 @@ static rt_err_t qspi_configure(struct rt_spi_device *device,
         cfg.clk_id = qspi->clk_id;
 
         if (configuration->mode & RT_SPI_MSB)
-             cfg.lsb_en = false;
+            cfg.lsb_en = false;
         else
-             cfg.lsb_en = true;
+            cfg.lsb_en = true;
         if (configuration->mode & RT_SPI_CPHA)
-             cfg.cpha = HAL_QSPI_CPHA_SECOND_EDGE;
+            cfg.cpha = HAL_QSPI_CPHA_SECOND_EDGE;
         else
-             cfg.cpha = HAL_QSPI_CPHA_FIRST_EDGE;
+            cfg.cpha = HAL_QSPI_CPHA_FIRST_EDGE;
 
         if (configuration->mode & RT_SPI_CPOL)
-             cfg.cpol = HAL_QSPI_CPOL_ACTIVE_LOW;
+            cfg.cpol = HAL_QSPI_CPOL_ACTIVE_LOW;
         else
-             cfg.cpol = HAL_QSPI_CPOL_ACTIVE_HIGH;
+            cfg.cpol = HAL_QSPI_CPOL_ACTIVE_HIGH;
         if (configuration->mode & RT_SPI_CS_HIGH)
-             cfg.cs_polarity = HAL_QSPI_CS_POL_VALID_HIGH;
+            cfg.cs_polarity = HAL_QSPI_CS_POL_VALID_HIGH;
         else
-             cfg.cs_polarity = HAL_QSPI_CS_POL_VALID_LOW;
+            cfg.cs_polarity = HAL_QSPI_CS_POL_VALID_LOW;
 
         ret = hal_qspi_master_init(&qspi->handle, &cfg);
         if (ret) {
@@ -353,7 +395,11 @@ static rt_err_t qspi_configure(struct rt_spi_device *device,
             dmacfg.tx_bus_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
             dmacfg.rx_bus_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
             dmacfg.tx_max_burst = 1;
+#ifdef AIC_DMA_DRV_V10
             dmacfg.rx_max_burst = 1;
+#else
+            dmacfg.rx_max_burst = 8;
+#endif
             ret = hal_qspi_master_dma_config(&qspi->handle, &dmacfg);
             if (ret) {
                 pr_err("qspi dma config failed.\n");
@@ -383,18 +429,22 @@ static rt_err_t qspi_configure(struct rt_spi_device *device,
     return ret;
 }
 
-rt_err_t aic_qspi_bus_attach_device(const char *bus_name, const char *device_name,
-                                    rt_uint32_t pin, rt_uint8_t data_line_width,
-                                    void (*enter_qspi_mode)(), void (*exit_qspi_mode)())
+rt_err_t aic_qspi_bus_attach_device(const char *bus_name,
+                                    const char *device_name, rt_uint32_t pin,
+                                    rt_uint8_t data_line_width,
+                                    void (*enter_qspi_mode)(),
+                                    void (*exit_qspi_mode)())
 {
     struct rt_qspi_device *qspi_device = RT_NULL;
     rt_err_t result = RT_EOK;
 
     RT_ASSERT(bus_name != RT_NULL);
     RT_ASSERT(device_name != RT_NULL);
-    RT_ASSERT(data_line_width == 1 || data_line_width == 2 || data_line_width == 4);
+    RT_ASSERT(data_line_width == 1 || data_line_width == 2 ||
+              data_line_width == 4);
 
-    qspi_device = (struct rt_qspi_device *)rt_malloc(sizeof(struct rt_qspi_device));
+    qspi_device =
+        (struct rt_qspi_device *)rt_malloc(sizeof(struct rt_qspi_device));
     if (qspi_device == RT_NULL) {
         pr_err("Failed to malloc memory for qspi device.\n");
         result = RT_ENOMEM;
@@ -405,7 +455,8 @@ rt_err_t aic_qspi_bus_attach_device(const char *bus_name, const char *device_nam
     qspi_device->exit_qspi_mode = exit_qspi_mode;
     qspi_device->config.qspi_dl_width = data_line_width;
 
-    result = rt_spi_bus_attach_device(&qspi_device->parent, device_name, bus_name, RT_NULL);
+    result = rt_spi_bus_attach_device(&qspi_device->parent, device_name,
+                                      bus_name, RT_NULL);
 
 __exit:
     if (result != RT_EOK) {
@@ -413,11 +464,10 @@ __exit:
             rt_free(qspi_device);
     }
 
-    return  result;
+    return result;
 }
 
-static const struct rt_spi_ops aic_qspi_ops =
-{
+static const struct rt_spi_ops aic_qspi_ops = {
     .configure = qspi_configure,
     .xfer = qspi_xfer,
 };
@@ -429,11 +479,13 @@ static int rt_hw_qspi_bus_init(void)
     int i;
 
     for (i = 0; i < ARRAY_SIZE(qspi_controller); i++) {
-        ret = rt_qspi_bus_register(&qspi_controller[i].dev, qspi_controller[i].name, &aic_qspi_ops);
+        ret = rt_qspi_bus_register(&qspi_controller[i].dev,
+                                   qspi_controller[i].name, &aic_qspi_ops);
         if (ret != RT_EOK)
             break;
         rt_sprintf(sem_name, "%s_s", qspi_controller[i].name);
-        qspi_controller[i].xfer_sem = rt_sem_create(sem_name, 0, RT_IPC_FLAG_PRIO);
+        qspi_controller[i].xfer_sem =
+            rt_sem_create(sem_name, 0, RT_IPC_FLAG_PRIO);
         if (!qspi_controller[i].xfer_sem) {
             ret = RT_ENOMEM;
             break;

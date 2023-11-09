@@ -26,9 +26,16 @@ extern "C" {
 #define HAL_QSPI_CS_POL_VALID_HIGH   0
 #define HAL_QSPI_CS_POL_VALID_LOW    1
 
+#define HAL_QSPI_RX_FIFO             0
+#define HAL_QSPI_TX_FIFO             1
+
 struct qspi_master_state;
+struct qspi_slave_state;
 typedef struct qspi_master_state qspi_master_handle;
+typedef struct qspi_slave_state qspi_slave_handle;
+
 typedef void (*qspi_master_async_cb)(qspi_master_handle *h, void *priv);
+typedef void (*qspi_slave_async_cb)(qspi_slave_handle *h, void *priv);
 
 struct qspi_master_config {
     u32 idx;
@@ -51,6 +58,26 @@ struct qspi_master_dma_config {
     u32 rx_max_burst;
 };
 
+struct qspi_slave_config {
+    u32 idx;
+    u32 clk_in_hz;
+    u32 clk_id;
+    bool bit_mode;
+    bool wire3_en;
+    bool lsb_en;
+    bool cs_auto;
+    u8 cs_polarity;
+    u8 cpol;
+    u8 cpha;
+};
+
+struct qspi_slave_idma_config {
+    u32 tx_bus_width;
+    u32 tx_max_burst;
+    u32 rx_bus_width;
+    u32 rx_max_burst;
+};
+
 struct qspi_transfer {
     u8 *tx_data;
     u8 *rx_data;
@@ -63,6 +90,10 @@ struct qspi_transfer {
 #define HAL_QSPI_STATUS_RX_OVER_FLOW (0x1UL << 2)
 #define HAL_QSPI_STATUS_TX_UNDER_RUN (0x1UL << 3)
 #define HAL_QSPI_STATUS_TX_OVER_FLOW (0x1UL << 4)
+
+#define HAL_QSPI_STATUS_RX_READY     (0x1UL << 5)
+#define HAL_QSPI_STATUS_CS_INVALID   (0x1UL << 6)
+#define HAL_QSPI_STATUS_TRAN_DONE    (0x1UL << 31)
 /*
  * HAL QSPI internal state, HAL user should not modify it directly
  */
@@ -83,6 +114,33 @@ struct qspi_master_state {
     u32 async_rx_remain; /* Used in Async Non-DMA mode */
     u32 work_mode;
     u32 done_mask;
+    bool bit_mode;
+};
+
+struct qspi_slave_state {
+    u32 idx;
+    qspi_slave_async_cb cb;
+    void *cb_priv;
+    u32 status;
+    u32 clk_id;
+    u32 bus_hz;
+    u32 bus_width;
+    u8 *async_tx; /* Used in Async Non-DMA mode */
+    u8 *async_rx; /* Used in Async Non-DMA mode */
+    u32 async_tx_wcnt; /* Used in Async mode */
+    u32 async_tx_remain; /* Used in Async mode */
+    u32 async_rx_remain; /* Used in Async mode */
+    u32 async_tx_count; /* Used in Async mode */
+    u32 async_rx_count; /* Used in Async mode */
+    u32 work_mode;
+    u32 done_mask;
+};
+
+struct qspi_bm_transfer {
+    u8 *tx_data;
+    u8 *rx_data;
+    u32 rx_len;
+    u32 tx_len;
 };
 
 #ifdef AIC_QSPI_DRV_V11
@@ -167,6 +225,19 @@ void hal_qspi_master_set_cs_owner(qspi_master_handle *h, u8 soft_hw);
 void hal_qspi_master_set_xip_burst_cfg(qspi_master_handle *h, struct qspi_xip_burst_cfg *cfg);
 void hal_qspi_master_set_xip_read_cfg(qspi_master_handle *h, struct qspi_xip_read_cfg *cfg);
 void hal_qspi_master_xip_enable(qspi_master_handle *h, bool enable);
+
+int hal_qspi_slave_init(qspi_slave_handle *h, struct qspi_slave_config *cfg);
+int hal_qspi_slave_deinit(qspi_slave_handle *h);
+int hal_qspi_slave_set_bus_width(qspi_slave_handle *h, u32 bus_width);
+int hal_qspi_slave_idma_config(qspi_slave_handle *h, struct qspi_slave_idma_config *cfg);
+int hal_qspi_slave_register_cb(qspi_slave_handle *h, qspi_slave_async_cb cb, void *priv);
+int hal_qspi_slave_get_status(qspi_slave_handle *h);
+void hal_qspi_slave_irq_handler(qspi_slave_handle *h);
+int hal_qspi_slave_transfer_async(qspi_slave_handle *h, struct qspi_transfer *t);
+int hal_qspi_slave_transfer_abort(qspi_slave_handle *h);
+int hal_qspi_slave_transfer_count(qspi_slave_handle *h);
+void hal_qspi_slave_fifo_reset(qspi_slave_handle *h, u32 fifo);
+
 #endif //AIC_QSPI_DRV_V11
 
 int hal_qspi_master_init(qspi_master_handle *h, struct qspi_master_config *cfg);
@@ -180,6 +251,9 @@ int hal_qspi_master_register_cb(qspi_master_handle *h, qspi_master_async_cb cb, 
 int hal_qspi_master_transfer_async(qspi_master_handle *h, struct qspi_transfer *t);
 int hal_qspi_master_get_status(qspi_master_handle *h);
 void hal_qspi_master_irq_handler(qspi_master_handle *h);
+void hal_qspi_master_fifo_reset(qspi_master_handle *h, u32 fifo);
+
+int hal_qspi_master_transfer_bit_mode(qspi_master_handle *h, struct qspi_bm_transfer *t);
 
 #ifdef __cplusplus
 }

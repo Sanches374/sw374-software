@@ -3,8 +3,12 @@
         "size": "16m", // Size of SPI NAND
         "partitions": {
             "spl":        { "size": "256k" },
-            "os":         { "size": "1m" },
-            "rodata":     { "size": "6m" },
+            "env":        { "size": "128k" },
+            "env_r":      { "size": "128k" },
+            "os":         { "size": "512K" },
+            "os_r":       { "size": "512K" },
+            "rodata":     { "size": "2m" },
+            "rodata_r":   { "size": "2m" },
             "data":       { "size": "6m" }
         },
     },
@@ -31,8 +35,13 @@
                 "attr": ["mtd", "required"],
                 "part": ["spl"]
             },
+            "env": {
+                "file": "env.bin",
+                "attr": ["mtd", "optional"],
+                "part": ["env","env_r"]
+            },
             "os": {
-                "file": "os.aic",
+                "file": "d13x_os.itb",
                 "attr": ["mtd", "required"],
                 "part": ["os"]
             },
@@ -59,14 +68,17 @@
                     "run in dram": "false",
                 },
             },
-            "os.aic": {
-                "head_ver": "0x00010001",
-                "loader": {
-                    "file": "d13x.bin",
-                    "load address": "0x30040000",
-                    "entry point":  "0x30040100",
-                    "run in dram": "false",
-                }
+        },
+		"itb": {
+            "d13x_os.itb": {
+                "its": "d13x_os.its"
+            },
+        },
+        "uboot_env": {
+            "env.bin": {
+                "file": "env.txt",
+                "size": "4096",
+                "redundant": "enable",
             },
         },
     },

@@ -60,5 +60,6 @@ void hal_tsen_status_show(struct aic_tsen_ch *chan);
 irqreturn_t hal_tsen_irq_handle(int irq, void *arg);
 s32 hal_tsen_clk_init(void);
 void hal_tsen_pclk_get(struct aic_tsen_ch *chan);
+void hal_tsen_curve_fitting(struct aic_tsen_ch *chan);
 
 #endif // end of _ARTINCHIP_HAL_TSEN_H_

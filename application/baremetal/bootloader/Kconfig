@@ -66,6 +66,7 @@ menu "Upgrading"
     config AICUPG_UART_ENABLE
         bool "Upgrading by UART"
         default n
+        select AIC_UART_DRV
 
     config AICUPG_USB_ENABLE
         bool "Upgrading by USB"
@@ -169,9 +170,15 @@ menu "Debug"
     config AICUPG_DEBUG
         bool "aicupg debug log"
         default n
+
+    config AICUPG_UART_DEBUG
+        bool "aicupg uart debug log"
+        default n
+
     config AIC_SHOW_BOOT_TIME
         bool "show boot time"
         default n
+
 endmenu # "Debug"
 
 endmenu # "Bootloader options"

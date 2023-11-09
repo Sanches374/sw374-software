@@ -25,7 +25,7 @@ void ifconfig(void)
         printf("    IPv4 Address   : %s\n", ip4addr_ntoa(&netif->ip_addr));
         printf("    Default Gateway: %s\n", ip4addr_ntoa(&netif->gw));
         printf("    Subnet mask    : %s\n", ip4addr_ntoa(&netif->netmask));
-        printf("    MAC addr       : %02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx\n",
+        printf("    MAC addr       : %02x:%02x:%02x:%02x:%02x:%02x\n",
                 netif->hwaddr[0],
                 netif->hwaddr[1],
                 netif->hwaddr[2],
@@ -123,4 +123,18 @@ void netif_startup(void)
     ip4_set_default_multicast_netif(netif);
 #endif
     netif_set_default(netif);
+}
+
+extern void aic_phy_poll(void);
+void netif_baremetal_poll(void)
+{
+    struct netif *netif;
+
+    aic_phy_poll();
+
+    for (netif = netif_list; netif != NULL; netif = netif->next) {
+        if (netif_is_link_up(netif)) {
+            ethernetif_input_poll();
+        }
+    }
 }

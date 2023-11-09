@@ -6,6 +6,7 @@
 
 #include <aic_core.h>
 #include <aic_drv_irq.h>
+#include <aic_hal.h>
 
 extern void drv_irq_vectors_init(void);
 extern void mm_heap_initialize(void);
@@ -19,6 +20,14 @@ void SystemCoreClockUpdate(void)
 }
 
 #ifndef QEMU_RUN
+void aic_clk_lowpower(void)
+{
+    hal_clk_pll_lowpower();
+    hal_clk_disable_assertrst(CLK_USB_PHY0);
+    hal_clk_disable_assertrst(CLK_USBH0);
+    hal_clk_disable_assertrst(CLK_USBD);
+}
+
 void aic_gtc_enable(void)
 {
     /* enable gtc clk */
@@ -33,6 +42,11 @@ void dcache_enable(void)
     aicos_dcache_enable();
 }
 
+void dcache_clean(void)
+{
+    aicos_dcache_clean();
+}
+
 void icache_enable(void)
 {
     aicos_icache_enable();
@@ -43,6 +57,7 @@ static void _system_init_for_kernel(void)
     drv_irq_vectors_init();
 
 #ifndef QEMU_RUN
+    aic_clk_lowpower();
     aic_gtc_enable();
 #endif
     csi_coret_config(drv_get_sys_freq() / CONFIG_SYSTICK_HZ, CORET_IRQn);    //10ms

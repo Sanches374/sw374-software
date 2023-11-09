@@ -606,6 +606,60 @@ int aicphy_read_status(uint32_t port)
     return ETH_SUCCESS;
 }
 
+void aic_phy_poll(void)
+{
+    uint32_t port = aic_netif.port;
+    struct netif *netif = &aic_netif.netif;
+    aic_phy_device_t *phydev = &phy_device[port];
+    static int old_link = 0;
+    int err;
+
+	/* Pool phy satus */
+	err = aicphy_read_status(port);
+	if (err){
+		pr_err("%s fail.\n", __func__);
+		return ;
+	}
+
+	/* Phy link status not change */
+	if (old_link == phydev->link)
+		return ;
+	old_link = phydev->link;
+
+	/* Phy link status change: DOWN -> UP */
+	if (phydev->link){
+		pr_info(" Port %d link UP! %s mode: speed %dM, %s duplex, flow control %s.\n",
+				(int)port,
+				(phydev->autoneg ? "autoneg" : "fixed"),
+				phydev->speed,
+				(phydev->duplex ? "full" : "half"),
+				(phydev->pause ? "on" : "off"));
+
+		/* Config mac base on autoneg result */
+		if (phydev->autoneg){
+			aicmac_set_mac_speed(port, phydev->speed);
+			aicmac_set_mac_duplex(port, phydev->duplex);
+			aicmac_set_mac_pause(port, phydev->pause);
+		}
+
+		/* Enable MAC and DMA transmission and reception */
+		aicmac_start(port);
+
+		/* Netif set phy linkup */
+		netif_set_link_up(netif);
+
+	/* Phy link status change: UP -> DOWN */
+	} else {
+		pr_info(" Port %d link DOWN!\n", (int)port);
+
+		/* Disable MAC and DMA transmission and reception */
+		aicmac_stop(port);
+
+		/* Netif set phy linkdown */
+		netif_set_link_down(netif);
+	}
+}
+
 void aicphy_poll_thread(void *pvParameters)
 {
     uint32_t port = aic_netif.port;
@@ -633,7 +687,7 @@ void aicphy_poll_thread(void *pvParameters)
         /* Phy link status change: DOWN -> UP */
         if (phydev->link){
             pr_info(" Port %d link UP! %s mode: speed %dM, %s duplex, flow control %s.\n",
-                    port,
+                    (int)port,
                     (phydev->autoneg ? "autoneg" : "fixed"),
                     phydev->speed,
                     (phydev->duplex ? "full" : "half"),
@@ -654,7 +708,7 @@ void aicphy_poll_thread(void *pvParameters)
 
         /* Phy link status change: UP -> DOWN */
         } else {
-            pr_info(" Port %d link DOWN!\n", port);
+            pr_info(" Port %d link DOWN!\n", (int)port);
 
             /* Disable MAC and DMA transmission and reception */
             aicmac_stop(port);
@@ -662,7 +716,7 @@ void aicphy_poll_thread(void *pvParameters)
             /* Netif set phy linkdown */
             netif_set_link_down(netif);
         }
-    };
+    }
 }
 
 int aicphy_init(uint32_t port)
@@ -686,10 +740,11 @@ int aicphy_init(uint32_t port)
 
     aicphy_config_aneg(port);
 
+#if !NO_SYS
     /* create the task that handles the ETH_MAC */
     aicos_thread_create("eth_phy_poll", PHY_POLL_TASK_STACK_SIZE,
                         PHY_POLL_TASK_PRIORITY, aicphy_poll_thread, NULL);
-
+#endif
     return ETH_SUCCESS;
 }
 

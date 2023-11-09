@@ -34,7 +34,7 @@ static struct rt_device_blk_geometry info = {0};
 /*******************************************************************************
  * Code
  ******************************************************************************/
-DRESULT sdmc_disk_write(uint8_t pdrv, const uint8_t *buf, uint32_t sector, uint8_t cnt)
+DRESULT sdmc_disk_write(uint8_t pdrv, const char *device_name, const uint8_t *buf, uint32_t sector, uint8_t cnt)
 {
     rt_size_t size = 0;
 
@@ -50,7 +50,7 @@ DRESULT sdmc_disk_write(uint8_t pdrv, const uint8_t *buf, uint32_t sector, uint8
     return RES_OK;
 }
 
-DRESULT sdmc_disk_read(uint8_t pdrv, uint8_t *buf, uint32_t sector, uint8_t cnt)
+DRESULT sdmc_disk_read(uint8_t pdrv, const char *device_name, uint8_t *buf, uint32_t sector, uint8_t cnt)
 {
     rt_size_t size = 0;
 
@@ -66,7 +66,7 @@ DRESULT sdmc_disk_read(uint8_t pdrv, uint8_t *buf, uint32_t sector, uint8_t cnt)
     return RES_OK;
 }
 
-DRESULT sdmc_disk_ioctl(uint8_t pdrv, uint8_t command, void *buf)
+DRESULT sdmc_disk_ioctl(uint8_t pdrv, const char *device_name, uint8_t command, void *buf)
 {
     DRESULT result = RES_OK;
 
@@ -110,12 +110,12 @@ DRESULT sdmc_disk_ioctl(uint8_t pdrv, uint8_t command, void *buf)
     return result;
 }
 
-DSTATUS sdmc_disk_status(uint8_t pdrv)
+DSTATUS sdmc_disk_status(uint8_t pdrv, const char *device_name)
 {
     return RES_OK;
 }
 
-DSTATUS sdmc_disk_initialize(uint8_t pdrv)
+DSTATUS sdmc_disk_initialize(uint8_t pdrv, const char *device_name)
 {
     g_sdmc_host = find_mmc_dev_by_index(pdrv);
     if (!g_sdmc_host)

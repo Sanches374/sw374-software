@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2022, Artinchip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
@@ -36,9 +36,9 @@ extern unsigned long mac_base[MAX_ETH_MAC_PORT];
 extern aicmac_dma_desc_ctl_t dctl[MAX_ETH_MAC_PORT];
 extern unsigned long mac_irq[MAX_ETH_MAC_PORT];
 extern aicmac_config_t mac_config[MAX_ETH_MAC_PORT];
-
+#if !NO_SYS
 static void ethernetif_input_thread(void *pvParameters);
-
+#endif
 static int hexchar2int(char c)
 {
     if (c >= '0' && c <= '9') return (c - '0');
@@ -67,12 +67,15 @@ void aicmac_interrupt(void)
 
     /* Frame received */
     if (aicmac_get_dma_int_status(aic_netif.port, ETH_DMAINTSTS_RI) == SET) {
-        /* Disable interrupt until task complete handle */
-        aicmac_dis_dma_int(aic_netif.port, ETH_DMAINTEN_RIE);
         /* Clear pending bit */
         aicmac_clear_dma_int_pending(aic_netif.port, ETH_DMAINTSTS_RI);
+
+#if !NO_SYS
+        /* Disable interrupt until task complete handle */
+        aicmac_dis_dma_int(aic_netif.port, ETH_DMAINTEN_RIE);
         /* Give the semaphore to wakeup LwIP task */
         aicos_event_send(eth_rx_event, ETH_EVENT_RX_COMPLETE);
+#endif
     }
 
     /* Frame transmit complete */
@@ -140,6 +143,11 @@ static void low_level_init(struct netif *netif)
     /* Initialize Rx Descriptors list: Chain Mode  */
     aicmac_dma_rx_desc_init(aic_netif->port);
 
+#if NO_SYS
+    /* Disable all interrupt */
+    aicmac_set_dma_tx_desc_int(aic_netif->port, DISABLE);
+    aicmac_set_dma_rx_desc_int(aic_netif->port, DISABLE);
+#else
     /* Enable Ethernet Rx interrrupt */
     aicmac_set_dma_rx_desc_int(aic_netif->port, ENABLE);
 
@@ -149,7 +157,7 @@ static void low_level_init(struct netif *netif)
     /* create the task that handles the ETH_MAC */
     aicos_thread_create("eth_rx", NETIF_RX_TASK_STACK_SIZE,
                         NETIF_RX_TASK_PRIORITY, ethernetif_input_thread, NULL);
-
+#endif
     /* Enable MAC and DMA transmission and reception */
     //aicmac_start(aic_netif->port);
     /* set phy linkup */
@@ -199,7 +207,7 @@ static err_t low_level_output(struct netif *netif, struct pbuf *p)
 
     for (q = p; q != NULL; q = q->next) {
         if ((pdesc->control & ETH_DMATxDesc_OWN) != (u32)RESET) {
-            pr_err("%s no enough desc for transmit.(len = %d)\n", __func__);
+            pr_err("%s no enough desc for transmit.(len = %u)\n", __func__, q->len);
             ret = ERR_MEM;
             goto error;
         }
@@ -225,7 +233,7 @@ static err_t low_level_output(struct netif *netif, struct pbuf *p)
 
             /* Check if the buffer is available */
             if ((pdesc->control & ETH_DMATxDesc_OWN) != (u32)RESET) {
-                pr_err("%s no enough desc for transmit.(len = %d)\n", __func__);
+                pr_err("%s no enough desc for transmit.(len = %u)\n", __func__, q->len);
                 ret = ERR_MEM;
                 goto error;
             }
@@ -478,7 +486,7 @@ static struct pbuf * low_level_input(struct netif *netif, bool poll)
     aicmac_release_rx_frame(aic_netif->port);
     return p;
 }
-
+#if !NO_SYS
 void ethernetif_input_thread(void *pvParameters)
 {
     struct pbuf *p;
@@ -521,6 +529,7 @@ void ethernetif_input_thread(void *pvParameters)
         }
     }
 }
+#endif
 
 #if LWIP_IGMP
 static err_t

@@ -233,7 +233,8 @@ static int rtp_perform_calibration(calibration *cal)
 /* Calculate the average value of multiple points triggered by one click as
  * the calibration point. Among them, the calibration point is the touch
  * screen coordinate system */
-static void rtp_getxy(calibration *cal,int index, struct aic_rtp_event *e)
+static void rtp_get_valid_point(calibration *cal, int index,
+                                      struct aic_rtp_event *e)
 {
     int x=0, y=0;
     int cnt = 0;
@@ -263,7 +264,7 @@ redocalibration:
         }
     } while (abs(end_us - start_us) < 600000);
 
-    if (x == 0){
+    if (x == 0) {
         start_us = aic_get_time_us();
         goto redocalibration;
     }
@@ -293,21 +294,21 @@ void rtp_calibrate(calibration *cal, struct aic_rtp_event *e)
     memset(cal, 0, sizeof(&cal));
 
     rtp_draw_cross(cal, 0, "Top left", height, width);
-    rtp_getxy(cal, 0, e);
+    rtp_get_valid_point(cal, 0, e);
 
     rtp_draw_cross(cal, 1, "Top right", height, g_xres - width - length);
-    rtp_getxy(cal, 1, e);
+    rtp_get_valid_point(cal, 1, e);
 
     rtp_draw_cross(cal, 2, "Bot right", g_yres - height - length,
                    g_xres - width - length);
-    rtp_getxy(cal, 2, e);
+    rtp_get_valid_point(cal, 2, e);
 
     rtp_draw_cross(cal, 3, "Bot left", g_yres - height - length, width);
-    rtp_getxy(cal, 3, e);
+    rtp_get_valid_point(cal, 3, e);
 
     rtp_draw_cross(cal, 4, "Center", (g_yres - length) / 2,
                    (g_xres - length) / 2);
-    rtp_getxy(cal, 4, e);
+    rtp_get_valid_point(cal, 4, e);
 
     memset(g_fb_info.framebuffer, 0, g_fb_info.smem_len);
     rtp_perform_calibration(cal);
@@ -329,6 +330,8 @@ static int test_rtp_init(void)
     g_rtp_dev.max_press = 800;
     g_rtp_dev.smp_period = 15;
     g_rtp_dev.pressure_det = 1;
+    g_rtp_dev.pdeb = 0xffffffff;
+    g_rtp_dev.delay = 0x4f00004f;
 
     aicos_request_irq(RTP_IRQn, hal_rtp_isr, 0, NULL, NULL);
     hal_rtp_enable(&g_rtp_dev, 1);

@@ -46,7 +46,11 @@ struct rt_hwtimer_device;
 struct rt_hwtimer_ops
 {
     void (*init)(struct rt_hwtimer_device *timer, rt_uint32_t state);
+    #ifdef AIC_GPTIMER_DRV
+    rt_err_t (*start)(struct rt_hwtimer_device *timer, rt_uint32_t cnt, rt_hwtimer_mode_t mode, void *args);
+    #else
     rt_err_t (*start)(struct rt_hwtimer_device *timer, rt_uint32_t cnt, rt_hwtimer_mode_t mode);
+    #endif
     void (*stop)(struct rt_hwtimer_device *timer);
     rt_uint32_t (*count_get)(struct rt_hwtimer_device *timer);
     rt_err_t (*control)(struct rt_hwtimer_device *timer, rt_uint32_t cmd, void *args);

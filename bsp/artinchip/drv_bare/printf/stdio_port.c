@@ -35,6 +35,8 @@ int puts_port(const char *s)
         cnt++;
         s++;
     }
+    putchar_port('\n');
+
     return cnt;
 }
 

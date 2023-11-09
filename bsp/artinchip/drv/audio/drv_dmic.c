@@ -17,7 +17,7 @@
 
 #include "hal_audio.h"
 
-#define RX_DMIC_FIFO_SIZE (4096)
+#define RX_DMIC_FIFO_SIZE (RT_AUDIO_RECORD_PIPE_SIZE * 2)
 static rt_uint8_t dmic_rx_fifo[RX_DMIC_FIFO_SIZE] __attribute__((aligned(64)));
 
 struct aic_dmic
@@ -268,7 +268,7 @@ static void drv_dmic_callback(aic_audio_ctrl *pcodec, void *arg)
     {
     case AUDIO_RX_DMIC_PERIOD_INT:
         period_len = pcodec->dmic_info.buf_info.period_len;
-        if (!p_dmic_dev->index){
+        if (!p_dmic_dev->index) {
             rt_audio_rx_done(audio, &dmic_rx_fifo[0], period_len);
             p_dmic_dev->index = 1;
         } else {

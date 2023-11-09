@@ -15,14 +15,22 @@
 #include <unistd.h>
 
 enum log_level {
-	MPP_LOG_ERROR = 3,
-	MPP_LOG_WARNING,
-	MPP_LOG_INFO,
-	MPP_LOG_DEBUG,
-	MPP_LOG_VERBOSE
+	MPP_LOGL_ERROR = 0,
+	MPP_LOGL_WARNING,
+	MPP_LOGL_INFO,
+	MPP_LOGL_DEBUG,
+	MPP_LOGL_VERBOSE,
+	MPP_LOGL_COUNT,
+
+	MPP_LOGL_DEFAULT = 	MPP_LOGL_ERROR,
+	MPP_LOGL_FORCE_DEBUG = 0x10,
 };
 
-#define MPP_LOG_LEVEL  MPP_LOG_ERROR
+#ifdef LOG_DEBUG
+#define _LOG_DEBUG	MPP_LOGL_FORCE_DEBUG
+#else
+#define _LOG_DEBUG	0
+#endif
 
 /*avoid  redefine warning */
 #ifdef LOG_TAG
@@ -38,29 +46,28 @@ enum log_level {
 #define TAG_DEBUG	"debug  "
 #define TAG_VERBOSE	"verbose"
 
-#define mpp_log(level,tag,fmt,arg...)														\
-	do{																						\
-		if(level <= MPP_LOG_LEVEL)															\
-			printf("%s: %s <%s:%d>: "fmt"\n", tag, LOG_TAG, __FUNCTION__, __LINE__, ##arg);	\
-	}while(0)
+#define mpp_log(level, tag, fmt, arg...) ({ \
+	int _l = level; \
+	if (((_LOG_DEBUG != 0) && (_l <= MPP_LOGL_DEBUG)) || \
+	    (_l <= MPP_LOGL_DEFAULT)) \
+		printf("%s: %s <%s:%d>: "fmt"\n", tag, LOG_TAG, __FUNCTION__, __LINE__, ##arg); \
+	})
 
 
-#define loge(fmt, arg...) mpp_log(MPP_LOG_ERROR, TAG_ERROR, "\033[40;31m"fmt"\033[0m", ##arg)
-#define logw(fmt, arg...) mpp_log(MPP_LOG_WARNING, TAG_WARNING, "\033[40;33m"fmt"\033[0m", ##arg)
-#define logi(fmt, arg...) mpp_log(MPP_LOG_INFO, TAG_INFO, "\033[40;32m"fmt"\033[0m", ##arg)
-#if (MPP_LOG_LEVEL < MPP_LOG_DEBUG)
-#define logd(fmt, arg...)
-#define logv(fmt, arg...)
-#else
-#define logd(fmt, arg...) mpp_log(MPP_LOG_DEBUG, TAG_DEBUG, fmt, ##arg)
-#define logv(fmt, arg...) mpp_log(MPP_LOG_VERBOSE, TAG_VERBOSE, fmt, ##arg)
-#endif
+
+#define loge(fmt, arg...) mpp_log(MPP_LOGL_ERROR, TAG_ERROR, "\033[40;31m"fmt"\033[0m", ##arg)
+#define logw(fmt, arg...) mpp_log(MPP_LOGL_WARNING, TAG_WARNING, "\033[40;33m"fmt"\033[0m", ##arg)
+#define logi(fmt, arg...) mpp_log(MPP_LOGL_INFO, TAG_INFO, "\033[40;32m"fmt"\033[0m", ##arg)
+#define logd(fmt, arg...) mpp_log(MPP_LOGL_DEBUG, TAG_DEBUG, fmt, ##arg)
+#define logv(fmt, arg...) mpp_log(MPP_LOGL_VERBOSE, TAG_VERBOSE, fmt, ##arg)
+
 
 #define time_start(tag) unsigned int time_##tag##_start = aic_get_time_us()
 #define time_end(tag) unsigned int time_##tag##_end = aic_get_time_us();\
 			fprintf(stderr, #tag " time: %u us\n",\
 			time_##tag##_end - time_##tag##_start)
 
+#define MPP_ABS(x,y) ((x>y)?(x-y):(y-x))
 #endif
 
 

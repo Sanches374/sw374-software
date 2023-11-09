@@ -105,8 +105,9 @@ static s32 aes_ecb_crypto(u8 *key, u8 keylen, u8 dir, u8 *in, u8 *out, u32 len)
         aicos_dcache_clean_range((void *)(unsigned long)&task, sizeof(task));
         hal_crypto_start_symm(&task);
 
-        while (!hal_crypto_poll_finish(ALG_UNIT_SYMM))
+        while (!hal_crypto_poll_finish(ALG_UNIT_SYMM)) {
             ;
+        }
         hal_crypto_pending_clear(ALG_UNIT_SYMM);
 
         if (hal_crypto_get_err(ALG_UNIT_SYMM)) {
@@ -163,8 +164,9 @@ static s32 aes_cbc_crypto(u8 *key, u8 keylen, u8 dir, u8 *iv, u8 *in, u8 *out,
         aicos_dcache_clean_range((void *)(unsigned long)&task, sizeof(task));
         hal_crypto_start_symm(&task);
 
-        while (!hal_crypto_poll_finish(ALG_UNIT_SYMM))
+        while (!hal_crypto_poll_finish(ALG_UNIT_SYMM)) {
             ;
+        }
         hal_crypto_pending_clear(ALG_UNIT_SYMM);
 
         if (hal_crypto_get_err(ALG_UNIT_SYMM)) {
@@ -231,56 +233,56 @@ rt_err_t drv_sha_start(struct rt_hwcrypto_ctx *ctx)
             context->priv.alg_tag = ALG_MD5;
             context->priv.out_len = MD5_CE_OUT_LEN;
             context->priv.digest_len = MD5_DIGEST_SIZE;
-            unsigned int md5_iv[] = { MD5_H0, MD5_H1, MD5_H2, MD5_H3 };
-            memcpy(context->priv.digest, md5_iv, MD5_DIGEST_SIZE);
+            u32 md5_iv[] = { MD5_H0, MD5_H1, MD5_H2, MD5_H3 };
+            memcpy(context->priv.digest, md5_iv, sizeof(md5_iv));
             break;
         case HWCRYPTO_TYPE_SHA1:
             context->priv.alg_tag = ALG_SHA1;
             context->priv.out_len = SHA1_CE_OUT_LEN;
             context->priv.digest_len = SHA1_DIGEST_SIZE;
-            unsigned int sha1_iv[] = { BE_SHA1_H0, BE_SHA1_H1, BE_SHA1_H2,
+            u32 sha1_iv[] = { BE_SHA1_H0, BE_SHA1_H1, BE_SHA1_H2,
                                        BE_SHA1_H3, BE_SHA1_H4 };
-            memcpy(context->priv.digest, sha1_iv, SHA1_DIGEST_SIZE);
+            memcpy(context->priv.digest, sha1_iv, sizeof(sha1_iv));
             break;
         case HWCRYPTO_TYPE_SHA256:
             context->priv.alg_tag = ALG_SHA256;
             context->priv.out_len = SHA256_CE_OUT_LEN;
             context->priv.digest_len = SHA256_DIGEST_SIZE;
-            unsigned int sha256_iv[] = { BE_SHA256_H0, BE_SHA256_H1,
+            u32 sha256_iv[] = { BE_SHA256_H0, BE_SHA256_H1,
                                          BE_SHA256_H2, BE_SHA256_H3,
                                          BE_SHA256_H4, BE_SHA256_H5,
                                          BE_SHA256_H6, BE_SHA256_H7 };
-            memcpy(context->priv.digest, sha256_iv, SHA256_DIGEST_SIZE);
+            memcpy(context->priv.digest, sha256_iv, sizeof(sha256_iv));
             break;
         case HWCRYPTO_TYPE_SHA224:
             context->priv.alg_tag = ALG_SHA224;
             context->priv.out_len = SHA224_CE_OUT_LEN;
             context->priv.digest_len = SHA224_DIGEST_SIZE;
-            unsigned int sha224_iv[] = { BE_SHA224_H0, BE_SHA224_H1,
+            u32 sha224_iv[] = { BE_SHA224_H0, BE_SHA224_H1,
                                          BE_SHA224_H2, BE_SHA224_H3,
                                          BE_SHA224_H4, BE_SHA224_H5,
                                          BE_SHA224_H6, BE_SHA224_H7 };
-            memcpy(context->priv.digest, sha224_iv, SHA224_DIGEST_SIZE);
+            memcpy(context->priv.digest, sha224_iv, sizeof(sha224_iv));
             break;
         case HWCRYPTO_TYPE_SHA512:
             context->priv.alg_tag = ALG_SHA512;
             context->priv.out_len = SHA512_CE_OUT_LEN;
             context->priv.digest_len = SHA512_DIGEST_SIZE;
-            unsigned long sha512_iv[] = { BE_SHA512_H0, BE_SHA512_H1,
+            u64 sha512_iv[] = { BE_SHA512_H0, BE_SHA512_H1,
                                           BE_SHA512_H2, BE_SHA512_H3,
                                           BE_SHA512_H4, BE_SHA512_H5,
                                           BE_SHA512_H6, BE_SHA512_H7 };
-            memcpy(context->priv.digest, sha512_iv, SHA512_DIGEST_SIZE);
+            memcpy(context->priv.digest, sha512_iv, sizeof(sha512_iv));
             break;
         case HWCRYPTO_TYPE_SHA384:
             context->priv.alg_tag = ALG_SHA384;
             context->priv.out_len = SHA384_CE_OUT_LEN;
             context->priv.digest_len = SHA384_DIGEST_SIZE;
-            unsigned long sha384_iv[] = { BE_SHA384_H0, BE_SHA384_H1,
+            u64 sha384_iv[] = { BE_SHA384_H0, BE_SHA384_H1,
                                           BE_SHA384_H2, BE_SHA384_H3,
                                           BE_SHA384_H4, BE_SHA384_H5,
                                           BE_SHA384_H6, BE_SHA384_H7 };
-            memcpy(context->priv.digest, sha384_iv, SHA384_DIGEST_SIZE);
+            memcpy(context->priv.digest, sha384_iv, sizeof(sha384_iv));
             break;
         default:
             return RT_EINVAL;
@@ -333,8 +335,9 @@ rt_err_t drv_sha_update(aic_sha_context_t *context, const void *input,
                                  sizeof(struct crypto_task));
         hal_crypto_start_hash(&task);
 
-        while (!hal_crypto_poll_finish(ALG_UNIT_HASH))
+        while (!hal_crypto_poll_finish(ALG_UNIT_HASH)) {
             ;
+        }
         hal_crypto_pending_clear(ALG_UNIT_HASH);
 
         if (hal_crypto_get_err(ALG_UNIT_HASH)) {

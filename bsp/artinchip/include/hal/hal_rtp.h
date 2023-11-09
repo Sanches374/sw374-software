@@ -68,6 +68,8 @@ struct aic_rtp_dev {
     u32 x_plate;
     u32 y_plate;
     u32 fuzz;
+    u32 pdeb;
+    u32 delay;
 
     u32 intr;
     u32 fcr;

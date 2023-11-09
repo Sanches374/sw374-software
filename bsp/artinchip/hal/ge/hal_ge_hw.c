@@ -8,7 +8,6 @@
 
 #include "hal_ge_hw.h"
 #include "hal_ge_reg.h"
-#include "aic_common.h"
 #include "mpp_types.h"
 
 #define CSC_COEFFS_NUM 12

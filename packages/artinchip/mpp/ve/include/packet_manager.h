@@ -73,4 +73,6 @@ int pm_get_ready_packet_num(struct packet_manager *pm);
 */
 int pm_reclaim_ready_packet(struct packet_manager *pm, struct packet *packet);
 
+int pm_reset(struct packet_manager *pm);
+
 #endif /* PACKET_MANAGER_H */

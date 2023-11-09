@@ -139,7 +139,7 @@ if LPKG_USING_DFS
         endmenu
     endif
 
-    config RT_USING_DFS_ROMFS
+    config LPKG_USING_DFS_ROMFS
         bool "Enable ReadOnly file system on flash"
         default n
 

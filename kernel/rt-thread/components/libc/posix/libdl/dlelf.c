@@ -94,7 +94,7 @@ rt_err_t dlmodule_load_shared_object(struct rt_dlmodule* module, void *module_pt
     module->nref = 0;
 
     /* allocate module space */
-    module->mem_space = rt_malloc(module_size);
+    module->mem_space = rt_malloc_align(module_size, CACHE_LINE_SIZE);
     if (module->mem_space == RT_NULL)
     {
         LOG_E("Module: allocate space failed.\n");
@@ -125,10 +125,10 @@ rt_err_t dlmodule_load_shared_object(struct rt_dlmodule* module, void *module_pt
         Elf_Rel *rel;
         rt_uint8_t *strtab;
         static rt_bool_t unsolved = RT_FALSE;
-        #if (defined(__arm__) || defined(__i386__) || (__riscv_xlen == 32))
+        #if (defined(__arm__) || defined(__i386__))
         if (!IS_REL(shdr[index]))
             continue;
-        #elif (defined(__aarch64__) || defined(__x86_64__) || (__riscv_xlen == 64))
+        #elif (defined(__aarch64__) || defined(__x86_64__) || (__riscv_xlen == 64) || (__riscv_xlen == 32))
         if (!IS_RELA(shdr[index]))
             continue;
         #endif
@@ -311,7 +311,7 @@ rt_err_t dlmodule_load_relocated_object(struct rt_dlmodule* module, void *module
     module->vstart_addr = 0;
 
     /* allocate module space */
-    module->mem_space = rt_malloc(module_size);
+    module->mem_space = rt_malloc_align(module_size, CACHE_LINE_SIZE);
     if (module->mem_space == RT_NULL)
     {
         LOG_E("Module: allocate space failed.\n");
@@ -342,7 +342,7 @@ rt_err_t dlmodule_load_relocated_object(struct rt_dlmodule* module, void *module
             rt_memcpy(ptr,
                       (rt_uint8_t *)elf_module + shdr[index].sh_offset,
                       shdr[index].sh_size);
-            rodata_addr = (rt_uint32_t)ptr;
+            rodata_addr = (rt_uint32_t)(uintptr_t)ptr;
             LOG_D("load rodata 0x%x, size %d, rodata 0x%x", ptr,
                 shdr[index].sh_size, *(rt_uint32_t *)data_addr);
             ptr += shdr[index].sh_size;
@@ -354,7 +354,7 @@ rt_err_t dlmodule_load_relocated_object(struct rt_dlmodule* module, void *module
             rt_memcpy(ptr,
                       (rt_uint8_t *)elf_module + shdr[index].sh_offset,
                       shdr[index].sh_size);
-            data_addr = (rt_uint32_t)ptr;
+            data_addr = (rt_uint32_t)(uintptr_t)ptr;
             LOG_D("load data 0x%x, size %d, data 0x%x", ptr,
                 shdr[index].sh_size, *(rt_uint32_t *)data_addr);
             ptr += shdr[index].sh_size;
@@ -364,7 +364,7 @@ rt_err_t dlmodule_load_relocated_object(struct rt_dlmodule* module, void *module
         if (IS_NOPROG(shdr[index]) && IS_AW(shdr[index]))
         {
             rt_memset(ptr, 0, shdr[index].sh_size);
-            bss_addr = (rt_uint32_t)ptr;
+            bss_addr = (rt_uint32_t)(uintptr_t)ptr;
             LOG_D("load bss 0x%x, size %d", ptr, shdr[index].sh_size);
         }
     }

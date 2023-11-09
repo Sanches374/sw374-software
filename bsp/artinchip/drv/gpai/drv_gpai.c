@@ -88,6 +88,40 @@ struct aic_gpai_ch aic_gpai_chs[] = {
         .fifo_depth = 8,
     },
 #endif
+#ifdef AIC_GPAI_DRV_V11
+#ifdef AIC_USING_GPAI8
+    {
+        .id = 8,
+        .available = 1,
+        .mode = AIC_GPAI_MODE_SINGLE,
+        .fifo_depth = 8,
+    },
+#endif
+#ifdef AIC_USING_GPAI9
+    {
+        .id = 9,
+        .available = 1,
+        .mode = AIC_GPAI_MODE_SINGLE,
+        .fifo_depth = 8,
+    },
+#endif
+#ifdef AIC_USING_GPAI10
+    {
+        .id = 10,
+        .available = 1,
+        .mode = AIC_GPAI_MODE_SINGLE,
+        .fifo_depth = 8,
+    },
+#endif
+#ifdef AIC_USING_GPAI11
+    {
+        .id = 11,
+        .available = 1,
+        .mode = AIC_GPAI_MODE_SINGLE,
+        .fifo_depth = 8,
+    },
+#endif
+#endif
 };
 
 static rt_err_t drv_gpai_enabled(struct rt_adc_device *dev,
@@ -101,6 +135,7 @@ static rt_err_t drv_gpai_enabled(struct rt_adc_device *dev,
 
     if (enabled) {
         aich_gpai_ch_init(chan, chan->pclk_rate);
+        chan->irq_count = 0;
         if (chan->mode == AIC_GPAI_MODE_SINGLE)
             chan->complete = aicos_sem_create(0);
     } else {
@@ -130,11 +165,21 @@ static rt_uint8_t drv_gpai_resolution(struct rt_adc_device *dev)
     return 12;
 }
 
+static rt_err_t drv_gpai_get_irq_count(struct rt_adc_device *dev, rt_uint32_t ch)
+{
+    struct aic_gpai_ch *chan = hal_gpai_ch_is_valid(ch);
+
+    if (!chan)
+        return -RT_EINVAL;
+    return chan->irq_count;
+}
+
 static const struct rt_adc_ops aic_adc_ops =
 {
     .enabled = drv_gpai_enabled,
     .convert = drv_gpai_convert,
     .get_resolution = drv_gpai_resolution,
+    .get_irq_count = drv_gpai_get_irq_count,
 };
 
 static int drv_gpai_init(void)

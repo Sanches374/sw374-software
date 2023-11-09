@@ -39,13 +39,13 @@
 
 #define SPI_MODE_NUM                0x3
 
-#define DBI_CTL_MODE_MASK               GENMASK(5, 4)
-#define DBI_CTL_MODE(x)                 (((x)&0x3) << 4)
+#define DBI_CTL_TYPE_MASK               GENMASK(5, 4)
+#define DBI_CTL_TYPE(x)                 (((x)&0x3) << 4)
 #define DBI_CTL_EN                      BIT(0)
-#define DBI_CTL_I8080_MODE_MASK         GENMASK(19, 16)
-#define DBI_CTL_I8080_MODE(x)           (((x) & 0xF) << 16)
-#define DBI_CTL_SPI_MODE_MASK           GENMASK(21, 20)
-#define DBI_CTL_SPI_MODE(x)             (((x) & 0x3)<<20)
+#define DBI_CTL_I8080_TYPE_MASK         GENMASK(19, 16)
+#define DBI_CTL_I8080_TYPE(x)           (((x) & 0xF) << 16)
+#define DBI_CTL_SPI_TYPE_MASK           GENMASK(21, 20)
+#define DBI_CTL_SPI_TYPE(x)             (((x) & 0x3)<<20)
 #define DBI_CTL_SPI_FORMAT_MASK         GENMASK(27, 24)
 #define DBI_CTL_SPI_FORMAT(x)           (((x) & 0xF)<<24)
 

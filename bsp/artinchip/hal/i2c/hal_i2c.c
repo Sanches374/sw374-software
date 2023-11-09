@@ -208,11 +208,11 @@ static int32_t aic_i2c_wait_iic_transmit(unsigned long reg_base,
     int32_t ret = I2C_OK;
 
     do {
-        uint32_t timecount = timeout + rt_tick_get();
+        uint32_t timecount = timeout + aic_get_time_ms();
 
         while ((aic_i2c_get_transmit_fifo_num(reg_base) != 0U) &&
                (ret == EOK)) {
-            if (rt_tick_get() >= timecount) {
+            if (aic_get_time_ms() >= timecount) {
                 ret = I2C_TIMEOUT;
             }
         }
@@ -234,11 +234,11 @@ static int32_t aic_i2c_wait_receive(unsigned long reg_base,
     int32_t ret = I2C_OK;
 
     do {
-        uint32_t timecount = timeout + rt_tick_get();
+        uint32_t timecount = timeout + aic_get_time_ms();
 
         while ((aic_i2c_get_receive_fifo_num(reg_base) < wait_data_num) &&
                (ret == I2C_OK)) {
-            if (rt_tick_get() >= timecount) {
+            if (aic_get_time_ms() >= timecount) {
                 ret = I2C_TIMEOUT;
             }
         }
@@ -253,7 +253,7 @@ static int32_t aic_i2c_wait_receive(unsigned long reg_base,
   \param[in]
   \return      bytes of sent msg
 */
-int32_t aic_i2c_master_send_msg(unsigned long reg_base, struct rt_i2c_msg *msg)
+int32_t aic_i2c_master_send_msg(unsigned long reg_base, struct aic_i2c_msg *msg)
 {
     CHECK_PARAM(msg, -EINVAL);
 
@@ -316,7 +316,7 @@ int32_t aic_i2c_master_send_msg(unsigned long reg_base, struct rt_i2c_msg *msg)
 
                 send_count += send_num;
 
-                if (rt_tick_get() >= timeout) {
+                if (aic_get_time_ms() >= timeout) {
                     ret = I2C_TIMEOUT;
                     break;
                 }
@@ -350,7 +350,7 @@ int32_t aic_i2c_master_send_msg(unsigned long reg_base, struct rt_i2c_msg *msg)
   \return      state
 */
 int32_t aic_i2c_master_receive_msg(unsigned long reg_base,
-                                   struct rt_i2c_msg *msg)
+                                   struct aic_i2c_msg *msg)
 {
     CHECK_PARAM(msg, -EINVAL);
 
@@ -410,11 +410,11 @@ int32_t aic_i2c_master_receive_msg(unsigned long reg_base,
             }
         }
 
-        uint32_t timecount = timeout + rt_tick_get();
+        uint32_t timecount = timeout + aic_get_time_ms();
 
         while (
             !(aic_i2c_get_raw_interrupt_state(reg_base) & I2C_INTR_STOP_DET)) {
-            if (rt_tick_get() >= timecount) {
+            if (aic_get_time_ms() >= timecount) {
                 ret = I2C_TIMEOUT;
                 break;
             }

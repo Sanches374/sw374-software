@@ -17,3 +17,4 @@ menu "PSRAM Parameter"
         default 198000000
 endmenu
 
+source "bsp/artinchip/hal/axicfg/Kconfig.dev"

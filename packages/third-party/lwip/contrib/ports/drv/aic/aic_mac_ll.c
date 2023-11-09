@@ -5,7 +5,7 @@
  */
 
 #include <aic_core.h>
-#include <aic_drv.h>
+#include <aic_hal.h>
 
 #define align_cache_line(addr, len, a, l) \
 unsigned long a = (unsigned long)addr; \

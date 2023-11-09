@@ -74,6 +74,7 @@ typedef struct AUDIO_RENDER_DATA_TYPE {
     struct aic_audio_render_attr sAudioRenderArrt;
     OMX_S32 nAudioRenderInitFlag;
     OMX_S32 nVolume;
+    OMX_S32 nVolumeChange;
     OMX_S32 nLayerId;
     OMX_S32 nDevId;
     struct mpp_rect sDisRect;

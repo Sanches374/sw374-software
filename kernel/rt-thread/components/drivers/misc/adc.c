@@ -63,6 +63,12 @@ static rt_err_t _adc_control(rt_device_t dev, int cmd, void *args)
             result = RT_EOK;
         }
     }
+#ifdef AIC_GPAI_DRV
+    else if (cmd == RT_ADC_CMD_IRQ_COUNT && adc->ops->get_irq_count)
+    {
+        return adc->ops->get_irq_count(adc, *(rt_uint32_t *)args);
+    }
+#endif
     else if (cmd == RT_ADC_CMD_GET_VREF && adc->ops->get_vref && args)
     {
         rt_int16_t value = adc->ops->get_vref(adc);
@@ -125,6 +131,16 @@ rt_uint32_t rt_adc_read(rt_adc_device_t dev, rt_uint32_t channel)
 
     return value;
 }
+
+#ifdef AIC_GPAI_DRV
+rt_err_t rt_adc_control(rt_adc_device_t dev, int cmd, void *args)
+{
+    RT_ASSERT(dev);
+
+    /*get the resolution in bits*/
+    return _adc_control((rt_device_t) dev, cmd, &args);
+}
+#endif
 
 rt_err_t rt_adc_enable(rt_adc_device_t dev, rt_uint32_t channel)
 {

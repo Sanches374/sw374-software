@@ -9,7 +9,6 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "drivers/i2c.h"
 #include "aic_errno.h"
 #include "aic_common.h"
 #include "aic_hal_clk.h"
@@ -19,6 +18,14 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+struct aic_i2c_msg
+{
+    uint16_t addr;
+    uint16_t flags;
+    uint16_t len;
+    uint8_t  *buf;
+};
 
 typedef enum {
     I2C_OK = 0,
@@ -184,7 +191,7 @@ static inline unsigned long aic_i2c_module_status(unsigned long reg_base)
     return readl(reg_base + I2C_ENABLE_STATUS) & 1;
 }
 
-static inline void aic_i2c_transmit_data(unsigned long reg_base, uint8_t data)
+static inline void aic_i2c_transmit_data(unsigned long reg_base, uint16_t data)
 {
     writel(data, reg_base + I2C_DATA_CMD);
 }
@@ -340,7 +347,7 @@ static inline void aic_i2c_set_receive_fifo_threshold(unsigned long reg_base,
 int aic_i2c_init(uint32_t i2c_idx);
 
 
-void hal_i2c_set_hold(ptr_t reg_base, u32 val);
+void hal_i2c_set_hold(unsigned long reg_base, u32 val);
 
 /**
   \brief       Configure i2c master mode or slave mode
@@ -393,9 +400,9 @@ void aic_i2c_target_addr(unsigned long reg_base, uint32_t addr);
 */
 int aic_i2c_slave_own_addr(unsigned long reg_base, uint32_t addr);
 
-int32_t aic_i2c_master_send_msg(unsigned long reg_base, struct rt_i2c_msg *msg);
+int32_t aic_i2c_master_send_msg(unsigned long reg_base, struct aic_i2c_msg *msg);
 int32_t aic_i2c_master_receive_msg(unsigned long reg_base,
-                                   struct rt_i2c_msg *msg);
+                                   struct aic_i2c_msg *msg);
 
 #ifdef __cplusplus
 }

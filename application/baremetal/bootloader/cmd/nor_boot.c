@@ -20,46 +20,53 @@
 #include <boot.h>
 #include <hexdump.h>
 #include "aic_time.h"
+#include "fitimage.h"
 
 #define APPLICATION_PART "os"
 
-extern sfud_flash *sfud_probe(u32 spi_bus);
+#ifdef AIC_AB_SYSTEM_INTERFACE
+#include <absystem.h>
+
+char target[32] = { 0 };
+#endif
 
 static int do_nor_boot(int argc, char *argv[])
 {
     int ret = 0;
-    struct image_header head;
     struct mtd_dev *mtd;
-    void *la;
-    u32 start_us;
+    ulong entry_point;
+    struct spl_load_info info;
 
     mtd_probe();
 
+#ifdef AIC_AB_SYSTEM_INTERFACE
+    ret = aic_ota_check();
+    if (ret) {
+        printf("Aic ota check error.\n");
+    }
+
+    ret = aic_get_os_to_startup(target);
+    printf("Start-up from %s\n", target);
+    if (ret) {
+        printf("Aic get os fail, startup from %s default.\n", APPLICATION_PART);
+        mtd = mtd_get_device(APPLICATION_PART);
+    } else {
+        mtd = mtd_get_device(target);
+    }
+#else
     mtd = mtd_get_device(APPLICATION_PART);
+#endif
     if (!mtd) {
         printf("Failed to get application partition.\n");
         return -1;
     }
-    ret = mtd_read(mtd, 0, (void *)&head, sizeof(head));
-    if (ret < 0)
-        return -1;
 
-    ret = image_verify_magic((void *)&head, AIC_IMAGE_MAGIC);
-    if (ret) {
-        printf("Application header is unknown.\n");
-        return -1;
-    }
+    info.dev = (void *)mtd;
+    info.bl_len = 1;
 
-    la = (void *)(unsigned long)head.load_address;
+    spl_load_simple_fit(&info, &entry_point);
 
-    start_us =  aic_get_time_us();
-    ret = mtd_read(mtd, 0, la, head.image_len);
-    show_speed("nor read speed", head.image_len, aic_get_time_us() - start_us);
-
-    if (ret < 0)
-        return -1;
-
-    boot_app(la);
+    boot_app((void *)entry_point);
 
     return ret;
 }

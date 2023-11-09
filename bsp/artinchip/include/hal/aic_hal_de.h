@@ -29,6 +29,8 @@ enum de_qos_plane {
 #define DE_CTRL_DITHER_EN                     BIT(0)
 #define DE_MODE_SELECT_COLOR_BAR              BIT(0)
 #define DE_CONFIG_UPDATE_EN                   BIT(0)
+#define DE_CTRL_GAMMA_EN                      BIT(1)
+#define DE_CTRL_CCM_EN                        BIT(2)
 #define DE_SOFT_RESET_EN                      BIT(16)
 #define DE_RAND_DITHER_EN                     BIT(31)
 #define OUTPUT_COLOR_DEPTH_SET(r, g, b)       ((((~r) & 0x3) << 16) \
@@ -120,8 +122,8 @@ enum de_qos_plane {
 
 #define TIMING_TE_PULSE_WIDTH(x)              (((x) & 0xffff) << 8)
 #define TIMING_TE_PULSE_WIDTH_MASK            GENMASK(23, 8)
-#define TIMING_TE_MODE(x)                     (((x) & 0x03) << 4)
-#define TIMING_TE_MODE_MASK                   GENMASK(5, 4)
+#define TIMING_DE_MODE(x)                     (((x) & 0x03) << 4)
+#define TIMING_DE_MODE_MASK                   GENMASK(5, 4)
 
 #define TIMING_CTRL_EN                        BIT(0)
 
@@ -154,6 +156,16 @@ enum de_qos_plane {
 #define TIMING_POL_SET_H_V(h, v)              ((((v) & 0x1) << 1) \
                            | (((h) & 0x1) << 0))
 
+#define GAMMA_LUT0_MASK                       GENMASK(7, 0)
+#define GAMMA_LUT1_MASK                       GENMASK(15, 8)
+#define GAMMA_LUT2_MASK                       GENMASK(23, 16)
+#define GAMMA_LUT3_MASK                       GENMASK(31, 24)
+
+#define GAMMA_LUT0(x)                         (((x) & 0xff) << 0)
+#define GAMMA_LUT1(x)                         (((x) & 0xff) << 8)
+#define GAMMA_LUT2(x)                         (((x) & 0xff) << 16)
+#define GAMMA_LUT3(x)                         (((x) & 0xff) << 24)
+
 /* base offset */
 #define G_BASE                       0x000
 #define DITHER_BASE                  0x00c
@@ -164,6 +176,8 @@ enum de_qos_plane {
 #define WB_BASE                      0x170
 #define TIMING_BASE                  0x1d0
 #define QOS_BASE                     0x880
+#define CCM_BASE                     0x900
+#define GAMMA_BASE                   0x940
 
 /* global control */
 #define DE_CTRL                      (G_BASE + 0x000)
@@ -269,6 +283,23 @@ enum de_qos_plane {
 #define DMAR_URGENT_TH_MASK          GENMASK(9, 0)
 #define DMAR_URGENT_TH(x)            (((x) & 0x3ff) << 0)
 
+/* ccm control */
+#define CCM_CTRL                     (CCM_BASE + 0x000)
+
+/* n = 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 */
+#define CCM_COEF(n)                  (CCM_CTRL + 0x4 * (n))
+
+/* gamma control */
+#define GAMMA_CTRL                   (GAMMA_BASE + 0x000)
+#define GAMMA_REG_LUT_BASE           (GAMMA_CTRL + 0x000)
+#define GAMMA_GREEN_LUT_BASE         (GAMMA_CTRL + 0x040)
+#define GAMMA_BLUE_LUT_BASE          (GAMMA_CTRL + 0x080)
+
+/* n = 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 */
+#define GAMMA_RED_LUT(n)             (GAMMA_REG_LUT_BASE   + 4 * (n))
+#define GAMMA_GREEN_LUT(n)           (GAMMA_GREEN_LUT_BASE + 4 * (n))
+#define GAMMA_BLUE_LUT(n)            (GAMMA_BLUE_LUT_BASE  + 4 * (n))
+
 /**
  *@ enable
  * 0: disable update config
@@ -288,6 +319,12 @@ void de_config_update_enable(void *base_addr, u32 enable);
  */
 void de_set_dither(void *base_addr, u32 r_depth,
            u32 g_depth, u32 b_depth, u32 enable);
+
+void de_set_mode(void *base_addr, u32 mode);
+
+void de_set_te_pulse_width(void *base_addr, u32 width);
+
+u32 de_set_te_pinmux(const char *name);
 
 void de_set_qos(void *base_addr);
 
@@ -406,6 +443,14 @@ void de_config_prefetch_line_set(void *base_addr, u32 line);
 
 void de_config_tearing_effect(void *base_addr,
             u32 mode, u32 pulse_width);
+
+void de_ccm_ctrl(void *base_addr, u32 enable);
+
+void de_gamma_ctrl(void *base_addr, u32 enable);
+
+void de_config_ccm(void *base_addr, const int *ccm_table);
+
+void de_config_gamma_lut(void *base_addr, const u32 *gamma_table, int channel);
 
 #endif /* _DE_HW_H_ */
 

@@ -223,11 +223,11 @@ void hal_rtp_enable(struct aic_rtp_dev *rtp, int en)
 #if defined(CONFIG_ARTINCHIP_ADCIM_DM)
     writel(0, RTP_PDEB);
 #else
-    writel(0x230f230f, RTP_PDEB);
+    writel(rtp->pdeb, RTP_PDEB);
 #endif
 
     if (rtp->mode != RTP_MODE_MANUAL) {
-        writel(0x1f000021, RTP_DLY);
+        writel(rtp->delay, RTP_DLY);
         rtp_reg_enable(RTP_MCR, RTP_MCR_PRES_DET_BYPASS, en);
     }
 

@@ -55,10 +55,12 @@ s32 trans_layer_rw_proc(struct phy_data_rw *rw, u8 *buffer, u32 len)
         return -1;
     }
 
-    trans_pkt_buf = aicos_malloc_align(0, TRANS_DATA_BUFF_SIZE, CACHE_LINE_SIZE);
     if (!trans_pkt_buf) {
-        pr_err("malloc trans pkt buf failed.\n");
-        return -1;
+        trans_pkt_buf = aicos_malloc_align(0, TRANS_DATA_BUFF_SIZE, CACHE_LINE_SIZE);
+        if (!trans_pkt_buf) {
+            pr_err("malloc trans pkt buf failed.\n");
+            return -1;
+        }
     }
 
     // hexdump("CBW ", buffer, len);
@@ -94,7 +96,6 @@ s32 trans_layer_rw_proc(struct phy_data_rw *rw, u8 *buffer, u32 len)
                 if (retlen != slice)
                     break;
 
-                // upg_protocol.pkt_input(trans_pkt_buf, slice);
                 aicupg_data_packet_write(trans_pkt_buf, slice);
                 total += slice;
                 rest -= slice;
@@ -102,7 +103,6 @@ s32 trans_layer_rw_proc(struct phy_data_rw *rw, u8 *buffer, u32 len)
 
             if (total == data_len) {
                 trans_send_csw(rw, cbw.dCBWTag, status, 0);
-                // upg_protocol.pkt_postproc();
             } else {
                 status = AIC_CSW_STATUS_FAILED;
                 trans_send_csw(rw, cbw.dCBWTag, status, rest);
@@ -127,17 +127,15 @@ s32 trans_layer_rw_proc(struct phy_data_rw *rw, u8 *buffer, u32 len)
                     slice = rest;
 
                 retlen = aicupg_data_packet_read(trans_pkt_buf, slice);
-                // upg_protocol.pkt_output(trans_pkt_buf, slice);
                 if (retlen != slice)
                     break;
 
                 rw->send((u8 *)trans_pkt_buf, slice);
                 total += slice;
-                rest -= slice; 
+                rest -= slice;
             }
 
             if (total == data_len) {
-                // upg_protocol.pkt_postproc();
                 trans_send_csw(rw, cbw.dCBWTag, status, 0);
             } else {
                 status = AIC_CSW_STATUS_FAILED;
@@ -151,10 +149,12 @@ s32 trans_layer_rw_proc(struct phy_data_rw *rw, u8 *buffer, u32 len)
             break;
     }
 
+    /*
     if (trans_pkt_buf) {
         aicos_free_align(0, trans_pkt_buf);
         trans_pkt_buf = NULL;
     }
+    */
 
     return 0;
 }

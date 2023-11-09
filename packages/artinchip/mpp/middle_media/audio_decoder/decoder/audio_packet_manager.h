@@ -58,4 +58,6 @@ int audio_pm_get_ready_packet_num(struct audio_packet_manager *pm);
 */
 int audio_pm_reclaim_ready_packet(struct audio_packet_manager *pm, struct mpp_packet *packet);
 
+int audio_pm_reset(struct audio_packet_manager *pm);
+
 #endif /* PACKET_MANAGER_H */

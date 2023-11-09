@@ -84,7 +84,7 @@ static struct spi_cfg spi = {
 };
 
 static struct panel_dbi dbi = {
-    .mode = SPI,
+    .type = SPI,
     .format = SPI_4SDA_RGB666,
     .first_line = 0x61,
     .other_line = 0x60,
@@ -100,6 +100,6 @@ struct aic_panel dbi_st77903 = {
     .timings = &st77903_timing,
     .funcs = &st77903_funcs,
     .dbi = &dbi,
-    .connector_type = AIC_DBI_SPI_COM,
+    .connector_type = AIC_DBI_COM,
 };
 

@@ -485,8 +485,8 @@ int snprintf(char *buf, size_t size, const char *fmt, ...)
 
 int vprintf(const char *fmt, va_list args)
 {
-	unsigned int i;
-	char printbuffer[512];
+	unsigned int i, c;
+	char printbuffer[512], *p;
 
 	/*
 	 * For this to work, printbuffer must be larger than
@@ -498,7 +498,16 @@ int vprintf(const char *fmt, va_list args)
 	if (i <= 0)
 		return i;
 	/* Print the string */
-	puts(printbuffer);
+	p = printbuffer;
+	for (;;) {
+		c = *p;
+		if (c == 0)
+			break;
+		if (putchar(c) < 0)
+			break;
+		p++;
+	}
+
 	return i;
 }
 

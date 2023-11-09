@@ -62,7 +62,9 @@ extern "C" {
 #define RESET_MTOP      48
 #define RESET_PBUS      49
 #define RESET_PSADC     50
-#define RESET_NUMBER    51
+#define RESET_PWMCS     51
+#define RESET_PWMCS_SDFM    52
+#define RESET_NUMBER    53
 
 #ifdef __cplusplus
 }

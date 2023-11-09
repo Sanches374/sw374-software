@@ -20,6 +20,9 @@ static struct aic_panel *panels[] = {
 #ifdef AIC_PANEL_DSI_XM91080
     &dsi_xm91080,
 #endif
+#ifdef AIC_PANEL_DSI_ST7797
+    &dsi_st7797,
+#endif
 #ifdef AIC_PANEL_DBI_ILI9488
     &dbi_ili9488,
 #endif
@@ -27,7 +30,13 @@ static struct aic_panel *panels[] = {
     &dbi_ili9341,
 #endif
 #ifdef AIC_PANEL_DBI_ST77903
-    &dbi_st77903
+    &dbi_st77903,
+#endif
+#ifdef AIC_PANEL_DBI_ILI9486L
+    &dbi_ili9486l,
+#endif
+#ifdef AIC_PANEL_SRGB_HX8238
+    &srgb_hx8238
 #endif
 };
 
@@ -108,6 +117,16 @@ void panel_backlight_enable(struct aic_panel *panel, u32 ms)
     hal_gpio_clr_output(g, p);
 #endif
 #endif /* AIC_PANEL_ENABLE_GPIO */
+
+#if defined(KERNEL_RTTHREAD) && defined(AIC_PWM_BACKLIGHT_CHANNEL)
+    struct rt_device_pwm *pwm_dev;
+
+    pwm_dev = (struct rt_device_pwm *)rt_device_find("pwm");
+    /* pwm frequency: 1KHz = 1000000ns */
+    rt_pwm_set(pwm_dev, AIC_PWM_BACKLIGHT_CHANNEL,
+            1000000, 10000 * AIC_PWM_BRIGHTNESS_LEVEL);
+    rt_pwm_enable(pwm_dev, AIC_PWM_BACKLIGHT_CHANNEL);
+#endif
 }
 
 void panel_backlight_disable(struct aic_panel *panel, u32 ms)
@@ -127,6 +146,13 @@ void panel_backlight_disable(struct aic_panel *panel, u32 ms)
     hal_gpio_set_output(g, p);
 #endif
 #endif /* AIC_PANEL_ENABLE_GPIO */
+
+#if defined(KERNEL_RTTHREAD) && defined(AIC_PWM_BACKLIGHT_CHANNEL)
+    struct rt_device_pwm *pwm_dev;
+
+    pwm_dev = (struct rt_device_pwm *)rt_device_find("pwm");
+    rt_pwm_disable(pwm_dev, AIC_PWM_BACKLIGHT_CHANNEL);
+#endif
 }
 
 int panel_default_prepare(void)

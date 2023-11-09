@@ -81,8 +81,46 @@ static OMX_ERRORTYPE OMX_DemuxerSetCallbacks(
         OMX_IN    OMX_CALLBACKTYPE* pCallbacks,
         OMX_IN    OMX_PTR pAppData);
 
+static int OMX_DemuxerClearPackets(DEMUXER_DATA_TYPE *pDemuxerDataType);
 
+static int OMX_DemuxerClearPackets(DEMUXER_DATA_TYPE *pDemuxerDataType)
+{
+        //wait for    all  audio packet from other component or app to back.
+        logi("Before OMX_DemuxerComponentThread exit,it must wait for sOutAudioProcessingPkt empty\n");
+        while(!OMX_DemuxerListEmpty(&pDemuxerDataType->sOutAudioProcessingPkt,pDemuxerDataType->sAudioPktLock)) {
+            usleep(1000);
+        }
+        //wait for    all  video packet from other component or app to back.
+        logi("Before OMX_DemuxerComponentThread exit,it must wait for sOutVideoProcessingPkt empty\n");
+        while(!OMX_DemuxerListEmpty(&pDemuxerDataType->sOutVideoProcessingPkt,pDemuxerDataType->sVideoPktLock)) {
+            usleep(1000);
+        }
+        // move sOutAudioReadyPkt to sOutAudioEmptyPkt
+        if (!OMX_DemuxerListEmpty(&pDemuxerDataType->sOutAudioReadyPkt,pDemuxerDataType->sAudioPktLock)) {
+            logd("sOutAudioReadyPkt is not empty\n");
+            DEMUXER_OUT_PACKET *pktNode1,*pktNode2;
+            aic_pthread_mutex_lock(&pDemuxerDataType->sAudioPktLock);
+            mpp_list_for_each_entry_safe(pktNode1, pktNode2, &pDemuxerDataType->sOutAudioReadyPkt, sList) {
+                mpp_list_del(&pktNode1->sList);
+                mpp_list_add_tail(&pktNode1->sList, &pDemuxerDataType->sOutAudioEmptyPkt);
+            }
+            aic_pthread_mutex_unlock(&pDemuxerDataType->sAudioPktLock);
+        }
 
+        // move sOutVideoReadyPkt to sOutVideoEmptyPkt
+        if (!OMX_DemuxerListEmpty(&pDemuxerDataType->sOutVideoReadyPkt,pDemuxerDataType->sVideoPktLock)) {
+            loge("sOutVideoReadyPkt is not empty\n");
+            DEMUXER_OUT_PACKET *pktNode1,*pktNode2;
+            aic_pthread_mutex_lock(&pDemuxerDataType->sVideoPktLock);
+            mpp_list_for_each_entry_safe(pktNode1, pktNode2, &pDemuxerDataType->sOutVideoReadyPkt, sList) {
+                mpp_list_del(&pktNode1->sList);
+                mpp_list_add_tail(&pktNode1->sList, &pDemuxerDataType->sOutVideoEmptyPkt);
+            }
+            aic_pthread_mutex_unlock(&pDemuxerDataType->sVideoPktLock);
+        }
+
+    return 0;
+}
 
 static OMX_ERRORTYPE OMX_DemuxerSendCommand(
         OMX_IN    OMX_HANDLETYPE hComponent,
@@ -100,7 +138,7 @@ static OMX_ERRORTYPE OMX_DemuxerSendCommand(
     sMsg.data_size = 0;
 
     //now not use always NULL
-    if(pCmdData != NULL)
+    if (pCmdData != NULL)
     {
         sMsg.data = pCmdData;
         sMsg.data_size = strlen((char*)pCmdData);
@@ -134,7 +172,7 @@ static OMX_ERRORTYPE OMX_DemuxerGetParameter(
     pVideoActiveStreamIndex = &pDemuxerDataType->sActiveStreamIndex[DEMUX_PORT_VIDEO_INDEX];
 
 
-    switch (nParamIndex){
+    switch (nParamIndex) {
     case OMX_IndexConfigTimePosition:
         break;
     case OMX_IndexConfigTimeSeekMode:
@@ -144,39 +182,39 @@ static OMX_ERRORTYPE OMX_DemuxerGetParameter(
             &pDemuxerDataType->pDemuxerChnAttr,
             ((OMX_PARAM_CONTENTURITYPE*)pComponentParameterStructure)->nSize);
         break;
-    case OMX_IndexParamPortDefinition:{//OMX_PARAM_PORTDEFINITIONTYPE
+    case OMX_IndexParamPortDefinition: {//OMX_PARAM_PORTDEFINITIONTYPE
         OMX_PARAM_PORTDEFINITIONTYPE *port = (OMX_PARAM_PORTDEFINITIONTYPE*)pComponentParameterStructure;
-        if(port->nPortIndex == DEMUX_PORT_AUDIO_INDEX){
+        if (port->nPortIndex == DEMUX_PORT_AUDIO_INDEX) {
             memcpy(port,pAudioPort,sizeof(OMX_PARAM_PORTDEFINITIONTYPE));
-        }else if(port->nPortIndex == DEMUX_PORT_VIDEO_INDEX){
+        } else if (port->nPortIndex == DEMUX_PORT_VIDEO_INDEX) {
             memcpy(port,pVideoPort,sizeof(OMX_PARAM_PORTDEFINITIONTYPE));
-        }else if(port->nPortIndex == DEMUX_PORT_CLOCK_INDEX){
+        } else if (port->nPortIndex == DEMUX_PORT_CLOCK_INDEX) {
             memcpy(port,&pDemuxerDataType->sInPortDef,sizeof(OMX_PARAM_PORTDEFINITIONTYPE));
-        }else{
+        } else {
             eError = OMX_ErrorBadParameter;
         }
         break;
     }
     case OMX_IndexParamNumAvailableStreams://OMX_PARAM_U32TYPE
             tmp1 = ((OMX_PARAM_U32TYPE*)pComponentParameterStructure)->nPortIndex;
-            if(tmp1 == DEMUX_PORT_AUDIO_INDEX) {
+            if (tmp1 == DEMUX_PORT_AUDIO_INDEX) {
                 ((OMX_PARAM_U32TYPE*)pComponentParameterStructure)->nU32 = pAudioStreamNum->nU32;
-            }else if(tmp1 == DEMUX_PORT_VIDEO_INDEX) {
+            } else if (tmp1 == DEMUX_PORT_VIDEO_INDEX) {
                 ((OMX_PARAM_U32TYPE*)pComponentParameterStructure)->nU32 = pVideoStreamNum->nU32;
-            }else {
+            } else {
                 eError = OMX_ErrorBadParameter;
             }
         break;
     case OMX_IndexParamActiveStream://OMX_PARAM_U32TYPE
         tmp1 = ((OMX_PARAM_U32TYPE*)pComponentParameterStructure)->nPortIndex;
         tmp2 = ((OMX_PARAM_U32TYPE*)pComponentParameterStructure)->nU32; // start from 0
-        if(tmp1 == DEMUX_PORT_AUDIO_INDEX) {
+        if (tmp1 == DEMUX_PORT_AUDIO_INDEX) {
             ((OMX_PARAM_U32TYPE*)pComponentParameterStructure)->nU32 =
                                     *pAudioActiveStreamIndex;
-        }else if(tmp1 == DEMUX_PORT_VIDEO_INDEX) {
+        } else if (tmp1 == DEMUX_PORT_VIDEO_INDEX) {
             ((OMX_PARAM_U32TYPE*)pComponentParameterStructure)->nU32 =
                                     *pVideoActiveStreamIndex;;
-        }else {
+        } else {
             eError = OMX_ErrorBadParameter;
         }
 
@@ -184,7 +222,7 @@ static OMX_ERRORTYPE OMX_DemuxerGetParameter(
     case OMX_IndexParamAudioPortFormat://OMX_AUDIO_PARAM_PORTFORMATTYPE
         tmp1 = ((OMX_AUDIO_PARAM_PORTFORMATTYPE*)pComponentParameterStructure)->nPortIndex;
         tmp2 = ((OMX_AUDIO_PARAM_PORTFORMATTYPE*)pComponentParameterStructure)->nIndex;
-        if(tmp1 != DEMUX_PORT_AUDIO_INDEX || tmp2 > pAudioStreamNum->nU32 -1){
+        if (tmp1 != DEMUX_PORT_AUDIO_INDEX || tmp2 > pAudioStreamNum->nU32 -1) {
             eError = OMX_ErrorBadParameter;
             break;
         }
@@ -195,7 +233,7 @@ static OMX_ERRORTYPE OMX_DemuxerGetParameter(
         tmp1 = ((OMX_VIDEO_PARAM_PORTFORMATTYPE*)pComponentParameterStructure)->nPortIndex;
         tmp2 = ((OMX_VIDEO_PARAM_PORTFORMATTYPE*)pComponentParameterStructure)->nIndex;
         logd("OMX_IndexParamVideoPortFormat,port:%d,index:%d,video stream_num:%d\n",tmp1,tmp1,pVideoStreamNum->nU32);
-        if(tmp1 != DEMUX_PORT_VIDEO_INDEX || tmp2 > (pVideoStreamNum->nU32 -1)){
+        if (tmp1 != DEMUX_PORT_VIDEO_INDEX || tmp2 > (pVideoStreamNum->nU32 -1)) {
             eError = OMX_ErrorBadParameter;
             break;
         }
@@ -204,15 +242,15 @@ static OMX_ERRORTYPE OMX_DemuxerGetParameter(
         ((OMX_VIDEO_PARAM_PORTFORMATTYPE*)pComponentParameterStructure)->eColorFormat =
                     pDemuxerDataType->sVideoStream[tmp2].eColorFormat;
         break;
-    case OMX_IndexParamCompBufferSupplier:{
+    case OMX_IndexParamCompBufferSupplier: {
             OMX_PARAM_BUFFERSUPPLIERTYPE *sBufferSupplier = (OMX_PARAM_BUFFERSUPPLIERTYPE*)pComponentParameterStructure;
-            if(sBufferSupplier->nPortIndex == DEMUX_PORT_AUDIO_INDEX){
+            if (sBufferSupplier->nPortIndex == DEMUX_PORT_AUDIO_INDEX) {
                 sBufferSupplier->eBufferSupplier = pAudioBufSupplier->eBufferSupplier;
-            }else if(sBufferSupplier->nPortIndex == DEMUX_PORT_VIDEO_INDEX){
+            } else if (sBufferSupplier->nPortIndex == DEMUX_PORT_VIDEO_INDEX) {
                 sBufferSupplier->eBufferSupplier = pVideoBufSupplier->eBufferSupplier;
-            }else if(sBufferSupplier->nPortIndex == DEMUX_PORT_CLOCK_INDEX){
+            } else if (sBufferSupplier->nPortIndex == DEMUX_PORT_CLOCK_INDEX) {
                 sBufferSupplier->eBufferSupplier = pDemuxerDataType->sInBufSupplier.eBufferSupplier;
-            }else{
+            } else {
                 loge("error nPortIndex\n");
                 eError = OMX_ErrorBadPortIndex;
             }
@@ -224,14 +262,16 @@ static OMX_ERRORTYPE OMX_DemuxerGetParameter(
     return eError;
 }
 
-static OMX_AUDIO_CODINGTYPE OMX_DemuxerAudioFormatTrans(enum mpp_audio_codec_type nAudioType)
+static OMX_AUDIO_CODINGTYPE OMX_DemuxerAudioFormatTrans(enum aic_audio_codec_type nAudioType)
 {
     OMX_AUDIO_CODINGTYPE ret = OMX_AUDIO_CodingUnused;
-    if(nAudioType == MPP_CODEC_AUDI_DECODER_MP3){
+    if (nAudioType == MPP_CODEC_AUDIO_DECODER_MP3) {
         ret = OMX_AUDIO_CodingMP3;
-    }else{
+    } else if (nAudioType == MPP_CODEC_AUDIO_DECODER_AAC) {
+        ret = OMX_AUDIO_CodingAAC;
+    } else {
         loge("unspport codec!!!\n");
-        ret = OMX_AUDIO_CodingMP3;
+        ret = OMX_AUDIO_CodingMax;
     }
 
     return ret;
@@ -241,11 +281,13 @@ static OMX_AUDIO_CODINGTYPE OMX_DemuxerAudioFormatTrans(enum mpp_audio_codec_typ
 static OMX_VIDEO_CODINGTYPE OMX_DemuxerVideoFormatTrans(enum mpp_codec_type nVideoType)
 {
     OMX_VIDEO_CODINGTYPE ret = OMX_VIDEO_CodingUnused;
-    if(nVideoType == MPP_CODEC_VIDEO_DECODER_H264){
+    if (nVideoType == MPP_CODEC_VIDEO_DECODER_H264) {
         ret = OMX_VIDEO_CodingAVC;
-    }else{
+    } else if (nVideoType == MPP_CODEC_VIDEO_DECODER_MJPEG) {
+        ret = OMX_VIDEO_CodingMJPEG;
+    } else {
         loge("unspport codec!!!\n");
-        ret = OMX_VIDEO_CodingAVC;
+        ret = OMX_VIDEO_CodingMax;
     }
     return ret;
 }
@@ -266,7 +308,7 @@ static void OMX_DemuxerEventNotify(
         OMX_U32 nData2,
         OMX_PTR pEventData)
 {
-    if(pDemuxerDataType && pDemuxerDataType->pCallbacks && pDemuxerDataType->pCallbacks->EventHandler) {
+    if (pDemuxerDataType && pDemuxerDataType->pCallbacks && pDemuxerDataType->pCallbacks->EventHandler) {
         pDemuxerDataType->pCallbacks->EventHandler(
                     pDemuxerDataType->hSelf,
                     pDemuxerDataType->pAppData,event,
@@ -290,7 +332,7 @@ static OMX_ERRORTYPE OMX_DemuxerIndexParamContentURI(DEMUXER_DATA_TYPE *pDemuxer
     pAudioActiveStreamIndex = &pDemuxerDataType->sActiveStreamIndex[DEMUX_PORT_AUDIO_INDEX];
     pVideoActiveStreamIndex = &pDemuxerDataType->sActiveStreamIndex[DEMUX_PORT_VIDEO_INDEX];
 
-    if(pDemuxerDataType->pDemuxerChnAttr){
+    if (pDemuxerDataType->pDemuxerChnAttr) {
         mpp_free(pDemuxerDataType->pDemuxerChnAttr);
         pDemuxerDataType->pDemuxerChnAttr = NULL;
     }
@@ -298,10 +340,10 @@ static OMX_ERRORTYPE OMX_DemuxerIndexParamContentURI(DEMUXER_DATA_TYPE *pDemuxer
 
     memcpy(pDemuxerDataType->pDemuxerChnAttr,pContentURI,pContentURI->nSize);
 
-    if(NULL == pDemuxerDataType->pParser){
+    if (NULL == pDemuxerDataType->pParser) {
         ret = aic_parser_create(pDemuxerDataType->pDemuxerChnAttr->contentURI,&pDemuxerDataType->pParser);
         printf("[%s:%d]pParser=%p,contentURI:%s\n",__FUNCTION__,__LINE__,pDemuxerDataType->pParser,pDemuxerDataType->pDemuxerChnAttr->contentURI);
-        if(NULL == pDemuxerDataType->pParser){/*create parser fail*/
+        if (NULL == pDemuxerDataType->pParser) {/*create parser fail*/
             OMX_DemuxerEventNotify(pDemuxerDataType
                             ,OMX_EventError
                             ,OMX_ErrorFormatNotDetected
@@ -315,11 +357,20 @@ static OMX_ERRORTYPE OMX_DemuxerIndexParamContentURI(DEMUXER_DATA_TYPE *pDemuxer
             so,if you want to optimize it,please optimize parser.
         *******************************************************************************/
         time_start(aic_parser_init);
-        aic_parser_init(pDemuxerDataType->pParser);
+        ret = aic_parser_init(pDemuxerDataType->pParser);
+        if (0 != ret) {
+            OMX_DemuxerEventNotify(pDemuxerDataType
+                                            ,OMX_EventError
+                                            ,OMX_ErrorFormatNotDetected
+                                            ,pDemuxerDataType->state,NULL);
+            aic_parser_destroy(pDemuxerDataType->pParser);
+            pDemuxerDataType->pParser = NULL;
+            return OMX_ErrorFormatNotDetected;
+        }
         time_end(aic_parser_init);
 
         ret = aic_parser_get_media_info(pDemuxerDataType->pParser,&pDemuxerDataType->sMediaInfo);
-        if(0 != ret){/*get_media_info fail*/
+        if (0 != ret) {/*get_media_info fail*/
             OMX_DemuxerEventNotify(pDemuxerDataType
                             ,OMX_EventError
                             ,OMX_ErrorFormatNotDetected
@@ -331,17 +382,17 @@ static OMX_ERRORTYPE OMX_DemuxerIndexParamContentURI(DEMUXER_DATA_TYPE *pDemuxer
         }
 
         //set port info
-        if( pDemuxerDataType->sMediaInfo.has_audio){
+        if (pDemuxerDataType->sMediaInfo.has_audio) {
             pDemuxerDataType->sAudioStream[0].eEncoding =
                     OMX_DemuxerAudioFormatTrans(pDemuxerDataType->sMediaInfo.audio_stream.codec_type);
             pAudioStreamNum->nU32 = 1;
             pAudioPort->format.audio.eEncoding = pDemuxerDataType->sAudioStream[0].eEncoding;
             *pAudioActiveStreamIndex = 0;
             bAudioFind = OMX_TRUE;
-        }else{
+        } else {
             pAudioStreamNum->nU32 = 0;
         }
-        if( pDemuxerDataType->sMediaInfo.has_video){
+        if (pDemuxerDataType->sMediaInfo.has_video) {
             pDemuxerDataType->sVideoStream[0].eCompressionFormat =
                                     OMX_DemuxerVideoFormatTrans(pDemuxerDataType->sMediaInfo.video_stream.codec_type);
             pVideoStreamNum->nU32 = 1;
@@ -349,13 +400,13 @@ static OMX_ERRORTYPE OMX_DemuxerIndexParamContentURI(DEMUXER_DATA_TYPE *pDemuxer
                                     pDemuxerDataType->sVideoStream[0].eCompressionFormat;
             *pVideoActiveStreamIndex = 0;
             bVideoFind = OMX_TRUE;
-        }else{
+        } else {
             pVideoStreamNum->nU32 = 0;
         }
-        if(bAudioFind || bVideoFind){
+        if (bAudioFind || bVideoFind) {
             OMX_DemuxerEventNotify(pDemuxerDataType,OMX_EventPortFormatDetected,0,0,&pDemuxerDataType->sMediaInfo);
             printf("[%s:%d]OMX_EventPortFormatDetected\n",__FUNCTION__,__LINE__);
-            if(bAudioFind && pDemuxerDataType->sMediaInfo.audio_stream.extra_data_size >0 && pDemuxerDataType->sMediaInfo.audio_stream.extra_data!=NULL)
+            if (bAudioFind && pDemuxerDataType->sMediaInfo.audio_stream.extra_data_size >0 && pDemuxerDataType->sMediaInfo.audio_stream.extra_data!=NULL)
             {
                 DEMUXER_OUT_PACKET    *pPktNode = NULL;
                 struct aic_parser_packet       sPkt;
@@ -367,8 +418,8 @@ static OMX_ERRORTYPE OMX_DemuxerIndexParamContentURI(DEMUXER_DATA_TYPE *pDemuxer
                 sPkt.flag |= PACKET_FLAG_EXTRA_DATA;
                 aic_pthread_mutex_lock(&pDemuxerDataType->sAudioPktLock);
                 pPktNode = mpp_list_first_entry(&pDemuxerDataType->sOutAudioEmptyPkt,DEMUXER_OUT_PACKET,sList);
-                if(pPktNode->sBuff.nAllocLen < sPkt.size){
-                    if(pPktNode->sBuff.pBuffer){
+                if (pPktNode->sBuff.nAllocLen < sPkt.size) {
+                    if (pPktNode->sBuff.pBuffer) {
                         mpp_free(pPktNode->sBuff.pBuffer);
                         pPktNode->sBuff.pBuffer = NULL;
                     }
@@ -394,7 +445,7 @@ static OMX_ERRORTYPE OMX_DemuxerIndexParamContentURI(DEMUXER_DATA_TYPE *pDemuxer
                 ,pDemuxerDataType->sMediaInfo.video_stream.extra_data_size
                 ,pDemuxerDataType->sMediaInfo.video_stream.extra_data);
 
-            if(bVideoFind && pDemuxerDataType->sMediaInfo.video_stream.extra_data_size >0 && pDemuxerDataType->sMediaInfo.video_stream.extra_data!=NULL)
+            if (bVideoFind && pDemuxerDataType->sMediaInfo.video_stream.extra_data_size >0 && pDemuxerDataType->sMediaInfo.video_stream.extra_data!=NULL)
             {
                 int i = 0;
                 DEMUXER_OUT_PACKET    *pPktNode = NULL;
@@ -405,8 +456,8 @@ static OMX_ERRORTYPE OMX_DemuxerIndexParamContentURI(DEMUXER_DATA_TYPE *pDemuxer
                 logi("sPkt.flag:0x%x\n",sPkt.flag);
                 aic_pthread_mutex_lock(&pDemuxerDataType->sVideoPktLock);
                 pPktNode = mpp_list_first_entry(&pDemuxerDataType->sOutVideoEmptyPkt,DEMUXER_OUT_PACKET,sList);
-                if(pPktNode->sBuff.nAllocLen < sPkt.size){
-                    if(pPktNode->sBuff.pBuffer){
+                if (pPktNode->sBuff.nAllocLen < sPkt.size) {
+                    if (pPktNode->sBuff.pBuffer) {
                         mpp_free(pPktNode->sBuff.pBuffer);
                         pPktNode->sBuff.pBuffer = NULL;
                     }
@@ -427,17 +478,19 @@ static OMX_ERRORTYPE OMX_DemuxerIndexParamContentURI(DEMUXER_DATA_TYPE *pDemuxer
                 aic_pthread_mutex_unlock(&pDemuxerDataType->sVideoPktLock);
                 logi("add a  Video pkt to sOutVideoReadyPkt,pkt.size:%d\n",sPkt.size);
                 logi("-----------------------------extra_data,size:%d------------------------------------\n",pDemuxerDataType->sMediaInfo.video_stream.extra_data_size);
-                for(i=0; i<pDemuxerDataType->sMediaInfo.video_stream.extra_data_size;i++){
+                for(i=0; i<pDemuxerDataType->sMediaInfo.video_stream.extra_data_size;i++) {
                     printf("%02x ",pDemuxerDataType->sMediaInfo.video_stream.extra_data[i]);
                 }
                 logi("----------------------------------------------------------------------------\n");
             }
-        }else {
+        } else {
             OMX_DemuxerEventNotify(pDemuxerDataType,OMX_EventError,OMX_ErrorFormatNotDetected,0,NULL);
             loge("OMX_ErrorFormatNotDetected\n");
+            aic_parser_destroy(pDemuxerDataType->pParser);
+            pDemuxerDataType->pParser = NULL;
             return OMX_ErrorFormatNotDetected;
         }
-    }else{
+    } else {
         OMX_DemuxerEventNotify(pDemuxerDataType,OMX_EventPortFormatDetected,0,0,&pDemuxerDataType->sMediaInfo);
         loge("OMX_EventPortFormatDetected\n");
         return OMX_EventPortFormatDetected;
@@ -453,6 +506,7 @@ static OMX_ERRORTYPE OMX_DemuxerSetParameter(
     DEMUXER_DATA_TYPE *pDemuxerDataType;
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     OMX_S32 tmp1,tmp2;
+    OMX_S32 index =(OMX_S32)nParamIndex;
     OMX_PARAM_PORTDEFINITIONTYPE *pAudioPort,*pVideoPort;
     OMX_S32 *pAudioActiveStreamIndex,*pVideoActiveStreamIndex;
     OMX_PARAM_U32TYPE *pAudioStreamNum,*pVideoStreamNum;
@@ -464,7 +518,7 @@ static OMX_ERRORTYPE OMX_DemuxerSetParameter(
     pAudioActiveStreamIndex = &pDemuxerDataType->sActiveStreamIndex[DEMUX_PORT_AUDIO_INDEX];
     pVideoActiveStreamIndex = &pDemuxerDataType->sActiveStreamIndex[DEMUX_PORT_VIDEO_INDEX];
 
-    switch (nParamIndex){
+    switch (index) {
     case OMX_IndexConfigTimePosition:
         break;
     case OMX_IndexConfigTimeSeekMode:
@@ -480,27 +534,35 @@ static OMX_ERRORTYPE OMX_DemuxerSetParameter(
     case OMX_IndexParamActiveStream://OMX_PARAM_U32TYPE
             tmp1 = ((OMX_PARAM_U32TYPE*)pComponentParameterStructure)->nPortIndex;
             tmp2 = ((OMX_PARAM_U32TYPE*)pComponentParameterStructure)->nU32; // start from 0
-            if(tmp1 == DEMUX_PORT_AUDIO_INDEX) {
-                if(tmp2 > pAudioStreamNum->nU32 -1)
+            if (tmp1 == DEMUX_PORT_AUDIO_INDEX) {
+                if (tmp2 > pAudioStreamNum->nU32 -1)
                     tmp2 = 0;
                 pAudioPort->format.audio.eEncoding =
                         pDemuxerDataType->sAudioStream[tmp2].eEncoding;
                 *pAudioActiveStreamIndex = tmp2;
-            }else if(tmp1 == DEMUX_PORT_VIDEO_INDEX) {
-                if(tmp2 > pVideoStreamNum->nU32 -1)
+            } else if (tmp1 == DEMUX_PORT_VIDEO_INDEX) {
+                if (tmp2 > pVideoStreamNum->nU32 -1)
                     tmp2 = 0;
                 pVideoPort->format.video.eCompressionFormat =
                         pDemuxerDataType->sVideoStream[tmp2].eCompressionFormat;
                 pVideoPort->format.video.eColorFormat =
                         pDemuxerDataType->sVideoStream[tmp2].eColorFormat;
                 *pVideoActiveStreamIndex = tmp2;
-            }else {
+            } else {
                 eError = OMX_ErrorBadParameter;
             }
         break;
     case OMX_IndexParamAudioPortFormat://OMX_AUDIO_PARAM_PORTFORMATTYPE
         break;
     case OMX_IndexParamVideoPortFormat://OMX_VIDEO_PARAM_PORTFORMATTYPE
+        break;
+    case OMX_IndexVendorDemuxerSkipTrack:
+        tmp1 = ((OMX_PARAM_SKIP_TRACK*)pComponentParameterStructure)->nPortIndex;
+        if (tmp1 == DEMUX_PORT_AUDIO_INDEX) {
+            pDemuxerDataType->nSkipTrack |= DEMUX_SKIP_AUDIO_TRACK;
+        } else if (tmp1 == DEMUX_PORT_VIDEO_INDEX) {
+            pDemuxerDataType->nSkipTrack |= DEMUX_SKIP_VIDEO_TRACK;
+        }
         break;
     default:
      break;
@@ -518,7 +580,7 @@ static OMX_ERRORTYPE OMX_DemuxerGetConfig(
     //DEMUXER_DATA_TYPE *pDemuxerDataType;
     OMX_ERRORTYPE eError = OMX_ErrorNone;
 
-    switch (nIndex){
+    switch (nIndex) {
     case OMX_IndexConfigTimePosition:
         break;
     case OMX_IndexConfigTimeSeekMode:
@@ -538,7 +600,7 @@ static OMX_ERRORTYPE OMX_DemuxerSetConfig(
 {
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     DEMUXER_DATA_TYPE *pDemuxerDataType = (DEMUXER_DATA_TYPE *)(((OMX_COMPONENTTYPE*)hComponent)->pComponentPrivate);
-    switch (nIndex){
+    switch ((OMX_S32)nIndex) {
     case OMX_IndexConfigTimePosition://do seek
         {
             // 1 when seeking ,stop peek/read
@@ -546,15 +608,26 @@ static OMX_ERRORTYPE OMX_DemuxerSetConfig(
             // 3 when demux in seeking .other adec and vdec how to do
             int ret = 0;
             OMX_TIME_CONFIG_TIMESTAMPTYPE *sTimeStamp = (OMX_TIME_CONFIG_TIMESTAMPTYPE *)pComponentConfigStructure;
+            logd("sTimeStamp.nTimestamp:%ld\n",sTimeStamp->nTimestamp);
+            //1  seek
             ret = aic_parser_seek(pDemuxerDataType->pParser,sTimeStamp->nTimestamp);
-            if(ret != 0){
-                return OMX_ErrorUndefined;
-            }else{
-                return OMX_ErrorNone;
+            if (ret == 0) {
+                eError = OMX_ErrorNone;
+                pDemuxerDataType->nNeedPeek = 1;
+            } else {
+                eError =  OMX_ErrorUndefined;
             }
             break;
-            }
+        }
     case OMX_IndexConfigTimeSeekMode:
+        break;
+    case OMX_IndexVendorClearBuffer:
+            //2 clear packet
+            OMX_DemuxerClearPackets(pDemuxerDataType);
+            //3 clear flag
+            pDemuxerDataType->nEos = 0;
+            pDemuxerDataType->nSendAudioPacketNum = 0;
+            pDemuxerDataType->nSendVideoPacketNum = 0;
         break;
     default:
         break;
@@ -592,44 +665,44 @@ static OMX_ERRORTYPE OMX_DemuxerComponentTunnelRequest(
     OMX_PARAM_BUFFERSUPPLIERTYPE *pBufSupplier;
     DEMUXER_DATA_TYPE* pDemuxerDataType;
     pDemuxerDataType = (DEMUXER_DATA_TYPE *)(((OMX_COMPONENTTYPE*)hComp)->pComponentPrivate);
-    if(pDemuxerDataType->state != OMX_StateLoaded && pDemuxerDataType->state != OMX_StateIdle)
+    if (pDemuxerDataType->state != OMX_StateLoaded && pDemuxerDataType->state != OMX_StateIdle)
     {
         loge("Component is not in OMX_StateLoaded,it is in%d,it can not tunnel\n",pDemuxerDataType->state);
         return OMX_ErrorInvalidState;
     }
 
-    if(nPort == DEMUX_PORT_AUDIO_INDEX){
+    if (nPort == DEMUX_PORT_AUDIO_INDEX) {
         pPort = &pDemuxerDataType->sOutPortDef[DEMUX_PORT_AUDIO_INDEX];
         pTunneledInfo = &pDemuxerDataType->sOutPortTunneledInfo[DEMUX_PORT_AUDIO_INDEX];
         pBufSupplier = &pDemuxerDataType->sOutBufSupplier[DEMUX_PORT_AUDIO_INDEX];
-    }else if(nPort == DEMUX_PORT_VIDEO_INDEX){
+    } else if (nPort == DEMUX_PORT_VIDEO_INDEX) {
         pPort = &pDemuxerDataType->sOutPortDef[DEMUX_PORT_VIDEO_INDEX];
         pTunneledInfo = &pDemuxerDataType->sOutPortTunneledInfo[DEMUX_PORT_VIDEO_INDEX];
         pBufSupplier = &pDemuxerDataType->sOutBufSupplier[DEMUX_PORT_VIDEO_INDEX];
-    }else if(nPort == DEMUX_PORT_CLOCK_INDEX){
+    } else if (nPort == DEMUX_PORT_CLOCK_INDEX) {
         pPort = &pDemuxerDataType->sInPortDef;
         pTunneledInfo = &pDemuxerDataType->sInPortTunneledInfo;
         pBufSupplier = &pDemuxerDataType->sInBufSupplier;
-    }else{
+    } else {
         loge("component can not find port:%d\n",nPort);
         return OMX_ErrorBadParameter;
     }
 
     // cancle setup tunnel
-    if(NULL == hTunneledComp && 0 == nTunneledPort && NULL == pTunnelSetup){
+    if (NULL == hTunneledComp && 0 == nTunneledPort && NULL == pTunnelSetup) {
             pTunneledInfo->nTunneledFlag = OMX_FALSE;
             pTunneledInfo->nTunnelPortIndex = nTunneledPort;
             pTunneledInfo->pTunneledComp = hTunneledComp;
         return OMX_ErrorNone;
     }
 
-    if(pPort->eDir == OMX_DirOutput){
+    if (pPort->eDir == OMX_DirOutput) {
         pTunneledInfo->nTunnelPortIndex = nTunneledPort;
         pTunneledInfo->pTunneledComp = hTunneledComp;
         pTunneledInfo->nTunneledFlag = OMX_TRUE;
         pTunnelSetup->nTunnelFlags = 0;
         pTunnelSetup->eSupplier = pBufSupplier->eBufferSupplier;
-    }else if(pPort->eDir == OMX_DirInput){
+    } else if (pPort->eDir == OMX_DirInput) {
         OMX_PARAM_PORTDEFINITIONTYPE sTunneledPort;
         OMX_PARAM_BUFFERSUPPLIERTYPE sBuffSupplier;
         sTunneledPort.nPortIndex = nTunneledPort;
@@ -640,19 +713,19 @@ static OMX_ERRORTYPE OMX_DemuxerComponentTunnelRequest(
             return OMX_ErrorPortsNotCompatible;
         }
         OMX_GetParameter(hTunneledComp, OMX_IndexParamPortDefinition,&sTunneledPort);
-        if (pPort->eDomain != sTunneledPort.eDomain){
+        if (pPort->eDomain != sTunneledPort.eDomain) {
             loge("ports domain are not compatible: %d %d.\n",
                    pPort->eDomain, sTunneledPort.eDomain);
             return OMX_ErrorPortsNotCompatible;
         }
-        if(sTunneledPort.eDir != OMX_DirOutput){
+        if (sTunneledPort.eDir != OMX_DirOutput) {
             loge("both ports are input.\n");
             return OMX_ErrorPortsNotCompatible;
         }
 
         //negotiate buffer supplier
         OMX_GetParameter(hTunneledComp, OMX_IndexParamCompBufferSupplier,&sBuffSupplier);
-        if(sBuffSupplier.eBufferSupplier != pTunnelSetup->eSupplier){
+        if (sBuffSupplier.eBufferSupplier != pTunnelSetup->eSupplier) {
              loge("out_port and in_port supplier are different,please check code!!!!\n");
               return OMX_ErrorPortsNotCompatible;
         }
@@ -660,7 +733,7 @@ static OMX_ERRORTYPE OMX_DemuxerComponentTunnelRequest(
         pTunneledInfo->pTunneledComp = hTunneledComp;
         pTunneledInfo->nTunneledFlag = OMX_TRUE;
         pBufSupplier->eBufferSupplier = pTunnelSetup->eSupplier;
-    }else{
+    } else {
         loge("port is neither output nor input.\n");
         return OMX_ErrorPortsNotCompatible;
     }
@@ -689,12 +762,12 @@ static OMX_ERRORTYPE OMX_DemuxerFillThisBuffer(
     OMX_BOOL bFind = OMX_FALSE;
     //logd("OMX_DemuxerFillThisBuffer\n");
     pDemuxerDataType = (DEMUXER_DATA_TYPE *)(((OMX_COMPONENTTYPE*)hComponent)->pComponentPrivate);
-    if(pBuffer->nOutputPortIndex == DEMUX_PORT_VIDEO_INDEX){
+    if (pBuffer->nOutputPortIndex == DEMUX_PORT_VIDEO_INDEX) {
         aic_pthread_mutex_lock(&pDemuxerDataType->sVideoPktLock);
-        if(!mpp_list_empty(&pDemuxerDataType->sOutVideoProcessingPkt)){
+        if (!mpp_list_empty(&pDemuxerDataType->sOutVideoProcessingPkt)) {
             DEMUXER_OUT_PACKET  *pPktNode = NULL,*pPktNode1 = NULL;
-            mpp_list_for_each_entry_safe(pPktNode, pPktNode1, &pDemuxerDataType->sOutVideoProcessingPkt, sList){
-                if(pPktNode->sBuff.pBuffer == pBuffer->pBuffer){
+            mpp_list_for_each_entry_safe(pPktNode, pPktNode1, &pDemuxerDataType->sOutVideoProcessingPkt, sList) {
+                if (pPktNode->sBuff.pBuffer == pBuffer->pBuffer) {
                     mpp_list_del(&pPktNode->sList);
                     mpp_list_add_tail(&pPktNode->sList, &pDemuxerDataType->sOutVideoEmptyPkt);
                     bFind = OMX_TRUE;
@@ -703,10 +776,10 @@ static OMX_ERRORTYPE OMX_DemuxerFillThisBuffer(
             }
         }
         aic_pthread_mutex_unlock(&pDemuxerDataType->sVideoPktLock);
-        if(OMX_FALSE == bFind){
+        if (OMX_FALSE == bFind) {
             eError = OMX_ErrorBadParameter;
             logw("OMX_ErrorBadParameter\n");
-        }else{
+        } else {
             pDemuxerDataType->nSendBackVideoPacketNum++;
             // loge("%d:%d:%d\n"
             //         ,pDemuxerDataType->nSendVideoPacketNum
@@ -714,12 +787,12 @@ static OMX_ERRORTYPE OMX_DemuxerFillThisBuffer(
             //         ,(mpp_list_empty(&pDemuxerDataType->sOutVideoEmptyPkt))?(0):(1));
         }
         //loge("nSendBackVideoPacketNum:%d\n",pDemuxerDataType->nSendBackVideoPacketNum);
-    }else if (pBuffer->nOutputPortIndex == DEMUX_PORT_AUDIO_INDEX){
+    } else if (pBuffer->nOutputPortIndex == DEMUX_PORT_AUDIO_INDEX) {
             aic_pthread_mutex_lock(&pDemuxerDataType->sAudioPktLock);
-            if(!mpp_list_empty(&pDemuxerDataType->sOutAudioProcessingPkt)){
+            if (!mpp_list_empty(&pDemuxerDataType->sOutAudioProcessingPkt)) {
                 DEMUXER_OUT_PACKET  *pPktNode = NULL,*pPktNode1 = NULL;
-                mpp_list_for_each_entry_safe(pPktNode, pPktNode1, &pDemuxerDataType->sOutAudioProcessingPkt, sList){
-                    if(pPktNode->sBuff.pBuffer == pBuffer->pBuffer){
+                mpp_list_for_each_entry_safe(pPktNode, pPktNode1, &pDemuxerDataType->sOutAudioProcessingPkt, sList) {
+                    if (pPktNode->sBuff.pBuffer == pBuffer->pBuffer) {
                         mpp_list_del(&pPktNode->sList);
                         mpp_list_add_tail(&pPktNode->sList, &pDemuxerDataType->sOutAudioEmptyPkt);
                         bFind = OMX_TRUE;
@@ -728,17 +801,17 @@ static OMX_ERRORTYPE OMX_DemuxerFillThisBuffer(
                 }
             }
             aic_pthread_mutex_unlock(&pDemuxerDataType->sAudioPktLock);
-            if(OMX_FALSE == bFind){
+            if (OMX_FALSE == bFind) {
                 eError = OMX_ErrorBadParameter;
                 logw("OMX_ErrorBadParameter\n");
-            }else{
+            } else {
                 pDemuxerDataType->nSendBackAudioPacketNum++;
             }
             //loge("nSendBackAudioPacketNum:%d\n",pDemuxerDataType->nSendBackAudioPacketNum);
-    }else{
+    } else {
         loge(" error port index \n ");
     }
-    if(eError == OMX_ErrorNone){
+    if (eError == OMX_ErrorNone) {
         struct aic_message sMsg;
         sMsg.data_size = 0;
         sMsg.message_id = OMX_CommandNops;
@@ -772,7 +845,7 @@ OMX_ERRORTYPE OMX_DemuxerComponentDeInit(
 
     pDemuxerDataType = (DEMUXER_DATA_TYPE *)pComp->pComponentPrivate;
     aic_pthread_mutex_lock(&pDemuxerDataType->stateLock);
-    if(pDemuxerDataType->state != OMX_StateLoaded){
+    if (pDemuxerDataType->state != OMX_StateLoaded) {
         logd("compoent is in %d,but not in OMX_StateLoaded(1),can ont FreeHandle.\n",pDemuxerDataType->state);
         aic_pthread_mutex_unlock(&pDemuxerDataType->stateLock);
         return OMX_ErrorInvalidState;
@@ -785,11 +858,11 @@ OMX_ERRORTYPE OMX_DemuxerComponentDeInit(
     pthread_join(pDemuxerDataType->threadId, (void*)&eError);
 
     aic_pthread_mutex_lock(&pDemuxerDataType->sAudioPktLock);
-    if(!mpp_list_empty(&pDemuxerDataType->sOutAudioEmptyPkt)){
+    if (!mpp_list_empty(&pDemuxerDataType->sOutAudioEmptyPkt)) {
         DEMUXER_OUT_PACKET  *pPktNode = NULL,*pPktNode1 = NULL;
-        mpp_list_for_each_entry_safe(pPktNode, pPktNode1, &pDemuxerDataType->sOutAudioEmptyPkt, sList){
+        mpp_list_for_each_entry_safe(pPktNode, pPktNode1, &pDemuxerDataType->sOutAudioEmptyPkt, sList) {
             mpp_list_del(&pPktNode->sList);
-            if(pPktNode->sBuff.pBuffer){
+            if (pPktNode->sBuff.pBuffer) {
                 mpp_free(pPktNode->sBuff.pBuffer);
                 pPktNode->sBuff.pBuffer = NULL;
             }
@@ -797,11 +870,11 @@ OMX_ERRORTYPE OMX_DemuxerComponentDeInit(
         }
     }
 
-    if(!mpp_list_empty(&pDemuxerDataType->sOutAudioReadyPkt)){
+    if (!mpp_list_empty(&pDemuxerDataType->sOutAudioReadyPkt)) {
         DEMUXER_OUT_PACKET  *pPktNode = NULL,*pPktNode1 = NULL;
-        mpp_list_for_each_entry_safe(pPktNode, pPktNode1, &pDemuxerDataType->sOutAudioReadyPkt, sList){
+        mpp_list_for_each_entry_safe(pPktNode, pPktNode1, &pDemuxerDataType->sOutAudioReadyPkt, sList) {
             mpp_list_del(&pPktNode->sList);
-            if(pPktNode->sBuff.pBuffer){
+            if (pPktNode->sBuff.pBuffer) {
                 mpp_free(pPktNode->sBuff.pBuffer);
                 pPktNode->sBuff.pBuffer = NULL;
             }
@@ -813,22 +886,22 @@ OMX_ERRORTYPE OMX_DemuxerComponentDeInit(
 
 
     aic_pthread_mutex_lock(&pDemuxerDataType->sVideoPktLock);
-    if(!mpp_list_empty(&pDemuxerDataType->sOutVideoEmptyPkt)){
+    if (!mpp_list_empty(&pDemuxerDataType->sOutVideoEmptyPkt)) {
         DEMUXER_OUT_PACKET  *pPktNode = NULL,*pPktNode1 = NULL;
-        mpp_list_for_each_entry_safe(pPktNode, pPktNode1, &pDemuxerDataType->sOutVideoEmptyPkt, sList){
+        mpp_list_for_each_entry_safe(pPktNode, pPktNode1, &pDemuxerDataType->sOutVideoEmptyPkt, sList) {
             mpp_list_del(&pPktNode->sList);
-            if(pPktNode->sBuff.pBuffer){
+            if (pPktNode->sBuff.pBuffer) {
                 mpp_free(pPktNode->sBuff.pBuffer);
                 pPktNode->sBuff.pBuffer = NULL;
             }
             mpp_free(pPktNode);
         }
     }
-    if(!mpp_list_empty(&pDemuxerDataType->sOutVideoReadyPkt)){
+    if (!mpp_list_empty(&pDemuxerDataType->sOutVideoReadyPkt)) {
         DEMUXER_OUT_PACKET  *pPktNode = NULL,*pPktNode1 = NULL;
-        mpp_list_for_each_entry_safe(pPktNode, pPktNode1, &pDemuxerDataType->sOutVideoReadyPkt, sList){
+        mpp_list_for_each_entry_safe(pPktNode, pPktNode1, &pDemuxerDataType->sOutVideoReadyPkt, sList) {
             mpp_list_del(&pPktNode->sList);
-            if(pPktNode->sBuff.pBuffer){
+            if (pPktNode->sBuff.pBuffer) {
                 mpp_free(pPktNode->sBuff.pBuffer);
                 pPktNode->sBuff.pBuffer = NULL;
             }
@@ -849,12 +922,12 @@ OMX_ERRORTYPE OMX_DemuxerComponentDeInit(
     aic_msg_destroy(&pDemuxerDataType->sMsgQue);
 
 
-    if(pDemuxerDataType->pParser){
+    if (pDemuxerDataType->pParser) {
         aic_parser_destroy(pDemuxerDataType->pParser);
         pDemuxerDataType->pParser = NULL;
     }
 
-    if(pDemuxerDataType->pDemuxerChnAttr){
+    if (pDemuxerDataType->pDemuxerChnAttr) {
         mpp_free(pDemuxerDataType->pDemuxerChnAttr);
     }
 
@@ -969,16 +1042,16 @@ OMX_ERRORTYPE OMX_DemuxerComponentInit(
     mpp_list_init(&pDemuxerDataType->sOutVideoReadyPkt);
     mpp_list_init(&pDemuxerDataType->sOutVideoProcessingPkt);
     pthread_mutex_init(&pDemuxerDataType->sVideoPktLock, NULL);
-    for(i =0 ; i < DEMUX_VIDEO_PACKET_NUM_MAX; i++ ){
+    for(i =0 ; i < DEMUX_VIDEO_PACKET_NUM_MAX; i++) {
         DEMUXER_OUT_PACKET *pPktNode = (DEMUXER_OUT_PACKET*)mpp_alloc(sizeof(DEMUXER_OUT_PACKET));
-        if(NULL == pPktNode){
+        if (NULL == pPktNode) {
             break;
         }
         memset(pPktNode,0x00,sizeof(DEMUXER_OUT_PACKET));
         mpp_list_add_tail(&pPktNode->sList, &pDemuxerDataType->sOutVideoEmptyPkt);
         cnt++;
     }
-    if(cnt == 0){
+    if (cnt == 0) {
         loge("mpp_alloc empty video node fail\n");
         eError = OMX_ErrorInsufficientResources;
         goto _EXIT2;
@@ -990,16 +1063,16 @@ OMX_ERRORTYPE OMX_DemuxerComponentInit(
     mpp_list_init(&pDemuxerDataType->sOutAudioReadyPkt);
     mpp_list_init(&pDemuxerDataType->sOutAudioProcessingPkt);
     pthread_mutex_init(&pDemuxerDataType->sAudioPktLock, NULL);
-    for(i =0 ; i < DEMUX_AUDIO_PACKET_NUM_MAX; i++ ){
+    for(i =0 ; i < DEMUX_AUDIO_PACKET_NUM_MAX; i++) {
         DEMUXER_OUT_PACKET *pPktNode = (DEMUXER_OUT_PACKET*)mpp_alloc(sizeof(DEMUXER_OUT_PACKET));
-        if(NULL == pPktNode){
+        if (NULL == pPktNode) {
             break;
         }
         memset(pPktNode,0x00,sizeof(DEMUXER_OUT_PACKET));
         mpp_list_add_tail(&pPktNode->sList, &pDemuxerDataType->sOutAudioEmptyPkt);
         cnt++;
     }
-    if(cnt == 0){
+    if (cnt == 0) {
         loge("mpp_alloc empty video node fail\n");
         eError = OMX_ErrorInsufficientResources;
         goto _EXIT3;
@@ -1008,7 +1081,7 @@ OMX_ERRORTYPE OMX_DemuxerComponentInit(
 
     logi("pDemuxerDataType->nEos:%d\n",pDemuxerDataType->nEos);
 
-    if(aic_msg_create(&pDemuxerDataType->sMsgQue)<0)
+    if (aic_msg_create(&pDemuxerDataType->sMsgQue)<0)
     {
         loge("aic_msg_create fail!\n");
         eError = OMX_ErrorInsufficientResources;
@@ -1033,23 +1106,23 @@ _EXIT5:
     pthread_mutex_destroy(&pDemuxerDataType->stateLock);
 
 _EXIT4:
-    if(!mpp_list_empty(&pDemuxerDataType->sOutVideoEmptyPkt)){
-        mpp_list_for_each_entry_safe(pPktNode, pPktNode1, &pDemuxerDataType->sOutVideoEmptyPkt, sList){
+    if (!mpp_list_empty(&pDemuxerDataType->sOutVideoEmptyPkt)) {
+        mpp_list_for_each_entry_safe(pPktNode, pPktNode1, &pDemuxerDataType->sOutVideoEmptyPkt, sList) {
             mpp_list_del(&pPktNode->sList);
             mpp_free(pPktNode);
         }
     }
 
 _EXIT3:
-    if(!mpp_list_empty(&pDemuxerDataType->sOutVideoEmptyPkt)){
-        mpp_list_for_each_entry_safe(pPktNode, pPktNode1, &pDemuxerDataType->sOutVideoEmptyPkt, sList){
+    if (!mpp_list_empty(&pDemuxerDataType->sOutVideoEmptyPkt)) {
+        mpp_list_for_each_entry_safe(pPktNode, pPktNode1, &pDemuxerDataType->sOutVideoEmptyPkt, sList) {
             mpp_list_del(&pPktNode->sList);
             mpp_free(pPktNode);
         }
     }
 
 _EXIT2:
-    if(pDemuxerDataType){
+    if (pDemuxerDataType) {
         mpp_free(pDemuxerDataType);
         pDemuxerDataType = NULL;
     }
@@ -1084,13 +1157,13 @@ static void OMX_DemuxerStateChangeToIdle(DEMUXER_DATA_TYPE * pDemuxerDataType)
     //pAudioActiveStreamIndex = &pDemuxerDataType->sActiveStreamIndex[DEMUX_PORT_AUDIO_INDEX];
     //pVideoActiveStreamIndex = &pDemuxerDataType->sActiveStreamIndex[DEMUX_PORT_VIDEO_INDEX];
 
-    if(OMX_StateLoaded == pDemuxerDataType->state){
+    if (OMX_StateLoaded == pDemuxerDataType->state) {
 
-    }else if(OMX_StateExecuting == pDemuxerDataType->state){
+    } else if (OMX_StateExecuting == pDemuxerDataType->state) {
 
-    }else if(OMX_StatePause == pDemuxerDataType->state){
+    } else if (OMX_StatePause == pDemuxerDataType->state) {
 
-    }else {
+    } else {
         OMX_DemuxerEventNotify(pDemuxerDataType
                         ,OMX_EventError
                         ,OMX_ErrorIncorrectStateTransition
@@ -1107,14 +1180,14 @@ static void OMX_DemuxerStateChangeToIdle(DEMUXER_DATA_TYPE * pDemuxerDataType)
 
 static void OMX_DemuxerStateChangeToLoaded(DEMUXER_DATA_TYPE * pDemuxerDataType)
 {
-    if(OMX_StateIdle == pDemuxerDataType->state){
+    if (OMX_StateIdle == pDemuxerDataType->state) {
         //wait for    all out port packet from other component or app to back.
         logi("Before OMX_DemuxerComponentThread exit,it must wait for sOutAudioProcessingPkt empty\n");
-        while(!OMX_DemuxerListEmpty(&pDemuxerDataType->sOutAudioProcessingPkt,pDemuxerDataType->sAudioPktLock)){
+        while(!OMX_DemuxerListEmpty(&pDemuxerDataType->sOutAudioProcessingPkt,pDemuxerDataType->sAudioPktLock)) {
             usleep(1000);
         }
         logi("Before OMX_DemuxerComponentThread exit,it must wait for sOutVideoProcessingPkt empty\n");
-        while(!OMX_DemuxerListEmpty(&pDemuxerDataType->sOutVideoProcessingPkt,pDemuxerDataType->sVideoPktLock)){
+        while(!OMX_DemuxerListEmpty(&pDemuxerDataType->sOutVideoProcessingPkt,pDemuxerDataType->sVideoPktLock)) {
             usleep(1000);
         }
         logi("OMX_DemuxerStateChangeToLoaded\n");
@@ -1124,7 +1197,7 @@ static void OMX_DemuxerStateChangeToLoaded(DEMUXER_DATA_TYPE * pDemuxerDataType)
                         ,OMX_EventCmdComplete
                         ,OMX_CommandStateSet
                         ,pDemuxerDataType->state,NULL);
-    }else{
+    } else {
         OMX_DemuxerEventNotify(pDemuxerDataType
                         ,OMX_EventError
                         ,OMX_ErrorIncorrectStateTransition
@@ -1137,8 +1210,8 @@ static void OMX_DemuxerStateChangeToLoaded(DEMUXER_DATA_TYPE * pDemuxerDataType)
 
 static void OMX_DemuxerStateChangeToExecuting(DEMUXER_DATA_TYPE * pDemuxerDataType)
 {
-    if(OMX_StateIdle == pDemuxerDataType->state){
-        if(NULL == pDemuxerDataType->pParser){
+    if (OMX_StateIdle == pDemuxerDataType->state) {
+        if (NULL == pDemuxerDataType->pParser) {
             OMX_DemuxerEventNotify(pDemuxerDataType
                             ,OMX_EventError
                             ,OMX_ErrorIncorrectStateTransition
@@ -1146,15 +1219,15 @@ static void OMX_DemuxerStateChangeToExecuting(DEMUXER_DATA_TYPE * pDemuxerDataTy
             loge("pDemuxerDataType->pParser is not created,please set param OMX_IndexParamContentURI!!!!!\n");
             return;
         }
-    }else if(OMX_StatePause == pDemuxerDataType->state){
+    } else if (OMX_StatePause == pDemuxerDataType->state) {
     //
-    }else{
+    } else {
         OMX_DemuxerEventNotify(pDemuxerDataType
                         ,OMX_EventError
                         ,OMX_ErrorIncorrectStateTransition
                         ,pDemuxerDataType->state,NULL);
         loge("OMX_ErrorIncorrectStateTransition\n");
-        return ;
+        return;
     }
     pDemuxerDataType->state = OMX_StateExecuting;
 
@@ -1162,15 +1235,15 @@ static void OMX_DemuxerStateChangeToExecuting(DEMUXER_DATA_TYPE * pDemuxerDataTy
 
 static void OMX_DemuxerStateChangeToPause(DEMUXER_DATA_TYPE * pDemuxerDataType)
 {
-    if(OMX_StateExecuting == pDemuxerDataType->state){
+    if (OMX_StateExecuting == pDemuxerDataType->state) {
     //
-    }else{
+    } else {
         OMX_DemuxerEventNotify(pDemuxerDataType
                         ,OMX_EventError
                         ,OMX_ErrorIncorrectStateTransition
                         ,pDemuxerDataType->state,NULL);
         logd("OMX_ErrorIncorrectStateTransition\n");
-        return ;
+        return;
     }
     pDemuxerDataType->state = OMX_StatePause;
 
@@ -1187,7 +1260,7 @@ static void* OMX_DemuxerComponentThread(void* pThreadData)
     OMX_S32 ret;
     OMX_S32 bNotifyFrameEnd = 0;
     DEMUXER_OUT_PACKET  *pPktNode,*pPktNode1;
-    int bNeedPeek = 1;
+    pDemuxerDataType->nNeedPeek = 1;
     //struct mpp_list sEmptyPktList;
     //struct mpp_list sReadyPktList;
 
@@ -1196,23 +1269,20 @@ static void* OMX_DemuxerComponentThread(void* pThreadData)
     OMX_S8 bVideoHasVbvBuffer = 1;
     OMX_S8 bAudioHasVbvBuffer = 1;
 
-    OMX_S32 nVideoEmptyNum = 0;
-    OMX_S32 nAudioEmptyNum = 0;
-
-    while(1){
+    while(1) {
 _AIC_MSG_GET_:
-        if (aic_msg_get(&pDemuxerDataType->sMsgQue, &message) == 0){
+        if (aic_msg_get(&pDemuxerDataType->sMsgQue, &message) == 0) {
             nCmd = message.message_id;
             nCmdData = message.param;
             logi("nCmd:%d, nCmdData:%d\n",nCmd,nCmdData);
-             if(OMX_CommandStateSet == nCmd){
+             if (OMX_CommandStateSet == nCmd) {
                 aic_pthread_mutex_lock(&pDemuxerDataType->stateLock);
-                if(pDemuxerDataType->state == (OMX_STATETYPE)(nCmdData)){
+                if (pDemuxerDataType->state == (OMX_STATETYPE)(nCmdData)) {
                     OMX_DemuxerEventNotify(pDemuxerDataType,OMX_EventError,OMX_ErrorSameState,0,NULL);
                     aic_pthread_mutex_unlock(&pDemuxerDataType->stateLock);
                     continue;
                 }
-                switch((OMX_STATETYPE)(nCmdData)){
+                switch((OMX_STATETYPE)(nCmdData)) {
                 case OMX_StateInvalid:
                     OMX_DemuxerStateChangeToInvalid(pDemuxerDataType);
                     break;
@@ -1234,35 +1304,35 @@ _AIC_MSG_GET_:
                     break;
                 }
                 aic_pthread_mutex_unlock(&pDemuxerDataType->stateLock);
-             }else if(OMX_CommandFlush == nCmd){
+             } else if (OMX_CommandFlush == nCmd) {
 
-            }else if(OMX_CommandPortDisable == nCmd){
+            } else if (OMX_CommandPortDisable == nCmd) {
 
-            }else if(OMX_CommandPortEnable == nCmd){
+            } else if (OMX_CommandPortEnable == nCmd) {
 
-            }else if(OMX_CommandMarkBuffer == nCmd){
+            } else if (OMX_CommandMarkBuffer == nCmd) {
 
-            }else if(OMX_CommandStop == nCmd){
+            } else if (OMX_CommandStop == nCmd) {
                 logi("OMX_DemuxerComponentThread ready to exit!!!\n");
                 goto _EXIT;
-            }else if(OMX_CommandNops == nCmd){
+            } else if (OMX_CommandNops == nCmd) {
 
-            }else{
+            } else {
 
             }
         }
 
-        if(pDemuxerDataType->state != OMX_StateExecuting)
+        if (pDemuxerDataType->state != OMX_StateExecuting)
         {
             //usleep(1000);
             aic_msg_wait_new_msg(&pDemuxerDataType->sMsgQue, 0);
             continue;
         }
 
-        if(pDemuxerDataType->nEos){
-            if(OMX_DemuxerListEmpty(&pDemuxerDataType->sOutVideoReadyPkt,pDemuxerDataType->sVideoPktLock)
-                && OMX_DemuxerListEmpty(&pDemuxerDataType->sOutAudioReadyPkt,pDemuxerDataType->sAudioPktLock)){
-                if(!bNotifyFrameEnd){
+        if (pDemuxerDataType->nEos) {
+            if (OMX_DemuxerListEmpty(&pDemuxerDataType->sOutVideoReadyPkt,pDemuxerDataType->sVideoPktLock)
+                && OMX_DemuxerListEmpty(&pDemuxerDataType->sOutAudioReadyPkt,pDemuxerDataType->sAudioPktLock)) {
+                if (!bNotifyFrameEnd) {
                     OMX_DemuxerEventNotify(pDemuxerDataType,OMX_EventBufferFlag,0,0,NULL);
                     bNotifyFrameEnd = 1;
                 }
@@ -1274,21 +1344,22 @@ _AIC_MSG_GET_:
 
         bVideoHasVbvBuffer = 1;
         bAudioHasVbvBuffer = 1;
-        if(!OMX_DemuxerListEmpty(&pDemuxerDataType->sOutVideoReadyPkt,pDemuxerDataType->sVideoPktLock)){
-            while(!OMX_DemuxerListEmpty(&pDemuxerDataType->sOutVideoReadyPkt,pDemuxerDataType->sVideoPktLock)){
+        if (!(pDemuxerDataType->nSkipTrack & DEMUX_SKIP_VIDEO_TRACK)
+            && (!OMX_DemuxerListEmpty(&pDemuxerDataType->sOutVideoReadyPkt,pDemuxerDataType->sVideoPktLock))) {
+            while(!OMX_DemuxerListEmpty(&pDemuxerDataType->sOutVideoReadyPkt,pDemuxerDataType->sVideoPktLock)) {
                 aic_pthread_mutex_lock(&pDemuxerDataType->sVideoPktLock);
                 pPktNode = mpp_list_first_entry(&pDemuxerDataType->sOutVideoReadyPkt,DEMUXER_OUT_PACKET,sList);
                 aic_pthread_mutex_unlock(&pDemuxerDataType->sVideoPktLock);
                 ret = OMX_ErrorNone;
-                if(pDemuxerDataType->sOutPortTunneledInfo[DEMUX_PORT_VIDEO_INDEX].nTunneledFlag){
+                if (pDemuxerDataType->sOutPortTunneledInfo[DEMUX_PORT_VIDEO_INDEX].nTunneledFlag) {
                     ret = OMX_EmptyThisBuffer(pDemuxerDataType->sOutPortTunneledInfo[DEMUX_PORT_VIDEO_INDEX].pTunneledComp,
                                             &pPktNode->sBuff);
                 } else {
-                    if(pDemuxerDataType->pCallbacks->FillBufferDone){
+                    if (pDemuxerDataType->pCallbacks->FillBufferDone) {
                         ret = pDemuxerDataType->pCallbacks->FillBufferDone(pDemuxerDataType->hSelf,pDemuxerDataType->pAppData,&pPktNode->sBuff);
                     }
                 }
-                if(ret != OMX_ErrorNone){
+                if (ret != OMX_ErrorNone) {
                     //logw("send video pkt to other component or app fail\n");
                     //how to  do ,if send pkt to other component or app fail,
                     // just only noitfy error,do not move empty list,cause:adec/vdec decode slowly ,we can sleep some time
@@ -1299,7 +1370,7 @@ _AIC_MSG_GET_:
                     //mpp_list_del(&pPktNode->sList);
                     //mpp_list_add_tail(&pPktNode->sList,&pDemuxerDataType->sOutVideoEmptyPkt);
                     break;
-                }else {
+                } else {
                     aic_pthread_mutex_lock(&pDemuxerDataType->sVideoPktLock);
                     mpp_list_del(&pPktNode->sList);
                     mpp_list_add_tail(&pPktNode->sList,&pDemuxerDataType->sOutVideoProcessingPkt);
@@ -1308,32 +1379,31 @@ _AIC_MSG_GET_:
                     aic_pthread_mutex_unlock(&pDemuxerDataType->sVideoPktLock);
                 }
             }
-        }else{
-            nVideoEmptyNum++;
         }
 
-        if(!OMX_DemuxerListEmpty(&pDemuxerDataType->sOutAudioReadyPkt,pDemuxerDataType->sAudioPktLock)){
-            while(!OMX_DemuxerListEmpty(&pDemuxerDataType->sOutAudioReadyPkt,pDemuxerDataType->sAudioPktLock)){
+        if (!(pDemuxerDataType->nSkipTrack & DEMUX_SKIP_AUDIO_TRACK)
+            &&(!OMX_DemuxerListEmpty(&pDemuxerDataType->sOutAudioReadyPkt,pDemuxerDataType->sAudioPktLock))) {
+            while(!OMX_DemuxerListEmpty(&pDemuxerDataType->sOutAudioReadyPkt,pDemuxerDataType->sAudioPktLock)) {
                 aic_pthread_mutex_lock(&pDemuxerDataType->sAudioPktLock);
                 pPktNode = mpp_list_first_entry(&pDemuxerDataType->sOutAudioReadyPkt,DEMUXER_OUT_PACKET,sList);
                 aic_pthread_mutex_unlock(&pDemuxerDataType->sAudioPktLock);
                 ret = OMX_ErrorNone;
-                if(pDemuxerDataType->sOutPortTunneledInfo[DEMUX_PORT_AUDIO_INDEX].nTunneledFlag){
+                if (pDemuxerDataType->sOutPortTunneledInfo[DEMUX_PORT_AUDIO_INDEX].nTunneledFlag) {
                     ret = OMX_EmptyThisBuffer(pDemuxerDataType->sOutPortTunneledInfo[DEMUX_PORT_AUDIO_INDEX].pTunneledComp,
                                             &pPktNode->sBuff);
                 } else {
-                    if(pDemuxerDataType->pCallbacks->FillBufferDone){
+                    if (pDemuxerDataType->pCallbacks->FillBufferDone) {
                         ret = pDemuxerDataType->pCallbacks->FillBufferDone(pDemuxerDataType->hSelf,pDemuxerDataType->pAppData,&pPktNode->sBuff);
                     }
                 }
-                if(ret != OMX_ErrorNone){
+                if (ret != OMX_ErrorNone) {
                     //loge("send audio pkt to other component or app fail\n");
                     //how to  do ,if send pkt to other component or app fail,
                     // just only noitfy error,do not move empty list,cause:adec/vdec decode slowly ,we can sleep some time
                     OMX_DemuxerEventNotify(pDemuxerDataType,OMX_EventError,OMX_ErrorUndefined,0,NULL);
                     bAudioHasVbvBuffer = 0;
                     break;
-                }else {
+                } else {
                     aic_pthread_mutex_lock(&pDemuxerDataType->sAudioPktLock);
                     mpp_list_del(&pPktNode->sList);
                     mpp_list_add_tail(&pPktNode->sList,&pDemuxerDataType->sOutAudioProcessingPkt);
@@ -1342,183 +1412,218 @@ _AIC_MSG_GET_:
                     aic_pthread_mutex_unlock(&pDemuxerDataType->sAudioPktLock);
                 }
             }
-        }else{
-             nAudioEmptyNum++;
         }
 
-        if(!bAudioHasVbvBuffer && !bVideoHasVbvBuffer){
+        if (!bAudioHasVbvBuffer || !bVideoHasVbvBuffer) {
             aic_msg_wait_new_msg(&pDemuxerDataType->sMsgQue, 10*1000);
             goto _AIC_MSG_GET_;
         }
 
         //process buffer
-        if(!pDemuxerDataType->nEos){//not end of stream
-            if(bNeedPeek){
-                //memset(&sPkt,0x00,sizeof(struct aic_parser_packet));
-                sPkt.flag = 0;
-                ret = aic_parser_peek(pDemuxerDataType->pParser,&sPkt);
-                if(!ret){//peek ok
-                    bNeedPeek = 0;
-                }else if(ret == PARSER_EOS){//peek end
-                    printf("[%s:%d]*************PARSER_EOS*******************\n",__FUNCTION__,__LINE__);
-                    pDemuxerDataType->nEos = 1;
-                    goto _AIC_MSG_GET_;
-                }else{// now  nothing to do ,becase no other return val
-                    loge("peek fail\n");
-                    goto _AIC_MSG_GET_;
+        if (pDemuxerDataType->nEos) {//end of stream
+            continue;
+        }
+
+        if (pDemuxerDataType->nNeedPeek) {
+            //memset(&sPkt,0x00,sizeof(struct aic_parser_packet));
+            sPkt.flag = 0;
+            ret = aic_parser_peek(pDemuxerDataType->pParser,&sPkt);
+            if (!ret) {//peek ok
+                logd("peek ok\n");
+                pDemuxerDataType->nNeedPeek = 0;
+            } else if (ret == PARSER_EOS) {//peek end
+                printf("[%s:%d]*************PARSER_EOS*******************\n",__FUNCTION__,__LINE__);
+                pDemuxerDataType->nEos = 1;
+                goto _AIC_MSG_GET_;
+            } else {// now  nothing to do ,becase no other return val
+                loge("peek fail\n");
+                goto _AIC_MSG_GET_;
+            }
+        }
+
+        if (sPkt.type == MPP_MEDIA_TYPE_VIDEO) {
+             OMX_BOOL bFind = OMX_FALSE;
+            if (pDemuxerDataType->nSkipTrack & DEMUX_SKIP_VIDEO_TRACK) {
+                pDemuxerDataType->nNeedPeek = 1;
+                goto _AIC_MSG_GET_;
+            }
+
+            if (OMX_DemuxerListEmpty(&pDemuxerDataType->sOutVideoEmptyPkt,pDemuxerDataType->sVideoPktLock)) {
+                if (OMX_DemuxerListEmpty(&pDemuxerDataType->sOutVideoReadyPkt,pDemuxerDataType->sVideoPktLock)
+                    && OMX_DemuxerListEmpty(&pDemuxerDataType->sOutAudioReadyPkt,pDemuxerDataType->sAudioPktLock)) {
+                    loge("sOutVideoReadyPkt\n");
+                    aic_msg_wait_new_msg(&pDemuxerDataType->sMsgQue, 0);
+                }
+                pDemuxerDataType->nNeedPeek = 0;
+                goto _AIC_MSG_GET_;
+            }
+
+            aic_pthread_mutex_lock(&pDemuxerDataType->sVideoPktLock);
+            mpp_list_for_each_entry_safe(pPktNode, pPktNode1, &pDemuxerDataType->sOutVideoEmptyPkt, sList) {
+                if (pPktNode->sBuff.nAllocLen >= sPkt.size) {
+                    bFind = OMX_TRUE;
+                    break;
                 }
             }
-            if(sPkt.type == MPP_MEDIA_TYPE_VIDEO){
-                if(!OMX_DemuxerListEmpty(&pDemuxerDataType->sOutVideoEmptyPkt,pDemuxerDataType->sVideoPktLock)){
-                    OMX_BOOL bFind = OMX_FALSE;
-                    aic_pthread_mutex_lock(&pDemuxerDataType->sVideoPktLock);
-                    mpp_list_for_each_entry_safe(pPktNode, pPktNode1, &pDemuxerDataType->sOutVideoEmptyPkt, sList){
-                        if(pPktNode->sBuff.nAllocLen >= sPkt.size){
-                            bFind = OMX_TRUE;
-                            break;
-                        }
-                    }
-                    if(!bFind){
-                        pPktNode = mpp_list_first_entry(&pDemuxerDataType->sOutVideoEmptyPkt,DEMUXER_OUT_PACKET,sList);
-                    }
-                    aic_pthread_mutex_unlock(&pDemuxerDataType->sVideoPktLock);
+            if (!bFind) {
+                pPktNode = mpp_list_first_entry(&pDemuxerDataType->sOutVideoEmptyPkt,DEMUXER_OUT_PACKET,sList);
+            }
+            aic_pthread_mutex_unlock(&pDemuxerDataType->sVideoPktLock);
 
-                    if(!bFind){
-                        static  int malloc_total_num = 0;
-                        static  int print_num = 0;
-                        print_num++;
-                        malloc_total_num++;
-                        if(print_num > 100){
-                            loge("malloc_total_num:%d\n",malloc_total_num);
-                            print_num = 0;
-                        }
-
-                        if(pPktNode->sBuff.pBuffer){
-                            mpp_free(pPktNode->sBuff.pBuffer);
-                            pPktNode->sBuff.pBuffer = NULL;
-                        }
-                        pPktNode->sBuff.pBuffer = (OMX_U8 *)mpp_alloc(sPkt.size);
-                        //logi("mpp_alloc pPktNode->sBuff.pBuffer=%p,sPkt.size:%d\n",pPktNode->sBuff.pBuffer,sPkt.size);
-                        if(NULL == pPktNode->sBuff.pBuffer){
-                            loge("mpp_alloc fail \n");
-                            pPktNode->sBuff.pBuffer = NULL;
-                            pPktNode->sBuff.nAllocLen = 0;
-                            OMX_DemuxerEventNotify(pDemuxerDataType,OMX_EventError,OMX_ErrorInsufficientResources,1,NULL);
-                            // ASSERT();
-                            goto _AIC_MSG_GET_;
-                        }else{
-                            pPktNode->sBuff.nAllocLen = sPkt.size;
-                        }
-                    }
-                    sPkt.data = pPktNode->sBuff.pBuffer;
-
-                    {
-                        struct timespec before = {0},after = {0};
-                        long diff = 0;
-                        clock_gettime(CLOCK_REALTIME,&before);
-                        ret = aic_parser_read(pDemuxerDataType->pParser,&sPkt);
-                        clock_gettime(CLOCK_REALTIME,&after);
-                        diff = (after.tv_sec - before.tv_sec)*1000*1000 + (after.tv_nsec - before.tv_nsec)/1000;
-                        if(diff > 42*1000){
-                             printf("[%s:%d]:%ld\n",__FUNCTION__,__LINE__,diff);
-                         }
-                    }
-
-                    //logi("aic_parser_read,pts:%lld,type = %d,size:%d,flag:0x%x\n",sPkt.pts,sPkt.type,sPkt.size,sPkt.flag);
-                    if(!ret){// read ok
-                        bNeedPeek = 1;
-                    }else{// now  nothing to do ,becase no other return val
-                        loge("read fail\n");
-                        bNeedPeek = 0;
-                        goto _AIC_MSG_GET_;
-                    }
-                    pPktNode->sBuff.nFilledLen = sPkt.size;
-                    pPktNode->sBuff.nTimeStamp = sPkt.pts;
-                    pPktNode->sBuff.nFlags = sPkt.flag;
-                    pPktNode->sBuff.nOutputPortIndex = DEMUX_PORT_VIDEO_INDEX;
-                    aic_pthread_mutex_lock(&pDemuxerDataType->sVideoPktLock);
-                    mpp_list_del(&pPktNode->sList);
-                    mpp_list_add_tail(&pPktNode->sList,&pDemuxerDataType->sOutVideoReadyPkt);
-                    aic_pthread_mutex_unlock(&pDemuxerDataType->sVideoPktLock);
-                    pDemuxerDataType->nVideoPacketNum++;
-                    //logi("pDemuxerDataType->nVideoPacketNum:%d\n",pDemuxerDataType->nVideoPacketNum);
-                }else{
-                    if(OMX_DemuxerListEmpty(&pDemuxerDataType->sOutVideoReadyPkt,pDemuxerDataType->sVideoPktLock)
-                        && OMX_DemuxerListEmpty(&pDemuxerDataType->sOutAudioReadyPkt,pDemuxerDataType->sAudioPktLock)){
-                        aic_msg_wait_new_msg(&pDemuxerDataType->sMsgQue, 0);
-                    }
-                    bNeedPeek = 0;
+            if (!bFind) {
+                static  int malloc_total_num = 0;
+                static  int print_num = 0;
+                print_num++;
+                malloc_total_num++;
+                if (print_num > 100) {
+                    loge("malloc_total_num:%d\n",malloc_total_num);
+                    print_num = 0;
                 }
-            }else if(sPkt.type == MPP_MEDIA_TYPE_AUDIO) { // same with Video , later optmization
-                if(!OMX_DemuxerListEmpty(&pDemuxerDataType->sOutAudioEmptyPkt,pDemuxerDataType->sAudioPktLock)){
-                    OMX_BOOL bFind = OMX_FALSE;
-                    aic_pthread_mutex_lock(&pDemuxerDataType->sAudioPktLock);
-                    mpp_list_for_each_entry_safe(pPktNode, pPktNode1, &pDemuxerDataType->sOutAudioEmptyPkt, sList){
-                        if(pPktNode->sBuff.nAllocLen >= sPkt.size){
-                            bFind = OMX_TRUE;
-                            break;
-                        }
-                    }
-                    if(!bFind){
-                        pPktNode = mpp_list_first_entry(&pDemuxerDataType->sOutAudioEmptyPkt,DEMUXER_OUT_PACKET,sList);
-                    }
-                    aic_pthread_mutex_unlock(&pDemuxerDataType->sAudioPktLock);
-                    if(!bFind){
-                        static  int malloc_total_num = 0;
-                        static  int print_num = 0;
-                        print_num++;
-                        malloc_total_num++;
-                        if(print_num > 100){
-                            printf("[%s:%d]malloc_total_num:%d\n",__FUNCTION__,__LINE__,malloc_total_num);
-                            print_num = 0;
-                        }
 
-                        if(pPktNode->sBuff.pBuffer){
-                            mpp_free(pPktNode->sBuff.pBuffer);
-                            pPktNode->sBuff.pBuffer = NULL;
-                        }
-                        pPktNode->sBuff.pBuffer = (OMX_U8 *)mpp_alloc(sPkt.size);
-                        //logi("mpp_alloc pPktNode->sBuff.pBuffer=%p,sPkt.size:%d\n",pPktNode->sBuff.pBuffer,sPkt.size);
-                        if(NULL == pPktNode->sBuff.pBuffer){
-                            loge("mpp_alloc fail \n");
-                            pPktNode->sBuff.pBuffer = NULL;
-                            pPktNode->sBuff.nAllocLen = 0;
-                            OMX_DemuxerEventNotify(pDemuxerDataType,OMX_EventError,OMX_ErrorInsufficientResources,1,NULL);
-                            // ASSERT();
-                            goto _AIC_MSG_GET_;
-                        }else{
-                            pPktNode->sBuff.nAllocLen = sPkt.size;
-                        }
-                    }
-
-                    sPkt.data = pPktNode->sBuff.pBuffer;
-                    ret = aic_parser_read(pDemuxerDataType->pParser,&sPkt);
-                    //logi("aic_parser_read,pts:%lld,type = %d,size:%d,flag:0x%x\n",sPkt.pts,sPkt.type,sPkt.size,sPkt.flag);
-                    if(!ret){//read ok
-                        bNeedPeek = 1;
-                    }else{// now  nothing to do ,becase no other return val
-                        loge("read fail\n");
-                        bNeedPeek = 0;
-                        goto _AIC_MSG_GET_;
-                    }
-                    pPktNode->sBuff.nFilledLen = sPkt.size;
-                    pPktNode->sBuff.nTimeStamp = sPkt.pts;
-                    pPktNode->sBuff.nFlags = sPkt.flag;
-                    pPktNode->sBuff.nOutputPortIndex = DEMUX_PORT_AUDIO_INDEX;
-                    aic_pthread_mutex_lock(&pDemuxerDataType->sAudioPktLock);
-                    mpp_list_del(&pPktNode->sList);
-                    mpp_list_add_tail(&pPktNode->sList,&pDemuxerDataType->sOutAudioReadyPkt);
-                    aic_pthread_mutex_unlock(&pDemuxerDataType->sAudioPktLock);
-                    pDemuxerDataType->nAudioPacketNum++;
-                    //logi("pDemuxerDataType->nAudioPacketNum:%d\n",pDemuxerDataType->nAudioPacketNum);
-                }else{
-                    if(OMX_DemuxerListEmpty(&pDemuxerDataType->sOutVideoReadyPkt,pDemuxerDataType->sVideoPktLock)
-                        && OMX_DemuxerListEmpty(&pDemuxerDataType->sOutAudioReadyPkt,pDemuxerDataType->sAudioPktLock)){
-                        aic_msg_wait_new_msg(&pDemuxerDataType->sMsgQue, 0);
-                    }
-                    bNeedPeek = 0;
+                if (pPktNode->sBuff.pBuffer) {
+                    mpp_free(pPktNode->sBuff.pBuffer);
+                    pPktNode->sBuff.pBuffer = NULL;
+                }
+                pPktNode->sBuff.pBuffer = (OMX_U8 *)mpp_alloc(sPkt.size);
+                //logi("mpp_alloc pPktNode->sBuff.pBuffer=%p,sPkt.size:%d\n",pPktNode->sBuff.pBuffer,sPkt.size);
+                if (NULL == pPktNode->sBuff.pBuffer) {
+                    loge("mpp_alloc fail \n");
+                    pPktNode->sBuff.pBuffer = NULL;
+                    pPktNode->sBuff.nAllocLen = 0;
+                    OMX_DemuxerEventNotify(pDemuxerDataType,OMX_EventError,OMX_ErrorInsufficientResources,1,NULL);
+                    // ASSERT();
+                    goto _AIC_MSG_GET_;
+                } else {
+                    pPktNode->sBuff.nAllocLen = sPkt.size;
                 }
             }
+            sPkt.data = pPktNode->sBuff.pBuffer;
+
+            {
+                struct timespec before = {0},after = {0};
+                long diff = 0;
+                clock_gettime(CLOCK_REALTIME,&before);
+                ret = aic_parser_read(pDemuxerDataType->pParser,&sPkt);
+                clock_gettime(CLOCK_REALTIME,&after);
+                diff = (after.tv_sec - before.tv_sec)*1000*1000 + (after.tv_nsec - before.tv_nsec)/1000;
+                if (diff > 42*1000) {
+                        printf("[%s:%d]:%ld\n",__FUNCTION__,__LINE__,diff);
+                    }
+            }
+
+            logd("aic_parser_read,pts:%lld,type = %d,size:%d,flag:0x%x\n",sPkt.pts,sPkt.type,sPkt.size,sPkt.flag);
+            if (!ret) {// read ok
+                pDemuxerDataType->nNeedPeek = 1;
+            } else {// now  nothing to do ,becase no other return val
+                loge("read fail\n");
+                pDemuxerDataType->nNeedPeek = 0;
+                goto _AIC_MSG_GET_;
+            }
+            pPktNode->sBuff.nFilledLen = sPkt.size;
+            pPktNode->sBuff.nTimeStamp = sPkt.pts;
+            pPktNode->sBuff.nFlags = sPkt.flag;
+            pPktNode->sBuff.nOutputPortIndex = DEMUX_PORT_VIDEO_INDEX;
+            aic_pthread_mutex_lock(&pDemuxerDataType->sVideoPktLock);
+            mpp_list_del(&pPktNode->sList);
+            mpp_list_add_tail(&pPktNode->sList,&pDemuxerDataType->sOutVideoReadyPkt);
+            aic_pthread_mutex_unlock(&pDemuxerDataType->sVideoPktLock);
+            pDemuxerDataType->nVideoPacketNum++;
+            //logi("pDemuxerDataType->nVideoPacketNum:%d\n",pDemuxerDataType->nVideoPacketNum);
+        } else if (sPkt.type == MPP_MEDIA_TYPE_AUDIO) { // same with Video , later optmization
+            OMX_BOOL bFind = OMX_FALSE;
+            if (pDemuxerDataType->nSkipTrack & DEMUX_SKIP_AUDIO_TRACK) {
+                pDemuxerDataType->nNeedPeek = 1;
+                goto _AIC_MSG_GET_;
+            }
+
+            if (OMX_DemuxerListEmpty(&pDemuxerDataType->sOutAudioEmptyPkt,pDemuxerDataType->sAudioPktLock)) {
+                if (OMX_DemuxerListEmpty(&pDemuxerDataType->sOutVideoReadyPkt,pDemuxerDataType->sVideoPktLock)
+                    && OMX_DemuxerListEmpty(&pDemuxerDataType->sOutAudioReadyPkt,pDemuxerDataType->sAudioPktLock)) {
+                    loge("sOutAudioReadyPkt\n");
+                    aic_msg_wait_new_msg(&pDemuxerDataType->sMsgQue, 0);
+                }
+                pDemuxerDataType->nNeedPeek = 0;
+                goto _AIC_MSG_GET_;
+            }
+            aic_pthread_mutex_lock(&pDemuxerDataType->sAudioPktLock);
+            mpp_list_for_each_entry_safe(pPktNode, pPktNode1, &pDemuxerDataType->sOutAudioEmptyPkt, sList) {
+                if (pPktNode->sBuff.nAllocLen >= sPkt.size) {
+                    bFind = OMX_TRUE;
+                    break;
+                }
+            }
+            if (!bFind) {
+                pPktNode = mpp_list_first_entry(&pDemuxerDataType->sOutAudioEmptyPkt,DEMUXER_OUT_PACKET,sList);
+            }
+            aic_pthread_mutex_unlock(&pDemuxerDataType->sAudioPktLock);
+            if (!bFind) {
+                static  int malloc_total_num = 0;
+                static  int print_num = 0;
+                print_num++;
+                malloc_total_num++;
+                if (print_num > 100) {
+                    loge("malloc_total_num:%d\n",malloc_total_num);
+                    print_num = 0;
+                }
+
+                if (pPktNode->sBuff.pBuffer) {
+                    mpp_free(pPktNode->sBuff.pBuffer);
+                    pPktNode->sBuff.pBuffer = NULL;
+                }
+                pPktNode->sBuff.pBuffer = (OMX_U8 *)mpp_alloc(sPkt.size);
+                //logi("mpp_alloc pPktNode->sBuff.pBuffer=%p,sPkt.size:%d\n",pPktNode->sBuff.pBuffer,sPkt.size);
+                if (NULL == pPktNode->sBuff.pBuffer) {
+                    loge("mpp_alloc fail \n");
+                    pPktNode->sBuff.pBuffer = NULL;
+                    pPktNode->sBuff.nAllocLen = 0;
+                    OMX_DemuxerEventNotify(pDemuxerDataType,OMX_EventError,OMX_ErrorInsufficientResources,1,NULL);
+                    // ASSERT();
+                    goto _AIC_MSG_GET_;
+                } else {
+                    pPktNode->sBuff.nAllocLen = sPkt.size;
+                }
+            }
+
+            sPkt.data = pPktNode->sBuff.pBuffer;
+            {
+                struct timespec before = {0},after = {0};
+                long diff = 0;
+                clock_gettime(CLOCK_REALTIME,&before);
+                ret = aic_parser_read(pDemuxerDataType->pParser,&sPkt);
+                clock_gettime(CLOCK_REALTIME,&after);
+                diff = (after.tv_sec - before.tv_sec)*1000*1000 + (after.tv_nsec - before.tv_nsec)/1000;
+                if (diff > 42*1000) {
+                        printf("[%s:%d]:%ld\n",__FUNCTION__,__LINE__,diff);
+                    }
+            }
+
+            logd("aic_parser_read,pts:%lld,type = %d,size:%d,flag:0x%x\n",sPkt.pts,sPkt.type,sPkt.size,sPkt.flag);
+            if (!ret) {//read ok
+                pDemuxerDataType->nNeedPeek = 1;
+            } else {// now  nothing to do ,becase no other return val
+                loge("peek fail\n");
+                pDemuxerDataType->nNeedPeek = 0;
+                goto _AIC_MSG_GET_;
+            }
+            pPktNode->sBuff.nFilledLen = sPkt.size;
+            pPktNode->sBuff.nTimeStamp = sPkt.pts;
+            pPktNode->sBuff.nFlags = sPkt.flag;
+            pPktNode->sBuff.nOutputPortIndex = DEMUX_PORT_AUDIO_INDEX;
+            aic_pthread_mutex_lock(&pDemuxerDataType->sAudioPktLock);
+            mpp_list_del(&pPktNode->sList);
+            mpp_list_add_tail(&pPktNode->sList,&pDemuxerDataType->sOutAudioReadyPkt);
+            aic_pthread_mutex_unlock(&pDemuxerDataType->sAudioPktLock);
+
+            {
+                static u64 pre_pts = 0;
+                u64 diff_pts = sPkt.pts - pre_pts;
+                if (diff_pts > 24*1000) {
+                    logd("pre:%lld,cur:%lld,diff:%lld",pre_pts,sPkt.pts,diff_pts);
+                }
+                pre_pts = sPkt.pts;
+            }
+            pDemuxerDataType->nAudioPacketNum++;
+            //logi("pDemuxerDataType->nAudioPacketNum:%d\n",pDemuxerDataType->nAudioPacketNum);
         }
     }
 

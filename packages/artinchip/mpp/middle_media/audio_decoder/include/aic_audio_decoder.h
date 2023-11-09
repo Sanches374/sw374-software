@@ -12,14 +12,16 @@
 #include "mpp_dec_type.h"
 
 enum aic_audio_codec_type {
-	MPP_CODEC_AUDIO_DECODER_MP3 = 0x1000,         // decoder
+	MPP_CODEC_AUDIO_DECODER_UNKOWN = -1,
+	MPP_CODEC_AUDIO_DECODER_MP3,         // decoder
+	MPP_CODEC_AUDIO_DECODER_AAC,
 };
 
 struct aic_audio_frame {
 	s32  sample_rate;
 	s32  bits_per_sample;
 	s32  channels;
-	u64  pts;
+	s64  pts;
 	s32  id;
 	void  *data;
 	u32  size;

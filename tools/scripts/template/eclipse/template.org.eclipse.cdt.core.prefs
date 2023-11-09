@@ -6,6 +6,6 @@ doxygen/doxygen_use_structural_commands=false
 eclipse.preferences.version=1
 environment/project/ilg.gnumcueclipse.managedbuild.cross.riscv.config.elf.debug.319524623/PATH/delimiter=;
 environment/project/ilg.gnumcueclipse.managedbuild.cross.riscv.config.elf.debug.319524623/PATH/operation=replace
-environment/project/ilg.gnumcueclipse.managedbuild.cross.riscv.config.elf.debug.319524623/PATH/value=${ProjDirPath}\\..\\..\\..\\toolchain\\bin;${PATH}
+environment/project/ilg.gnumcueclipse.managedbuild.cross.riscv.config.elf.debug.319524623/PATH/value=${ProjDirPath}\\..\\..\\..\\tools\\env\\tools\\bin;${ProjDirPath}\\..\\..\\..\\toolchain\\bin;${PATH}
 environment/project/ilg.gnumcueclipse.managedbuild.cross.riscv.config.elf.debug.319524623/append=true
 environment/project/ilg.gnumcueclipse.managedbuild.cross.riscv.config.elf.debug.319524623/appendContributed=true

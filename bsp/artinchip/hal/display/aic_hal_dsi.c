@@ -5,6 +5,9 @@
  */
 
 #include <aic_hal_dsi.h>
+#include <aic_iopoll.h>
+
+#define DSI_TIMEOUT_US  1000000
 
 void dsi_set_lane_assign(void *base, u32 ln_assign)
 {
@@ -151,6 +154,8 @@ void dsi_phy_init(void *base, ulong mclk, u32 lane)
     void *ANA2 = base + DSI_ANA_CFG2;
     void *CFG = base + DSI_PHY_CFG;
     void *TST1 = base + DSI_PHY_TEST1;
+    int ret;
+    u32 val;
 
     reg_write(base + DSI_PHY_RD_TIME, 50);
 
@@ -169,9 +174,12 @@ void dsi_phy_init(void *base, ulong mclk, u32 lane)
     aic_udelay(10);
     reg_set_bit(ANA2, DSI_ANA_CFG2_EN_RESCAL);
     reg_set_bit(ANA2, DSI_ANA_CFG2_ON_RESCAL);
-    while (reg_rd_bit(ANA2,
-        DSI_ANA_CFG2_RCAL_FLAG, DSI_ANA_CFG2_RCAL_SHIFT) == 0)
-        ;
+    ret = readl_poll_timeout(ANA2, val, val & DSI_ANA_CFG2_RCAL_FLAG,
+            DSI_TIMEOUT_US);
+    if (ret) {
+        pr_err("Timeout during wait rcal flag\n");
+        return;
+    }
 
     reg_set_bit(ANA2, DSI_ANA_CFG2_EN_CLK);
     reg_set_bit(TST1, DSI_PHY_TEST1_CLR);
@@ -199,17 +207,28 @@ void dsi_phy_init(void *base, ulong mclk, u32 lane)
 
 void dsi_hs_clk(void *base, u32 enable)
 {
+    int ret;
+    u32 val;
+
     if (enable) {
-        while (!reg_rd_bit(base + DSI_PHY_STA, DSI_PHY_STA_STOP_STATE_C,
-            DSI_PHY_STA_STOP_STATE_C_SHIFT))
-            ;
-        reg_set_bit(base + DSI_PHY_CFG, DSI_PHY_CFG_HSCLK_REQ);
-    } else {
-        reg_clr_bit(base + DSI_PHY_CFG, DSI_PHY_CFG_HSCLK_REQ);
-        while (!reg_rd_bit(base + DSI_PHY_STA, DSI_PHY_STA_STOP_STATE_C,
-            DSI_PHY_STA_STOP_STATE_C_SHIFT))
-            ;
+            ret = readl_poll_timeout(base + DSI_PHY_STA,
+                    val, val & DSI_PHY_STA_STOP_STATE_C,
+                    DSI_TIMEOUT_US);
+            if (ret) {
+                    pr_err("Timeout during wait phy stop state c\n");
+                    return;
+            }
+
+            reg_set_bit(base + DSI_PHY_CFG, DSI_PHY_CFG_HSCLK_REQ);
+            return;
     }
+
+    reg_clr_bit(base + DSI_PHY_CFG, DSI_PHY_CFG_HSCLK_REQ);
+    ret =  readl_poll_timeout(base + DSI_PHY_STA,
+            val, val & DSI_PHY_STA_STOP_STATE_C,
+            DSI_TIMEOUT_US);
+    if (ret)
+            pr_err("Timeout during wait phy stop state c\n");
 }
 
 void dsi_set_vm(void *base, enum dsi_mode mode, enum dsi_format format,
@@ -320,6 +339,8 @@ void dsi_cmd_wr(void *base, u32 dt, u32 vc, const u8 *data, u32 len)
 {
     const u8 *p = data;
     u8 d0, d1, i;
+    u32 val;
+    int ret;
     void *CMDCFG = base + DSI_CMD_MODE_CFG;
 
     switch (dt) {
@@ -397,15 +418,24 @@ void dsi_cmd_wr(void *base, u32 dt, u32 vc, const u8 *data, u32 len)
             (*(p + i + 3) << 24) | (*(p + i + 2) << 16) |
             (*(p + i + 1) <<  8) | (*(p + i + 0) << 0));
 
-    while (!reg_rd_bit(base + DSI_PHY_STA, DSI_PHY_STA_STOP_STATE_0,
-            DSI_PHY_STA_STOP_STATE_0_SHIFT))
-        ;
+    ret = readl_poll_timeout(base + DSI_PHY_STA,
+            val, val & DSI_PHY_STA_STOP_STATE_0,
+            DSI_TIMEOUT_US);
+    if (ret) {
+        pr_err("Timeout during wait phy stop state 0\n");
+        return;
+    }
 
     reg_write(base + DSI_GEN_PH_CFG,
         (d1 << 16) | (d0 << 8) | (vc << 6) | dt);
-    while (!reg_rd_bit(base + DSI_CMD_PKG_STA, DSI_CMD_PKG_STA_PLD_W_EMPTY,
-            DSI_CMD_PKG_STA_PLD_W_EMPTY_SHIFT))
-        ;
+
+    ret = readl_poll_timeout(base + DSI_CMD_PKG_STA,
+            val, val & DSI_CMD_PKG_STA_PLD_W_EMPTY,
+            DSI_TIMEOUT_US);
+    if (ret) {
+        pr_err("failed to write pld write fifo\n");
+        return;
+    }
 
     aic_udelay(10);
 }

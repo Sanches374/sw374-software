@@ -14,9 +14,9 @@
 #include <string.h>
 #include <rtconfig.h>
 #include <aic_core.h>
-#include <aic_drv.h>
 #include "aic_mac.h"
 #include "aic_phy.h"
+#include <aic_hal.h>
 
 #define USE_FULL_ASSERT
 #ifdef USE_FULL_ASSERT
@@ -38,8 +38,14 @@ static inline void assert_failed(uint8_t *file, uint8_t *func, uint32_t line)
 #define assert_param(expr) ((void)0)
 #endif
 
+#if MAX_ETH_MAC_PORT == 2
 unsigned long mac_base[MAX_ETH_MAC_PORT] = { GMAC0_BASE, GMAC1_BASE };
 unsigned long mac_irq[MAX_ETH_MAC_PORT] = { GMAC0_IRQn, GMAC0_IRQn+1 };
+#else
+unsigned long mac_base[MAX_ETH_MAC_PORT] = { GMAC0_BASE };
+unsigned long mac_irq[MAX_ETH_MAC_PORT] = { GMAC0_IRQn };
+#endif
+
 #ifdef CONFIG_MAC_USE_UNCACHE_BUF
 CMA_DATA_DEFINE aicmac_dma_desc_ctl_t dctl[MAX_ETH_MAC_PORT];
 #else
@@ -86,6 +92,8 @@ aicmac_config_t mac_config[MAX_ETH_MAC_PORT] = {
         .phyrst_gpio_name = AIC_DEV_GMAC0_PHYRST_GPIO,
         #endif
     },
+
+#if MAX_ETH_MAC_PORT == 2
     /* mac port 1: 100M/1000M */
     {
         .port = 1,
@@ -125,6 +133,7 @@ aicmac_config_t mac_config[MAX_ETH_MAC_PORT] = {
         .phyrst_gpio_name = AIC_DEV_GMAC1_PHYRST_GPIO,
         #endif
     },
+#endif
 };
 
 extern void aicmac_low_level_init(uint32_t port, bool en);
@@ -291,6 +300,7 @@ int aicmac_init(uint32_t port)
     }
     writel(tmpreg, MAC(port, txdma0ctl));
 
+#if !NO_SYS
     /* (4) dma0inten */
     tmpreg = readl(MAC(port, dma0inten));
     tmpreg |= (ETH_DMAINTEN_NIE | ETH_DMAINTEN_RIE);
@@ -298,7 +308,7 @@ int aicmac_init(uint32_t port)
     tmpreg |= ETH_DMAINTEN_TIE;
 #endif
     writel(tmpreg, MAC(port, dma0inten));
-
+#endif
     return ETH_SUCCESS;
 }
 
@@ -654,7 +664,12 @@ uint32_t aicmac_check_rx_frame_poll(uint32_t port)
     /* check if last segment */
     if (((pdesc->control & ETH_DMARxDesc_OWN) == (uint32_t)RESET)
         && ((pdesc->control & ETH_DMARxDesc_LS) != (uint32_t)RESET)) {
-        pinfo->seg_cnt++;
+
+        if ((pdesc->control & ETH_DMARxDesc_FS) != (uint32_t)RESET)
+            pinfo->seg_cnt = 1;
+        else
+            pinfo->seg_cnt++;
+
         if (pinfo->seg_cnt == 1) {
             pinfo->first_desc = pdesc;
         }
@@ -697,6 +712,7 @@ aicmac_frame_t aicmac_get_rx_frame_poll(uint32_t port)
     /* Get the address of the first frame descriptor and the buffer start address */
     frame.descriptor = pinfo->first_desc;
     frame.buffer = (pinfo->first_desc)->buff1_addr;
+    frame.last_desc = pinfo->last_desc;
 
     /* Update the ETHERNET DMA global Rx descriptor with next Rx descriptor */
     /* Chained Mode */
@@ -1147,8 +1163,8 @@ int aicmac_read_phy_reg(uint32_t port, uint32_t addr, uint16_t *val)
     } while ((tmpreg & ETH_MDIOCTL_MB) && (timeout < (uint32_t)PHY_WRITE_TO));
 
     if (timeout == PHY_WRITE_TO) {
-        pr_err("aicmac port%d read phy %d reg %d timeout.\n", port,
-               mac_config[port].phyaddr, addr);
+        pr_err("aicmac port%d read phy %d reg %d timeout.\n", (int)port,
+               (int)mac_config[port].phyaddr, (int)addr);
         return ETH_ERROR;
     }
 
@@ -1180,8 +1196,8 @@ int aicmac_write_phy_reg(uint32_t port, uint32_t addr, uint16_t val)
     } while ((tmpreg & ETH_MDIOCTL_MB) && (timeout < (uint32_t)PHY_WRITE_TO));
 
     if (timeout == PHY_WRITE_TO) {
-        pr_err("aicmac port%d write phy %d reg %d timeout.\n", port,
-               mac_config[port].phyaddr, addr);
+        pr_err("aicmac port%d write phy %d reg %d timeout.\n", (int)port,
+               (int)mac_config[port].phyaddr, (int)addr);
         return ETH_ERROR;
     }
 

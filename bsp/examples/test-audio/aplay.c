@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ * Authors:  dwj <weijie.ding@artinchip.com>
+ */
 #include <rtthread.h>
 #include <rtdevice.h>
 #include <dfs_posix.h>
@@ -53,7 +59,7 @@ int test_wavplay(int argc, char **argv)
     if (argc != 2)
     {
         rt_kprintf("Usage:\n");
-        rt_kprintf("test_wavplay song.wav\n");
+        rt_kprintf("aplay song.wav\n");
         return 0;
     }
 
@@ -123,5 +129,4 @@ __exit:
 
     return 0;
 }
-
-MSH_CMD_EXPORT(test_wavplay,  play wav file);
+MSH_CMD_EXPORT_ALIAS(test_wavplay, aplay, play wav file);

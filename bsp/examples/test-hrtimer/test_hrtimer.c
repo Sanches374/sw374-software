@@ -57,10 +57,12 @@ static rt_err_t hrtimer_cb(rt_device_t dev, rt_size_t size)
 {
     struct hrtimer_info *info = (struct hrtimer_info *)dev->user_data;
 
+#ifdef ULOG_USING_ISR_LOG
     if (g_debug)
         printf("%d/%d hrtimer%d timeout callback! Elapsed %ld us\n",
                g_loop_cnt, g_loop_max,
                info->id, aic_timer_get_us() - g_start_us);
+#endif
 
     g_start_us = aic_timer_get_us();
     g_loop_cnt++;
@@ -151,7 +153,7 @@ static void cmd_test_hrtimer(int argc, char *argv[])
     }
 
     printf("hrtimer%d: Create a timer of %d.%06d sec, %s mode\n",
-           ch, tm.sec, tm.usec,
+           ch, (u32)tm.sec, (u32)tm.usec,
            mode == HWTIMER_MODE_ONESHOT ? "Oneshot" : "Period");
     if (mode != HWTIMER_MODE_ONESHOT) {
         g_loop_max = HRTIMER_MAX_ELAPSE / (tm.sec * USEC_PER_SEC + tm.usec);

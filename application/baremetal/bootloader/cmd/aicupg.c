@@ -23,20 +23,21 @@
 #include <fatfs.h>
 #include <mmc.h>
 #include <hal_syscfg.h>
+#include <upg_uart.h>
 
-#define AICUPG_HELP                             \
-    "ArtInChip upgrading command:\n"            \
-    "aicupg [devtype] [interface]\n"            \
-    "  - devtype: should be usb, mmc, fat\n"    \
-    "  - interface: specify the controller id\n"\
-    "e.g.\n"                                    \
-    "  aicupg usb 0\n"                          \
-    "  aicupg mmc 1\n"                          \
-    "when devtype is fat: \n"                   \
-    "aicupg [devtype] [blkdev] [interface]\n"   \
-    "- blkdev: should be udisk,mmc \n"          \
-    "e.g.: \n"                                  \
-    "  aicupg fat udisk 0\n"                    \
+#define AICUPG_HELP                                \
+    "ArtInChip upgrading command:\n"               \
+    "aicupg [devtype] [interface]\n"               \
+    "  - devtype: should be usb, uart, mmc, fat\n" \
+    "  - interface: specify the controller id\n"   \
+    "e.g.\n"                                       \
+    "  aicupg usb 0\n"                             \
+    "  aicupg mmc 1\n"                             \
+    "when devtype is fat: \n"                      \
+    "aicupg [devtype] [blkdev] [interface]\n"      \
+    "- blkdev: should be udisk,mmc \n"             \
+    "e.g.: \n"                                     \
+    "  aicupg fat udisk 0\n"                       \
     "  aicupg fat mmc 1\n"
 static void aicupg_help(void)
 {
@@ -71,10 +72,27 @@ static int image_header_check(struct image_header_pack *header)
 }
 #endif
 
+static int do_uart_protocol_upg(int intf)
+{
+    int ret = 0;
+
+#if defined(AICUPG_UART_ENABLE)
+    aic_upg_uart_init(intf);
+    while (1) {
+        if (ctrlc())
+            break;
+        aic_upg_uart_loop();
+    }
+#endif
+
+    return ret;
+}
+
 static int do_usb_protocol_upg(int intf)
 {
     int ret = 0;
 
+#if defined(AICUPG_USB_ENABLE)
 #ifndef AIC_SYSCFG_DRV_V12
     syscfg_usb_phy0_sw_host(0);
 #endif
@@ -84,6 +102,7 @@ static int do_usb_protocol_upg(int intf)
             break;
         aic_udc_state_loop();
     }
+#endif
 
     return ret;
 }
@@ -220,6 +239,8 @@ static int do_aicupg(int argc, char *argv[])
 
     if (devtype == NULL)
         goto help;
+    if (!strcmp(devtype, "uart"))
+        ret = do_uart_protocol_upg(intf);
     if (!strcmp(devtype, "usb"))
         ret = do_usb_protocol_upg(intf);
     if (!strcmp(devtype, "mmc"))

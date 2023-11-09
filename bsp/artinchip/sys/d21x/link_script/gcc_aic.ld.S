@@ -39,11 +39,11 @@ INCLUDE rom_api.lds
 MEMORY
 {
     BROM        : ORIGIN = 0x00000000                                             , LENGTH = 64K
-    DRAM_SW     : ORIGIN = 0x40000100                                             , LENGTH = AIC_DRAM_TOTAL_SIZE - AIC_DRAM_CMA_SIZE - 0x100
+    DRAM_SW     : ORIGIN = 0x40000000                                             , LENGTH = AIC_DRAM_TOTAL_SIZE - AIC_DRAM_CMA_SIZE - 0x100
     DRAM_CMA    : ORIGIN = 0x40000000 + AIC_DRAM_TOTAL_SIZE - AIC_DRAM_CMA_SIZE   , LENGTH = AIC_DRAM_CMA_SIZE
 }
 
-PROVIDE (__dram_sw_start          = 0x40000100);
+PROVIDE (__dram_sw_start          = 0x40000000);
 PROVIDE (__dram_sw_end            = 0x40000000 + AIC_DRAM_TOTAL_SIZE - AIC_DRAM_CMA_SIZE);
 PROVIDE (__dram_cma_start         = __dram_sw_end);
 PROVIDE (__dram_cma_end           = 0x40000000 + AIC_DRAM_TOTAL_SIZE);
@@ -115,6 +115,15 @@ SECTIONS
   __rt_init_end = .;
   . = ALIGN(8);
   . = ALIGN(0x10) ;
+
+#ifdef RT_USING_MODULE
+  /* section information for modules */
+  . = ALIGN(8);
+  __rtmsymtab_start = .;
+  KEEP(*(RTMSymTab))
+  __rtmsymtab_end = .;
+#endif
+
   __etext = . ;
  } > REGION_TEXT
  .eh_frame_hdr : {

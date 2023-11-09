@@ -634,6 +634,8 @@ void lwip_test_example_main_loop(void * data)
 #if NO_SYS
     /* handle timers (already done in tcpip.c when NO_SYS=0) */
     sys_check_timeouts();
+
+    netif_baremetal_poll();
 #endif /* NO_SYS */
 
 #if USE_ETHERNET

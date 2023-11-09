@@ -41,6 +41,8 @@ struct aic_audio_render
 
 	s32 (*set_volume)(struct aic_audio_render *render,s32 vol);
 
+	s32 (*clear_cache)(struct aic_audio_render *render);
+
 };
 
 
@@ -70,6 +72,10 @@ struct aic_audio_render
 
 #define aic_audio_render_get_volume(render)\
 	    ((struct aic_audio_render*)render)->get_volume(render)
+
+
+#define aic_audio_render_clear_cache(render)\
+	    ((struct aic_audio_render*)render)->clear_cache(render)
 
 
 s32 aic_audio_render_create(struct aic_audio_render **render);

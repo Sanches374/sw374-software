@@ -30,9 +30,14 @@
 #define _SFUD_CFG_H_
 #include <rtconfig.h>
 
-// #define SFUD_DEBUG_MODE
-// #define SFUD_INFO(fmt, ...)  printf(fmt"\n", ##__VA_ARGS__)
+#ifdef AIC_SPINOR_SFUD_DEBUG
+#define SFUD_DEBUG_MODE
+#define SFUD_INFO(fmt, ...)  printf(fmt"\n", ##__VA_ARGS__)
+#define SFUD_DEBUG(fmt, ...)  printf(fmt"\n", ##__VA_ARGS__)
+#else
 #define SFUD_INFO(...)   do {} while (0)
+#define SFUD_DEBUG(...)   do {} while (0)
+#endif
 #define SFUD_USING_SFDP
 
 #define SFUD_USING_QSPI

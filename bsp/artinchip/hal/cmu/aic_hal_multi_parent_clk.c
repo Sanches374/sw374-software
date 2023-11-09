@@ -11,6 +11,67 @@
 #define to_clk_multi_parent(_hw) \
     container_of(_hw, struct aic_clk_multi_parent_cfg, comm)
 
+static int
+clk_multi_parent_enable_and_deassert_rst(struct aic_clk_comm_cfg *comm_cfg)
+{
+    struct aic_clk_multi_parent_cfg *mod = to_clk_multi_parent(comm_cfg);
+    u32 val;
+
+    /* enbale clk */
+    val = readl(cmu_reg(mod->offset_reg));
+
+    if (mod->mod_gate_bit >= 0)
+        val |= (1 << mod->mod_gate_bit);
+    if (mod->bus_gate_bit >= 0)
+        val |= (1 << mod->bus_gate_bit);
+
+    writel(val, cmu_reg(mod->offset_reg));
+
+    aicos_udelay(30);
+
+    /* deassert rst */
+    val = readl(cmu_reg(mod->offset_reg));
+
+    val |= (1 << MOD_RSTN);
+
+    writel(val, cmu_reg(mod->offset_reg));
+
+    aicos_udelay(30);
+
+    return 0;
+}
+
+static void
+clk_multi_parent_disable_and_assert_rst(struct aic_clk_comm_cfg *comm_cfg)
+{
+    struct aic_clk_multi_parent_cfg *mod = to_clk_multi_parent(comm_cfg);
+    u32 val;
+
+    /* assert rst */
+    val = readl(cmu_reg(mod->offset_reg));
+
+    val &= ~(1 << MOD_RSTN);
+
+    writel(val, cmu_reg(mod->offset_reg));
+
+    aicos_udelay(30);
+
+    /* disbale clk */
+    val = readl(cmu_reg(mod->offset_reg));
+
+    if (mod->mod_gate_bit >= 0)
+        val &= ~(1 << mod->mod_gate_bit);
+    if (mod->bus_gate_bit >= 0)
+        val &= ~(1 << mod->bus_gate_bit);
+
+    writel(val, cmu_reg(mod->offset_reg));
+
+    aicos_udelay(30);
+}
+
+
+
+
 static int clk_multi_parent_enable(struct aic_clk_comm_cfg *comm_cfg)
 {
     struct aic_clk_multi_parent_cfg *mod = to_clk_multi_parent(comm_cfg);
@@ -18,8 +79,10 @@ static int clk_multi_parent_enable(struct aic_clk_comm_cfg *comm_cfg)
 
     val = readl(cmu_reg(mod->offset_reg));
 
-    if (mod->gate_bit >= 0)
-        val |= (1 << mod->gate_bit);
+    if (mod->mod_gate_bit >= 0)
+        val |= (1 << mod->mod_gate_bit);
+    if (mod->bus_gate_bit >= 0)
+        val |= (1 << mod->bus_gate_bit);
 
     writel(val, cmu_reg(mod->offset_reg));
 
@@ -33,8 +96,10 @@ static void clk_multi_parent_disable(struct aic_clk_comm_cfg *comm_cfg)
 
     val = readl(cmu_reg(mod->offset_reg));
 
-    if (mod->gate_bit >= 0)
-        val &= ~(1 << mod->gate_bit);
+    if (mod->mod_gate_bit >= 0)
+        val &= ~(1 << mod->mod_gate_bit);
+    if (mod->bus_gate_bit >= 0)
+        val &= ~(1 << mod->bus_gate_bit);
 
     writel(val, cmu_reg(mod->offset_reg));
 }
@@ -42,13 +107,22 @@ static void clk_multi_parent_disable(struct aic_clk_comm_cfg *comm_cfg)
 static int clk_multi_parent_mod_is_enable(struct aic_clk_comm_cfg *comm_cfg)
 {
     struct aic_clk_multi_parent_cfg *mod = to_clk_multi_parent(comm_cfg);
-    u32 val;
+    u32 val, mod_gate, bus_gate;
 
     val = readl(cmu_reg(mod->offset_reg));
-    if (mod->gate_bit >= 0)
-        return val & (1 << mod->gate_bit);
+    if (mod->mod_gate_bit >= 0)
+        mod_gate = val & (1 << mod->mod_gate_bit);
+    else
+        mod_gate = 1;
+    if (mod->bus_gate_bit >= 0)
+        bus_gate = val & (1 << mod->bus_gate_bit);
+    else
+        bus_gate = 1;
 
-    return 1;
+    if (mod_gate && bus_gate)
+        return 1;
+
+    return 0;
 }
 
 static unsigned long
@@ -111,7 +185,7 @@ static long clk_multi_parent_mod_round_rate(struct aic_clk_comm_cfg *comm_cfg,
     if (mod->mux_mask == 7 || parent_index == 1)
         try_best_divider(rate, parent_rate, mod->div0_mask + 1, &div0);
     else
-        div0 = EINVAL;
+        div0 = 1;
 
     rrate = parent_rate / div0;
 
@@ -191,4 +265,6 @@ const struct aic_clk_ops aic_clk_multi_parent_ops = {
     .set_rate    = clk_multi_parent_mod_set_rate,
     .set_parent  = clk_multi_parent_mod_set_parent,
     .get_parent  = clk_multi_parent_mod_get_parent,
+    .enable_clk_deassert_rst = clk_multi_parent_enable_and_deassert_rst,
+    .disable_clk_assert_rst  = clk_multi_parent_disable_and_assert_rst,
 };

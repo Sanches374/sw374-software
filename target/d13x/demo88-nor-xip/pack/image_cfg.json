@@ -3,9 +3,9 @@
         "size": "16m", // Size of SPI NAND
         "partitions": {
             "spl":        { "size": "256k" },
-            "os":         { "size": "1m" },
+            "os":         { "size": "2m" },
             "rodata":     { "size": "6m" },
-            "data":       { "size": "6m" }
+            "data":       { "size": "5m" }
         },
     },
     "image": {

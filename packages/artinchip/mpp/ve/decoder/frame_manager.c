@@ -645,3 +645,18 @@ int fm_get_render_frame_num(struct frame_manager *fm)
 {
 	return fm->render_num;
 }
+
+int fm_reset(struct frame_manager *fm)
+{
+	if (!mpp_list_empty(&fm->render_list)) {
+		struct frame_impl *fame1=NULL,*frame2=NULL;
+		mpp_list_for_each_entry_safe(fame1,frame2, &fm->render_list, list) {
+			mpp_list_del_init(&fame1->list);
+			mpp_list_add_tail(&fame1->list, &fm->empty_list);
+		}
+	}
+	logd("before reset render_num:%d,empty_num:%d,frame_count:%d\n",fm->render_num,fm->empty_num,fm->frame_count);
+	fm->empty_num = fm->frame_count;
+	fm->render_num = 0;
+	return 0;
+}

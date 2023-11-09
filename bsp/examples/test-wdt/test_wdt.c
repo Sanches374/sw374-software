@@ -36,6 +36,9 @@ static void usage(char * program)
     printf("\t -c, --set-clear threshold\tSet clear threshold,in second(0~3)\n");
     printf("\t -g, --get-timeout\tGet the current timeout, in second\n");
     printf("\t -k, --keepalive\tKeepalive the watchdog\n");
+    #ifdef AIC_WDT_DRV_V11
+    printf("\t -r, --change reset object \t change reset cpu or system\n");
+    #endif
     printf("\t -u, --usage \n");
     printf("\n");
 }
@@ -43,6 +46,7 @@ static void usage(char * program)
 void test_wdt(int argc, char **argv)
 {
     int opt;
+    int status;
     int timeout = 0;
     rt_device_t wdt_dev = RT_NULL;
 
@@ -50,7 +54,7 @@ void test_wdt(int argc, char **argv)
     rt_device_init(wdt_dev);
 
     optind = 0;
-    while ((opt = getopt(argc, argv, "s:p:c:gku")) != -1) {
+    while ((opt = getopt(argc, argv, "s:p:c:gkru")) != -1) {
         switch (opt) {
             case 'c':
                 timeout = strtoul(optarg, NULL, 10);
@@ -77,6 +81,15 @@ void test_wdt(int argc, char **argv)
                 rt_thread_idle_sethook(idle_hook);
                 rt_kprintf("feed the dog! \n");
                 break;
+            case 'r':
+            #ifdef AIC_WDT_DRV_V11
+                status = rt_device_control(wdt_dev, RT_DEVICE_CTRL_WDT_GET_RST_EN, RT_NULL);
+                if (status)
+                    rt_device_control(wdt_dev, RT_DEVICE_CTRL_WDT_SET_RST_SYS, RT_NULL);
+                else
+                    rt_device_control(wdt_dev, RT_DEVICE_CTRL_WDT_SET_RST_CPU, RT_NULL);
+                break;
+            #endif
             case 'u':
             default:
                 usage(argv[0]);

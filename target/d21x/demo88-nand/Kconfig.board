@@ -1,10 +1,5 @@
 menu "Board options"
 
-#============================================
-# Peripheral Devices
-#============================================
-comment "Peripheral Devices:"
-
 #---------------------------
 # cmu device global option
 #---------------------------
@@ -502,7 +497,65 @@ endmenu
 #---------------------------
 
 menu "Clocks Options"
+config AIC_CLK_PLL_INT0_FREQ
+    int "Clk int0 pll frequence"
+    default 600000000
 
+config AIC_CLK_PLL_INT1_FREQ
+    int "Clk int1 pll frequence"
+    default 1200000000
+
+#config AIC_CLK_PLL_FRA0_FREQ
+#    int "Clk fra0 pll frequence"
+#    default 0
+#
+#config AIC_CLK_PLL_FRA0_SSC_DIS
+#    bool "Disable fra0 pll spread spectrum"
+#    default n
+
+config AIC_CLK_PLL_FRA1_FREQ
+    int "Clk fra1 pll frequence"
+    default 491520000
+
+config AIC_CLK_PLL_FRA2_FREQ
+    int "Clk fra2 pll frequence"
+    default 840000000
+
+config AIC_CLK_PLL_FRA2_SSC_DIS
+    bool "Disable fra2 pll spread spectrum"
+    default n
+
+config AIC_CLK_CPU_FREQ
+    int "Clk cpu frequence"
+    default 600000000
+
+config AIC_CLK_AXI0_FREQ
+    int "Clk axi0 frequence"
+    default 240000000
+
+config AIC_CLK_AHB0_FREQ
+    int "Clk ahb0 frequence"
+    default 240000000
+
+config AIC_CLK_APB0_FREQ
+    int "Clk apb0 frequence"
+    default 100000000
+
+config AIC_USING_CLK_OUT0
+    bool "Enable CLK_OUT0"
+    default n
+
+config AIC_USING_CLK_OUT1
+    bool "Enable CLK_OUT1"
+    default n
+
+config AIC_USING_CLK_OUT2
+    bool "Enable CLK_OUT2"
+    default n
+
+config AIC_USING_CLK_OUT3
+    bool "Enable CLK_OUT3"
+    default n
 endmenu
 
 #---------------------------

@@ -232,8 +232,8 @@ static int dfs_uffs_mkfs(rt_device_t dev_id)
     mtd = nand_part[index].dev;
 
     /*3. erase all blocks on the partition */
-    block = mtd->block_start;
-    for (; block <= mtd->block_end; block++)
+    block = 0;
+    for (; block < mtd->block_total ; block++)
     {
         rt_mtd_nand_erase_block(mtd, block);
 #if defined(RT_UFFS_USE_CHECK_MARK_FUNCITON)

@@ -1,4 +1,10 @@
-﻿#include <stdio.h>
+/*
+ * Copyright (c) 2022, Artinchip Technology Co., Ltd
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <aic_common.h>
@@ -219,7 +225,7 @@ int uart_init(int id)
     hal_clk_set_freq(CLK_UART0 + id, p->clk_freq);
     hal_clk_enable(CLK_UART0 + id);
     hal_reset_assert(RESET_UART0 + id);
-    aic_udelay(10000);
+    aic_udelay(500);
     hal_reset_deassert(RESET_UART0 + id);
 
     if (p->rx_mode != AIC_UART_RX_MODE_INT) {
@@ -257,6 +263,35 @@ err:
         free(uart_rx_fifo[id]);
         uart_rx_fifo[id] = NULL;
     }
+    return ret;
+}
+
+int uart_config_update(int id, int baudrate)
+{
+    const struct drv_uart_dev_para *p;
+    u32 data_bits, stop_bits, parity;
+    int i;
+    int ret = 0;
+
+    p = NULL;
+    for (i = 0; i < ARRAY_SIZE(uart_dev_paras); i++) {
+        p = &uart_dev_paras[i];
+        if (id == p->index) {
+            break;
+        }
+    }
+    if (!p)
+        return -ENODEV;
+
+    data_bits = get_data_bits(p->data_bits);
+    stop_bits = get_stop_bits(p->stop_bits);
+    parity = get_parity(p->parity);
+    ret = hal_usart_config(uart_dev[id], baudrate, USART_MODE_ASYNCHRONOUS,
+                           parity, stop_bits, data_bits, p->function);
+    if (ret) {
+        pr_err("set baudrate failed.\n");
+    }
+
     return ret;
 }
 

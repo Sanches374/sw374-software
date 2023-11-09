@@ -21,6 +21,9 @@
 #define PWMN_CMD_DISABLE    (RT_DEVICE_CTRL_BASE(PWM) + 5)
 #define PWM_CMD_SET_PERIOD  (RT_DEVICE_CTRL_BASE(PWM) + 6)
 #define PWM_CMD_SET_PULSE   (RT_DEVICE_CTRL_BASE(PWM) + 7)
+#define PWM_CMD_SET_FIFO    (RT_DEVICE_CTRL_BASE(PWM) + 8)
+#define PWM_CMD_SET_FIFO_NUM (RT_DEVICE_CTRL_BASE(PWM) + 9)
+#define PWM_CMD_GET_FIFO    (RT_DEVICE_CTRL_BASE(PWM) + 10)
 
 struct rt_pwm_configuration
 {
@@ -33,6 +36,15 @@ struct rt_pwm_configuration
      * RT_FALSE : The channel of pwm is nomal.
     */
     rt_bool_t  complementary;
+
+#ifdef AIC_XPWM_DRV
+    rt_uint32_t pulse_cnt; /* 0:PWM mode, 1-n:XPWM pulse cnt */
+    rt_uint32_t fifo_num;
+    rt_uint32_t fifo_index;
+    rt_uint32_t pul_num;
+    rt_uint32_t pul_prd;
+    rt_uint32_t pul_cmp;
+#endif
 };
 
 struct rt_device_pwm;
@@ -51,7 +63,11 @@ rt_err_t rt_device_pwm_register(struct rt_device_pwm *device, const char *name, 
 
 rt_err_t rt_pwm_enable(struct rt_device_pwm *device, int channel);
 rt_err_t rt_pwm_disable(struct rt_device_pwm *device, int channel);
+#ifdef AIC_XPWM_DRV
+rt_err_t rt_pwm_set(struct rt_device_pwm *device, int channel, rt_uint32_t period, rt_uint32_t pulse, rt_uint32_t pulse_cnt);
+#else
 rt_err_t rt_pwm_set(struct rt_device_pwm *device, int channel, rt_uint32_t period, rt_uint32_t pulse);
+#endif
 rt_err_t rt_pwm_set_period(struct rt_device_pwm *device, int channel, rt_uint32_t period);
 rt_err_t rt_pwm_set_pulse(struct rt_device_pwm *device, int channel, rt_uint32_t pulse);
 

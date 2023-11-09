@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2023, Artinchip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
@@ -93,6 +93,7 @@ extern "C" {
 #endif
 
 int uart_init(int id);
+int uart_config_update(int id, int baudrate);
 int uart_deinit(int id);
 int uart_getchar(int id);
 int uart_putchar(int id, int c);

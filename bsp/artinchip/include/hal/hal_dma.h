@@ -56,6 +56,7 @@ struct dma_slave_config {
     u32 slave_id;
 };
 
+#if defined(AIC_DMA_DRV_V10) || defined(AIC_DMA_DRV_V11)
 struct aic_dma_task {
     u32 cfg; /* dma transfer configuration */
     u32 src; /* source address of one transfer package */
@@ -74,6 +75,29 @@ struct aic_dma_task {
      */
     struct aic_dma_task *v_next;
 };
+#endif
+
+#ifdef AIC_DMA_DRV_V20
+struct aic_dma_task {
+    u32 link_id;
+    u32 cfg1; /* dma transfer configuration */
+    u32 block_len; /* block length*/
+    u32 src; /* source address of one transfer package */
+    u32 dst; /* distination address of one transfer package */
+    u32 len; /* data length of one transfer package */
+    u32 cfg2;
+    u32 p_next; /* next package for dma controller */
+    u32 data_src;
+    u32 data_dst;
+    u32 pad[4];
+    u32 mode; /* the negotiation mode, not used by phsical task list */
+    /*
+     * virtual list for cpu maintain package list,
+     * not used by dma controller
+     */
+    struct aic_dma_task *v_next;
+};
+#endif
 
 struct aic_dma_chan {
     u8 ch_nr; /* drq port number */

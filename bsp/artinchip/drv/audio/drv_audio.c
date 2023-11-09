@@ -17,7 +17,7 @@
 
 #include "hal_audio.h"
 
-#define TX_FIFO_PERIOD_COUNT        4
+#define TX_FIFO_PERIOD_COUNT        2
 #define TX_FIFO_SIZE                (RT_AUDIO_REPLAY_MP_BLOCK_SIZE *\
                                      TX_FIFO_PERIOD_COUNT)
 static rt_uint8_t audio_tx_fifo[TX_FIFO_SIZE] __attribute__((aligned(64)));
@@ -41,8 +41,6 @@ rt_err_t drv_audio_init(struct rt_audio_device *audio)
 
     p_snd_dev = (struct aic_audio *)audio;
     pcodec = &p_snd_dev->codec;
-
-
 
     pcodec->tx_info.buf_info.buf = (void *)audio_tx_fifo;
     pcodec->tx_info.buf_info.buf_len = TX_FIFO_SIZE;
@@ -330,6 +328,7 @@ static void drv_audio_callback(aic_audio_ctrl *pcodec, void *arg)
     {
     case AUDIO_TX_PERIOD_INT:
         rt_audio_tx_complete(audio);
+        aicos_dcache_clean_range((void *)audio_tx_fifo, TX_FIFO_SIZE);
         break;
 
     default:

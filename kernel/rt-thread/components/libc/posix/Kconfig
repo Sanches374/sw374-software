@@ -79,6 +79,34 @@ if RT_USING_MODULE
     config RT_USING_CUSTOM_DLMODULE
         bool "Enable load dynamic module by custom"
         default n
+
+    choice
+        prompt "Select dynamic module use mem"
+        default RT_MODULE_MEM_SYS
+        config RT_MODULE_MEM_SYS
+            bool "Sys Heap"
+        config RT_MODULE_MEM_DRAM_CMA
+            bool "Dram CMA Heap"
+            depends on AIC_DRAM_CMA_EN
+        config RT_MODULE_MEM_PSRAM_SW
+            bool "Prsam SW heap"
+            depends on AIC_PSRAM_SW_EN
+        config RT_MODULE_MEM_PSRAM_CMA
+            bool "Prsam CMA heap"
+            depends on AIC_PSRAM_CMA_EN
+        config RT_MODULE_MEM_SRAM1_SW
+            bool "Sram1 SW heap"
+            depends on AIC_SRAM1_SW_EN
+        config RT_MODULE_MEM_SRAM1_CMA
+            bool "Sram1 CMA heap"
+            depends on AIC_SRAM1_CMA_EN
+        config RT_MODULE_MEM_SRAM_SW
+            bool "Sram SW heap"
+            depends on AIC_SRAM_SW_EN
+        config RT_MODULE_MEM_SRAM_CMA
+            bool "Sram CMA heap"
+            depends on AIC_SRAM_CMA_EN
+    endchoice
 endif
 
 source "$RTT_DIR/components/libc/posix/ipc/Kconfig"

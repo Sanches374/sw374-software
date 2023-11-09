@@ -145,20 +145,21 @@ static void ve_config_pp_register(struct mjpeg_dec_ctx *s)
 static void ve_config_bitstream_register(struct mjpeg_dec_ctx *s,  int offset, int is_last)
 {
     int busy = 1;
-
+    int bit_offset = 0;
     // Note: if it is the last stream, we need add 1 here, or it will halt
     int stream_num = 0;
     #ifdef AIC_VE_DRV_V10
-    stream_num = (s->curr_packet->size + 255) / 256 +1 ;
+    stream_num = (s->curr_packet->size + 255) / 256 +1;
     #else
-    stream_num = (s->curr_packet->size + 255) / 256 +2 ;
+    stream_num = (s->curr_packet->size + 255) / 256 +2;
     #endif
 
     u32 packet_base_addr = s->curr_packet->phy_base + s->curr_packet->phy_offset;
     u32 base_addr = (packet_base_addr + offset) & (~7);
+    bit_offset = ((packet_base_addr + offset) - base_addr)*8;
     // stream end address, 256 byte align
-    u32 end_addr = packet_base_addr + (stream_num * 256);
-    write_reg_u32(s->regs_base + JPG_STREAM_END_ADDR_REG, end_addr);
+    //u32 end_addr = packet_base_addr + (stream_num * 256);
+    //write_reg_u32(s->regs_base + JPG_STREAM_END_ADDR_REG, end_addr);
 
     // stream read ptr
     write_reg_u32(s->regs_base + JPG_STREAM_READ_PTR_REG, 0);
@@ -198,11 +199,11 @@ static void ve_config_bitstream_register(struct mjpeg_dec_ctx *s,  int offset, i
 	// init sub module before start
 #ifdef AIC_VE_DRV_V10
     write_reg_u32(s->regs_base + JPG_SUB_CTRL_REG, 4);
-    write_reg_u32(s->regs_base + JPG_RBIT_OFFSET_REG, (offset & 7)*8);
+    write_reg_u32(s->regs_base + JPG_RBIT_OFFSET_REG, bit_offset);
     write_reg_u32(s->regs_base + JPG_SUB_CTRL_REG, 2);
 #else
     write_reg_u32(s->regs_base + JPG_SUB_CTRL_REG, 2);
-    write_reg_u32(s->regs_base + JPG_RBIT_OFFSET_REG, (offset & 7)*8);
+    write_reg_u32(s->regs_base + JPG_RBIT_OFFSET_REG, bit_offset);
     write_reg_u32(s->regs_base + JPG_SUB_CTRL_REG, 1);
 #endif
 }
@@ -265,7 +266,7 @@ static void ve_config_huffman_table(struct mjpeg_dec_ctx *s)
 
 	logd("config huffman table");
 
-	//* 1. config start_code
+	// 1. config start_code
 	reg_list->_80_huff_info_reg.huff_auto = 1;
 	reg_list->_80_huff_info_reg.enable = 1;
 	reg_list->_80_huff_info_reg.huff_idx = 0;
@@ -296,7 +297,7 @@ static void ve_config_huffman_table(struct mjpeg_dec_ctx *s)
 	}
 
 
-	//* 2. config max code
+	// 2. config max code
 	logd("max_code");
 	pval = (u32 *)&reg_list->_80_huff_info_reg;
 	reg_list->_80_huff_info_reg.huff_auto = 1;
@@ -326,7 +327,7 @@ static void ve_config_huffman_table(struct mjpeg_dec_ctx *s)
 		write_reg_u32(s->regs_base + JPG_HUFF_VAL_REG, val);
 	}
 
-	//* 3. config huffman offset
+	// 3. config huffman offset
 	pval = (u32 *)&reg_list->_80_huff_info_reg;
 	reg_list->_80_huff_info_reg.huff_auto = 1;
 	reg_list->_80_huff_info_reg.enable = 1;
@@ -356,7 +357,7 @@ static void ve_config_huffman_table(struct mjpeg_dec_ctx *s)
 		write_reg_u32(s->regs_base + JPG_HUFF_VAL_REG, val);
 	}
 
-	//* 4.1 config huffman val (dc luma)
+	// 4.1 config huffman val (dc luma)
 	logd("huff_val dc_luma");
 	pval = (u32 *)&reg_list->_80_huff_info_reg;
 	reg_list->_80_huff_info_reg.huff_auto = 1;
@@ -379,7 +380,7 @@ static void ve_config_huffman_table(struct mjpeg_dec_ctx *s)
 		write_reg_u32(s->regs_base + JPG_HUFF_VAL_REG, val);
 	}
 
-	//* 4.2 config huffman val (dc chroma)
+	// 4.2 config huffman val (dc chroma)
 	logd("huff_val dc_chroma");
 	pval = (u32 *)&reg_list->_80_huff_info_reg;
 	reg_list->_80_huff_info_reg.huff_auto = 1;
@@ -405,7 +406,7 @@ static void ve_config_huffman_table(struct mjpeg_dec_ctx *s)
 		logv("write JPG_HUFF_VAL_REG %02X %02X", JPG_HUFF_VAL_REG, val);
 	}
 
-	//* 4.3 config huffman val (ac luma)
+	// 4.3 config huffman val (ac luma)
 	pval = (u32 *)&reg_list->_80_huff_info_reg;
 	reg_list->_80_huff_info_reg.huff_auto = 1;
 	reg_list->_80_huff_info_reg.enable = 1;
@@ -427,7 +428,7 @@ static void ve_config_huffman_table(struct mjpeg_dec_ctx *s)
 		write_reg_u32(s->regs_base + JPG_HUFF_VAL_REG, val);
 	}
 
-	//* 4.4 config huffman val (ac chroma)
+	// 4.4 config huffman val (ac chroma)
 	pval = (u32 *)&reg_list->_80_huff_info_reg;
 	reg_list->_80_huff_info_reg.huff_auto = 1;
 	reg_list->_80_huff_info_reg.enable = 1;
@@ -567,31 +568,31 @@ int ve_decode_jpeg(struct mjpeg_dec_ctx *s, int byte_offset)
 	ve_get_client();
 
     ve_reset();
-	//* 1. config ve top
+	// 1. config ve top
 	ve_config_ve_top_reg(s);
 
-	//* 2. config header info
+	// 2. config header info
 	config_header_info(s);
 	config_jpeg_picture_info_register(s);
 
-	//* 3. config quant matrix
+	// 3. config quant matrix
 	ve_config_quant_matrix(s);
 
-	//* 4. config huffman table
+	// 4. config huffman table
 	if(s->have_dht) {
 		ve_config_huffman_table(s);
 	}
 
-	//* 5. config post process
+	// 5. config post process
 	ve_config_pp_register(s);
     config_crop_register(s);
 
-	//* 6. config bitstream
+	// 6. config bitstream
 	ve_config_bitstream_register(s, byte_offset, 1);
 
 	logi("======= config all regs ==========");
 	//dump_regs(s);
-	//* 7. decode start
+	// 7. decode start
 	write_reg_u32(s->regs_base + JPG_START_REG, 1);
 
 	if(ve_wait(&status) < 0) {
@@ -605,7 +606,7 @@ int ve_decode_jpeg(struct mjpeg_dec_ctx *s, int byte_offset)
 
 	if(status > 1) {
 		int errmb = read_reg_u32(s->regs_base + 0x08);
-		loge("status error, errmb: %d", errmb);
+		loge("status error:%x, errmb: %d", status, errmb);
 		ve_reset();
 		ve_put_client();
 		return -1;

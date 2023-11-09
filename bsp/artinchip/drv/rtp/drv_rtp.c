@@ -41,6 +41,8 @@ rt_err_t aic_rtp_init(void)
     g_rtp_dev.mode = AIC_RTP_DEFAULT_MODE;
     g_rtp_dev.max_press = AIC_RTP_MAX_PRESSURE;
     g_rtp_dev.smp_period = AIC_RTP_PERIOD_MS;
+    g_rtp_dev.pdeb = AIC_RTP_PDEB;
+    g_rtp_dev.delay = AIC_RTP_DELAY;
     if (g_rtp_dev.mode != RTP_MODE_AUTO1)
         g_rtp_dev.pressure_det = 1;
 

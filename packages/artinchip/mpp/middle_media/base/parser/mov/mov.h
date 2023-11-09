@@ -109,5 +109,6 @@ struct aic_mov_parser {
 int mov_read_header(struct aic_mov_parser *c);
 int mov_close(struct aic_mov_parser *c);
 int mov_peek_packet(struct aic_mov_parser *c, struct aic_parser_packet *pkt);
+int mov_seek_packet(struct aic_mov_parser *c, s64 pts);
 
 #endif

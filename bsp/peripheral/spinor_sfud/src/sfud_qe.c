@@ -7,6 +7,7 @@
 #include "../inc/sfud.h"
 #include <string.h>
 #include "sfud_flash_def.h"
+#include "sfud_qe.h"
 
 #ifdef SFUD_USING_QSPI
 
@@ -18,15 +19,7 @@
 
 static const sfud_qspi_flash_qe_info qspi_flash_qe_info_table[] = SFUD_FLASH_QE_INFO_TABLE;
 
-sfud_err sfud_read_cr(const sfud_flash *flash, uint8_t *status) {
-    uint8_t cmd = SFUD_CMD_READ_CONFIG_REGISTER;
-
-    SFUD_ASSERT(flash);
-    SFUD_ASSERT(status);
-
-    return flash->spi.wr(&flash->spi, &cmd, 1, status, 1);
-}
-
+#define SR1_RW_MSK 0xFC
 static int spi_nor_write_16bit_cr_and_check(sfud_flash *flash, uint8_t cr)
 {
     int ret;
@@ -44,13 +37,14 @@ static int spi_nor_write_16bit_cr_and_check(sfud_flash *flash, uint8_t cr)
     if (ret)
         return ret;
 
-    sr_written = sr_cr[0];
+    sr_written = sr_cr[0] & SR1_RW_MSK;
 
     ret = sfud_read_status(flash, sr_cr);
     if (ret)
         return ret;
 
-    if (sr_written != sr_cr[0]) {
+    /* Only check the writable bits */
+    if (sr_written != (sr_cr[0] & SR1_RW_MSK)) {
         SFUD_INFO("SR: Read back test failed\n");
         return -1;
     }
@@ -63,10 +57,11 @@ static int spi_nor_write_16bit_cr_and_check(sfud_flash *flash, uint8_t cr)
         return ret;
 
     if (cr != sr_cr[1]) {
-        /* write again, some flash can not support write 16bit base register1 addr. */
-        sfud_write_reg(flash, SFUD_CMD_WRITE_STATUS2_REGISTER, &cr);
+        /* write again, some flash can not support write 16bit base register1
+         * addr.
+         */
+        sfud_write_cr(flash, &cr);
         sfud_read_cr(flash, &sr_cr[1]);
-
         if (cr != sr_cr[1]) {
             SFUD_INFO("CR: read back test failed\n");
             return -1;

@@ -11,15 +11,16 @@
 #include <sys/time.h>
 #include <rtthread.h>
 
+#include "hal_adcim.h"
 #include "rtdevice.h"
 #include "aic_core.h"
 #include "aic_log.h"
 
 /* Global macro and variables */
 #define AIC_GPAI_NAME               "gpai"
-#define AIC_GPAI_CH_NUM             8
 #define AIC_GPAI_ADC_MAX_VAL        0xFFF
 #define AIC_GPAI_DEFAULT_VOLTAGE    3
+#define AIC_GPAI_VOLTAGE_ACCURACY   100
 
 static rt_adc_device_t gpai_dev;
 static const char sopts[] = "c:t:h";
@@ -36,7 +37,8 @@ static void cmd_gpai_usage(char *program)
 {
     printf("Compile time: %s %s\n", __DATE__, __TIME__);
     printf("Usage: %s [options]\n", program);
-    printf("\t -c, --channel\t\tSelect one channel in [0, 7], default is 0\n");
+    printf("\t -c, --channel\t\tSelect one channel in [0, %d], default is 0\n",
+           AIC_GPAI_CH_NUM);
     printf("\t -t, --voltage\t\tInput standard voltage, default is 3\n");
     printf("\t -h, --help \n");
     printf("\n");
@@ -66,10 +68,12 @@ static int gpai_get_adc(int chan)
 static void adc2voltage(float st_voltage, int adc_value, int chan)
 {
     int voltage;
+    int scale = AIC_GPAI_VOLTAGE_ACCURACY;
 
-    voltage = (adc_value*st_voltage*100) / AIC_GPAI_ADC_MAX_VAL;
-    rt_kprintf("GPAI ch%d-voltage:%d.%2d\n", chan, voltage / 100,
-               voltage % 100);
+    voltage = hal_adcim_auto_calibration(adc_value, st_voltage, scale,
+                                        AIC_GPAI_ADC_MAX_VAL);
+    rt_kprintf("GPAI ch%d-voltage:%d.%02d v\n", chan, voltage / scale,
+           voltage % scale);
     return;
 }
 
@@ -106,11 +110,11 @@ static void cmd_test_gpai(int argc, char **argv)
         }
     }
 
-    if (adc_value < 0){
+    if (adc_value < 0) {
         rt_kprintf("Please select a channel first\n");
         return;
     }
-    if (st_voltage < 0){
+    if (st_voltage < 0) {
         rt_kprintf("Please input standard voltage\n");
         return;
     }

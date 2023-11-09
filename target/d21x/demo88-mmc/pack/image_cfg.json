@@ -3,8 +3,8 @@
         "size": "8G", // Size of SD/eMMC
         "partitions": { // Partition table apply to device
             "spl": { "offset": "0x4400", "size": "256k" },
-            "os":  { "size": "4m" },
-            "rodata":  { "size": "4m" },
+            "os":  { "size": "8m" },
+            "rodata":  { "size": "12m" },
             "data":  { "size": "35m" },
         },
     },

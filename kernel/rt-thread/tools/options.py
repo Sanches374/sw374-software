@@ -106,7 +106,7 @@ def AddOptions():
     AddOption('--target',
                       dest = 'target',
                       type = 'string',
-                      help = 'Generate target project: eclipse/eclipse_sdk')
+                      help = 'Generate target project: eclipse/eclipse_sdk/ua')
     AddOption('--genconfig',
                 dest = 'genconfig',
                 action = 'store_true',

@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ * Authors:  dwj <weijie.ding@artinchip.com>
+ */
 #include <rtthread.h>
 #include <rtdevice.h>
 #include <dfs_posix.h>
@@ -60,7 +66,7 @@ int test_wavrecord(int argc, char **argv)
     if (argc != 2)
     {
         rt_kprintf("Usage:\n");
-        rt_kprintf("test_wavrecord file.wav\n");
+        rt_kprintf("arecord file.wav\n");
         return -1;
     }
 
@@ -119,4 +125,4 @@ __exit:
 
     return 0;
 }
-MSH_CMD_EXPORT(test_wavrecord, record voice to a wav file);
+MSH_CMD_EXPORT_ALIAS(test_wavrecord, arecord, record voice to a wav file);

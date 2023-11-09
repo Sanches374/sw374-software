@@ -19,6 +19,13 @@
 #define SPINAND_DIE_ID0 (0)
 #define SPINAND_DIE_ID1 (1)
 
+#undef pr_debug
+#ifdef AIC_SPINAND_DRV_DEBUG
+#define pr_debug    pr_info
+#else
+#define pr_debug(fmt, ...)
+#endif
+
 /**
 * struct nand_bbt - bad block table object
 * @cache: in memory BBT cache

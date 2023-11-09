@@ -57,7 +57,7 @@ static int mtd_spinand_read_oob(struct mtd_dev *mtd, u32 offset, u8 *data,
     flash = (struct aic_spinand *)mtd->priv;
 
     if (offset % flash->info->page_size) {
-        printf("Offset not aligned with a block (0x%x)\r\n",
+        printf("Offset not aligned with a page (0x%x)\r\n",
                flash->info->page_size);
         return -1;
     }
@@ -200,7 +200,7 @@ static int mtd_spinand_write_oob(struct mtd_dev *mtd, u32 offset, u8 *data,
     flash = (struct aic_spinand *)mtd->priv;
 
     if (offset % flash->info->page_size) {
-        printf("Offset not aligned with a block (0x%x)\r\n",
+        printf("Offset not aligned with a page (0x%x)\r\n",
                flash->info->page_size);
         return -1;
     }

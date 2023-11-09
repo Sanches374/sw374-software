@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2023, Artinchip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
@@ -22,7 +22,9 @@ static int do_reset_boot(int argc, char *argv[])
 {
     wdt_init();
     printf("Going to reboot ...\n");
+#ifdef AIC_WRI_DRV
     aic_set_reboot_reason(REBOOT_REASON_CMD_REBOOT);
+#endif
     wdt_expire_now();
     while(1);
     return 0;
@@ -33,7 +35,9 @@ CONSOLE_CMD(reboot, do_reset_boot, "Reboot device.");
 
 static int cmd_aicupg(int argc, char **argv)
 {
+#ifdef AIC_WRI_DRV
     aic_set_reboot_reason(REBOOT_REASON_UPGRADE);
+#endif
     do_reset_boot(0, NULL);
     return 0;
 }

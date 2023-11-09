@@ -9,6 +9,10 @@
 #include "aic_core.h"
 #include "hal_tsen.h"
 #include "aic_hal_clk.h"
+#include <string.h>
+#ifdef CONFIG_AIC_SID_DRV
+#include "hal_efuse.h"
+#endif
 
 #define AIC_TSEN_TIMEOUT    3000
 
@@ -78,6 +82,37 @@
 #define THERMAL_CORE_TEMP_AMPN_SCALE   10 // in RT-Thread sensor framework
 #define TSEN_CALIB_ACCURACY_SCALE      1000 // = 10000 / 10
 
+#define TSEN_VOLTAGE_SCALE_UNIT         2.14285
+#define TSEN_TRIM_VOLTAGE_BOUNDARY_VAL  0x80
+
+#define TSEN_CP_VERSION_OFFSET          0x1C
+#define TSEN_LDO30_BG_CTRL_OFFSET       0x28
+#define TSEN_THS0_ADC_VAL_LOW_OFFSET    0x2c
+#define TSEN_THS_ENV_TEMP_LOW_OFFSET    0x24
+#define TSEN_THS0_ADC_VAL_HIGH_OFFSET   0x20
+
+#define TSEN_THS0_ADC_VAL_HIGH_MASK     0xfff
+#define TSEN_THS0_ADC_VAL_LOW_MASK      0xfff
+#define TSEN_LDO30_BG_CTRL_MASK         0xff
+#define TSEN_THS_ENV_TEMP_HIGH_MASK     0xff
+#define TSEN_THS_ENV_TEMP_LOW_MASK      0Xf
+#define TSEN_CP_VERSION_MASK            0x3f
+
+#define TSEN_THS_ENV_TEMP_LOW_SHIFT     16
+#define TSEN_THS_ENV_TEMP_HIGH_SHIFT    24
+#define TSEN_CP_VERSION_SHIFT           20
+
+#define TSEN_ORIGIN_STANDARD_VOLTAGE    3000 // = 3 * 1000
+#define TSEN_EFUSE_STANDARD_LENGTH      4
+
+#define TSEN_ENV_TEMP_LOW_BASE          25
+#define TSEN_ENV_TEMP_HIGH_BASE         65
+#define TSEN_ENV_TEMP_LOW_SIGN_MASK     BIT(3)
+#define TSEN_ENV_TEMP_HIGH_SIGN_MASK    BIT(7)
+
+#define TSEN_CP_VERSION_DIFF_TYPE       0xA
+#define TSEN_SINGLE_POINT_CALI_K        -1151
+
 static inline void tsen_writel(u32 val, int reg)
 {
     writel(val, TSEN_BASE + reg);
@@ -130,7 +165,163 @@ u16 hal_tsen_temp2data(struct aic_tsen_ch *chan, s32 temp)
     return (u16)data;
 }
 
-static u32 tsen_sec2itv(u32 pclk, u32 sec)
+#ifdef CONFIG_AIC_SID_DRV
+int hal_tsen_efuse_read(u32 addr, u32 *data, u32 size)
+{
+    u32 wid, wval, rest, cnt;
+    int ret;
+    int length = TSEN_EFUSE_STANDARD_LENGTH;
+
+    rest = size;
+    while (rest > 0) {
+        wid = addr >> 2;
+        ret = hal_efuse_read(wid, &wval);
+        if (ret)
+            break;
+        *data = wval;
+        cnt = rest;
+        if (addr % length) {
+            if (rest > (length - (addr % length)))
+                cnt = (length - (addr % length));
+        } else {
+            if (rest > length)
+                cnt = length;
+        }
+        addr += cnt;
+        rest -= cnt;
+    }
+
+    return (int)(size - rest);
+}
+
+/* The temperature obtained from nvmem contains sign bits.
+ * For this purpose, this function converts data through sign bit mask
+ */
+u8 hal_tsen_env_temp_cali(u8 sign_mask, u8 val)
+{
+    if (val & sign_mask)
+        return -(val & (sign_mask - 1));
+    else
+        return val & (sign_mask - 1);
+
+}
+
+void hal_tsen_single_point_cali(struct aic_tsen_ch *chan)
+{
+    u32 ldo30_bg_ctrl = 0;
+    u32 ths0_adc_val = 0;
+    u32 ths0_adc_val_low;
+    u32 ths_env_temp_low = 0;
+    int env_temp_low = TSEN_ENV_TEMP_LOW_BASE;
+    int standard_vol = TSEN_ORIGIN_STANDARD_VOLTAGE;
+    int vol_scale_unit = TSEN_VOLTAGE_SCALE_UNIT;
+    int length = TSEN_EFUSE_STANDARD_LENGTH;
+    int origin_voltage;
+    int origin_adc;
+    int cali_scale;
+
+    cali_scale = THERMAL_CORE_TEMP_AMPN_SCALE * TSEN_CALIB_ACCURACY_SCALE;
+
+    hal_tsen_efuse_read(TSEN_LDO30_BG_CTRL_OFFSET, &ldo30_bg_ctrl, length);
+    ldo30_bg_ctrl = ldo30_bg_ctrl & TSEN_LDO30_BG_CTRL_MASK;
+    hal_tsen_efuse_read(TSEN_THS0_ADC_VAL_LOW_OFFSET, &ths0_adc_val, length);
+    ths0_adc_val_low = ths0_adc_val & TSEN_THS0_ADC_VAL_LOW_MASK;
+
+    if (ldo30_bg_ctrl > TSEN_TRIM_VOLTAGE_BOUNDARY_VAL) {
+        origin_voltage = standard_vol - (255 - ldo30_bg_ctrl) * vol_scale_unit;
+    } else {
+        origin_voltage = standard_vol + ldo30_bg_ctrl * vol_scale_unit;
+    }
+
+    origin_adc = origin_voltage * ths0_adc_val_low / standard_vol;
+
+    hal_tsen_efuse_read(TSEN_THS_ENV_TEMP_LOW_OFFSET, &ths_env_temp_low, length);
+    ths_env_temp_low = (ths_env_temp_low >> TSEN_THS_ENV_TEMP_LOW_SHIFT) & TSEN_THS_ENV_TEMP_LOW_MASK;
+    env_temp_low += hal_tsen_env_temp_cali(TSEN_ENV_TEMP_LOW_SIGN_MASK,
+                                           ths_env_temp_low);
+
+    chan->slope = TSEN_SINGLE_POINT_CALI_K;
+    chan->offset = env_temp_low * cali_scale - chan->slope * origin_adc;
+    hal_log_debug("k:%d, b:%d\n", chan->slope, chan->offset);
+
+    return;
+}
+
+/* For temperature's slope and offset calculated by y=kx+b equation.
+ * THS0_ADC_VAL as y, THS_ENV_TEMP as x.
+ */
+static void hal_tsen_get_cali_param(int y1, int y2, int x1, int x2,
+                   struct aic_tsen_ch *chan)
+{
+    int slope, offset;
+    int calib_scale;
+
+    calib_scale = THERMAL_CORE_TEMP_AMPN_SCALE * TSEN_CALIB_ACCURACY_SCALE;
+    if ((x2 - x1) != 0) {
+        slope = (y1 - y2) * calib_scale / (x2 - x1);
+        offset = y1 * calib_scale - slope * x1;
+        chan->slope = slope;
+        chan->offset = offset;
+    }
+}
+
+void hal_tsen_double_point_cali(struct aic_tsen_ch *chan)
+{
+    int env_temp_low = TSEN_ENV_TEMP_LOW_BASE;
+    int env_temp_high = TSEN_ENV_TEMP_HIGH_BASE;
+    int length = TSEN_EFUSE_STANDARD_LENGTH;
+    u32 ths_env_temp_low = 0;
+    u8 ths_env_temp_high = 0;
+    u32 ths0_adc_val_low = 0;
+    u32 ths_temp_high = 0;
+    u16 ths0_adc_val_high;
+
+    hal_tsen_efuse_read(TSEN_THS_ENV_TEMP_LOW_OFFSET, &ths_env_temp_low,
+                        length);
+    ths_env_temp_low = (ths_env_temp_low >> TSEN_THS_ENV_TEMP_LOW_SHIFT) & TSEN_THS_ENV_TEMP_LOW_MASK;
+
+    hal_tsen_efuse_read(TSEN_THS0_ADC_VAL_LOW_OFFSET, &ths0_adc_val_low,
+                        length);
+    ths0_adc_val_low = ths0_adc_val_low & TSEN_THS0_ADC_VAL_LOW_MASK;
+
+    hal_tsen_efuse_read(TSEN_THS0_ADC_VAL_HIGH_OFFSET, &ths_temp_high, length);
+    ths_env_temp_high = (ths_temp_high >> TSEN_THS_ENV_TEMP_HIGH_SHIFT) & TSEN_THS_ENV_TEMP_HIGH_MASK;
+    ths0_adc_val_high = ths_temp_high & TSEN_THS0_ADC_VAL_HIGH_MASK;
+
+
+    env_temp_low += hal_tsen_env_temp_cali(TSEN_ENV_TEMP_LOW_SIGN_MASK,
+                                           ths_env_temp_low);
+    env_temp_high += hal_tsen_env_temp_cali(TSEN_ENV_TEMP_HIGH_SIGN_MASK,
+                                            ths_env_temp_high);
+
+    hal_tsen_get_cali_param(ths0_adc_val_low, ths0_adc_val_high,
+                            ths_env_temp_low, ths_env_temp_high, chan);
+}
+#endif
+
+void hal_tsen_curve_fitting(struct aic_tsen_ch *chan)
+{
+#ifdef CONFIG_AIC_SID_DRV
+    int cp_version;
+    u32 data = 0;
+
+    hal_tsen_efuse_read(TSEN_CP_VERSION_OFFSET, &data,
+                        TSEN_EFUSE_STANDARD_LENGTH);
+    cp_version = data >> TSEN_CP_VERSION_SHIFT & TSEN_CP_VERSION_MASK;
+    hal_log_debug("CP version:%d\n", cp_version);
+
+    if (cp_version >= TSEN_CP_VERSION_DIFF_TYPE) {
+        hal_log_debug("Double points calibration\n");
+        hal_tsen_double_point_cali(chan);
+    } else {
+        hal_log_debug("Single point calibration\n");
+        hal_tsen_single_point_cali(chan);
+    }
+#endif
+    return;
+}
+
+u32 tsen_sec2itv(u32 pclk, u32 sec)
 {
     u32 tmp = pclk >> 16;
 

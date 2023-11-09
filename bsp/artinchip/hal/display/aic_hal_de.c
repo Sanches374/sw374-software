@@ -6,13 +6,17 @@
  */
 
 #include <stdint.h>
+#include <string.h>
 #include <aic_core.h>
+#include <aic_hal.h>
 
 #include "artinchip_fb.h"
 #include "aic_hal_disp_reg_util.h"
 #include "aic_hal_de.h"
 
-#define CSC_COEFFS_NUM 12
+#define CSC_COEFFS_NUM  12
+#define CCM_COEF_NUM    12
+#define GAMMA_COEF_NUM  64
 
 static int yuv2rgb_bt601_limit[3][4] = {
     {1192, 0, 1634, -3269},
@@ -108,8 +112,8 @@ void de_config_tearing_effect(void *base_addr,
             u32 mode, u32 pulse_width)
 {
     reg_set_bits(base_addr + TIMING_CTRL,
-             TIMING_TE_MODE_MASK,
-             TIMING_TE_MODE(mode));
+             TIMING_DE_MODE_MASK,
+             TIMING_DE_MODE(mode));
 
     reg_set_bits(base_addr + TIMING_CTRL,
              TIMING_TE_PULSE_WIDTH_MASK,
@@ -141,6 +145,47 @@ void de_set_dither(void *base_addr, u32 r_depth,
     } else {
         reg_clr_bit(base_addr + DE_CTRL, DE_CTRL_DITHER_EN);
     }
+}
+
+void de_set_mode(void *base_addr, u32 mode)
+{
+    reg_set_bits(base_addr + TIMING_CTRL,
+            TIMING_DE_MODE_MASK, TIMING_DE_MODE(mode));
+}
+
+void de_set_te_pulse_width(void *base_addr, u32 width)
+{
+    reg_set_bits(base_addr + TIMING_CTRL,
+            TIMING_TE_PULSE_WIDTH_MASK, TIMING_TE_PULSE_WIDTH(width));
+}
+
+u32 de_set_te_pinmux(const char *name)
+{
+#if defined(AIC_DE_DRV_V10) || defined(AIC_DE_V10)
+    char *pins[] = { "PC.6", "PD.2", "PF.15" };
+    unsigned int func[] = { 4, 4, 2 };
+#elif defined(AIC_DE_DRV_V11) || defined(AIC_DE_V11)
+    char *pins[] = { "PA.1", "PC.6" };
+    unsigned int func[] = { 8, 6 };
+#endif
+    unsigned int g, p, i;
+    long pin = 0;
+
+    for (i = 0; i < ARRAY_SIZE(pins); i++) {
+        if (strncasecmp(name, pins[i], strlen(pins[i])) == 0) {
+            pin = hal_gpio_name2pin(pins[i]);
+            if (pin < 0)
+                return -1;
+
+            g = GPIO_GROUP(pin);
+            p = GPIO_GROUP_PIN(pin);
+            hal_gpio_set_func(g, p, func[i]);
+            hal_gpio_set_bias_pull(g, p, PIN_PULL_DIS);
+            hal_gpio_set_drive_strength(g, p, 3);
+            return 0;
+        }
+    }
+    return -1;
 }
 
 void de_qos_config(void *base_addr, int *value)
@@ -585,4 +630,50 @@ void de_set_blending_size(void *base_addr, u32 active_w, u32 active_h)
           BLENDING_OUTPUT_SIZE_SET(active_w, active_h));
 }
 
+void de_ccm_ctrl(void *base_addr, u32 enable)
+{
+    if (enable)
+        reg_set_bit(base_addr + DE_CTRL, DE_CTRL_CCM_EN);
+    else
+        reg_clr_bit(base_addr + DE_CTRL, DE_CTRL_CCM_EN);
+}
 
+void de_gamma_ctrl(void *base_addr, u32 enable)
+{
+    if (enable)
+        reg_set_bit(base_addr + DE_CTRL, DE_CTRL_GAMMA_EN);
+    else
+        reg_clr_bit(base_addr + DE_CTRL, DE_CTRL_GAMMA_EN);
+}
+
+void de_config_ccm(void *base_addr, const int *ccm_table)
+{
+    unsigned int i;
+
+    for (i = 0; i < CCM_COEF_NUM; i++)
+        reg_write(base_addr + CCM_COEF(i), ccm_table[i]);
+}
+
+void de_config_gamma_lut(void *base_addr, const u32 *gamma_table, int channel)
+{
+    int i, value;
+
+    for (i = 0; i < GAMMA_COEF_NUM; i += 4) {
+        value = (GAMMA_LUT0(gamma_table[i + 0]) & GAMMA_LUT0_MASK) |
+                (GAMMA_LUT1(gamma_table[i + 1]) & GAMMA_LUT1_MASK) |
+                (GAMMA_LUT2(gamma_table[i + 2]) & GAMMA_LUT2_MASK) |
+                (GAMMA_LUT3(gamma_table[i + 3]) & GAMMA_LUT3_MASK);
+
+        switch (channel) {
+        case 0:
+            reg_write(base_addr + GAMMA_RED_LUT(i / 4), value);
+            break;
+        case 1:
+            reg_write(base_addr + GAMMA_GREEN_LUT(i / 4), value);
+            break;
+        default:
+            reg_write(base_addr + GAMMA_BLUE_LUT(i / 4), value);
+            break;
+        }
+    }
+}

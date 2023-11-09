@@ -24,10 +24,14 @@
 #include <boot_time.h>
 #include <aic_clk_id.h>
 #include <upg_detect.h>
+#include <upg_uart.h>
 #include <hal_syscfg.h>
 #include <xspi_psram.h>
+#include <usb_drv.h>
 #include <usbhost.h>
+#include <usbdevice.h>
 #include <boot_rom.h>
+#include <hal_axicfg.h>
 
 extern size_t __heap_start;
 extern size_t __heap_end;
@@ -39,9 +43,21 @@ extern int drv_dma_init(void);
 
 #define MAX_HEAP_SIZE_IN_BOOT 0x800000
 
-static int board_init(void)
+#ifdef AIC_AXICFG_DRV
+struct hal_axicfg_table axi_cfg_table[HAL_AXICFG_PORT_MAX] = {
+    { .enable = AXICFG_CPU_EN, .priority = (u8)AIC_AXICFG_PORT_CPU_PRIO },
+    { .enable = AXICFG_AHB_EN, .priority = (u8)AIC_AXICFG_PORT_AHB_PRIO },
+    { .enable = AXICFG_DE_EN, .priority = (u8)AIC_AXICFG_PORT_DE_PRIO },
+    { .enable = AXICFG_GE_EN, .priority = (u8)AIC_AXICFG_PORT_GE_PRIO },
+    { .enable = AXICFG_VE_EN, .priority = (u8)AIC_AXICFG_PORT_VE_PRIO },
+    { .enable = AXICFG_DVP_EN, .priority = (u8)AIC_AXICFG_PORT_DVP_PRIO },
+    { .enable = AXICFG_CE_EN, .priority = (u8)AIC_AXICFG_PORT_CE_PRIO },
+};
+#endif
+
+static int board_init(enum boot_device bd)
 {
-    size_t heap_size;
+    size_t heap_size, heap_start;
     int cons_uart;
 
     /* target/<chip>/<board>/board.c */
@@ -53,12 +69,24 @@ static int board_init(void)
     /* psram init */
     aic_xspi_psram_init();
     boot_time_trace("PSRAM init done");
+
+#ifdef AIC_AXICFG_DRV
+    for (int i = 0; i < HAL_AXICFG_PORT_MAX; i++) {
+        if (axi_cfg_table[i].enable) {
+            hal_axicfg_module_init(i, axi_cfg_table[i].priority);
+        }
+    }
+#endif
 #endif
 
     heap_size = ((size_t)&__heap_end) - ((size_t)&__heap_start);
-    if (heap_size > MAX_HEAP_SIZE_IN_BOOT)
-        heap_size = MAX_HEAP_SIZE_IN_BOOT;
-    heap_init(&__heap_start, heap_size);
+
+    if (bd != BD_UDISK && bd != BD_SDFAT32)
+            heap_size = 0x200000;
+
+    heap_start = (size_t)&__heap_end - heap_size;
+
+    heap_init((void *)heap_start, heap_size);
     boot_time_trace("Heap init done");
 
     cons_uart = AIC_BOOTLOADER_CONSOLE_UART;
@@ -94,7 +122,8 @@ int main(void)
     hal_syscfg_probe();
 #endif
 
-    board_init();
+    bd = aic_get_boot_device();
+    board_init(bd);
 #ifdef AIC_DMA_DRV
     drv_dma_init();
 #endif
@@ -107,7 +136,6 @@ int main(void)
 
     ctrlc = console_get_ctrlc();
     if (ctrlc < 0) {
-        bd = aic_get_boot_device();
         if (upgmode) {
             if (upgmode == UPG_DETECT_REASON_SOFT)
                 printf("Enter Upgrading Mode by Software.\n");
@@ -132,7 +160,13 @@ int main(void)
          */
         switch (bd) {
             case BD_USB:
-                console_set_bootcmd("aicupg usb 0");
+                usbd_connection_check_start();
+                if (usbd_connection_check_status()) {
+                    usbd_connection_check_end();
+                    console_set_bootcmd("aicupg usb 0");
+                } else {
+                    console_set_bootcmd("aicupg uart 0");
+                }
                 break;
             case BD_UDISK:
                 if (id == 0)

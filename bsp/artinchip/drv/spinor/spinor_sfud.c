@@ -10,6 +10,7 @@
 #include <drv_qspi.h>
 #include <aic_log.h>
 #include "spi_flash_sfud.h"
+#include <string.h>
 
 #if defined(RT_USING_SFUD)
 
@@ -72,5 +73,33 @@ int rt_hw_spi_flash_with_sfud_init(void)
 
     return RT_EOK;
 }
+void sfud_log_debug(const char *file, const long line, const char *fmt, ...)
+{
+    va_list args;
+    char log_buf[RT_CONSOLEBUF_SIZE];
+    int head_len;
+
+    sprintf(log_buf, "[D] %s()%ld ", file, line);
+    head_len = strlen(log_buf);
+    va_start(args, fmt);
+    vsnprintf(log_buf + head_len, sizeof(log_buf) - head_len - 1, fmt, args);
+    va_end(args);
+    puts(log_buf);
+}
+
+void sfud_log_info(const char *fmt, ...)
+{
+    va_list args;
+    char log_buf[RT_CONSOLEBUF_SIZE];
+    int head_len;
+
+    sprintf(log_buf, "[I] ");
+    head_len = strlen(log_buf);
+    va_start(args, fmt);
+    vsnprintf(log_buf + head_len, sizeof(log_buf) - head_len - 1, fmt, args);
+    va_end(args);
+    puts(log_buf);
+}
+
 INIT_PREV_EXPORT(rt_hw_spi_flash_with_sfud_init);
 #endif

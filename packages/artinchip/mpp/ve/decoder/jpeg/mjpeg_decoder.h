@@ -90,6 +90,7 @@ struct mjpeg_dec_ctx {
     int rm_v_real_size[MAX_COMPONENTS];	// ver real size after post-process
     int h_offset[MAX_COMPONENTS];		// hor crop offset after post-process
     int v_offset[MAX_COMPONENTS];		// ver crop offset after post-process
+    int extra_frame_num;
 };
 
 #endif /* MJPEG_DECODER_H */

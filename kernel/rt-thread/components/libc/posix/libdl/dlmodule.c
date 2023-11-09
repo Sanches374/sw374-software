@@ -173,7 +173,7 @@ static void _dlmodule_thread_entry(void* parameter)
 __exit:
     _dlmodule_exit();
 
-    return ;
+    return;
 }
 
 struct rt_dlmodule *dlmodule_create(void)
@@ -271,7 +271,7 @@ rt_err_t dlmodule_destroy(struct rt_dlmodule* module)
         struct rt_list_node *node = RT_NULL;
 
         /* detach/delete all threads in this module */
-        for (node = module->object_list.next; node != &(module->object_list); )
+        for (node = module->object_list.next; node != &(module->object_list);)
         {
             int object_type;
 
@@ -394,7 +394,7 @@ rt_err_t dlmodule_destroy(struct rt_dlmodule* module)
     }
 
     /* destory module */
-    rt_free(module->mem_space);
+    rt_free_align(module->mem_space);
     /* delete module object */
     rt_object_delete((rt_object_t)module);
 
@@ -492,7 +492,7 @@ struct rt_dlmodule* dlmodule_load(const char* filename)
     }
     else
     {
-        rt_kprintf("Module: unsupported elf type\n");
+        rt_kprintf("Module: unsupported elf type %d\n", elf_module->e_type);
         goto __exit;
     }
 
@@ -510,6 +510,8 @@ struct rt_dlmodule* dlmodule_load(const char* filename)
     rt_hw_cpu_dcache_ops(RT_HW_CACHE_FLUSH, module->mem_space, module->mem_size);
     rt_hw_cpu_icache_ops(RT_HW_CACHE_INVALIDATE, module->mem_space, module->mem_size);
 #endif
+    aicos_dcache_clean_range(module->mem_space, module->mem_size);
+    aicos_icache_invalid();
 
     /* set module initialization and cleanup function */
     module->init_func = dlsym(module, "module_init");
@@ -676,6 +678,8 @@ struct rt_dlmodule* dlmodule_load_custom(const char* filename, struct rt_dlmodul
     rt_hw_cpu_dcache_ops(RT_HW_CACHE_FLUSH, module->mem_space, module->mem_size);
     rt_hw_cpu_icache_ops(RT_HW_CACHE_INVALIDATE, module->mem_space, module->mem_size);
 #endif
+    aicos_dcache_clean_range(module->mem_space, module->mem_size);
+    aicos_icache_invalid();
 
     /* set module initialization and cleanup function */
     module->init_func = dlsym(module, "module_init");
@@ -783,7 +787,7 @@ void dlmodule_exit(int ret_code)
         /* main thread already closed */
         rt_exit_critical();
 
-        return ;
+        return;
     }
 
     /* delete thread: insert to defunct thread list */
@@ -800,7 +804,7 @@ rt_uint32_t dlmodule_symbol_find(const char *sym_str)
     for (index = _rt_module_symtab_begin; index != _rt_module_symtab_end; index ++)
     {
         if (rt_strcmp(index->name, sym_str) == 0)
-            return (rt_uint32_t)index->addr;
+            return (rt_uint32_t)(uintptr_t)index->addr;
     }
 
     return 0;

@@ -84,15 +84,17 @@ extern "C" {
 #define CLK_CIR                 65
 #define CLK_PSADC               66
 #define CLK_CMP
+#define CLK_PWMCS               67
+#define CLK_PWMCS_SDFM          68
 /* Display clock */
-#define CLK_PIX                 67
-#define CLK_SCLK                68
+#define CLK_PIX                 69
+#define CLK_SCLK                70
 /* Output clock */
-#define CLK_OUT0                69
-#define CLK_OUT1                70
-#define CLK_OUT2                71
-#define CLK_OUT3                72
-#define AIC_CLK_END             73
+#define CLK_OUT0                71
+#define CLK_OUT1                72
+#define CLK_OUT2                73
+#define CLK_OUT3                74
+#define AIC_CLK_END             75
 
 /* frequence */
 

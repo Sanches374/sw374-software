@@ -36,6 +36,8 @@ struct aic_gpai_ch {
     u16 lla_thd;
     u16 lla_rm_thd;
 
+    u8 irq_count;
+
     aicos_sem_t complete;
 };
 
@@ -54,5 +56,4 @@ void hal_gpai_set_ch_num(u32 num);
 void aich_gpai_status_show(struct aic_gpai_ch *chan);
 s32 hal_gpai_clk_init(void);
 void hal_gpai_clk_get(struct aic_gpai_ch *chan);
-
 #endif // end of _ARTINCHIP_HAL_GPAI_H_

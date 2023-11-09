@@ -70,8 +70,8 @@ struct aic_pinmux aic_pinmux_config[] = {
     {4, PIN_PULL_DIS, 3, "PA.1"}, // SDA
 #endif
 #ifdef AIC_USING_I2C1
-    {4, PIN_PULL_DIS, 3, "PD.18"}, // SCK
-    {4, PIN_PULL_DIS, 3, "PD.19"}, // SDA
+    {5, PIN_PULL_DIS, 3, "PD.18"}, // SCK
+    {5, PIN_PULL_DIS, 3, "PD.19"}, // SDA
 #endif
 #ifdef AIC_USING_I2C2
 #if 0

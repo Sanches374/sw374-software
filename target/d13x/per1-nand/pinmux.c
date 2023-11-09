@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2022, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
@@ -19,6 +19,11 @@ struct aic_pinmux
 };
 
 struct aic_pinmux aic_pinmux_config[] = {
+#ifdef AIC_USING_UART0
+    /* uart0 */
+    {5, PIN_PULL_DIS, 3, "PA.0"},
+    {5, PIN_PULL_DIS, 3, "PA.1"},
+#endif
 #ifdef AIC_USING_UART1
     /* uart1 */
     {5, PIN_PULL_DIS, 3, "PA.2"},
@@ -58,8 +63,8 @@ struct aic_pinmux aic_pinmux_config[] = {
     {4, PIN_PULL_DIS, 3, "PA.8"}, // SCK
     {4, PIN_PULL_DIS, 3, "PA.9"}, // SDA
 #endif
-#ifdef AIC_USING_QSPI0
-    /* qspi0 */
+#if defined(AIC_SYSCFG_SIP_FLASH_ENABLE) && defined(AIC_USING_QSPI0)
+    /* sip qspi0 */
     {8, PIN_PULL_DIS, 3, "PB.12"},
     {8, PIN_PULL_DIS, 3, "PB.13"},
     {8, PIN_PULL_DIS, 3, "PB.14"},
@@ -67,8 +72,8 @@ struct aic_pinmux aic_pinmux_config[] = {
     {8, PIN_PULL_DIS, 3, "PB.16"},
     {8, PIN_PULL_DIS, 3, "PB.17"},
 #endif
-#ifdef AIC_USING_QSPI1
-    /* qspi1 */
+#if !defined(AIC_SYSCFG_SIP_FLASH_ENABLE) && defined(AIC_USING_QSPI0)
+    /* qspi0 */
     {2, PIN_PULL_DIS, 3, "PB.0"},
     {2, PIN_PULL_DIS, 3, "PB.1"},
     {2, PIN_PULL_DIS, 3, "PB.2"},
@@ -76,6 +81,7 @@ struct aic_pinmux aic_pinmux_config[] = {
     {2, PIN_PULL_DIS, 3, "PB.4"},
     {2, PIN_PULL_DIS, 3, "PB.5"},
 #endif
+
 #ifdef AIC_USING_QSPI3
     /* qspi3 slave */
     {2, PIN_PULL_DIS, 3, "PC.8"},
@@ -293,6 +299,16 @@ struct aic_pinmux aic_pinmux_config[] = {
 #ifdef AIC_USING_CIR
     {3, PIN_PULL_DIS, 3, "PA.0"},
     {3, PIN_PULL_DIS, 3, "PA.1"},
+#endif
+#ifdef AIC_USING_CAN0
+    {4, PIN_PULL_DIS, 3, "PA.4"},
+    {4, PIN_PULL_DIS, 3, "PA.5"},
+#endif
+#ifdef AIC_USING_RTP
+    {2, PIN_PULL_DIS, 3, "PA.8"},
+    {2, PIN_PULL_DIS, 3, "PA.9"},
+    {2, PIN_PULL_DIS, 3, "PA.10"},
+    {2, PIN_PULL_DIS, 3, "PA.11"},
 #endif
 };
 

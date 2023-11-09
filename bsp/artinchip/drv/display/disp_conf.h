@@ -14,16 +14,27 @@
 /* lvds sync mode enable */
 #define AIC_LVDS_SYNC_MODE_EN   1
 
-/* lvds swap enable, swap lvds link0 and link1 */
-#define AIC_LVDS_SWAP_EN    0
+/* lvds link swap enable, swap lvds link0 and link1 */
+#define AIC_LVDS_LINK_SWAP_EN   0
 
-/* lvds data channel swap */
-#define AIC_LVDS_SWAP       0x0
+/**
+ * lvds channel output order
+ *
+ * works on both link0 and link1 (if exists)
+ *
+ * default D3 CK D2 D1 D0
+ *          4  3  2  1  0
+ */
+#define AIC_LVDS_LINES      0x43210
 
-/* lvds channel polarities */
+/**
+ * lvds channel polarities, works on both link0 and link1 (if exists)
+ */
 #define AIC_LVDS_POL        0x0
 
-/* lvds channel phy */
+/**
+ * lvds channel phy config, works on both link0 and link1 (if exists)
+ */
 #define AIC_LVDS_PHY        0xFA
 
 /**
@@ -47,5 +58,48 @@
 
 /* drawing buf for GUI, range [1, 2] */
 #define AIC_FB_DRAW_BUF_NUM 2
+
+/**
+ * Display Engine options
+ */
+
+/**
+ * Display Engine Mode
+ *
+ * Continue mode, ignore the TE signal of LCD and the timing signal
+ * of display engine is continuous.
+ *
+ * Single frame mode, the timing signal of display engine needs to be
+ * manually updated.
+ *
+ * Auto mode, need a TE pulse width. The display engine automatically
+ * updates timing signal after obtained a TE signal from LCD.
+ *
+ * If unsure, say continuous mode.
+ */
+
+#define CONTINUE    0
+#define SINGLE      1
+#define AUTO        2
+
+#define DE_MODE     CONTINUE
+
+/**
+ * AUTO mode options
+ */
+#if ( DE_MODE == 2 )
+# define DE_AUTO_MODE 1
+#endif
+
+#if DE_AUTO_MODE
+/**
+ * TE PIN
+ *
+ * D12x, just support { "PC.6", "PD.2", "PF.15" }
+ * D13x, just support { "PC.6", "PA.1" }
+ */
+#  define TE_PIN      "PC.6"
+#  define TE_PULSE_WIDTH  2
+#endif
 
 #endif /* _DISP_CONF_H_ */

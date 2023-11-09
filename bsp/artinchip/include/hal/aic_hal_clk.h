@@ -31,6 +31,7 @@ int hal_clk_enable_iter(uint32_t clk_id);
 int hal_clk_enable_deassertrst(uint32_t clk_id);
 int hal_clk_disable_assertrst(uint32_t clk_id);
 int hal_clk_enable_deassertrst_iter(uint32_t clk_id);
+void hal_clk_pll_lowpower(void);
 
 #ifdef __cplusplus
 }

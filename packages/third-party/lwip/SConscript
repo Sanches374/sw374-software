@@ -240,6 +240,11 @@ elif PRJ_KERNEL == 'freertos':
     contrib/ports/freertos/sys_arch.c
     """)
     lwipports_PATH = [cwd + '/contrib/ports/freertos/include']
+elif PRJ_KERNEL == 'baremetal':
+    lwipports_SRCS = Split("""
+    contrib/ports/baremetal/sys_arch.c
+    """)
+    lwipports_PATH = [cwd + '/contrib/ports/baremetal/include']
 
 # 19. driver
 
@@ -304,7 +309,7 @@ if GetDepend(['LPKG_LWIP_USING_PING']):
 if GetDepend(['LPKG_LWIP_USING_MQTT']):
     src += lwipmqtt_SRCS
     path += [cwd + '/src/apps/mqtt']
-    
+
 if GetDepend(['AIC_GMAC_DRV']):
     src += lwipaicgmac_SRCS
     path += [cwd + '/contrib/ports/drv/aic/sys/',

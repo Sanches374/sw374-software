@@ -44,9 +44,9 @@ static rt_size_t aic_i2c_master_xfer(struct rt_i2c_bus_device *bus,
         msg = &msgs[index];
 
         if ((msg->flags & RT_I2C_RD)) {
-            bytes_cnt = aic_i2c_master_receive_msg(i2c_bus->reg_base, msg);
+            bytes_cnt = aic_i2c_master_receive_msg(i2c_bus->reg_base, (struct aic_i2c_msg*)msg);
         } else {
-            bytes_cnt = aic_i2c_master_send_msg(i2c_bus->reg_base, msg);
+            bytes_cnt = aic_i2c_master_send_msg(i2c_bus->reg_base, (struct aic_i2c_msg*)msg);
         }
 
         if (bytes_cnt == msg->len) {
@@ -115,6 +115,24 @@ static struct aic_i2c_bus aic_i2c_list[] = {
         .index = 3,
         .reg_base = I2C3_BASE,
         .device_name = "i2c3",
+        .bus.ops = &i2c_ops,
+    },
+#endif
+
+#ifdef AIC_USING_I2C4
+    {
+        .index = 4,
+        .reg_base = I2C4_BASE,
+        .device_name = "i2c4",
+        .bus.ops = &i2c_ops,
+    },
+#endif
+
+#ifdef AIC_USING_SP_I2C
+    {
+        .index = 5,
+        .reg_base = SP_I2C_BASE,
+        .device_name = "sp_i2c",
         .bus.ops = &i2c_ops,
     },
 #endif

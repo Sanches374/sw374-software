@@ -196,7 +196,8 @@ trap:
     mv      sp, a0
     sw      t0, 16(sp)
 
-    jal     trap_c
+    la      a5, trap_c
+    jalr    a5
 
 
 .Lirq:

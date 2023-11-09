@@ -324,3 +324,45 @@ int audio_fm_get_render_frame_num(struct audio_frame_manager *fm)
 {
     return fm->ready_num;
 }
+int audio_fm_reset(struct audio_frame_manager *fm)
+{
+	struct audio_frame_impl *frame = NULL,*frame1 = NULL;
+
+	if (!fm){
+		loge("audio_fm_reset fail:fm=NULL\n");
+		return -1;
+	}
+
+	pthread_mutex_lock(&fm->lock);
+
+	if (!mpp_list_empty(&fm->used_list)) {
+		mpp_list_for_each_entry_safe(frame, frame1, &fm->used_list, list) {
+			mpp_list_del_init(&frame->list);
+			mpp_list_add_tail(&frame->list,  &fm->empty_list);
+		}
+	}
+
+	if (!mpp_list_empty(&fm->using_list)) {
+		mpp_list_for_each_entry_safe(frame, frame1, &fm->using_list, list) {
+			mpp_list_del_init(&frame->list);
+			mpp_list_add_tail(&frame->list,  &fm->empty_list);
+		}
+	}
+
+	if (!mpp_list_empty(&fm->ready_list)) {
+		mpp_list_for_each_entry_safe(frame, frame1, &fm->ready_list, list) {
+			mpp_list_del_init(&frame->list);
+			mpp_list_add_tail(&frame->list,  &fm->empty_list);
+		}
+	}
+
+	logd("empty_num:%d,ready_num:%d,using_num:%d,used_num:%d\n",fm->empty_num,fm->ready_num,fm->using_num,fm->used_num);
+	fm->empty_num = fm->frame_count;
+	fm->ready_num = 0;
+	fm->using_num = 0;
+	fm->used_num = 0;
+
+	pthread_mutex_unlock(&fm->lock);
+
+	return 0;
+}

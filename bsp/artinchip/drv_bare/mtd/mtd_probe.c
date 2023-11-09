@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2023, Artinchip Technology Co., Ltd
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Wu Dehuang <dehuang.wu@artinchip.com>
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,6 +34,9 @@ static int qspi_active_id_list[] = {
 #endif
 #if defined(AIC_USING_QSPI3)
     3,
+#endif
+#if defined(AIC_USING_SE_SPI)
+    5,
 #endif
 };
 

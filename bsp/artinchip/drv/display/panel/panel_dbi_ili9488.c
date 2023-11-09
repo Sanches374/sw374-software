@@ -63,7 +63,7 @@ static struct display_timing ili9488_timing = {
 };
 
 static struct panel_dbi dbi = {
-    .mode = I8080,
+    .type = I8080,
     .format = I8080_RGB666_16BIT_3CYCLE,
     .commands = {
         .buf = ili9488_commands,
@@ -76,5 +76,5 @@ struct aic_panel dbi_ili9488 = {
     .timings = &ili9488_timing,
     .funcs = &ili9488_funcs,
     .dbi = &dbi,
-    .connector_type = AIC_DBI_SPI_COM,
+    .connector_type = AIC_DBI_COM,
 };

@@ -173,7 +173,7 @@ int drv_pwm_init(void)
     LOG_I("ArtInChip PWM loaded");
     return RT_EOK;
 }
-INIT_DEVICE_EXPORT(drv_pwm_init);
+INIT_PREV_EXPORT(drv_pwm_init);
 
 #if defined(RT_USING_FINSH)
 #include <finsh.h>

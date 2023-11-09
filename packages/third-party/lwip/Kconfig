@@ -111,10 +111,6 @@ if LPKG_USING_LWIP
             default n
     endif
 
-    config LPKG_MEMP_NUM_NETCONN
-        int "the number of struct netconns"
-        default 8
-
     config LPKG_LWIP_PBUF_NUM
         int "the number of PBUF"
         default 16
@@ -125,16 +121,6 @@ if LPKG_USING_LWIP
 
     config LPKG_LWIP_RAW_PCB_NUM
         int "the number of raw connection"
-        default 4
-
-    config LPKG_LWIP_UDP_PCB_NUM
-        int "the number of UDP socket"
-        default 8 if RT_USING_DFS_NFS
-        default 4
-
-    if LPKG_LWIP_TCP
-    config LPKG_LWIP_TCP_PCB_NUM
-        int "the number of TCP socket"
         default 4
 
     config LPKG_LWIP_TCP_SEG_NUM
@@ -148,20 +134,6 @@ if LPKG_USING_LWIP
     config LPKG_LWIP_TCP_WND
         int "the size of TCP send window"
         default 8196
-    endif
-
-    config LPKG_LWIP_TCPTHREAD_PRIORITY
-        int "the priority level value of lwIP thread"
-        default 10
-
-    config LPKG_LWIP_TCPTHREAD_MBOX_SIZE
-        int "the number of mail in the lwIP thread mailbox"
-        default 8
-
-    config LPKG_LWIP_TCPTHREAD_STACKSIZE
-        int "the stack size of lwIP thread"
-        default 3072 if ARCH_CPU_64BIT
-        default 2048
 
     config LPKG_LWIP_REASSEMBLY_FRAG
         bool "Enable IP reassembly and frag"
@@ -179,25 +151,65 @@ if LPKG_USING_LWIP
         bool "Enable rx hardware check checksum"
         default n
 
-    menuconfig LPKG_LWIP_USING_PING
-        bool "Enable ping features"
-        default n
-        select NETDEV_USING_PING
-        select LPKG_LWIP_ICMP
-        select LPKG_LWIP_RAW
+    if !DRIVER_BARE_DRV_EN
 
-    if LPKG_LWIP_USING_PING
+        config LPKG_MEMP_NUM_NETCONN
+            int "the number of struct netconns"
+            default 8
 
-        config LPKG_PING_USING_SOCKET
-            bool "Using socket interface during ping requests"
-            default y
+        config LPKG_LWIP_UDP_PCB_NUM
+            int "the number of UDP socket"
+            default 8 if RT_USING_DFS_NFS
+            default 4
 
-        if LPKG_PING_USING_SOCKET
+        if LPKG_LWIP_TCP
+        config LPKG_LWIP_TCP_PCB_NUM
+            int "the number of TCP socket"
+            default 4
 
-            config LPKG_PING_THREAD_PRIORITY
-            int "the priority level value of ping thread "
-            default 20
+        config LPKG_LWIP_TCPTHREAD_PRIORITY
+            int "the priority level value of lwIP thread"
+            default 10
+
+        config LPKG_LWIP_TCPTHREAD_MBOX_SIZE
+            int "the number of mail in the lwIP thread mailbox"
+            default 8
+
+        config LPKG_LWIP_TCPTHREAD_STACKSIZE
+            int "the stack size of lwIP thread"
+            default 3072 if ARCH_CPU_64BIT
+            default 2048
+
+        menuconfig LPKG_LWIP_USING_PING
+            bool "Enable ping features"
+            default n
+            select NETDEV_USING_PING
+            select LPKG_LWIP_ICMP
+            select LPKG_LWIP_RAW
+
+        if LPKG_LWIP_USING_PING
+            config LPKG_PING_USING_SOCKET
+                bool "Using socket interface during ping requests"
+                default y
+
+            if LPKG_PING_USING_SOCKET
+                config LPKG_PING_THREAD_PRIORITY
+                int "the priority level value of ping thread "
+                default 20
+            endif
         endif
+
+        endif
+
+    endif
+
+    if DRIVER_BARE_DRV_EN
+        config LPKG_LWIP_USING_PING
+            bool "Enable ping features"
+            default n
+            select NETDEV_USING_PING
+            select LPKG_LWIP_ICMP
+            select LPKG_LWIP_RAW
     endif
 
     config LPKG_LWIP_USING_MQTT

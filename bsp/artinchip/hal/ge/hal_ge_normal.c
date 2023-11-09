@@ -868,7 +868,7 @@ static int check_fillrect(struct aic_ge_data *data,
             dst_rect->y < 0 ||
             dst_rect->x >= dst_size->width ||
             dst_rect->y >= dst_size->height) {
-            hal_log_err( "%s failed\n", __func__);
+            hal_log_err("%s failed\n", __func__);
             return -1;
         }
     }
@@ -1497,7 +1497,7 @@ int hal_ge_control(struct aic_ge_client *clt, int cmd, void *arg)
     }
     break;
     default:
-        hal_log_err( "Invalid ioctl: %08x\n", cmd);
+        hal_log_err("Invalid ioctl: %08x\n", cmd);
         ret = -1;
     }
     aicos_mutex_give(g_data->lock);
@@ -1524,7 +1524,7 @@ static int ge_clk_enable(struct aic_ge_data *data)
 
     ret = hal_clk_enable(CLK_GE);
     if (ret) {
-        hal_log_err( "%s() - Couldn't enable mclk\n", __func__);
+        hal_log_err("%s() - Couldn't enable mclk\n", __func__);
         return ret;
     }
 
@@ -1584,7 +1584,7 @@ int hal_ge_init(void)
 
     aicos_dcache_clean_invalid_range((unsigned long *)(data->dither_line_phys), (MAX_WIDTH * 4));
 
-    hal_log_info("dither line phys :0X0%08x\n", data->dither_line_phys);
+    hal_log_info("dither line phys :0X0%08x\n", (u32)data->dither_line_phys);
 #endif
     g_data = data;
 

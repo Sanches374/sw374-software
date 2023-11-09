@@ -13,8 +13,10 @@ if GetDepend('AIC_BOOTLOADER_CMD_PROGRESS_BAR'):
     src     += Glob('progress_bar.c')
 if GetDepend('AIC_BOOTLOADER_CMD_MEM'):
 	src     += Glob('mem.c')
-if GetDepend('AIC_BOOTLOADER_CMD_NOR_BOOT'):
+if GetDepend('AIC_BOOTLOADER_CMD_NOR_BOOT') and GetDepend('LPKG_USING_FDTLIB'):
 	src     += Glob('nor_boot.c')
+if GetDepend('AIC_BOOTLOADER_CMD_NOR_BOOT') and not GetDepend('LPKG_USING_FDTLIB'):
+	src     += Glob('nor_boot_no_fitimage.c')
 if GetDepend('AIC_BOOTLOADER_CMD_NAND_BOOT'):
 	src     += Glob('nand_boot.c')
 if GetDepend('AIC_BOOTLOADER_CMD_MMC_BOOT'):

@@ -49,6 +49,6 @@ int audio_fm_get_empty_frame_num(struct audio_frame_manager *fm);
 
 int audio_fm_get_render_frame_num(struct audio_frame_manager *fm);
 
-
+int audio_fm_reset(struct audio_frame_manager *fm);
 
 #endif /* PACKET_MANAGER_H */

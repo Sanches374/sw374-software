@@ -38,7 +38,9 @@ config PKGS_DIR
     option env="PKGS_ROOT"
     default "packages"
 
-#source "application/os/$PRJ_APP/Kconfig"
+if ! AIC_BOOTLOADER
+source "application/Kconfig"
+endif
 #source "kernel/$PRJ_KERNEL/Kconfig"
 #source "$PKGS_DIR/Kconfig"
 source ".Kconfig.prj"

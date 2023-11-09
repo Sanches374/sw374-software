@@ -262,7 +262,8 @@ trap:
     mv      a0, t0
     mv      sp, a0
 
-    jal     trap_c
+    la      a5, trap_c
+    jalr    a5
 
     .align  6
     .weak   Default_Handler

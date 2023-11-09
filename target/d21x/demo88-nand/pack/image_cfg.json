@@ -2,10 +2,14 @@
     "spi-nand": { // Device, The name should be the same with string in image:info:media:type
         "size": "128m", // Size of SPI NAND
         "partitions": {
-            "spl": { "size": "1m" },
-            "os":  { "size": "4m" },
-            "rodata":  { "size": "4m" },
-            "data":  { "size": "35m" },
+            "spl":      { "size": "1m" },
+            "env":      { "size": "256k" },
+            "env_r":    { "size": "256k" },
+            "os":       { "size": "4m" },
+            "os_r":     { "size": "4m" },
+            "rodata":   { "size": "6m" },
+            "rodata_r": { "size": "6m" },
+            "data":     { "size": "35m" },
         },
     },
     "image": {
@@ -40,8 +44,13 @@
                 "attr": ["mtd", "required"],
                 "part": ["spl"]
             },
+            "env": {
+                "file": "env.bin",
+                "attr": ["mtd", "optional"],
+                "part": ["env","env_r"]
+            },
             "os": {
-                "file": "os.aic",
+                "file": "d21x_os.itb",
                 "attr": ["mtd", "required"],
                 "part": ["os"]
             },
@@ -78,14 +87,17 @@
                     "pbp": "d21x.pbp",
                 },
             },
-            "os.aic": {
-                "head_ver": "0x00010001",
-                "loader": {
-                    "file": "d21x.bin",
-                    "load address": "0x40000000",
-                    "entry point":  "0x40000100",
-                    "run in dram": "false",
-                }
+        },
+        "uboot_env": {
+            "env.bin": {
+                "file": "env.txt",
+                "size": "4096",
+                "redundant": "enable",
+            },
+        },
+        "itb": {
+            "d21x_os.itb": {
+                "its": "d21x_os.its"
             },
         },
     },

@@ -82,6 +82,21 @@ int hal_sdmc_idma_stop(struct aic_sdmc_host *host,
     return 0;
 }
 
+void hal_sdmc_idma_disable(struct aic_sdmc_host *host)
+{
+    u32 temp;
+
+    temp = sdmc_readl(host, SDMC_HCTRL1);
+    temp &= ~SDMC_HCTRL1_USE_IDMAC;
+    temp |= SDMC_HCTRL1_DMA_RESET;
+    sdmc_writel(host, SDMC_HCTRL1, temp);
+
+    temp = sdmc_readl(host, SDMC_PBUSCFG);
+    temp &= ~(SDMC_PBUSCFG_IDMAC_EN | SDMC_PBUSCFG_IDMAC_FB);
+    temp |= SDMC_PBUSCFG_IDMAC_SWR;
+    sdmc_writel(host, SDMC_PBUSCFG, temp);
+}
+
 void hal_sdmc_idma_prepare(struct aic_sdmc_host *host,
                            u32 blksize, u32 blks,
                            struct aic_sdmc_idma_desc *cur_idma,
@@ -319,6 +334,15 @@ void hal_sdmc_set_ddrmode(struct aic_sdmc_host *host, u32 ddr)
     else
         val &= ~SDMC_HCTRL2_DDR_MODE;
     sdmc_writel(host, SDMC_HCTRL2, val);
+}
+
+void hal_sdmc_clk_disable(struct aic_sdmc_host *host)
+{
+    u32 temp = 0;
+
+    temp = sdmc_readl(host, SDMC_CLKCTRL);
+    temp &= ~SDMC_CLKCTRL_EN;
+    sdmc_writel(host, SDMC_CLKCTRL, temp);
 }
 
 void hal_sdmc_clk_enable(struct aic_sdmc_host *host)

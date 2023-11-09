@@ -56,7 +56,7 @@ static int aic_sdmc_data_transfer(struct aic_sdmc *host,
 {
     int ret = 0;
     u32 mask, size, total;
-    u32 timeout, end, start = aic_get_time_us();
+    u32 timeout, end, start = aic_get_time_ms();
 
     total = data->blksize * data->blks;
     timeout = aic_sdmc_get_timeout(host, total);
@@ -92,7 +92,7 @@ static int aic_sdmc_data_transfer(struct aic_sdmc *host,
             break;
         }
 
-        end = aic_get_time_us();
+        end = aic_get_time_ms();
         if (end - start > timeout) {
             pr_err("Data timeout %d - %d > %d! size %d/%d, mode %s-%s, status 0x%x\n",
                     end, start,

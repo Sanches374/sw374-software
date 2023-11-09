@@ -45,6 +45,8 @@ def size_str_to_int(size_str):
         return (int(numstr) * 1024 * 1024 * 1024)
     if "0x" in size_str or "0X" in size_str:
         return int(size_str, 16)
+    if "-" in size_str:
+        return 0
     return int(size_str, 10)
 
 def aic_create_part_file_string(cfg, start_offs):
@@ -62,9 +64,10 @@ def aic_create_part_file_string(cfg, start_offs):
         if "size" not in partitions[part]:
             print("No size value for partition: {}".format(part))
         part_offs += part_size
-        part_size = size_str_to_int(partitions[part]["size"])
         if partitions[part]["size"] == "-":
             part_size = total_siz - part_offs
+        else:
+            part_size = size_str_to_int(partitions[part]["size"])
         if "offset" in partitions[part]:
             part_offs = size_str_to_int(partitions[part]["offset"])
         partitions[part]["part_size"] = part_size

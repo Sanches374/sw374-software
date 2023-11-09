@@ -97,4 +97,6 @@ int fm_get_empty_frame_num(struct frame_manager *fm);
 int fm_get_render_frame_num(struct frame_manager *fm);
 
 
+int fm_reset(struct frame_manager *fm);
+
 #endif /* FRAME_MANAGER_H */

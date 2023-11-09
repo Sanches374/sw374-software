@@ -22,4 +22,14 @@ menu "RTP parameter"
         int "The Y-plate value of RTP touchscreen"
         range 0 1024
         default 0
+
+    config AIC_RTP_PDEB
+        hex "The press detect enable debounce"
+        range 0 0xffffffff
+        default 0xffffffff
+
+    config AIC_RTP_DELAY
+        hex "The precharge delay of RTP"
+        range 0 0xffffffff
+        default 0x4f00004f
 endmenu

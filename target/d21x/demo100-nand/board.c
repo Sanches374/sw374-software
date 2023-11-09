@@ -45,7 +45,7 @@ void aic_memheap_init(void)
     rt_ubase_t end_align;
     int i = 0;
 
-    for (i=0; i<sizeof(aic_memheaps)/sizeof(struct aic_memheap); i++){
+    for (i=0; i<sizeof(aic_memheaps)/sizeof(struct aic_memheap); i++) {
         begin_align = RT_ALIGN((rt_ubase_t)aic_memheaps[i].begin_addr, RT_ALIGN_SIZE);
         end_align   = RT_ALIGN_DOWN((rt_ubase_t)aic_memheaps[i].end_addr, RT_ALIGN_SIZE);
         RT_ASSERT(end_align > begin_align);
@@ -61,7 +61,7 @@ void *aic_memheap_malloc(int type, size_t size)
     void *ptr;
     int i = 0;
 
-    for (i=0; i<sizeof(aic_memheaps)/sizeof(struct aic_memheap); i++){
+    for (i=0; i<sizeof(aic_memheaps)/sizeof(struct aic_memheap); i++) {
         if (aic_memheaps[i].type == type)
             break;
     }
@@ -85,7 +85,7 @@ void aic_memheap_free(int type, void *rmem)
     if (rmem == RT_NULL)
         return;
 
-    for (i=0; i<sizeof(aic_memheaps)/sizeof(struct aic_memheap); i++){
+    for (i=0; i<sizeof(aic_memheaps)/sizeof(struct aic_memheap); i++) {
         if (aic_memheaps[i].type == type)
             break;
     }
@@ -147,6 +147,7 @@ static const struct romfs_dirent _mountpoint_root[] =
 {
     {ROMFS_DIRENT_DIR, "ram", RT_NULL, 0},
     {ROMFS_DIRENT_DIR, "data", RT_NULL, 0},
+    {ROMFS_DIRENT_DIR, "rodata", RT_NULL, 0},
     {ROMFS_DIRENT_DIR, "sdcard", RT_NULL, 0},
     {ROMFS_DIRENT_DIR, "udisk", RT_NULL, 0},
 };
@@ -163,6 +164,9 @@ const struct dfs_mount_tbl mount_table[] = {
 #endif
 #ifdef LPKG_RAMDISK_TYPE_INITDATA
     {"ramdisk0", "/ram", "elm", 0, 0, 0},
+#endif
+#if (defined(AIC_USING_FS_IMAGE_TYPE_FATFS_FOR_0) || defined(AIC_USING_FS_IMAGE_TYPE_FATFS_FOR_1))
+    {"blk_rodata", "/rodata", "elm", 0, 0, 0},
 #endif
 #ifdef LPKG_USING_DFS_UFFS
     {"data", "/data", "uffs", 0, 0, 1},

@@ -311,7 +311,7 @@ u32 qspi_configure(struct aic_qspi *qspi,
                    struct aic_spi_configuration *configuration)
 {
     u32 ret = 0;
-    struct qspi_master_config cfg;
+    struct qspi_master_config cfg = {0};
 
     if (qspi->inited)
         return 0;

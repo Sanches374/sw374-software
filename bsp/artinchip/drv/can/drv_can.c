@@ -161,7 +161,7 @@ static int aic_can_send(struct rt_can_device *can, const void *buf,
     for (i = 0; i < msg.dlc; i++)
         msg.data[i] = pmsg->data[i];
 
-    hal_can_tx_frame(&p_aic_can->canHandle, &msg, TX_REQ);
+    hal_can_send_frame(&p_aic_can->canHandle, &msg, TX_REQ);
 
     return 0;
 }

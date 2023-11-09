@@ -1,10 +1,5 @@
 menu "Board options"
 
-#============================================
-# Peripheral Devices
-#============================================
-comment "Peripheral Devices:"
-
 #---------------------------
 # cmu device global option
 #---------------------------
@@ -88,14 +83,6 @@ config AIC_USING_I2C2
 
 
 source "bsp/artinchip/drv/i2c/Kconfig.dev"
-
-#--------------------------------------------
-# touch panel driver global option
-#--------------------------------------------
-
-menu "Touch Panel Support"
-source "bsp/peripheral/touch/gt911/Kconfig"
-endmenu
 
 #---------------------------
 # PWM device global option
@@ -369,6 +356,7 @@ config AIC_USING_AUDIO
     bool "Using Audio"
     default n
     select AIC_AUDIO_DRV
+    select AIC_USING_DMA
 
 source "bsp/artinchip/drv/audio/Kconfig"
 
@@ -666,6 +654,8 @@ config AIC_USING_SID
     bool "Using Efuse/SID"
     default n
     select AIC_SID_DRV
+
+source "bsp/artinchip/drv/efuse/Kconfig.dev"
 
 #---------------------------
 # ce device global option

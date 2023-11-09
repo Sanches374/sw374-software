@@ -12,7 +12,16 @@
 
 /* Register definition of GPAI Controller */
 #define GPAI_MCR            0x000
+
+#ifdef AIC_GPAI_DRV_V10
 #define GPAI_INTR           0x004
+#endif
+#ifdef AIC_GPAI_DRV_V11
+#define GPAI_INTE           0x004
+#define GPAI_INTS           0x008
+#endif
+
+#define GPAI_DRQ            0x00C
 #define GPAI_CHnCR(n)       (0x100 + (((n) & 0x7) << 6) + 0x00)
 #define GPAI_CHnINT(n)      (0x100 + (((n) & 0x7) << 6) + 0x04)
 #define GPAI_CHnPSI(n)      (0x100 + (((n) & 0x7) << 6) + 0x08)
@@ -27,10 +36,18 @@
 #define GPAI_MCR_CH_EN(n)           (GPAI_MCR_CH0_EN << (n))
 #define GPAI_MCR_EN                 BIT(0)
 
+#ifdef AIC_GPAI_DRV_V10
 #define GPAI_INTR_CH0_INT_FLAG      BIT(16)
 #define GPAI_INTR_CH_INT_FLAG(n)    (GPAI_INTR_CH0_INT_FLAG << (n))
 #define GPAI_INTR_CH0_INT_EN        BIT(0)
 #define GPAI_INTR_CH_INT_EN(n)      (GPAI_INTR_CH0_INT_EN << (n))
+#endif
+#ifdef AIC_GPAI_DRV_V11
+#define GPAI_INTS_CH0_INT_FLAG      BIT(0)
+#define GPAI_INTS_CH_INT_FLAG(n)    (GPAI_INTS_CH0_INT_FLAG << (n))
+#define GPAI_INTE_CH0_INT_EN        BIT(0)
+#define GPAI_INTE_CH_INT_EN(n)      (GPAI_INTE_CH0_INT_EN << (n))
+#endif
 
 #define GPAI_CHnCR_SBC_SHIFT        24
 #define GPAI_CHnCR_SBC_2_POINTS     1
@@ -137,6 +154,7 @@ static void gpai_int_enable(u32 ch, u32 enable, u32 detail)
 {
     u32 val = 0;
 
+#ifdef AIC_GPAI_DRV_V10
     val = gpai_readl(GPAI_INTR);
     if (enable) {
         val |= GPAI_INTR_CH_INT_EN(ch);
@@ -146,6 +164,19 @@ static void gpai_int_enable(u32 ch, u32 enable, u32 detail)
         gpai_writel(0, GPAI_CHnINT(ch));
     }
     gpai_writel(val, GPAI_INTR);
+#endif
+
+#ifdef AIC_GPAI_DRV_V11
+    val = gpai_readl(GPAI_INTE);
+    if (enable) {
+        val |= GPAI_INTE_CH_INT_EN(ch);
+        gpai_writel(detail, GPAI_CHnINT(ch));
+    } else {
+        val &= ~GPAI_INTE_CH_INT_EN(ch);
+        gpai_writel(0, GPAI_CHnINT(ch));
+    }
+    gpai_writel(val, GPAI_INTE);
+#endif
 }
 
 static void gpai_fifo_init(u32 ch)
@@ -327,10 +358,22 @@ irqreturn_t aich_gpai_isr(int irq, void *arg)
     int i;
     struct aic_gpai_ch *chan = NULL;
 
+#ifdef AIC_GPAI_DRV_V10
     ch_flag = gpai_readl(GPAI_INTR);
+#endif
+#ifdef AIC_GPAI_DRV_V11
+    ch_flag = gpai_readl(GPAI_INTS);
+#endif
+
     for (i = 0; i < AIC_GPAI_CH_NUM; i++) {
+#ifdef AIC_GPAI_DRV_V10
         if (!(ch_flag & GPAI_INTR_CH_INT_FLAG(i)))
             continue;
+#endif
+#ifdef AIC_GPAI_DRV_V11
+        if (!(ch_flag & GPAI_INTS_CH_INT_FLAG(i)))
+            continue;
+#endif
 
         chan = hal_gpai_ch_is_valid(i);
         if (!chan)
@@ -340,6 +383,7 @@ irqreturn_t aich_gpai_isr(int irq, void *arg)
         gpai_writel(ch_int, GPAI_CHnINT(i));
         if (ch_int & GPAI_CHnINT_DRDY_FLG) {
             aic_gpai_read_ch(chan);
+            chan->irq_count++;
             if (chan->mode == AIC_GPAI_MODE_SINGLE)
                 aicos_sem_give(chan->complete);
         }

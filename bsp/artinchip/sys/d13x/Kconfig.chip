@@ -182,6 +182,14 @@ config AIC_XSPI_DRV_VER
 
 
 #--------------------------------------------
+# AXICFG driver global option
+#--------------------------------------------
+
+config AIC_AXICFG_DRV
+    bool
+    default y
+
+#--------------------------------------------
 # WRI driver global option
 #--------------------------------------------
 
@@ -500,6 +508,27 @@ config AIC_PWM_DRV_VER
 config AIC_PWM_CH_NUM
     int
     default 4 if AIC_PWM_DRV_V10
+
+#--------------------------------------------
+# HRTimer driver global option
+#--------------------------------------------
+
+config AIC_HRTIMER_DRV
+    bool
+    default n
+    select RT_USING_HWTIMER if DRIVER_DRV_EN
+
+config AIC_HRTIMER_DRV_V11
+    bool
+    default y if AIC_HRTIMER_DRV
+
+config AIC_HRTIMER_DRV_VER
+    string
+    default "11" if AIC_HRTIMER_DRV_V11
+
+config AIC_HRTIMER_CH_NUM
+    int
+    default 6 if AIC_HRTIMER_DRV_V11
 
 #--------------------------------------------
 # sid driver global option

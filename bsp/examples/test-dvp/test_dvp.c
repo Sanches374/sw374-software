@@ -345,7 +345,7 @@ static void test_dvp_thread(void *arg)
 #endif
 
     clock_gettime(CLOCK_REALTIME, &begin);
-    for (i = 0; i < g_vdata.frame_cnt; i++ ) {
+    for (i = 0; i < g_vdata.frame_cnt; i++) {
         if (dvp_dequeue_buf(&index) < 0)
             break;
         // pr_debug("Set the buf %d to video layer\n", index);
@@ -383,7 +383,7 @@ static void cmd_test_dvp(int argc, char **argv)
         switch (c) {
         case 'f':
             if (strncasecmp("nv12", optarg, strlen(optarg)) == 0)
-                g_vdata.dst_fmt = DVP_OUT_FMT_NV12;
+                g_vdata.dst_fmt = MPP_FMT_NV12;
             continue;
 
         case 'c':
@@ -446,5 +446,4 @@ error_out:
     if (g_fb)
         mpp_fb_close(g_fb);
 }
-MSH_CMD_EXPORT_ALIAS(cmd_test_dvp, test_dvp,
-                     Test DVP and camera);
+MSH_CMD_EXPORT_ALIAS(cmd_test_dvp, test_dvp, Test DVP and camera);

@@ -29,20 +29,14 @@ static void aic_lvds_release_drvdata(void)
 
 }
 
-int lvds_0_swap(u32 value)
+static void lvds_0_lines(struct aic_lvds_comp *comp, u32 value)
 {
-    struct aic_lvds_comp *comp = aic_lvds_request_drvdata();
-
     reg_write(comp->regs + LVDS_0_SWAP, value);
-    return 0;
 }
 
-int lvds_1_swap(u32 value)
+static void lvds_1_lines(struct aic_lvds_comp *comp, u32 value)
 {
-    struct aic_lvds_comp *comp = aic_lvds_request_drvdata();
-
     reg_write(comp->regs + LVDS_1_SWAP, value);
-    return 0;
 }
 
 static void lvds_0_pol(struct aic_lvds_comp *comp, u32 value)
@@ -98,10 +92,10 @@ static int aic_lvds_enable(void)
     struct aic_lvds_comp *comp = aic_lvds_request_drvdata();
     struct panel_lvds *lvds = comp->panel->lvds;
 
-    if (AIC_LVDS_SWAP)
+    if (AIC_LVDS_LINES)
     {
-        lvds_0_swap(AIC_LVDS_SWAP);
-        lvds_1_swap(AIC_LVDS_SWAP);
+        lvds_0_lines(comp, AIC_LVDS_LINES);
+        lvds_1_lines(comp, AIC_LVDS_LINES);
     }
 
     if (AIC_LVDS_POL)
@@ -120,7 +114,7 @@ static int aic_lvds_enable(void)
              | LVDS_CTL_SYNC_MODE_MASK,
              LVDS_CTL_MODE(lvds->mode)
              | LVDS_CTL_LINK(lvds->link_mode)
-             | LVDS_CTL_SWAP_EN(AIC_LVDS_SWAP_EN)
+             | LVDS_CTL_SWAP_EN(AIC_LVDS_LINK_SWAP_EN)
              | LVDS_CTL_SYNC_MODE_EN(AIC_LVDS_SYNC_MODE_EN));
 
     reg_set_bit(comp->regs + LVDS_CTL, LVDS_CTL_EN);
@@ -153,6 +147,7 @@ static int aic_lvds_attach_panel(struct aic_panel *panel)
     else
         comp->sclk_rate = pixclk * 3 + (pixclk >> 1); // * 3.5
 
+    pll_disp_rate = comp->sclk_rate;
     while (pll_disp_rate < PLL_DISP_FREQ_MIN)
     {
         pll_disp_rate = comp->sclk_rate * (2 << i);

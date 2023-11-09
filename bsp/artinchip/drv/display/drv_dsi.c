@@ -109,6 +109,7 @@ static int aic_dsi_attach_panel(struct aic_panel *panel)
         return -EINVAL;
     }
 
+    pll_disp_rate = comp->sclk_rate;
     while (pll_disp_rate < PLL_DISP_FREQ_MIN)
     {
         pll_disp_rate = comp->sclk_rate * (2 << i);

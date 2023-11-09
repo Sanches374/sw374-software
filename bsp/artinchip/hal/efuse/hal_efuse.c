@@ -25,7 +25,6 @@
 
 #define EFUSE_CTL_BROM_PRIV_LOCK (0x1 << 28)
 
-#define EFUSE_MAX_WORD      64
 #define EFUSE_OP_CODE       0xA1C
 
 #define EFUSE_STS_INITIALIZING 1

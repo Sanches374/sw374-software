@@ -35,6 +35,15 @@ static struct hrtimer_info g_hrtimer_info[] = {
 #ifdef AIC_USING_HRTIMER2
     {HRTIMER_DEV_NAME"2", 2},
 #endif
+#ifdef AIC_USING_HRTIMER3
+    {HRTIMER_DEV_NAME"3", 3},
+#endif
+#ifdef AIC_USING_HRTIMER4
+    {HRTIMER_DEV_NAME"4", 4},
+#endif
+#ifdef AIC_USING_HRTIMER5
+    {HRTIMER_DEV_NAME"5", 5},
+#endif
 };
 
 struct hrtimer_info *_get_hrtimer_priv(rt_hwtimer_t *timer)

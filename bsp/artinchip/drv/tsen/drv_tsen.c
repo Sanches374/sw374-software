@@ -48,6 +48,8 @@ static rt_size_t aic_tsen_fetch(struct rt_sensor_device *sensor, void *buf, rt_s
         return -ENODEV;
     }
 
+    hal_tsen_curve_fitting(chan);
+
     data->type = RT_SENSOR_CLASS_TEMP;
     data->timestamp = rt_sensor_get_ts();
     if (chan->mode == AIC_TSEN_MODE_SINGLE)

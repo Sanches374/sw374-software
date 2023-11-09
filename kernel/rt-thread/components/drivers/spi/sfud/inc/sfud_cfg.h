@@ -38,6 +38,10 @@
 #define SFUD_DEBUG_MODE
 #endif
 
+#ifdef AIC_SPINOR_SFUD_DEBUG
+#define SFUD_DEBUG_MODE
+#endif
+
 #ifdef RT_DEBUG_SFUD
 #define DBG_LVL DBG_LOG
 #define SFUD_DEBUG(fmt, ...)  LOG_D("(%s:%ld) "fmt"", __FILE__, __LINE__, ##__VA_ARGS__)

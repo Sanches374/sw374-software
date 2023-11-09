@@ -51,9 +51,12 @@ if GetDepend(['KERNEL_RTTHREAD']) and GetDepend(['LPKG_MPP']):
     src += Glob('./mpp_test/mpp_dec_test.c')
     src += Glob('./mpp_test/bit_stream_parser.c')
     src += Glob('./mpp_test/pic_crop_test.c')
-    src += Glob('./mpp_test/ge_test.c')
+    src += Glob('./mpp_test/ge_test/public/*.c')
+    src += Glob('./mpp_test/ge_test/*.c')
     src += Glob('./ge/*.c')
 
+if GetDepend(['LPKG_MPP']) and GetDepend(['AIC_MPP_FB_TEST']) :
+    src += Glob('./mpp_test/mpp_fb/*.c')
 
 if GetDepend(['AIC_MPP_PLAYER_INTERFACE']):
     #audio decoder

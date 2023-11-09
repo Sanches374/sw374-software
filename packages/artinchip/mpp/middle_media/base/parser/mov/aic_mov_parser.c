@@ -15,7 +15,7 @@
 #include "aic_stream.h"
 #include "mov.h"
 
-s32 mov_peek( struct aic_parser * parser, struct aic_parser_packet *pkt)
+s32 mov_peek(struct aic_parser * parser, struct aic_parser_packet *pkt)
 {
 	struct aic_mov_parser *mov_parser = (struct aic_mov_parser *)parser;
 
@@ -32,7 +32,7 @@ s32 mov_read(struct aic_parser * parser, struct aic_parser_packet *pkt)
 	return 0;
 }
 
-s32 mov_get_media_info( struct aic_parser *parser, struct aic_parser_av_media_info *media)
+s32 mov_get_media_info(struct aic_parser *parser, struct aic_parser_av_media_info *media)
 {
 	int i;
 	int64_t duration = 0;
@@ -43,7 +43,13 @@ s32 mov_get_media_info( struct aic_parser *parser, struct aic_parser_av_media_in
 		struct mov_stream_ctx *st = c->streams[i];
 		if (st->type == MPP_MEDIA_TYPE_VIDEO) {
 			media->has_video = 1;
-			media->video_stream.codec_type = MPP_CODEC_VIDEO_DECODER_H264;
+			if (st->id == CODEC_ID_H264)
+				media->video_stream.codec_type = MPP_CODEC_VIDEO_DECODER_H264;
+			else if (st->id == CODEC_ID_MJPEG)
+				media->video_stream.codec_type = MPP_CODEC_VIDEO_DECODER_MJPEG;
+			else
+				media->video_stream.codec_type = -1;
+
 			media->video_stream.width = st->width;
 			media->video_stream.height = st->height;
 			if (st->extra_data_size > 0) {
@@ -55,6 +61,13 @@ s32 mov_get_media_info( struct aic_parser *parser, struct aic_parser_av_media_in
 			logi("video extra_data_size: %d", st->extra_data_size);
 		} else if (st->type == MPP_MEDIA_TYPE_AUDIO) {
 			media->has_audio = 1;
+			if (st->id == CODEC_ID_MP3)
+				media->audio_stream.codec_type = MPP_CODEC_AUDIO_DECODER_MP3;
+			else if (st->id == CODEC_ID_AAC)
+				media->audio_stream.codec_type = MPP_CODEC_AUDIO_DECODER_AAC;
+			else
+				media->audio_stream.codec_type = MPP_CODEC_AUDIO_DECODER_UNKOWN;
+
 			media->audio_stream.bits_per_sample = st->bits_per_sample;
 			media->audio_stream.nb_channel = st->channels;
 			media->audio_stream.sample_rate = st->sample_rate;
@@ -74,18 +87,20 @@ s32 mov_get_media_info( struct aic_parser *parser, struct aic_parser_av_media_in
 
 	media->file_size = aic_stream_size(c->stream);
 	media->seek_able = 1;
+	media->duration = duration;
 
 	return 0;
 }
 
-s32 mov_seek( struct aic_parser *parser, s64 time)
+s32 mov_seek(struct aic_parser *parser, s64 time)
 {
 	s32 ret = 0;
-	//struct aic_mov_parser *mov_parser = (struct aic_mov_parser *)parser;
+	struct aic_mov_parser *mov_parser = (struct aic_mov_parser *)parser;
+	ret = mov_seek_packet(mov_parser,time);
 	return ret;
 }
 
-s32 mov_init( struct aic_parser *parser)
+s32 mov_init(struct aic_parser *parser)
 {
 	struct aic_mov_parser *mov_parser = (struct aic_mov_parser *)parser;
 
@@ -115,7 +130,7 @@ s32 aic_mov_parser_create(unsigned char *uri, struct aic_parser **parser)
 	s32 ret = 0;
 	struct aic_mov_parser *mov_parser = NULL;
 
-	mov_parser = (struct aic_mov_parser *)mpp_alloc( sizeof(struct aic_mov_parser));
+	mov_parser = (struct aic_mov_parser *)mpp_alloc(sizeof(struct aic_mov_parser));
 	if (mov_parser == NULL) {
 		loge("mpp_alloc aic_parser failed!!!!!\n");
 		ret = -1;

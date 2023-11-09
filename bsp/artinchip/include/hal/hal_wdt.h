@@ -22,6 +22,11 @@ extern "C" {
 #define WDT_MIN_TIMEOUT         1
 #define WDT_DEFAULT_TIMEOUT     10
 
+#ifdef AIC_WDT_DRV_V11
+#define RST_CPU                 1
+#define RST_SYS                 0
+
+#endif
 struct aic_wdt {
     u32 timeout; /* second */
     u32 clr_thd;
@@ -44,6 +49,11 @@ void hal_wdt_thd_get(u32 ch, struct aic_wdt *wdt);
 int hal_wdt_clr_int(void);
 
 void hal_wdt_status_show(u32 ch);
+
+#ifdef AIC_WDT_DRV_V11
+void hal_wdt_rst_type_set(u32 rst);
+int hal_wdt_rst_type_get(void);
+#endif
 
 #ifdef __cplusplus
 }

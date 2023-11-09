@@ -365,7 +365,18 @@ int __h264_decode_control(struct mpp_decoder *ctx, int cmd, void *param)
 
 int __h264_decode_reset(struct mpp_decoder *ctx)
 {
-	// TODO
+	int i = 0;
+	struct h264_dec_ctx *s = (struct h264_dec_ctx *)ctx;
+	render_all_delayed_frame(s);
+	// refresh reference frame
+	reference_refresh(s);
+	s->next_output_poc = INT_MIN;
+	for (i = 0; i < MAX_DELAYED_PIC_COUNT; i++)
+		s->frame_info.last_pocs[i] = INT_MIN;
+
+	fm_reset(s->decoder.fm);
+	pm_reset(s->decoder.pm);
+
 	return 0;
 }
 

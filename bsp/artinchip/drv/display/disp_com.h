@@ -40,7 +40,7 @@ enum AIC_COM_TYPE {
     AIC_RGB_COM  = 0x01,  /* rgb component */
     AIC_LVDS_COM = 0x02,  /* lvds component */
     AIC_MIPI_COM = 0x03,  /* mipi dsi component */
-    AIC_DBI_SPI_COM = 0x04,  /* mipi dbi spi component */
+    AIC_DBI_COM  = 0x04,  /* mipi dbi component */
 };
 
 struct panel_dbi_commands {
@@ -56,7 +56,7 @@ struct spi_cfg {
 };
 
 struct panel_dbi {
-    unsigned int mode;
+    unsigned int type;
     unsigned int format;
     unsigned int first_line;
     unsigned int other_line;
@@ -114,6 +114,10 @@ struct de_funcs {
     int (*update_ck_config)(struct aicfb_ck_config *ck);
     int (*set_display_prop)(struct aicfb_disp_prop *disp_prop);
     int (*get_display_prop)(struct aicfb_disp_prop *disp_prop);
+    int (*set_ccm_config)(struct aicfb_ccm_config *ccm);
+    int (*get_ccm_config)(struct aicfb_ccm_config *ccm);
+    int (*set_gamma_config)(struct aicfb_gamma_config *gamma);
+    int (*get_gamma_config)(struct aicfb_gamma_config *gamma);
 };
 
 struct di_funcs {

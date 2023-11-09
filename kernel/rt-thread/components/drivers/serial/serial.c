@@ -1299,6 +1299,15 @@ void rt_hw_serial_isr(struct rt_serial_device *serial, int event)
             struct rt_serial_rx_fifo* rx_fifo;
 
             /* interrupt mode receive */
+            if (NULL == serial->serial_rx) {
+                while (1)
+                {
+                    ch = serial->ops->getc(serial);
+                    if (ch == -1) break;
+                }
+                return;
+            }
+
             rx_fifo = (struct rt_serial_rx_fifo*)serial->serial_rx;
             RT_ASSERT(rx_fifo != RT_NULL);
 

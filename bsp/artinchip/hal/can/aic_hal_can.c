@@ -105,9 +105,9 @@ static const struct can_bittiming_const btc = {
     .brp_inc = 1,
 };
 
-void hal_can_set_mode(can_handle *phandle, uint32_t mode)
+void hal_can_set_mode(can_handle *phandle, u32 mode)
 {
-    uint32_t reg_val;
+    u32 reg_val;
 
     reg_val = readl(phandle->can_base + CAN_MODE_REG);
     reg_val &= ~CAN_MODE_MASK;
@@ -115,7 +115,7 @@ void hal_can_set_mode(can_handle *phandle, uint32_t mode)
     writel(reg_val, phandle->can_base + CAN_MODE_REG);
 }
 
-int hal_can_init(can_handle *phandle, uint32_t can_idx)
+int hal_can_init(can_handle *phandle, u32 can_idx)
 {
     int ret = 0;
 
@@ -161,13 +161,13 @@ void hal_can_uninit(can_handle *phandle)
     hal_clk_disable_assertrst(phandle->clk_id);
 }
 
-static void hal_can_update_sample_point(uint32_t sample_point_nominal,
-                                        uint32_t tseg, uint32_t *tseg1_ptr,
-                                        uint32_t *tseg2_ptr,
-                                        uint32_t *sample_point_error_ptr)
+static void hal_can_update_sample_point(u32 sample_point_nominal,
+                                        u32 tseg, u32 *tseg1_ptr,
+                                        u32 *tseg2_ptr,
+                                        u32 *sample_point_error_ptr)
 {
-    uint32_t sample_point_error, best_sample_point_error = UINT32_MAX;
-    uint32_t sample_point, tseg1, tseg2;
+    u32 sample_point_error, best_sample_point_error = UINT32_MAX;
+    u32 sample_point, tseg1, tseg2;
     int i;
 
     for (i = 0; i <= 1; i++) {
@@ -202,16 +202,16 @@ static void hal_can_update_sample_point(uint32_t sample_point_nominal,
 
 void hal_can_set_baudrate(can_handle *phandle, unsigned long baudrate)
 {
-    uint32_t mod_freq;
-    uint32_t brp, tsegall, tseg, tseg1 = 0, tseg2 = 0;
-    uint32_t sample_point_nominal;
-    uint32_t current_baudrate, baudrate_error;
-    uint32_t best_baudrate_error = UINT32_MAX;
-    uint32_t sample_point_error;
-    uint32_t best_sample_point_error = UINT32_MAX;
-    uint32_t best_tseg = 0, best_brp = 0;
-    uint32_t sjw = 1, sample_time = 0;
-    uint32_t reg_val;
+    u32 mod_freq;
+    u32 brp, tsegall, tseg, tseg1 = 0, tseg2 = 0;
+    u32 sample_point_nominal;
+    u32 current_baudrate, baudrate_error;
+    u32 best_baudrate_error = UINT32_MAX;
+    u32 sample_point_error;
+    u32 best_sample_point_error = UINT32_MAX;
+    u32 best_tseg = 0, best_brp = 0;
+    u32 sjw = 1, sample_time = 0;
+    u32 reg_val;
 
     if (baudrate > 800000)
         sample_point_nominal = 750;
@@ -284,11 +284,11 @@ void hal_can_set_baudrate(can_handle *phandle, unsigned long baudrate)
 
 static void hal_can_bus_error_msg(can_handle *phandle)
 {
-    uint8_t i;
-    uint8_t errinfo = readb(phandle->can_base + CAN_ERRCODE_REG);
-    uint8_t errtype = (errinfo & CAN_ERRCODE_ERRTYPE_MASK) >> 6;
-    uint8_t errdir = (errinfo & CAN_ERRCODE_DIR) >> 5;
-    uint8_t errcode = errinfo & CAN_ERRCODE_SEGCODE_MASK;
+    u8 i;
+    u8 errinfo = readb(phandle->can_base + CAN_ERRCODE_REG);
+    u8 errtype = (errinfo & CAN_ERRCODE_ERRTYPE_MASK) >> 6;
+    u8 errdir = (errinfo & CAN_ERRCODE_DIR) >> 5;
+    u8 errcode = errinfo & CAN_ERRCODE_SEGCODE_MASK;
 
     for (i = 0; i < ARRAY_SIZE(bus_err_dir); i++) {
         if (errdir == bus_err_dir[i].code) {
@@ -332,8 +332,8 @@ static void hal_can_bus_error_msg(can_handle *phandle)
 
 static void hal_can_arblost_msg(can_handle *phandle)
 {
-    uint8_t i;
-    uint8_t arbinfo = readb(phandle->can_base + CAN_ARBLOST_REG) &
+    u8 i;
+    u8 arbinfo = readb(phandle->can_base + CAN_ARBLOST_REG) &
                             CAN_ARBLOST_CAP_MASK;
 
     for (i = 0; i < ARRAY_SIZE(bus_arb_lost); i++) {
@@ -346,10 +346,10 @@ static void hal_can_arblost_msg(can_handle *phandle)
     }
 }
 
-static void hal_can_error_handle(can_handle *phandle, uint32_t err_status)
+static void hal_can_error_handle(can_handle *phandle, u32 err_status)
 {
-    uint32_t can_status;
-    uint8_t errcode;
+    u32 can_status;
+    u8 errcode;
 
     errcode = readb(phandle->can_base + CAN_ERRCODE_REG) &
               CAN_ERRCODE_SEGCODE_MASK;
@@ -422,10 +422,10 @@ void hal_can_detach_callback(can_handle *phandle)
     phandle->arg = NULL;
 }
 
-void hal_can_rx_frame(uint32_t reg_base, can_msg_t *msg)
+static void hal_can_rx_frame(u32 reg_base, can_msg_t *msg)
 {
-    uint32_t dreg, i;
-    uint32_t buf0_val;
+    u32 dreg, i;
+    u32 buf0_val;
     unsigned long can_base = reg_base;
 
     CHECK_PARAM_RET(msg);
@@ -454,16 +454,16 @@ void hal_can_rx_frame(uint32_t reg_base, can_msg_t *msg)
     writel(RXB_REL_REQ, can_base + CAN_MCR_REG);
 }
 
-void hal_can_tx_frame(can_handle *phandle, can_msg_t * msg, can_op_req_t req)
+void hal_can_send_frame(can_handle *phandle, can_msg_t * msg, can_op_req_t req)
 {
     CHECK_PARAM_RET(phandle);
     CHECK_PARAM_RET(msg);
-    uint32_t dreg, i;
+    u32 dreg, i;
     unsigned long can_base = phandle->can_base;
-    uint8_t ide = msg->ide;
-    uint8_t rtr = msg->rtr;
-    uint8_t dlc = msg->dlc;
-    uint32_t buf0_val = dlc;
+    u8 ide = msg->ide;
+    u8 rtr = msg->rtr;
+    u8 dlc = msg->dlc;
+    u32 buf0_val = dlc;
 
     if (req == CLR_OF_REQ || req == RXB_REL_REQ) {
         hal_log_err("invalid parameter: req\n");
@@ -496,9 +496,22 @@ void hal_can_tx_frame(can_handle *phandle, can_msg_t * msg, can_op_req_t req)
     writel(req, can_base + CAN_MCR_REG);
 }
 
+void hal_can_receive_frame(can_handle *phandle, can_msg_t * msg)
+{
+    int i;
+
+    msg->id = phandle->msg.id;
+    msg->rtr = phandle->msg.rtr;
+    msg->ide = phandle->msg.ide;
+    msg->dlc = phandle->msg.dlc;
+
+    for (i = 0; i < msg->dlc; i++)
+        msg->data[i] = phandle->msg.data[i];
+}
+
 irqreturn_t hal_can_isr_handler(int irq_num, void *arg)
 {
-    uint32_t int_status;
+    u32 int_status;
     can_handle *phandle = (can_handle *)arg;
 
     int_status = readl(phandle->can_base + CAN_INTR_REG);
@@ -523,10 +536,10 @@ irqreturn_t hal_can_isr_handler(int irq_num, void *arg)
     return IRQ_HANDLED;
 }
 
-static int hal_can_get_baudrate(can_handle *phandle, uint32_t *baudrate)
+static int hal_can_get_baudrate(can_handle *phandle, u32 *baudrate)
 {
-    uint8_t brp, tseg1, tseg2;
-    uint32_t mod_freq;
+    u8 brp, tseg1, tseg2;
+    u32 mod_freq;
 
     CHECK_PARAM(phandle, -EINVAL);
     CHECK_PARAM(baudrate, -EINVAL);
@@ -540,11 +553,11 @@ static int hal_can_get_baudrate(can_handle *phandle, uint32_t *baudrate)
     return 0;
 }
 
-static int hal_can_set_filter(can_handle *phandle, can_filter_mode_t mode, can_filter_t *rxcode, can_filter_t *rxmask, uint8_t filter_ext)
+static int hal_can_set_filter(can_handle *phandle, can_filter_mode_t mode, can_filter_t *rxcode, can_filter_t *rxmask, u8 filter_ext)
 {
-    uint32_t rxcode0, rxcode1, rxcode2, rxcode3;
-    uint32_t rxmask0, rxmask1, rxmask2, rxmask3;
-    uint32_t reg_val;
+    u32 rxcode0, rxcode1, rxcode2, rxcode3;
+    u32 rxmask0, rxmask1, rxmask2, rxmask3;
+    u32 reg_val;
 
     CHECK_PARAM(phandle, -EINVAL);
     CHECK_PARAM(rxcode, -EINVAL);
@@ -660,7 +673,7 @@ int hal_can_ioctl(can_handle *phandle, int cmd, void *arg)
         hal_can_set_baudrate(phandle, (unsigned long)arg);
         break;
     case CAN_IOCTL_GET_BAUDRATE:
-        ret = hal_can_get_baudrate(phandle, (uint32_t *)arg);
+        ret = hal_can_get_baudrate(phandle, (u32 *)arg);
         break;
     case CAN_IOCTL_SET_FILTER:
         cfg = (can_filter_config_t *)arg;

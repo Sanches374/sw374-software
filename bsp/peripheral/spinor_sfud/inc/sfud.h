@@ -183,6 +183,8 @@ sfud_err sfud_write_status2(const sfud_flash *flash, uint8_t *status);
  */
 sfud_err sfud_write_reg(const sfud_flash *flash, uint8_t reg, uint8_t *status);
 sfud_err sfud_read_reg(const sfud_flash *flash, uint8_t reg, uint8_t *status);
+sfud_err sfud_write_cr(const sfud_flash *flash, uint8_t *status);
+sfud_err sfud_read_cr(const sfud_flash *flash, uint8_t *status);
 #ifdef __cplusplus
 }
 #endif

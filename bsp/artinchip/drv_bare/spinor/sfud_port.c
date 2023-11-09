@@ -93,6 +93,17 @@ static struct aic_qspi_bus qspi_bus_arr[] = {
         .irq_num = QSPI3_IRQn,
     },
 #endif
+#if defined(AIC_USING_SE_SPI)
+    {
+        .name = "sespi",
+        .idx = 5,
+        .clk_id = CLK_SE_SPI,
+        .clk_in_hz = AIC_DEV_SE_SPI_MAX_SRC_FREQ_HZ,
+        .bus_hz = AIC_SE_SPI_DEVICE_SPINOR_FREQ,
+        .dma_port_id = DMA_ID_SPI0,
+        .irq_num = QSPI0_IRQn,
+    },
+#endif
 };
 
 static void retry_delay_100us(void)
@@ -107,7 +118,7 @@ static struct aic_qspi_bus *get_qspi_by_index(u32 idx)
 
     qspi = NULL;
     for (i = 0; i < ARRAY_SIZE(qspi_bus_arr); i++) {
-        if (i == idx) {
+        if (qspi_bus_arr[i].idx == idx) {
             qspi = &qspi_bus_arr[i];
             break;
         }
@@ -334,7 +345,7 @@ sfud_flash *sfud_probe(u32 spi_bus)
     struct mtd_dev *mtd;
     struct mtd_partition *part, *p;
     int ret;
-    struct qspi_master_config cfg;
+    struct qspi_master_config cfg = {0};
     char *partstr;
 
     qspi = get_qspi_by_index(spi_bus);
@@ -376,7 +387,7 @@ sfud_flash *sfud_probe(u32 spi_bus)
 #endif
     qspi->attached_flash.user_data = (void *)qspi;
     qspi->attached_flash.init_hz = SFUD_READ_SFDP_FREQ;
-    qspi->attached_flash.bus_hz = AIC_QSPI0_DEVICE_SPINOR_FREQ;
+    qspi->attached_flash.bus_hz = qspi->bus_hz;
 
     result = sfud_device_init(&qspi->attached_flash);
     if (result != SFUD_SUCCESS) {

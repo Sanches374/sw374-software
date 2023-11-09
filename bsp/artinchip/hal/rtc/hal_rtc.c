@@ -104,7 +104,9 @@ struct aic_rtc_dev {
 };
 
 static struct aic_rtc_dev aich_rtc = {0};
+#if defined(AIC_RTC_DRV_V10) || defined(AIC_RTC_DRV_V11)
 static enum aic_reboot_reason g_prev_reason = REBOOT_REASON_INVALID;
+#endif
 
 #if 0
 static void aic_rtc_set_32k_drv(u8 drv)
@@ -151,6 +153,7 @@ void hal_rtc_cali(s32 clk_rate)
 void aic_set_reboot_reason(enum aic_reboot_reason r)
 {
     u32 cur = 0;
+    u8 reason_num = RTC_REBOOT_REASON_MASK >> RTC_REBOOT_REASON_SHIFT;
 
     cur = RTC_READB(RTC_REG_SYSBAK);
      /* If it's valid already, so ignore the current request */
@@ -160,7 +163,7 @@ void aic_set_reboot_reason(enum aic_reboot_reason r)
     setbits(r, RTC_REBOOT_REASON_MASK, RTC_REBOOT_REASON_SHIFT, cur);
     RTC_WRITEB(cur, RTC_REG_SYSBAK);
 
-    if (r <= RTC_REBOOT_REASON_MASK >> RTC_REBOOT_REASON_SHIFT)
+    if (r <= reason_num)
         pr_debug("Set reboot reason %d\n", r);
 }
 

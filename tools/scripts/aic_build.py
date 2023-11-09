@@ -192,12 +192,12 @@ def show_info_cmd(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defcon
     if prj_info:
         # arch
         arch = 'unknown'
-        rv32 = get_config(config_file, 'CONFIG_ARCH_RISCV32')
-        if rv32:
+        if get_config(config_file, 'CONFIG_ARCH_RISCV32'):
             arch = 'riscv32'
-        rv64 = get_config(config_file, 'CONFIG_ARCH_RISCV64')
-        if rv64:
+        if get_config(config_file, 'CONFIG_ARCH_RISCV64'):
             arch = 'riscv64'
+        if get_config(config_file, 'CONFIG_ARCH_CSKY'):
+            arch = 'csky'
         # app os
         if prj_kernel == 'baremetal':
             app_os = 'baremetal'
@@ -284,6 +284,8 @@ def add_board_cmd(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defcon
             print("Error: {} is not conform to 'CHIP_BOARD_KERNEL_APP_defconfig' format!".format(ref_cfg))
             exit(0)
         board = def_elements[1]
+        kernel = def_elements[2]
+        app = def_elements[3]
         # input new board name
         while 1:
             i = raw_input("Input new board's name:")
@@ -293,9 +295,24 @@ def add_board_cmd(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defcon
             if '_' in i or ' ' in i:
                 print("Input name can't contain '_' or ' ' !")
                 continue
-            break
+            if i != '':
+                break
         new_board = i
         print("{} \n".format(new_board))
+        # input new app name
+        while 1:
+            i = raw_input("Input new app's name: (default {})".format(app))
+            i = i.strip()
+            if i == 'q':
+                exit(0)
+            if '_' in i or ' ' in i:
+                print("Input name can't contain '_' or ' ' !")
+                continue
+            if i == '':
+                i = app
+            break
+        new_app = i
+        print("{} \n".format(new_app))
         # input manufacturer name
         while 1:
             i = raw_input("Input manufacturer's name:")
@@ -308,6 +325,7 @@ def add_board_cmd(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defcon
         # copy xxx_defconfig
         src_def = os.path.join(aic_root, 'target', 'configs', ref_cfg)
         def_elements[1] = new_board
+        def_elements[3] = new_app
         des_cfg = '_'.join(def_elements)
         des_def = os.path.join(aic_root, 'target', 'configs', des_cfg)
         print("Copy {} to {}".format(src_def, des_def))
@@ -319,6 +337,8 @@ def add_board_cmd(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defcon
                     line = line.replace(src_def, des_def)
                 if board in line:
                     line = line.replace(board, new_board)
+                if app in line:
+                    line = line.replace(app, new_app)
                 if 'CONFIG_AIC_CONSOLE_SYSNAME' in line:
                     line = 'CONFIG_AIC_CONSOLE_SYSNAME="{}"\n'.format(manuf_name)
                 if 'CONFIG_FINSH_PROMPT_NAME' in line:
@@ -370,6 +390,21 @@ def add_board_cmd(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defcon
                 file_data += line
         with open(des_file, "w") as f:
             f.write(file_data)
+        # copy app
+        if app != new_app:
+            app_os = kernel
+            if app_os != 'baremetal':
+                app_os = 'os'
+            src_d = os.path.join(aic_root, 'application', app_os, app)
+            des_d = os.path.join(aic_root, 'application', app_os, new_app)
+            src_d = os.path.normpath(src_d);
+            des_d = os.path.normpath(des_d);
+            if not os.path.exists(des_d):
+                print("Copy {} to {}".format(src_d, des_d))
+                if platform.system() == 'Linux':
+                    shutil.copytree(src_d, des_d)
+                elif platform.system() == 'Windows':
+                    shutil.copytree('\\\\?\\' + src_d, '\\\\?\\' + des_d)
         print("Add board {} for {} succeed!".format(new_board, manuf_name))
         exit(0)
 
@@ -390,7 +425,6 @@ def win_menuconfig_cmd(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_d
             with open(".Kconfig.prj", "w") as f:
                 f.write('source "./bsp/artinchip/sys/{}/Kconfig.chip"\n'.format(prj_chip))
                 f.write('source "target/{}/{}/Kconfig.board"\n'.format(prj_chip, prj_board))
-                f.write('source "application/{}/{}/Kconfig"\n'.format(app_os, prj_app))
                 f.write('source "kernel/{}/Kconfig"\n'.format(prj_kernel))
                 if prj_kernel == 'rt-thread':
                     f.write('source "$PKGS_DIR/Kconfig"\n')
@@ -479,13 +513,15 @@ def list_size_cmd(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defcon
         import rtconfig
         target = os.path.join(prj_out_dir, 'images', rtconfig.SOC + '.' + rtconfig.TARGET_EXT)
         # cmd
-        paths = target
+        p = []
         for root, dirs, files in os.walk(prj_out_dir):
             if root.endswith('images'):
                 continue
             for file in files:
                 path = os.path.join(root, file)
-                paths += ' ' + path
+                p.append(path)
+        p.sort()
+        paths = target + ' ' + ' '.join(p)
         cmd = gcc_size + ' ' + paths
         os.system(cmd)
         exit(0)
@@ -507,17 +543,34 @@ def distclean_cmd(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defcon
 
 # check & prepare toolchain
 def chk_prepare_toolchain(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defconfig):
-    if platform.system() == 'Linux':
-        toolchain_name = 'Xuantie-900-gcc-elf-newlib-x86_64'
-    elif platform.system() == 'Windows':
-        toolchain_name = 'Xuantie-900-gcc-elf-newlib-mingw'
+    config_file = os.path.join(aic_root, '.config')
+    if get_config(config_file, 'CONFIG_ARCH_CSKY'):
+        if platform.system() == 'Linux':
+            toolchain_name = 'csky-elf-noneabiv2-tools-x86_64-newlib'
+        elif platform.system() == 'Windows':
+            toolchain_name = 'csky-elf-noneabiv2-tools-mingw-newlib'
+    else:
+        if platform.system() == 'Linux':
+            toolchain_name = 'Xuantie-900-gcc-elf-newlib-x86_64'
+        elif platform.system() == 'Windows':
+            toolchain_name = 'Xuantie-900-gcc-elf-newlib-mingw'
 
     os.chdir(aic_root)
     toolchain_ppath = 'tools/toolchain/'
     toolchain_bpath = 'toolchain'
     # check
-    if os.path.exists(toolchain_bpath + '/.ready'):
-        return
+    ready_f = os.path.join(toolchain_bpath, '.ready')
+    if os.path.exists(ready_f):
+        with open(ready_f, 'r') as f:
+            toolchain_os = f.readline().strip()
+            old_toolchain_name = f.readline().strip()
+            if platform.system() != toolchain_os:
+                shutil.rmtree(toolchain_bpath)
+            else:
+                if old_toolchain_name != toolchain_name:
+                    shutil.rmtree(toolchain_bpath)
+                else:
+                    return
     # prepare
     for root, dirs, files in os.walk(toolchain_ppath):
         if root != toolchain_ppath:
@@ -531,7 +584,9 @@ def chk_prepare_toolchain(aic_root, prj_chip, prj_board, prj_kernel, prj_app, pr
 
                 os.system('tar -xzf ' + abs_f \
                     + ' --strip-components 1 -C ' + toolchain_bpath)
-                open(toolchain_bpath + '/.ready', 'w')
+                with open(ready_f, 'w') as f:
+                    f.write(platform.system() + "\n")
+                    f.write(toolchain_name)
                 break
 
 def mkimage_get_mtdpart_size(imgname):
@@ -596,15 +651,6 @@ def mkimage_check_file_exist(pathdir, filename):
             return True
     return False
 
-def mkimage_get_resource_size(srcdir):
-    total_size = 0
-    root_path =srcdir
-    for root, dirs, files in os.walk(srcdir):
-        for fn in files:
-            fpath = os.path.join(root, fn)
-            total_size += os.path.getsize(fpath)
-    return total_size
-
 def mkimage_gen_empty_img(outimg, size):
     f = open(outimg, 'wb')
     f.write(bytearray(size))
@@ -631,49 +677,42 @@ def mkimage_gen_mkfs_action(img_id):
             srcdir = srcdir[0:len(srcdir) - 1]
         outimg = prj_out_dir + imgname
         data_siz = 0
-        auto_siz = get_config(prj_root_dir + '.config', auto_opt).replace('"', '')
+
+        # when CONFIG_AIC_FATFS_AUTO_SIZE_FOR_0 is not set, should be check None
+        if get_config(prj_root_dir + '.config', auto_opt) != None:
+            auto_siz = get_config(prj_root_dir + '.config', auto_opt).replace('"', '')
+        else:
+            auto_siz = 'n'
+
+        cluster = int(get_config(prj_root_dir + '.config', 'CONFIG_AIC_USING_FS_IMAGE_TYPE_FATFS_CLUSTER_SIZE'))
         if auto_siz == 'y':
             sector_siz = 512
-            data_siz = mkimage_get_resource_size(srcdir)
-            cluster = int(get_config(prj_root_dir + '.config', 'CONFIG_AIC_USING_FS_IMAGE_TYPE_FATFS_CLUSTER_SIZE'))
-            cluster_siz = cluster * sector_siz
-            # Alignment cluster size, default cluster size is 4KB
-            data_siz = cluster_siz * int(round((data_siz + cluster_siz - 1) / cluster_siz))
-            # Obtain amplification factor based on cluster size
-            amp_size = int(round((cluster + 8 - 1) / 8))
-            data_siz = data_siz * amp_size
-            # Add 512KB free space
-            data_siz += 512 * 1024
-            if data_siz < 0x100000:
-                data_siz = 0x100000
-            sector_cnt = int(data_siz / sector_siz)
+            cmdstr = 'python3 ' + aic_script_dir + 'makefatfs.py '
+            cmdstr += '--auto '
+            cmdstr += '--cluster {} '.format(cluster)
+            cmdstr += '--sector {} '.format(sector_siz)
+            cmdstr += '--tooldir {} '.format(aic_script_dir)
+            cmdstr += '--inputdir {} '.format(srcdir)
+            cmdstr += '--outfile {}\n'.format(outimg)
+            mkfscmd += cmdstr
         else:
             sector_opt = 'CONFIG_AIC_FATFS_SECTOR_SIZE_FOR_{}'.format(img_id)
             sector_siz = int(get_config(prj_root_dir + '.config', sector_opt))
             sectcnt_opt = 'CONFIG_AIC_FATFS_SECTOR_COUNT_FOR_{}'.format(img_id)
             sector_cnt = int(get_config(prj_root_dir + '.config', sectcnt_opt))
             data_siz = sector_siz * sector_cnt
+            cmdstr = 'python3 ' + aic_script_dir + 'makefatfs.py '
+            cmdstr += '--imgsize {} '.format(data_siz)
+            cmdstr += '--cluster {} '.format(cluster)
+            cmdstr += '--sector {} '.format(sector_siz)
+            cmdstr += '--tooldir {} '.format(aic_script_dir)
+            cmdstr += '--inputdir {} '.format(srcdir)
+            cmdstr += '--outfile {}\n'.format(outimg)
+            mkfscmd += cmdstr
         if data_siz > imgsize:
             print('Error, the image size will larger than partition size')
             print('  -> {}'.format(outimg))
             sys.exit(0)
-        #mkimage_gen_empty_img(outimg, data_siz)
-        if platform.system() == 'Linux':
-            empty_img_param = 'dd if=/dev/zero of={} bs=1 count={}\n'.format(outimg, data_siz)
-            mkfscmd += empty_img_param
-            mformat_param = '-M {} -T {} -c {} -i "{}"\n'.format(sector_siz, sector_cnt, cluster, outimg)
-            mcopy_param = ' -i "{}" -s "{}//" ::/\n'.format(outimg, srcdir)
-            mkfscmd += aic_script_dir + 'mformat ' + mformat_param
-            mkfscmd += aic_script_dir + 'mcopy ' + mcopy_param
-        elif platform.system() == 'Windows':
-            outimg = outimg.replace('/', '\\')
-            srcdir = srcdir.replace('/', '\\')
-            truncate_param = '-s {} {}\n'.format(data_siz, outimg)
-            mkfscmd += aic_script_dir + 'truncate ' + truncate_param
-            mformat_param = '-M {} -T {} -c {} -i "{}"\n'.format(sector_siz, sector_cnt, cluster, outimg)
-            mcopy_param = ' -i "{}" -s "{}\\\\" ::/\n'.format(outimg, srcdir)
-            mkfscmd += aic_script_dir + 'mformat.exe ' + mformat_param
-            mkfscmd += aic_script_dir + 'mcopy.exe ' + mcopy_param
     if get_config(prj_root_dir + '.config', littlefs_enable) == 'y':
         imgname_opt = 'CONFIG_AIC_FS_IMAGE_NAME_{}'.format(img_id)
         imgname = get_config(prj_root_dir + '.config', imgname_opt).replace('"', '')
@@ -687,11 +726,13 @@ def mkimage_gen_mkfs_action(img_id):
         os.environ["aic_fs_image_dir"] = srcdir
         srcdir = prj_root_dir + srcdir
         outimg = prj_out_dir + imgname
-        paramstr = '-c {} -b {} -p {} -s {} {}\n'.format(srcdir, blksiz, pagesiz, imgsize, outimg)
-        if platform.system() == 'Linux':
-            mkfscmd = aic_script_dir + 'mklittlefs ' + paramstr
-        elif platform.system() == 'Windows':
-            mkfscmd = aic_script_dir + 'mklittlefs.exe ' + paramstr
+        cmdstr = 'python3 ' + aic_script_dir + 'makelittlefs.py '
+        cmdstr += '--pagesize {} '.format(pagesiz)
+        cmdstr += '--blocksize {} '.format(blksiz)
+        cmdstr += '--tooldir {} '.format(aic_script_dir)
+        cmdstr += '--inputdir {} '.format(srcdir)
+        cmdstr += '--outfile {}\n'.format(outimg)
+        mkfscmd += cmdstr
     if get_config(prj_root_dir + '.config', uffs_enable) == 'y':
         nand_list = mkimage_get_nand_params()
         if nand_list == None:
@@ -703,34 +744,30 @@ def mkimage_gen_mkfs_action(img_id):
         srcdir = get_config(prj_root_dir + '.config', srcdir_opt).replace('"', '')
         os.environ["aic_fs_image_dir"] = srcdir
         srcdir = prj_root_dir + srcdir
-        mkfscmd = ''
-        # script = prj_out_dir + "mkuffs.script"
-        # mkimage_gen_uffs_script(srcdir, script)
         for param in nand_list:
             (pagesiz, blksiz, oobsiz) = param
             pagesiz = int(pagesiz)
             blksiz = int(blksiz)
             oobsiz = int(oobsiz)
-            blkpagecnt = blksiz / pagesiz
-            partblkcnt = imgsize / blksiz
-            prefix = 'page_{}k_block_{}k_oob_{}_'.format(pagesiz/1024, blksiz/1024, oobsiz)
+            blkpagecnt = int(blksiz / pagesiz)
+            partblkcnt = int(imgsize / blksiz)
+            prefix = 'page_{}k_block_{}k_oob_{}_'.format(int(pagesiz / 1024),
+                    int(blksiz / 1024), oobsiz)
             outimg = os.path.join(prj_out_dir,prefix + imgname)
             if os.path.exists(outimg):
                 os.remove(outimg)
-            paramstr = '-t {} -p {} -b {} -s {} -x auto -o 0 -f {} -d {}\n'.format(partblkcnt,
-                    pagesiz, blkpagecnt, oobsiz, outimg, srcdir)
-            if platform.system() == 'Linux':
-                mkfscmd += aic_script_dir + 'mkuffs ' + paramstr
-            elif platform.system() == 'Windows':
-                mkfscmd += aic_script_dir + 'mkuffs.exe ' + paramstr
+            cmdstr = 'python3 ' + aic_script_dir + 'makeuffs.py '
+            cmdstr += '--pagesize {} '.format(pagesiz)
+            cmdstr += '--oobsize {} '.format(oobsiz)
+            cmdstr += '--blockpagecount {} '.format(blkpagecnt)
+            cmdstr += '--tooldir {} '.format(aic_script_dir)
+            cmdstr += '--inputdir {} '.format(srcdir)
+            cmdstr += '--outfile {}\n'.format(outimg)
+            mkfscmd += cmdstr
     os.environ["img{}_srcdir".format(img_id)] = srcdir
     return mkfscmd
 
 def mkimage_prebuild(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defconfig):
-    chips = ['d21x', 'd13x', 'aic1606sp']
-    if prj_chip not in chips:
-        POST_ACTION = '@echo \n@echo Luban-Lite is built successfully \n@echo \n'
-        return POST_ACTION
 
     global prj_root_dir
     global aic_script_dir
@@ -746,12 +783,18 @@ def mkimage_prebuild(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_def
     chip_path = os.path.join(aic_root, './bsp/artinchip/sys/' + prj_chip)
     os.environ["PRJ_OUT_DIR"] = prj_out_dir
     sys.path.append(chip_path)
+    ota_enable = 'CONFIG_LPKG_USING_OTA_DOWNLOADER'
+    env_enable = 'CONFIG_AIC_ENV_INTERFACE'
     import rtconfig
 
     POST_ACTION = ''
     if prj_kernel != 'baremetal' and "bootloader" != prj_app:
         # XIP FW POST_ACTION
         POST_ACTION += mkimage_xip_postaction(aic_root, prj_chip, prj_kernel, prj_app, prj_defconfig, rtconfig.OBJCPY)
+
+    if prj_kernel != 'baremetal' and "bootloader" != prj_app:
+        if get_config(prj_root_dir + '.config', env_enable) == 'y':
+            os.system('cp ' + aic_pack_dir + 'env.txt ' + prj_out_dir)
 
     # Gen partition table
     CMD = 'python3 ' + aic_script_dir + 'gen_partition_table.py'
@@ -793,8 +836,15 @@ def mkimage_prebuild(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_def
         if os.path.exists(aic_pack_dir + 'ddr_init.json'):
             POST_ACTION += MAKE_DDR_ACTION
         # pack image files
-        if mkimage_check_file_exist(aic_common_dir, '*.pbp'):
+        if mkimage_check_file_exist(aic_pack_dir, '*.pbp'):
+            POST_ACTION += '@cp -r ' + aic_pack_dir + '/*.pbp ' + prj_out_dir + '\n'
+        elif mkimage_check_file_exist(aic_common_dir, '*.pbp'):
             POST_ACTION += '@cp -r ' + aic_common_dir + '/*.pbp ' + prj_out_dir + '\n'
+
+        ELF_PARSE_TOOL = 'python3 ' + aic_script_dir + 'elf_parse.py'
+        ELF_PARSE_ACTION = ELF_PARSE_TOOL + ' $TARGET ' + prj_out_dir + ' ' + rtconfig.PREFIX + '\n'
+        POST_ACTION += ELF_PARSE_ACTION
+
         if platform.system() == 'Linux':
             MAKE_IMG_TOOL = aic_script_dir + 'mk_image.py'
         elif platform.system() == 'Windows':
@@ -802,6 +852,9 @@ def mkimage_prebuild(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_def
         IMG_JSON = prj_out_dir + 'image_cfg.json'
         MAKE_IMG_ACTION = MAKE_IMG_TOOL + ' -v -c ' + IMG_JSON + ' -d ' + prj_out_dir + '\n'
         POST_ACTION += MAKE_IMG_ACTION
+
+    if get_config(prj_root_dir + '.config', ota_enable) == 'y':
+        POST_ACTION += mkimage_cpio(aic_root, prj_chip, prj_kernel, prj_app, prj_defconfig, rtconfig.OBJCPY)
 
     # eclipse pre/post build cmd
     aic_root_n = os.path.normpath(aic_root)
@@ -830,6 +883,7 @@ def mkimage_prebuild(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_def
     eclipse_post_build = eclipse_post_build.replace(prj_out_dir_n, '${ProjDirPath}/Debug')
     eclipse_post_build = eclipse_post_build.replace(aic_root, '${ProjDirPath}/../../..')
     eclipse_post_build = eclipse_post_build.replace(aic_root_n, '${ProjDirPath}/../../..')
+    eclipse_post_build = eclipse_post_build.replace('$TARGET', '${ProjDirPath}/Debug/${ProjName}.elf')
     eclipse_post_build = eclipse_post_build.replace('\\', '/')
 
     eclipse_sdk_post_build = POST_ACTION
@@ -840,6 +894,7 @@ def mkimage_prebuild(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_def
     eclipse_sdk_post_build = eclipse_sdk_post_build.replace(prj_out_dir_n, '${ProjDirPath}/Debug')
     eclipse_sdk_post_build = eclipse_sdk_post_build.replace(aic_root, '${ProjDirPath}')
     eclipse_sdk_post_build = eclipse_sdk_post_build.replace(aic_root_n, '${ProjDirPath}')
+    eclipse_post_build = eclipse_post_build.replace('$TARGET', '${ProjDirPath}/Debug/${ProjName}.elf')
     eclipse_sdk_post_build = eclipse_sdk_post_build.replace('\\', '/')
 
     post_objcopy = "${cross_prefix}${cross_objcopy}${cross_suffix} -O binary ${ProjName}.elf ${ProjName}.bin;"
@@ -878,11 +933,9 @@ def chk_prj_config(aic_root):
     update_defconfig(aic_root)
 
     # update 'rtconfig.h'
-    path = os.path.join(aic_root, 'rtconfig.h')
-    if not os.path.exists(path):
-        sys.path.append(os.path.join(aic_root, 'kernel/rt-thread/tools'))
-        from menuconfig import mk_rtconfig
-        mk_rtconfig(".config")
+    sys.path.append(os.path.join(aic_root, 'kernel/rt-thread/tools'))
+    from menuconfig import mk_rtconfig
+    mk_rtconfig(".config")
 
 def get_all_chip(tdir):
     v = []
@@ -942,13 +995,29 @@ def mkimage_xip_postaction(aic_root, prj_chip, prj_kernel, prj_app, prj_defconfi
     prj_out_dir = os.path.join(aic_root, 'output/' + prj_name + '/images/')
 
     # XIP image post action
-    XIP_POST_ACTION += '@echo ' + prj_kernel + "-" + prj_app + ': make XIP iamge begin...\n'
+    XIP_POST_ACTION += '@echo ' + prj_kernel + "-" + prj_app + ': make XIP image begin...\n'
     XIP_POST_ACTION += rtconfig_objcpy + ' -O binary -j .text -j .eh_frame_hdr -j .eh_frame -j .gcc_except_table -j .rodata $TARGET ' + prj_out_dir + prj_chip + '.text.bin\n'
     XIP_POST_ACTION += rtconfig_objcpy + ' -O binary -j .ram.code -j .data $TARGET ' + prj_out_dir + prj_chip+ '.data.bin\n'
     XIP_POST_ACTION += 'cat ' + prj_out_dir + prj_chip + '.text.bin' + ' ' + prj_out_dir + prj_chip + '.data.bin' + ' > ' + prj_out_dir + prj_chip + '.bin\n'
-    XIP_POST_ACTION += '@echo ' + prj_kernel + "-" + prj_app + ': make XIP iamge done... \n'
+    XIP_POST_ACTION += '@echo ' + prj_kernel + "-" + prj_app + ': make XIP image done... \n'
 
     return XIP_POST_ACTION
+
+def mkimage_cpio(aic_root, prj_chip, prj_kernel, prj_app, prj_defconfig, rtconfig_objcpy):
+    global CPIO_POST_ACTION
+    CPIO_POST_ACTION = ''
+
+    if not os.path.exists(aic_pack_dir + 'ota-subimgs.cfg'):
+        CPIO_POST_ACTION += '@echo ' + 'Warning: mkimage_cpio not find ' + aic_pack_dir + 'ota-subimgs.cfg' + ' \n'
+        return CPIO_POST_ACTION
+
+    os.system('cp ' + aic_pack_dir + 'ota-subimgs.cfg ' + prj_out_dir)
+    aic_system = platform.system()
+
+    CPIO_POST_ACTION += '@echo ' + 'make CPIO image begin...\n'
+    CPIO_POST_ACTION += 'python3 tools/scripts/mkcpio.py ' + aic_system + ' ' + aic_root + ' ' + aic_pack_dir + ' ' + prj_out_dir + '\n'
+    CPIO_POST_ACTION += '@echo ' + 'make CPIO image done...\n'
+    return CPIO_POST_ACTION
 
 def get_prj_config(aic_root):
     config_file = os.path.join(aic_root, '.config')
@@ -1042,7 +1111,7 @@ def get_prj_config(aic_root):
 
     # cmd-option: list size
     list_size_cmd(aic_root, PRJ_CHIP, PRJ_BOARD, PRJ_KERNEL, PRJ_APP, PRJ_DEFCONFIG_NAME)
-    
+
     # cmd-option: add board
     add_board_cmd(aic_root, PRJ_CHIP, PRJ_BOARD, PRJ_KERNEL, PRJ_APP, PRJ_DEFCONFIG_NAME)
 

@@ -31,6 +31,11 @@ static int clk_pll_enable(struct aic_clk_comm_cfg *comm_cfg)
     struct aic_clk_pll_cfg *pll = to_clk_pll(comm_cfg);
     u32 val;
 
+    if (pll->flag & CLK_NO_CHANGE) {
+        return 0;
+    }
+
+
     val = readl(cmu_reg(pll->offset_gen));
     val |= (1 << PLL_OUT_SYS | 1 << PLL_EN_BIT);
     writel(val, cmu_reg(pll->offset_gen));
@@ -43,9 +48,11 @@ static void clk_pll_disable(struct aic_clk_comm_cfg *comm_cfg)
     struct aic_clk_pll_cfg *pll = to_clk_pll(comm_cfg);
     u32 val;
 
-    val = readl(cmu_reg(pll->offset_gen));
-    val &= ~(1 << PLL_OUT_SYS | 1 << PLL_EN_BIT);
-    writel(val, cmu_reg(pll->offset_gen));
+    if (!(pll->flag & CLK_NO_CHANGE)) {
+        val = readl(cmu_reg(pll->offset_gen));
+        val &= ~(1 << PLL_OUT_SYS | 1 << PLL_EN_BIT);
+        writel(val, cmu_reg(pll->offset_gen));
+    }
 }
 
 static int clk_pll_is_enable(struct aic_clk_comm_cfg *comm_cfg)
@@ -159,6 +166,9 @@ static int clk_pll_set_rate(struct aic_clk_comm_cfg *comm_cfg,
     u64 sdm_step;
     struct aic_clk_pll_cfg *pll = to_clk_pll(comm_cfg);
 
+    if (pll->flag & CLK_NO_CHANGE)
+        return 0;
+
     if (rate == CLOCK_24M) {
         val = readl(cmu_reg(pll->offset_gen));
         val &= ~(1 << PLL_OUT_MUX);
@@ -271,3 +281,16 @@ const struct aic_clk_ops aic_clk_pll_ops = {
     .set_rate    = clk_pll_set_rate,
     .get_parent  = clk_pll_get_parent,
 };
+
+void hal_clk_pll_lowpower(void)
+{
+#if defined(AIC_CMU_DRV_V10)
+    #if 0
+    *(volatile uint32_t *)(CMU_BASE+PLL_IN_REG) &= ~(0x7U << 29);
+    #endif
+#elif defined(AIC_CMU_DRV_V11)
+    *(volatile uint32_t *)(CMU_BASE+PLL_IN_REG) &= ~((0x7U << 29) | (0x1U << 1));
+#elif defined(AIC_CMU_DRV_V12)
+    *(volatile uint32_t *)(CMU_BASE+PLL_IN_REG) &= ~((0x7U << 29) | (0x1U << 1));
+#endif
+}

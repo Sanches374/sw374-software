@@ -18,6 +18,11 @@
 #define WDT_REG_IRQ_THD(n)      (WDT_BASE + 0x044 + (n) * 0x10)
 #define WDT_REG_RST_THD(n)      (WDT_BASE + 0x048 + (n) * 0x10)
 #define WDT_REG_OP              (WDT_BASE + 0x0E8)
+
+#ifdef AIC_WDT_DRV_V11
+#define WDT_REG_RST_SEL         (WDT_BASE + 0x020)
+#endif
+
 #define WDT_REG_VER             (WDT_BASE + 0xFFC)
 
 #define WDT_WR_DIS_SHIFT        28
@@ -133,6 +138,19 @@ int hal_wdt_clr_int(void)
     return sta;
 }
 
+#ifdef AIC_WDT_DRV_V11
+void hal_wdt_rst_type_set(u32 rst)
+{
+    writel(rst, WDT_REG_RST_SEL);
+}
+
+int hal_wdt_rst_type_get(void)
+{
+    int sta = readl(WDT_REG_RST_SEL);
+    return sta;
+}
+#endif
+
 void hal_wdt_status_show(u32 ch)
 {
     int ver = readl(WDT_REG_VER);
@@ -142,7 +160,11 @@ void hal_wdt_status_show(u32 ch)
            "Write disable: %d\n"
            "IRQ Enable: %d\n"
            "Current chan: hw %d, sw %d\n"
+           #ifdef AIC_WDT_DRV_V11
+           "Current cnt: %d Reset object:%d\n"
+           #else
            "Current cnt: %d\n"
+           #endif
            "chan clr_thd irq_thd rst_thd\n"
            "   0 %7d %7d %7d\n",
            ver >> 8, ver & 0xFF, hal_wdt_is_running(),
@@ -150,6 +172,9 @@ void hal_wdt_status_show(u32 ch)
            readl(WDT_REG_IRQ_EN),
            aic_wdt_cur_id(), ch,
            readl(WDT_REG_CNT),
+           #ifdef AIC_WDT_DRV_V11
+           readl(WDT_REG_RST_SEL),
+           #endif
            readl(WDT_REG_CLR_THD(0)),
            readl(WDT_REG_IRQ_THD(0)),
            readl(WDT_REG_RST_THD(0)));

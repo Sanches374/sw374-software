@@ -15,7 +15,7 @@ extern "C" {
 #include <aic_core.h>
 #include "aic_mac_reg.h"
 
-#define MAX_ETH_MAC_PORT            2
+#define MAX_ETH_MAC_PORT            AIC_GMAC_DEV_NUM
 #define MAC(port, member)           ((unsigned long)&(((aicmac_reg_t *)mac_base[port])->member))
 
 #define ENABLE                      true
@@ -240,6 +240,7 @@ void aicmac_dma_rx_desc_init(uint32_t port);
 void aicmac_resume_dma_tx(uint32_t port);
 void aicmac_resume_dma_rx(uint32_t port);
 void aicmac_set_dma_rx_desc_int(uint32_t port, bool en);
+void aicmac_set_dma_tx_desc_int(uint32_t port, bool en);
 void aicmac_start(uint32_t port);
 void aicmac_stop(uint32_t port);
 void aicmac_confirm_tx_frame(uint32_t port);

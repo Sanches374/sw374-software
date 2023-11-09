@@ -47,6 +47,7 @@ This enum lists the current Khronos extension indices to OpenMAX IL.
 typedef enum OMX_INDEXEXTTYPE {
 	/*0x7f000000-0x7f000FFF  common*/
 	OMX_IndexVendorStreamFrameEnd = 0x7F000001,/**< reference: OMX_PARAM_FRAMEEND */
+	OMX_IndexVendorClearBuffer = 0x7F000002,
 
 	/*0x7f001000-0x7f001fff video_render*/
 	OMX_IndexVendorVideoRenderInit = 0x7F001000,
@@ -56,6 +57,8 @@ typedef enum OMX_INDEXEXTTYPE {
 	OMX_IndexVendorAudioRenderInit = 0x7F002000,
 	OMX_IndexVendorAudioRenderVolume = 0x7F002001,/**< reference: OMX_PARAM_AUDIO_VOLUME */
 
+	/*0x7f003000-0x7f003fff Demuxer*/
+	OMX_IndexVendorDemuxerSkipTrack = 0x7F003000, /**< reference: OMX_PARAM_SKIP_TRACK */
 
 } OMX_INDEXEXTTYPE;
 
@@ -84,6 +87,11 @@ typedef struct OMX_PARAM_AUDIO_VOLUME {
     OMX_S32 nVolume;
 } OMX_PARAM_AUDIO_VOLUME;
 
+typedef struct OMX_PARAM_SKIP_TRACK {
+    OMX_U32 nSize;
+    OMX_VERSIONTYPE nVersion;
+    OMX_U32 nPortIndex;
+} OMX_PARAM_SKIP_TRACK;
 
 #ifdef __cplusplus
 }

@@ -86,7 +86,7 @@ int finsh_set_prompt(const char *prompt)
 #endif /* RT_USING_HEAP */
 
 #ifdef FINSH_PROMPT_NAME
-#define _MSH_PROMPT FINSH_PROMPT_NAME
+#define _MSH_PROMPT FINSH_PROMPT_NAME" "
 #else
 #define _MSH_PROMPT "aic "
 #endif

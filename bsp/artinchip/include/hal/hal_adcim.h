@@ -13,12 +13,14 @@
 
 int hal_adcim_calibration_set(unsigned int val);
 s32 hal_adcim_probe(void);
+int hal_adcim_auto_calibration(int adc_val, int st_voltage, int scale,
+                               int adc_max_val);
 
-#ifdef CONFIG_ARTINCHIP_ADCIM_DM
+#ifdef AIC_ADCIM_DM_DRV
 void hal_dm_chan_show(void);
 s32 hal_dm_chan_store(u32 val);
 void hal_adcdm_rtp_down_store(u32 val);
-ssize_t hal_adcdm_sram_write(char *buf, u32 offset, size_t count);
+ssize_t hal_adcdm_sram_write(int *buf, u32 offset, size_t count);
 #endif
 
 

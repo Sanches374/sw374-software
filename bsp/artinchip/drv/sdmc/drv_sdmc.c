@@ -20,6 +20,8 @@
 
 #define MSEC_PER_SEC        1000
 
+struct aic_sdmc *g_host = NULL;
+
 struct aic_sdmc_pdata {
     ulong base;
     int irq;
@@ -234,6 +236,8 @@ static void aic_sdmc_request(struct rt_mmcsd_host *rthost,
 
             hal_sdmc_idma_prepare(&host->host, data->blksize, data->blks,
                                   cur_idma, bbstate.bounce_buffer);
+        } else {
+            hal_sdmc_idma_disable(&host->host);
         }
     }
     if (data)
@@ -404,6 +408,7 @@ static void aic_sdmc_set_iocfg(struct rt_mmcsd_host *rthost,
                                struct rt_mmcsd_io_cfg *io_cfg)
 {
     struct aic_sdmc *host;
+    static uint8_t is_enable;
 
     RT_ASSERT(rthost != RT_NULL);
     RT_ASSERT(rthost->private_data != RT_NULL);
@@ -411,7 +416,6 @@ static void aic_sdmc_set_iocfg(struct rt_mmcsd_host *rthost,
 
     host = (struct aic_sdmc *)rthost->private_data;
 
-    aic_sdmc_setup_bus(host, io_cfg->clock);
     switch (io_cfg->bus_width) {
     case MMCSD_DDR_BUS_WIDTH_8:
         // host->ddr_mode = 1;
@@ -435,6 +439,27 @@ static void aic_sdmc_set_iocfg(struct rt_mmcsd_host *rthost,
 
     hal_sdmc_set_buswidth(&host->host, host->buswidth);
     hal_sdmc_set_ddrmode(&host->host, host->ddr_mode);
+
+    switch (io_cfg->power_mode) {
+    case MMCSD_POWER_UP:
+        break;
+    case MMCSD_POWER_ON:
+        if (!is_enable) {
+            is_enable = 1;
+            hal_sdmc_reset(&host->host, SDMC_HCTRL1_RESET_ALL);
+            host->clock = 0;
+            aic_sdmc_setup_bus(host, io_cfg->clock);
+        } else {
+            aic_sdmc_setup_bus(host, io_cfg->clock);
+        }
+        break;
+    case MMCSD_POWER_OFF:
+        is_enable = 0;
+        hal_sdmc_clk_disable(&host->host);
+        hal_sdmc_set_cmd(&host->host,
+                    SDMC_CMD_PRV_DAT_WAIT | SDMC_CMD_UPD_CLK | SDMC_CMD_START);
+        break;
+    }
 }
 
 static void aic_sdmc_enable_sdio_irq(struct rt_mmcsd_host *rthost,
@@ -609,6 +634,8 @@ s32 aic_sdmc_probe(struct aic_sdmc_pdata *pdata)
     aic_sdmc_init(host);
     pr_info("SDMC%d driver loaded\n", pdata->id);
 
+    g_host = host;
+
     mmcsd_change(rthost);
     return 0;
 
@@ -621,6 +648,11 @@ err:
         mmcsd_free_host(rthost);
 
     return -RT_ENOMEM;
+}
+
+void aic_mmcsd_change(void)
+{
+    mmcsd_change(g_host->rthost);
 }
 
 static int drv_sdmc_init(void)

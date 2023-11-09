@@ -132,6 +132,9 @@ FPCLK(CLK_LVDS, "lvds", CLK_SCLK, PARENT("sclk"), CLK_LVDS_REG, 12, 8, 0, 0);
 FPCLK(CLK_MIPIDSI, "mipidsi", CLK_SCLK, PARENT("sclk"), CLK_MIPID_REG, 12, 8, 0,
       0);
 FPCLK(CLK_PSADC, "psadc", CLK_PLL_INT1, PARENT("pll_int1"), CLK_PSADC_REG, 12, 8, 0, 5);
+FPCLK(CLK_PWMCS, "pwmcs", CLK_PLL_INT1, PARENT("pll_int1"), CLK_PWMCS_REG, 12, 8, 0, 0);
+FPCLK(CLK_PWMCS_SDFM, "pwmcs_sdfm", CLK_PLL_INT1, PARENT("pll_int1"),
+        CLK_PWMCS_SDFM_REG, -1, -1, 0, 5);
 
 /* Multi parent clocks */
 
@@ -255,6 +258,8 @@ const struct aic_clk_comm_cfg *aic_clk_cfgs[AIC_CLK_END] = {
     AIC_CLK_CFG(CLK_PBUS),
     AIC_CLK_CFG(CLK_MTOP),
     AIC_CLK_CFG(CLK_PSADC),
+    AIC_CLK_CFG(CLK_PWMCS),
+    AIC_CLK_CFG(CLK_PWMCS_SDFM),
     /* Display clock */
     AIC_CLK_CFG(CLK_PIX),
     AIC_CLK_CFG(CLK_SCLK),

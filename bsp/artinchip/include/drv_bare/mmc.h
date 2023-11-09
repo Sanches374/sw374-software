@@ -318,11 +318,13 @@ struct aic_sdmc {
 #define MMC_BLOCK_SIZE   512
 
 s32 mmc_init(int id);
+s32 mmc_deinit(int id);
 u32 mmc_bread(void *priv, u32 start, u32 blkcnt, u8 *dst);
 u32 mmc_bwrite(struct aic_sdmc *host, u32 start, u32 blkcnt, const u8 *src);
 struct aic_sdmc *find_mmc_dev_by_index(int id);
 struct aic_partition *mmc_new_partition(char *s, u64 start);
 void mmc_free_partition(struct aic_partition *part);
 struct aic_partition *mmc_create_gpt_part(void);
+void sdcard_hotplug_init(void);
 
 #endif /* _AIC_MMC_H_ */

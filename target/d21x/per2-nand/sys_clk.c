@@ -10,58 +10,92 @@
 #include <aic_hal.h>
 #include "board.h"
 
+#ifndef AIC_CLK_PLL_INT0_FREQ
+#define AIC_CLK_PLL_INT0_FREQ 600000000
+#endif
+#ifndef AIC_CLK_PLL_INT1_FREQ
+#define AIC_CLK_PLL_INT1_FREQ 1200000000
+#endif
+#ifndef AIC_CLK_PLL_FRA0_FREQ
+#define AIC_CLK_PLL_FRA0_FREQ 600000000
+#endif
+#ifndef AIC_CLK_PLL_FRA1_FREQ
+#define AIC_CLK_PLL_FRA1_FREQ 491520000
+#endif
+#ifndef AIC_CLK_PLL_FRA2_FREQ
+#define AIC_CLK_PLL_FRA2_FREQ 840000000
+#endif
+#ifndef AIC_CLK_CPU_FREQ
+#define AIC_CLK_CPU_FREQ 600000000
+#endif
+#ifndef AIC_CLK_AXI0_FREQ
+#define AIC_CLK_AXI0_FREQ 240000000
+#endif
+#ifndef AIC_CLK_AHB0_FREQ
+#define AIC_CLK_AHB0_FREQ 240000000
+#endif
+#ifndef AIC_CLK_APB0_FREQ
+#define AIC_CLK_APB0_FREQ 100000000
+#endif
+
 struct aic_sysclk
 {
     unsigned long       freq;
     unsigned int        clk_id;
+    unsigned int        parent_clk_id;
 };
 
 struct aic_sysclk aic_sysclk_config[] = {
-    //{600000000, CLK_PLL_INT0},
-    {1200000000, CLK_PLL_INT1},
-    {491520000, CLK_PLL_FRA1},
-    {840000000, CLK_PLL_FRA2},
-    {240000000, CLK_AXI0},
-    {240000000, CLK_AHB0},
-    {100000000, CLK_APB0},
-    {24000000, CLK_APB1},
-    {600000000, CLK_CPU},
-#ifdef AIC_USING_UART0
-    {48000000, CLK_UART0},
-#endif
-#ifdef AIC_USING_UART1
-    {48000000, CLK_UART0+1},
-#endif
-#ifdef AIC_USING_UART2
-    {48000000, CLK_UART0+2},
-#endif
-#ifdef AIC_USING_UART3
-    {48000000, CLK_UART0+3},
-#endif
-#ifdef AIC_USING_UART4
-    {48000000, CLK_UART0+4},
-#endif
-#ifdef AIC_USING_UART5
-    {48000000, CLK_UART0+5},
-#endif
-#ifdef AIC_USING_UART6
-    {48000000, CLK_UART0+6},
-#endif
-#ifdef AIC_USING_UART7
-    {48000000, CLK_UART0+7},
-#endif
+    {AIC_CLK_PLL_INT0_FREQ, CLK_PLL_INT0, 0},           /* 600000000 */
+    {AIC_CLK_PLL_INT1_FREQ, CLK_PLL_INT1, 0},           /* 1200000000 */
+    //{AIC_CLK_PLL_FRA0_FREQ, CLK_PLL_FRA0, 0},           /* ddr2/ddr3 */
+    {AIC_CLK_PLL_FRA1_FREQ, CLK_PLL_FRA1, 0},           /* 491520000 */
+    {AIC_CLK_PLL_FRA2_FREQ, CLK_PLL_FRA2, 0},           /* 840000000 */
+    {AIC_CLK_CPU_FREQ, CLK_CPU, CLK_CPU_SRC1},          /* 600000000 */
+    {AIC_CLK_AXI0_FREQ, CLK_AXI0, CLK_AXI0_SRC1},       /* 240000000 */
+    {AIC_CLK_AHB0_FREQ, CLK_AHB0, CLK_AHB0_SRC1},       /* 240000000 */
+    {AIC_CLK_APB0_FREQ, CLK_APB0, CLK_APB0_SRC1},       /* 100000000 */
+//    {24000000, CLK_APB1, 0},
+   {25000000, CLK_OUT2, 0},
 };
+
+/*
+ * Some Chips may enable USB0 EHCI in Boot ROM,
+ * it is better to disable USB0 EHCI during boot to avoid some side effect.
+ */
+static void usb_ehci_disable(void)
+{
+    hal_clk_disable_assertrst(CLK_USBH0);
+    hal_clk_disable(CLK_USBH0);
+}
 
 void aic_board_sysclk_init(void)
 {
     uint32_t i = 0;
 
+    usb_ehci_disable();
+
     for (i=0; i<sizeof(aic_sysclk_config)/sizeof(struct aic_sysclk); i++) {
-        hal_clk_set_freq(aic_sysclk_config[i].clk_id, aic_sysclk_config[i].freq);
+        if (aic_sysclk_config[i].freq == 0)
+            continue;
+
+        /* multi parent clk */
+        if (aic_sysclk_config[i].parent_clk_id) {
+            hal_clk_set_freq(aic_sysclk_config[i].parent_clk_id,
+                             aic_sysclk_config[i].freq);
+            hal_clk_enable(aic_sysclk_config[i].parent_clk_id);
+            hal_clk_set_parent(aic_sysclk_config[i].clk_id,
+                               aic_sysclk_config[i].parent_clk_id);
+        } else {
+            hal_clk_set_freq(aic_sysclk_config[i].clk_id, aic_sysclk_config[i].freq);
+            hal_clk_enable(aic_sysclk_config[i].clk_id);
+        }
     }
 
     /* Enable sys clk */
     hal_clk_enable_deassertrst_iter(CLK_GPIO);
     hal_clk_enable_deassertrst_iter(CLK_GTC);
+#ifdef AIC_USING_GMAC0
+    hal_clk_enable_iter(CLK_OUT2);
+#endif
 }
-

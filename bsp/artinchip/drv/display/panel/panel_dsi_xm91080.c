@@ -7,8 +7,6 @@
 #include "panel_com.h"
 #include "panel_dsi.h"
 
-#define PANEL_DEV_NAME      "dsi_panel_xm91080"
-
 static int panel_enable(struct aic_panel *panel)
 {
     int ret;
@@ -192,7 +190,6 @@ static struct aic_panel_funcs panel_funcs = {
     .register_callback = panel_register_callback,
 };
 
-/* Init the videomode parameter, dts will override the initial value. */
 static struct display_timing xm91080_timing = {
     .pixelclock = 130000000,
     .hactive = 1080,

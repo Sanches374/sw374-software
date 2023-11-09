@@ -58,6 +58,7 @@ struct dfs_filesystem
     const struct dfs_filesystem_ops *ops; /* Operations for file system type */
 
     void *data;             /* Specific file system data */
+    int dev_type;
 };
 
 /* file system partition table */

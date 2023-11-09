@@ -46,34 +46,7 @@ config ARCH_RISCV64
     select ARCH_CPU_64BIT
     bool
 
-choice
-    prompt "Log level"
-    default AIC_BAREMETAL_LOG_WARN
-
-config AIC_BAREMETAL_LOG_NONE
-    bool "none"
-
-config AIC_BAREMETAL_LOG_ERR
-    bool "error"
-
-config AIC_BAREMETAL_LOG_WARN
-    bool "warn"
-
-config AIC_BAREMETAL_LOG_INFO
-    bool "info"
-
-config AIC_BAREMETAL_LOG_DEBUG
-    bool "debug"
-
-endchoice
-
-config AIC_BAREMETAL_LOG_LEVEL
-    int
-    default 0 if AIC_BAREMETAL_LOG_NONE
-    default 3 if AIC_BAREMETAL_LOG_ERR
-    default 4 if AIC_BAREMETAL_LOG_WARN
-    default 6 if AIC_BAREMETAL_LOG_INFO
-    default 7 if AIC_BAREMETAL_LOG_DEBUG
+config ARCH_CSKY
+    bool
 
 endmenu
-

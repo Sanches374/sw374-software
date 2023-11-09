@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2022, Artinchip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
@@ -85,6 +85,9 @@
 #define LCR_STOP_BIT1           0xfb    /* 1 stop bit */
 #define LCR_STOP_BIT2           0x04    /* 1.5 stop bit */
 
+#define HALT_CHCFG_AT_BUSY      0x02
+#define HALT_CHANGE_UPDATE      0x04
+
 #define AIC_LSR_PFE             0x80
 #define AIC_LSR_TEMT            0x40
 #define AIC_LSR_THRE            0x40
@@ -136,6 +139,8 @@ typedef struct
     __IM uint32_t MSR;                  /* Offset: 0x018 (R/ )  Modem state register */
     uint32_t RESERVED1[24];
     __IM uint32_t USR;                  /* Offset: 0x07c (R/ )  UART state register */
+    uint32_t RESERVED2[9];
+    __IOM uint32_t HALT;                /* Offset: 0x0A4 */
 } aic_usart_reg_t;
 
 typedef struct
@@ -201,6 +206,8 @@ int32_t hal_usart_config_baudrate(usart_handle_t handle, uint32_t baud)
         divisor = divisor / 10;
     }
 
+    addr->HALT |= (HALT_CHCFG_AT_BUSY);
+
     addr->LCR |= LCR_SET_DLAB;
     /* DLL and DLH is lower 8-bits and higher 8-bits of divisor.*/
     addr->DLL = divisor & 0xff;
@@ -210,6 +217,8 @@ int32_t hal_usart_config_baudrate(usart_handle_t handle, uint32_t baud)
      * to access other registers.
      */
     addr->LCR &= (~LCR_SET_DLAB);
+
+    addr->HALT |= (HALT_CHANGE_UPDATE);
 
     return 0;
 }

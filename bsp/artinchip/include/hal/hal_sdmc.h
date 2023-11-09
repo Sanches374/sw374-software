@@ -217,6 +217,7 @@ int hal_sdmc_idma_start(struct aic_sdmc_host *host, u32 size, u32 read,
                         u32 *buf, struct bounce_buffer *bbstate);
 int hal_sdmc_idma_stop(struct aic_sdmc_host *host,
                        struct bounce_buffer *bbstate, u32 read);
+void hal_sdmc_idma_disable(struct aic_sdmc_host *host);
 void hal_sdmc_idma_prepare(struct aic_sdmc_host *host,
                            u32 blksize, u32 blks,
                            struct aic_sdmc_idma_desc *cur_idma,
@@ -238,6 +239,7 @@ void aic_sdmc_set_ext_clk_mux(struct aic_sdmc_host *host, u32 mux);
 void hal_sdmc_set_phase(struct aic_sdmc_host *host, u32 drv, u32 smp);
 void hal_sdmc_set_buswidth(struct aic_sdmc_host *host, u32 buswidth);
 void hal_sdmc_set_ddrmode(struct aic_sdmc_host *host, u32 ddr);
+void hal_sdmc_clk_disable(struct aic_sdmc_host *host);
 void hal_sdmc_clk_enable(struct aic_sdmc_host *host);
 void hal_sdmc_sdio_irq_enable(struct aic_sdmc_host *host, u32 en);
 void hal_sdmc_set_div(struct aic_sdmc_host *host, u32 div);

@@ -65,6 +65,22 @@ struct aic_clk_fixed_parent_cfg {
 struct aic_clk_multi_parent_cfg {
     struct aic_clk_comm_cfg comm;
     u32 offset_reg;
+    s8 bus_gate_bit;
+    s8 mod_gate_bit;
+    u8 mux_bit;
+    u8 mux_mask;
+    u8 div0_bit;
+    u8 div0_mask;
+    u8 id;
+    u8 num_parents;
+    const u8 *parent_ids;
+};
+
+struct aic_clk_cpu_cfg {
+    struct aic_clk_comm_cfg comm;
+    u32 offset_reg;
+    u8 key_bit;
+    u8 key_mask;
     s32 gate_bit;
     u8 mux_bit;
     u8 mux_mask;
@@ -115,6 +131,9 @@ struct aic_clk_ops {
 };
 
 #define cmu_reg(x)            (volatile void *)(x + CMU_BASE)
+#ifdef AIC_CMU_CROSS_ZONE_CTL
+#define zc_cmu_reg(x)         (volatile void *)(x + CMU_BASE1)
+#endif
 #define PARENT(x)             (x)
 #define AIC_CLK_CFG_ADDR(_id) [_id] = &(aic_clk_cfg_##_id.comm)
 #define AIC_CLK_CFG(_id)      AIC_CLK_CFG_ADDR(_id)
@@ -151,7 +170,7 @@ struct aic_clk_ops {
 
 /* For clocks fixed parent */
 #define FPCLK_DEF(_id, _name, _parent_id, _parent_name, _reg, _bus, _mod, \
-                  _div, _width, _base, _step) \
+                  _div, _width, _base, _step, _flag) \
     static const struct aic_clk_fixed_parent_cfg aic_clk_cfg_##_id = { \
         .id           = _id, \
         .type         = AIC_FPCLK_NORMAL, \
@@ -163,34 +182,61 @@ struct aic_clk_ops {
         .div_mask     = ((1 << _width) - 1), \
         .div_base     = _base, \
         .div_step     = _step, \
+        .flag         = _flag, \
         .comm.ops     = &aic_clk_fixed_parent_ops, \
     }
 #define FPCLK(_id, _name, _parent_id, _parent_name, _reg, _bus, _mod, _div, \
               _width) \
     FPCLK_DEF(_id, _name, _parent_id, _parent_name, _reg, _bus, _mod, _div, \
-              _width, 1, 1)
+              _width, 1, 1, 0)
+#define FPCLK_CZ(_id, _name, _parent_id, _parent_name, _reg, _bus, _mod, _div, \
+              _width) \
+    FPCLK_DEF(_id, _name, _parent_id, _parent_name, _reg, _bus, _mod, _div, \
+              _width, 1, 1, CLK_CROSS_ZONE_CTL)
 #define FPCLK_BASE(_id, _name, _parent_id, _parent_name, _reg, _bus, _mod, _div, \
               _width, _base, _step) \
     FPCLK_DEF(_id, _name, _parent_id, _parent_name, _reg, _bus, _mod, _div, \
-              _width, _base, _step)
+              _width, _base, _step, 0)
 
 /* For clocks that has multi-parent source */
-#define MPCLK_DEF(_id, _name, _parent, _reg, _gate, _mux, _muxw, _div0, \
+#define MPCLK_DEF(_id, _name, _parent, _reg, _bus, _mod, _mux, _muxw, _div0, \
                   _div0w) \
     static const struct aic_clk_multi_parent_cfg aic_clk_cfg_##_id = { \
+        .id           = _id, \
+        .parent_ids   = _parent, \
+        .num_parents  = ARRAY_SIZE(_parent), \
+        .offset_reg   = _reg, \
+        .bus_gate_bit = _bus, \
+        .mod_gate_bit = _mod, \
+        .mux_bit      = _mux, \
+        .mux_mask     = ((1 << _muxw) - 1), \
+        .div0_bit     = _div0, \
+        .div0_mask    = ((1 << _div0w) - 1), \
+        .comm.ops     = &aic_clk_multi_parent_ops, \
+    }
+#define MPCLK(_id, _name, _parent, _reg, _mod, _mux, _muxw, _div0, _div0w) \
+    MPCLK_DEF(_id, _name, _parent, _reg, -1, _mod, _mux, _muxw, _div0, _div0w)
+#define MPCLK_BUS(_id, _name, _parent, _reg, _bus, _mod, _mux, _muxw, _div0, _div0w) \
+    MPCLK_DEF(_id, _name, _parent, _reg, _bus, _mod, _mux, _muxw, _div0, _div0w)
+
+#define CPUCLK_DEF(_id, _name, _parent, _reg, _key, _keyw, _gate, _mux, _muxw, _div0, \
+                  _div0w) \
+    static const struct aic_clk_cpu_cfg aic_clk_cfg_##_id = { \
         .id          = _id, \
         .parent_ids  = _parent, \
         .num_parents = ARRAY_SIZE(_parent), \
         .offset_reg  = _reg, \
+        .key_bit     = _key, \
+        .key_mask    = _keyw, \
         .gate_bit    = _gate, \
         .mux_bit     = _mux, \
         .mux_mask    = ((1 << _muxw) - 1), \
         .div0_bit    = _div0, \
         .div0_mask   = ((1 << _div0w) - 1), \
-        .comm.ops    = &aic_clk_multi_parent_ops, \
+        .comm.ops    = &aic_clk_cpu_ops, \
     }
-#define MPCLK(_id, _name, _parent, _reg, _gate, _mux, _muxw, _div0, _div0w) \
-    MPCLK_DEF(_id, _name, _parent, _reg, _gate, _mux, _muxw, _div0, _div0w)
+#define CPUCLK(_id, _name, _parent, _reg, _key, _keyw, _gate, _mux, _muxw, _div0, _div0w) \
+    CPUCLK_DEF(_id, _name, _parent, _reg, _key, _keyw, _gate, _mux, _muxw, _div0, _div0w)
 
 /* For display clock */
 #define DISPCLK_DEF(_id, _name, _parent_id, _parent_name, _reg, _divn, \
@@ -228,8 +274,10 @@ struct aic_clk_ops {
 #define CLK_SET_PARENT_GATE BIT(1) /* must be gated across re-parent */
 #define CLK_SET_RATE_PARENT BIT(2) /* propagate rate change up one level */
 #define CLK_IGNORE_UNUSED   BIT(3) /* do not gate even if unused */
-/* unused */
-/* unused */
+
+#define CLK_CROSS_ZONE_CTL  BIT(4) /* Control clk of other zone */
+#define CLK_NO_CHANGE       BIT(5) /* don't change rate and parent */
+
 #define CLK_GET_RATE_NOCACHE     BIT(6) /* do not use the cached clk rate */
 #define CLK_SET_RATE_NO_REPARENT BIT(7) /* don't re-parent on rate change */
 #define CLK_GET_ACCURACY_NOCACHE BIT(8) /* do not use the cached clk accuracy */
@@ -241,6 +289,7 @@ struct aic_clk_ops {
 /* duty cycle call may be forwarded to the parent clock */
 #define CLK_DUTY_CYCLE_PARENT BIT(13)
 #define CLK_DONT_HOLD_STATE   BIT(14) /* Don't hold state */
+
 
 extern const unsigned long fpga_board_rate[];
 

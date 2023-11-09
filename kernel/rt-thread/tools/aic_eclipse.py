@@ -292,12 +292,11 @@ def TargetEclipse(env, sdk=False, prj_name=None):
             os.makedirs(des_d)
         except:
             pass
-        files = ['linked_size.py', 'gen_partition_table.py', 'gen_partition_file_list.py']
         src_d = os.path.join(aic_root, 'tools/scripts/')
-        for f in files:
-            src_f = os.path.join(src_d, f)
-            des_f = os.path.join(des_d, f)
-            shutil.copy(src_f, des_f)
+        for f in glob.iglob(src_d + '/*.py'):
+            des_f = os.path.basename(f)
+            des_f = os.path.join(des_d, des_f)
+            shutil.copy(f, des_f)
         for f in glob.iglob(src_d + '/*.exe'):
             des_f = os.path.basename(f)
             des_f = os.path.join(des_d, des_f)
@@ -429,6 +428,7 @@ def TargetEclipse(env, sdk=False, prj_name=None):
         template_prefs_str = f.read()
     if sdk:
         template_prefs_str = template_prefs_str.replace(r'\\..\\..\\..', '')
+        template_prefs_str = template_prefs_str.replace(r'tools\\env\\tools\\bin', r'tools\\bin')
     with open(des_f, 'w') as f:
         f.write(template_prefs_str)
 

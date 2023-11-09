@@ -160,7 +160,11 @@ rt_err_t rt_pwm_disable(struct rt_device_pwm *device, int channel)
     return result;
 }
 
+#ifdef AIC_XPWM_DRV
+rt_err_t rt_pwm_set(struct rt_device_pwm *device, int channel, rt_uint32_t period, rt_uint32_t pulse, rt_uint32_t pulse_cnt)
+#else
 rt_err_t rt_pwm_set(struct rt_device_pwm *device, int channel, rt_uint32_t period, rt_uint32_t pulse)
+#endif
 {
     rt_err_t result = RT_EOK;
     struct rt_pwm_configuration configuration = {0};
@@ -173,10 +177,68 @@ rt_err_t rt_pwm_set(struct rt_device_pwm *device, int channel, rt_uint32_t perio
     configuration.channel = (channel > 0) ? (channel) : (-channel);
     configuration.period = period;
     configuration.pulse = pulse;
+#ifdef AIC_XPWM_DRV
+    configuration.pulse_cnt = pulse_cnt;
+#endif
     result = rt_device_control(&device->parent, PWM_CMD_SET, &configuration);
 
     return result;
 }
+
+#ifdef AIC_XPWM_DRV
+rt_err_t rt_pwm_set_fifo_num(struct rt_device_pwm *device, int channel, rt_uint32_t fifo_num)
+{
+    rt_err_t result = RT_EOK;
+    struct rt_pwm_configuration configuration = {0};
+
+    if (!device)
+    {
+        return -RT_EIO;
+    }
+
+    configuration.channel = (channel > 0) ? (channel) : (-channel);
+    configuration.fifo_num = fifo_num;
+    result = rt_device_control(&device->parent, PWM_CMD_SET_FIFO_NUM, &configuration);
+
+    return result;
+}
+
+rt_err_t rt_pwm_set_fifo(struct rt_device_pwm *device, int channel, rt_uint32_t fifo_index, rt_uint32_t period, rt_uint32_t pulse, rt_uint32_t pulse_cnt)
+{
+    rt_err_t result = RT_EOK;
+    struct rt_pwm_configuration configuration = {0};
+
+    if (!device)
+    {
+        return -RT_EIO;
+    }
+
+    configuration.channel = (channel > 0) ? (channel) : (-channel);
+    configuration.fifo_index = fifo_index;
+    configuration.pul_prd = period;
+    configuration.pul_cmp = pulse;
+    configuration.pul_num = pulse_cnt;
+    result = rt_device_control(&device->parent, PWM_CMD_SET_FIFO, &configuration);
+
+    return result;
+}
+
+rt_err_t rt_pwm_get_fifo(struct rt_device_pwm *device, int channel)
+{
+    rt_err_t result = RT_EOK;
+    struct rt_pwm_configuration configuration = {0};
+
+    if (!device)
+    {
+        return -RT_EIO;
+    }
+
+    configuration.channel = (channel > 0) ? (channel) : (-channel);
+    result = rt_device_control(&device->parent, PWM_CMD_GET_FIFO, &configuration);
+
+    return result;
+}
+#endif
 
 rt_err_t rt_pwm_set_period(struct rt_device_pwm *device, int channel, rt_uint32_t period)
 {
@@ -304,18 +366,69 @@ static int pwm(int argc, char **argv)
             }
             else if (!strcmp(argv[1], "set"))
             {
+#ifdef AIC_XPWM_DRV
+                if(argc == 6)
+                {
+                    result = rt_pwm_set(pwm_device, atoi(argv[2]), atoi(argv[3]), atoi(argv[4]), atoi(argv[5]));
+                    rt_kprintf("pwm info set on %s at channel %d\n",pwm_device,atoi(argv[2]));
+                }
+#else
                 if(argc == 5)
                 {
                     result = rt_pwm_set(pwm_device, atoi(argv[2]), atoi(argv[3]), atoi(argv[4]));
                     rt_kprintf("pwm info set on %s at channel %d\n",pwm_device,atoi(argv[2]));
                 }
+#endif
                 else
                 {
                     rt_kprintf("Set info of device: [%s] error\n", pwm_device);
+#ifdef AIC_XPWM_DRV
+                    rt_kprintf("Usage: pwm set <channel> <period> <pulse> <pulse cnt>\n");
+#else
                     rt_kprintf("Usage: pwm set <channel> <period> <pulse>\n");
+#endif
                 }
             }
-
+#ifdef AIC_XPWM_DRV
+            else if (!strcmp(argv[1], "set_fifo_num"))
+            {
+                if (argc == 4)
+                {
+                    result = rt_pwm_set_fifo_num(pwm_device, atoi(argv[2]), atoi(argv[3]));
+                    rt_kprintf("pwm set fifo num on %s at channel %d\n",pwm_device,atoi(argv[2]));
+                }
+                else
+                {
+                    rt_kprintf("Set fifo num of device: [%s] error\n", pwm_device);
+                    rt_kprintf("Usage: pwm set_fifo_num <channel> <fifo_num>\n");
+                }
+            }
+            else if (!strcmp(argv[1], "set_fifo"))
+            {
+                if (argc == 7)
+                {
+                    result = rt_pwm_set_fifo(pwm_device, atoi(argv[2]), atoi(argv[3]), atoi(argv[4]), atoi(argv[5]), atoi(argv[6]));
+                    rt_kprintf("pwm set fifo on %s at channel %d\n",pwm_device,atoi(argv[2]));
+                }
+                else
+                {
+                    rt_kprintf("Set fifo of device: [%s] error\n", pwm_device);
+                    rt_kprintf("Usage: pwm set_fifo <channel> <fifo_index> <period> <pulse> <pulse cnt>\n");
+                }
+            }
+            else if (!strcmp(argv[1], "get_fifo"))
+            {
+                if (argc == 3)
+                {
+                    result = rt_pwm_get_fifo(pwm_device, atoi(argv[2]));
+                }
+                else
+                {
+                    rt_kprintf("get fifo info of device: [%s] error\n", pwm_device);
+                    rt_kprintf("Usage: pwm get_fifo <channel>\n");
+                }
+            }
+#endif
             else
             {
                 rt_kprintf("pwm get <channel>                        - get pwm channel info\n");
@@ -329,8 +442,14 @@ static int pwm(int argc, char **argv)
         rt_kprintf("pwm enable  <channel>                    - enable pwm channel\n");
         rt_kprintf("pwm disable <channel>                    - disable pwm channel\n");
         rt_kprintf("pwm get     <channel>                    - get pwm channel info\n");
+#ifdef AIC_XPWM_DRV
+        rt_kprintf("pwm set          <channel> <period> <pulse> <pulse cnt>               - set pwm channel info\n");
+        rt_kprintf("pwm set_fifo_num <channel> <fifo_num>                                 - set xpwm fifo count\n");
+        rt_kprintf("pwm set_fifo     <channel> <fifo_index> <period> <pulse> <pulse cnt>  - set xpwm fifo info\n");
+        rt_kprintf("pwm get_fifo      <channel>                                           - get xpwm fifo info\n");
+#else
         rt_kprintf("pwm set     <channel> <period> <pulse>   - set pwm channel info\n");
-
+#endif
         result = - RT_ERROR;
     }
 

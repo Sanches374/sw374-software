@@ -249,6 +249,18 @@ int aicfb_ioctl(int cmd, void *args)
         memcpy(args, &prop, sizeof(struct aicfb_disp_prop));
         break;
     }
+    case AICFB_GET_CCM_CONFIG:
+        return fbi->de->de_funcs->get_ccm_config(args);
+
+    case AICFB_SET_CCM_CONFIG:
+        return fbi->de->de_funcs->set_ccm_config(args);
+
+    case AICFB_SET_GAMMA_CONFIG:
+        return fbi->de->de_funcs->set_gamma_config(args);
+
+    case AICFB_GET_GAMMA_CONFIG:
+        return fbi->de->de_funcs->get_gamma_config(args);
+
     default:
         pr_err("Invalid ioctl cmd %#x\n", cmd);
         return -EINVAL;
@@ -433,7 +445,7 @@ static struct platform_driver *drivers[] = {
 #ifdef AIC_DISP_MIPI_DSI
     &artinchip_dsi_driver,
 #endif
-#ifdef AIC_DISP_MIPI_DBI_SPI
+#ifdef AIC_DISP_MIPI_DBI
     &artinchip_dbi_driver,
 #endif
 };
@@ -794,7 +806,7 @@ int aicfb_probe(void)
         ret = -ENOMEM;
         goto err;
     }
-    pr_info("fb0 allocated at 0x%x\n", (uintptr_t)fbi->fb_start);
+    pr_info("fb0 allocated at 0x%x\n", (u32)(uintptr_t)fbi->fb_start);
 
     fb_color_block(fbi);
 

@@ -152,6 +152,12 @@ struct aic_pinmux aic_pinmux_config[] = {
     {4, PIN_PULL_DIS, 3, "PE.18"},
     {4, PIN_PULL_DIS, 3, "PE.19"},
 #endif
+#ifdef AIC_USING_RTP
+    {2, PIN_PULL_DIS, 3, "PA.8"},
+    {2, PIN_PULL_DIS, 3, "PA.9"},
+    {2, PIN_PULL_DIS, 3, "PA.10"},
+    {2, PIN_PULL_DIS, 3, "PA.11"},
+#endif
 };
 
 void aic_board_pinmux_init(void)

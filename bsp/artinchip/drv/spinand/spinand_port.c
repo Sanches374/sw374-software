@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2023, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
@@ -25,11 +25,6 @@ void qspi_messages_init(struct rt_qspi_message *qspi_messages,
                         struct spi_nand_cmd_cfg *cfg, u32 addr, u8 *sendbuff,
                         u8 *recvbuff, u32 datacount)
 {
-    pr_debug(
-        "%s %d opcode = 0x%x addr_bytes = 0x%x addr_bits = 0x%x dummy_bytes = 0x%x data_bits = 0x%x\n",
-        __func__, __LINE__, cfg->opcode, cfg->addr_bytes, cfg->addr_bits,
-        cfg->dummy_bytes, cfg->data_bits);
-
     /* 1-bit mode */
     qspi_messages->instruction.content = cfg->opcode;
     qspi_messages->instruction.qspi_lines = cfg->opcode_bits;
@@ -63,8 +58,8 @@ int aic_spinand_transfer_message(struct aic_spinand *flash,
     struct rt_qspi_message qspi_messages = { 0 };
     struct rt_qspi_device *device = (struct rt_qspi_device *)flash->user_data;
 
+    RT_ASSERT(flash != RT_NULL);
     RT_ASSERT(device != RT_NULL);
-    RT_ASSERT(message != RT_NULL);
 
     qspi_messages_init(&qspi_messages, cfg, addr, sendbuff, recvbuff,
                        datacount);
@@ -276,7 +271,7 @@ static rt_err_t spinand_mtd_block_isbad(struct rt_mtd_nand_device *device,
         return -RT_MTD_EIO;
     }
 
-    pr_debug("check block status: %dn", block);
+    pr_debug("check block status: %d\n", block);
 
     result = rt_mutex_take(flash->lock, RT_WAITING_FOREVER);
     RT_ASSERT(result == RT_EOK);
@@ -301,7 +296,7 @@ static rt_err_t spinand_mtd_block_markbad(struct rt_mtd_nand_device *device,
         return -RT_MTD_EIO;
     }
 
-    pr_debug("mark bad block: %d\n", block);
+    pr_info("mark bad block: %d\n", block);
 
     result = rt_mutex_take(flash->lock, RT_WAITING_FOREVER);
     RT_ASSERT(result == RT_EOK);
@@ -337,7 +332,10 @@ rt_err_t rt_hw_mtd_spinand_init(struct aic_spinand *flash)
         return RT_EOK;
 
     flash->lock = rt_mutex_create("spinand", RT_IPC_FLAG_PRIO);
-    RT_ASSERT(flash->lock == RT_NULL);
+    if (flash->lock == RT_NULL) {
+        pr_err("Create mutex in rt_hw_mtd_spinand_init failed\n");
+        return -1;
+    }
 
     result = spinand_flash_init(flash);
     if (result != RT_EOK)
@@ -379,7 +377,6 @@ rt_err_t rt_hw_mtd_spinand_init(struct aic_spinand *flash)
 
     p = parts;
     for (i = 0; i < cnt; i++) {
-
         result = rt_blk_nand_register_device(p->name, &g_mtd_partitions[i]);
         RT_ASSERT(result == RT_EOK);
 

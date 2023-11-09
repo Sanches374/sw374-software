@@ -34,6 +34,7 @@ function hmm()
 	_hline "lunch" "[keyword]" "Start with selected defconfig.e.g. lunch mmc"
 	_hline "menuconfig|me" "" "Config SDK with menuconfig"
 	_hline "m" "" "Build all and generate final image"
+	_hline "mc" "" "Clean & Build all and generate final image"
 	_hline "mb" "" "Build bootloader & app and generate final image"
 	_hline "c" "" "Clean all"
 	_hline "croot|cr" "" "cd to SDK root directory."
@@ -298,6 +299,7 @@ alias me=menuconfig
 
 function m()
 {
+	NEED_CLEAN=$1
 	local ret=
 
 	ret=$(_lunch_check)
@@ -308,11 +310,23 @@ function m()
 
 	CUR_APP=$(cat $SDK_CFG_FILE)
 	if [ "$CUR_APP" = all ]; then
-		build_check_all
+		if [ -n "$NEED_CLEAN" ]; then
+			build_check_all clean
+		else
+			build_check_all
+		fi
 	else
 		echo "Build $SDK_PRJ_TOP_DIR/$CUR_APP"
+		if [ -n "$NEED_CLEAN" ]; then
+			scons -c -C $SDK_PRJ_TOP_DIR -j 8
+		fi
 		scons -C $SDK_PRJ_TOP_DIR -j 8
 	fi
+}
+
+function mc()
+{
+	m clean
 }
 
 function mb()

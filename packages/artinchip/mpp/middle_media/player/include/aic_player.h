@@ -17,7 +17,7 @@
 
 #ifdef __cplusplus
 #if __cplusplus
-extern "C"{
+extern "C" {
 #endif
 #endif /* __cplusplus */
 
@@ -61,9 +61,9 @@ struct av_media_info {
     struct aic_audio_stream audio_stream;
 };
 
-typedef s32 (*event_handler)(void* app_data,s32 event,s32 data1,s32 data2);
+typedef s32 (*event_handler) (void* app_data,s32 event,s32 data1,s32 data2);
 
-struct aic_player *aic_player_create(char *uri);
+struct aic_player* aic_player_create(char *uri);
 
 s32 aic_player_destroy(struct aic_player *player);
 
@@ -83,7 +83,7 @@ s32 aic_player_stop(struct aic_player *player);
 
 s32 aic_player_get_media_info(struct aic_player *player,struct av_media_info *media_info);
 
-s32 aic_player_set_event_callback(struct aic_player *player,void* app_data,event_handler event_handle );
+s32 aic_player_set_event_callback(struct aic_player *player,void* app_data,event_handler event_handle);
 
 s32 aic_player_get_screen_size(struct aic_player *player,struct mpp_size *screen_size);
 
@@ -103,6 +103,11 @@ s32 aic_player_seek(struct aic_player *player, u64 seek_time);
 
 s32 aic_player_capture(struct aic_player *player, struct aic_capture_info *capture_info);
 
+//MPP_ROTATION_0  MPP_ROTATION_90  MPP_ROTATION_180 MPP_ROTATION_270
+
+s32 aic_player_set_rotation(struct aic_player *player, int rotation_angle);
+
+s32 aic_player_get_rotation(struct aic_player *player);
 #ifdef __cplusplus
 #if __cplusplus
 }

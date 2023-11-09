@@ -24,18 +24,15 @@ clk_fixed_parent_enable_and_deassert_rst(struct aic_clk_comm_cfg *comm_cfg)
         val |= (1 << mod->mod_gate_bit);
     if (mod->bus_gate_bit >= 0)
         val |= (1 << mod->bus_gate_bit);
-
     writel(val, cmu_reg(mod->offset_reg));
 
     aicos_udelay(30);
 
     /* deassert rst */
     val = readl(cmu_reg(mod->offset_reg));
-
     val |= (1 << MOD_RSTN);
 
     writel(val, cmu_reg(mod->offset_reg));
-
     aicos_udelay(30);
 
     return 0;
@@ -155,7 +152,8 @@ static long clk_fixed_parent_mod_round_rate(struct aic_clk_comm_cfg *comm_cfg,
 
     div = parent_rate / rate;
     div += (parent_rate - rate * div) > (rate / 2) ? 1 : 0;
-    div = div ? div : 1;
+    if (div == 0)
+        div = 1;
 
     rrate = parent_rate / div;
 #ifdef FPGA_BOARD_ARTINCHIP

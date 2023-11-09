@@ -45,6 +45,9 @@ typedef struct DEMUXER_OUT_PACKET {
 #define DEMUX_AUDIO_PACKET_NUM_MAX   16
 #define DEMUX_VIDEO_PACKET_NUM_MAX   8
 
+#define DEMUX_SKIP_AUDIO_TRACK 0x01
+#define DEMUX_SKIP_VIDEO_TRACK 0x02
+
 typedef struct DEMUXER_DATA_TYPE {
     OMX_STATETYPE state;
     pthread_mutex_t stateLock;
@@ -95,6 +98,8 @@ typedef struct DEMUXER_DATA_TYPE {
     OMX_U32 nSendBackAudioPacketNum;
 
     OMX_S32 nSeekFlag;
+    OMX_S32 nNeedPeek;
+    OMX_S32 nSkipTrack;
 } DEMUXER_DATA_TYPE;
 
 

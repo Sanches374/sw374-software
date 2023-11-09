@@ -58,7 +58,20 @@ static OMX_ERRORTYPE OMX_ClockSetCallbacks(
         OMX_IN    OMX_CALLBACKTYPE* pCallbacks,
         OMX_IN    OMX_PTR pAppData);
 
+static OMX_ERRORTYPE OMX_ClockOMX_IndexConfigTimePosition(
+        OMX_HANDLETYPE hComponent,
+        OMX_TIME_CONFIG_TIMESTAMPTYPE *pTimeStamp);
 
+static OMX_ERRORTYPE OMX_ClockOMX_IndexConfigTimePosition(
+        OMX_HANDLETYPE hComponent,
+        OMX_TIME_CONFIG_TIMESTAMPTYPE *pTimeStamp)
+{
+    CLOCK_DATA_TYPE *pClockDataType = (CLOCK_DATA_TYPE *)(((OMX_COMPONENTTYPE*)hComponent)->pComponentPrivate);
+    pClockDataType->sClockState.eState = OMX_TIME_ClockStateWaitingForStartTime;
+    pClockDataType->sClockState.nWaitMask |= (OMX_CLOCKPORT0|OMX_CLOCKPORT1);
+    loge("OMX_ClockOMX_IndexConfigTimePosition\n");
+    return OMX_ErrorNone;
+}
 
 static OMX_ERRORTYPE OMX_ClockGetParameter(
         OMX_IN    OMX_HANDLETYPE hComponent,
@@ -71,25 +84,25 @@ static OMX_ERRORTYPE OMX_ClockGetParameter(
 
     pClockDataType = (CLOCK_DATA_TYPE *)(((OMX_COMPONENTTYPE*)hComponent)->pComponentPrivate);
 
-    switch (nParamIndex){
-    case OMX_IndexParamPortDefinition:{
+    switch (nParamIndex) {
+    case OMX_IndexParamPortDefinition: {
         OMX_PARAM_PORTDEFINITIONTYPE *port = (OMX_PARAM_PORTDEFINITIONTYPE*)pComponentParameterStructure;
-        if(port->nPortIndex == CLOCK_PORT_OUT_VIDEO){
+        if (port->nPortIndex == CLOCK_PORT_OUT_VIDEO) {
             memcpy(port,&pClockDataType->sOutPortDef[CLOCK_PORT_OUT_VIDEO],sizeof(OMX_PARAM_PORTDEFINITIONTYPE));
-        }else if(port->nPortIndex == CLOCK_PORT_OUT_AUDIO){
+        } else if (port->nPortIndex == CLOCK_PORT_OUT_AUDIO) {
             memcpy(port,&pClockDataType->sOutPortDef[CLOCK_PORT_OUT_AUDIO],sizeof(OMX_PARAM_PORTDEFINITIONTYPE));
-        }else{
+        } else {
             eError = OMX_ErrorBadParameter;
         }
         break;
     }
-    case OMX_IndexParamCompBufferSupplier:{
+    case OMX_IndexParamCompBufferSupplier: {
         OMX_PARAM_BUFFERSUPPLIERTYPE *sBufferSupplier = (OMX_PARAM_BUFFERSUPPLIERTYPE*)pComponentParameterStructure;
-        if(sBufferSupplier->nPortIndex == CLOCK_PORT_OUT_VIDEO){
+        if (sBufferSupplier->nPortIndex == CLOCK_PORT_OUT_VIDEO) {
             sBufferSupplier->eBufferSupplier = pClockDataType->sOutBufSupplier[CLOCK_PORT_OUT_VIDEO].eBufferSupplier;
-        }else if(sBufferSupplier->nPortIndex == CLOCK_PORT_OUT_AUDIO){
+        } else if (sBufferSupplier->nPortIndex == CLOCK_PORT_OUT_AUDIO) {
             sBufferSupplier->eBufferSupplier = pClockDataType->sOutBufSupplier[CLOCK_PORT_OUT_AUDIO].eBufferSupplier;
-        } else{
+        } else {
             loge("error nPortIndex\n");
             eError = OMX_ErrorBadPortIndex;
         }
@@ -112,11 +125,11 @@ static OMX_ERRORTYPE OMX_ClockSetParameter(
     //CLOCK_DATA_TYPE *pClockDataType;
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     //pClockDataType = (CLOCK_DATA_TYPE *)(((OMX_COMPONENTTYPE*)hComponent)->pComponentPrivate);
-    if(pComponentParameterStructure == NULL){
+    if (pComponentParameterStructure == NULL) {
         loge("param error!!!\n");
         return OMX_ErrorBadParameter;
     }
-    switch (nParamIndex){
+    switch (nParamIndex) {
         case OMX_IndexParamPortDefinition:
             break;
         default:
@@ -142,7 +155,7 @@ static OMX_ERRORTYPE OMX_ClockConfigTimeCurrentAudioReference(OMX_HANDLETYPE hCo
     OMX_S64 nDiffTime;
     CLOCK_DATA_TYPE *pClockDataType;
     pClockDataType = (CLOCK_DATA_TYPE *)(((OMX_COMPONENTTYPE*)hComponent)->pComponentPrivate);
-    if(pClockDataType->sClockState.eState != OMX_TIME_ClockStateRunning){
+    if (pClockDataType->sClockState.eState != OMX_TIME_ClockStateRunning) {
         loge("clockState are not in OMX_TIME_ClockStateStopped,do not set!!!\n");
         pTimeStamp->nTimestamp = -1;
         return OMX_ErrorUndefined;
@@ -159,7 +172,7 @@ static OMX_ERRORTYPE OMX_ClockConfigTimeCurrentAudioReference(OMX_HANDLETYPE hCo
     //     ,pClockDataType->sRefClockTimeBase
     //     ,pTimeStamp->nTimestamp);
 
-    if(nDiffTime > 10*1000 || nDiffTime < -10*1000){//10ms
+    if (nDiffTime > 10*1000 || nDiffTime < -10*1000) {//10ms
         pClockDataType->sRefClockTimeBase = pTimeStamp->nTimestamp;
         pClockDataType->sWallTimeBase = OMX_ClockGetSystemTime();
         pClockDataType->sPauseTimeDurtion = 0;
@@ -173,7 +186,7 @@ static OMX_ERRORTYPE OMX_ClockGetCurrentMediaTime(OMX_HANDLETYPE hComponent,OMX_
 {
     CLOCK_DATA_TYPE *pClockDataType;
     pClockDataType = (CLOCK_DATA_TYPE *)(((OMX_COMPONENTTYPE*)hComponent)->pComponentPrivate);
-    if(pClockDataType->sClockState.eState != OMX_TIME_ClockStateRunning){
+    if (pClockDataType->sClockState.eState != OMX_TIME_ClockStateRunning) {
         //loge("clockState are not in OMX_TIME_ClockStateRunning,do not get media time!!!\n");
         pTimeStamp->nTimestamp = -1;
         return OMX_ErrorUndefined;
@@ -194,7 +207,7 @@ static OMX_ERRORTYPE OMX_ClockGetWallTime(OMX_HANDLETYPE hComponent,OMX_TIME_CON
 {
     CLOCK_DATA_TYPE *pClockDataType;
     pClockDataType = (CLOCK_DATA_TYPE *)(((OMX_COMPONENTTYPE*)hComponent)->pComponentPrivate);
-    if(pClockDataType->sClockState.eState != OMX_TIME_ClockStateRunning){
+    if (pClockDataType->sClockState.eState != OMX_TIME_ClockStateRunning) {
         loge("clockState are not in OMX_TIME_ClockStateStopped,do not set!!!\n");
         pTimeStamp->nTimestamp = -1;
         return OMX_ErrorUndefined;
@@ -210,7 +223,7 @@ static OMX_ERRORTYPE OMX_ClockConfigTimeClockState(OMX_HANDLETYPE hComponent,OMX
 {
     CLOCK_DATA_TYPE *pClockDataType;
     pClockDataType = (CLOCK_DATA_TYPE *)(((OMX_COMPONENTTYPE*)hComponent)->pComponentPrivate);
-    if(pClockDataType->sClockState.eState != OMX_TIME_ClockStateStopped){
+    if (pClockDataType->sClockState.eState != OMX_TIME_ClockStateStopped) {
         loge("clockState are not in OMX_TIME_ClockStateStopped,do not set!!!\n");
         return OMX_ErrorUndefined;
     }
@@ -230,30 +243,30 @@ static OMX_ERRORTYPE OMX_ClockConfigTimeClientStartTime(OMX_HANDLETYPE hComponen
     OMX_PORT_TUNNELEDINFO *pVideoTunneledInfo = &pClockDataType->sOutPortTunneledInfo[CLOCK_PORT_OUT_VIDEO];
     OMX_PORT_TUNNELEDINFO *pAudioTunneledInfo = &pClockDataType->sOutPortTunneledInfo[CLOCK_PORT_OUT_AUDIO];
 
-    if(pClockDataType->sClockState.eState != OMX_TIME_ClockStateWaitingForStartTime){
-        loge("clockState are not in OMX_TIME_ClockStateWaitingForStartTime,do not set!!!\n");
+    if (pClockDataType->sClockState.eState != OMX_TIME_ClockStateWaitingForStartTime) {
+        logw("clockState are not in OMX_TIME_ClockStateWaitingForStartTime,do not set!!!\n");
         return OMX_ErrorUndefined;
     }
 
-    if(pClockDataType->sClockState.nWaitMask){
-        printf("[%s:%d]nPortIndex:%d,nTimestamp:%ld\n",__FUNCTION__,__LINE__,pTimeStamp->nPortIndex,pTimeStamp->nTimestamp);
-        if(pTimeStamp->nPortIndex == CLOCK_PORT_OUT_VIDEO){
+    if (pClockDataType->sClockState.nWaitMask) {
+        logd("nPortIndex:%d,nTimestamp:%ld\n",pTimeStamp->nPortIndex,pTimeStamp->nTimestamp);
+        if (pTimeStamp->nPortIndex == CLOCK_PORT_OUT_VIDEO) {
             pClockDataType->sClockState.nWaitMask &= ~OMX_CLOCKPORT0;
             pClockDataType->sPortStartTime[CLOCK_PORT_OUT_VIDEO] = pTimeStamp->nTimestamp;
-            printf("[%s:%d]CLOCK_PORT_OUT_VIDEO nWaitMask:0x%x,nTimestamp:%ld\n",__FUNCTION__,__LINE__,pClockDataType->sClockState.nWaitMask,pTimeStamp->nTimestamp);
-        }else if(pTimeStamp->nPortIndex == CLOCK_PORT_OUT_AUDIO){
+            logd("CLOCK_PORT_OUT_VIDEO nWaitMask:0x%x,nTimestamp:%ld\n",pClockDataType->sClockState.nWaitMask,pTimeStamp->nTimestamp);
+        } else if (pTimeStamp->nPortIndex == CLOCK_PORT_OUT_AUDIO) {
             pClockDataType->sClockState.nWaitMask &= ~OMX_CLOCKPORT1;
             pClockDataType->sPortStartTime[CLOCK_PORT_OUT_AUDIO] = pTimeStamp->nTimestamp;
-            printf("[%s:%d]CLOCK_PORT_OUT_AUDIO nWaitMask:0x%x,nTimestamp:%ld\n",__FUNCTION__,__LINE__,pClockDataType->sClockState.nWaitMask,pTimeStamp->nTimestamp);
-        }else{
+            logd("CLOCK_PORT_OUT_AUDIO nWaitMask:0x%x,nTimestamp:%ld\n",pClockDataType->sClockState.nWaitMask,pTimeStamp->nTimestamp);
+        } else {
             return OMX_ErrorBadPortIndex;
         }
     }
 
-    if(!pClockDataType->sClockState.nWaitMask){//all port start time come
+    if (!pClockDataType->sClockState.nWaitMask) {//all port start time come
         minTimeStamp = pClockDataType->sPortStartTime[0];
-        for(i = 1; i< CLOCK_PORT_NUM_MAX;i++ ){
-            if(pClockDataType->sPortStartTime[i] < minTimeStamp){
+        for(i = 1; i< CLOCK_PORT_NUM_MAX;i++) {
+            if (pClockDataType->sPortStartTime[i] < minTimeStamp) {
                 minTimeStamp = pClockDataType->sPortStartTime[i];
             }
         }
@@ -278,11 +291,11 @@ static OMX_ERRORTYPE OMX_ClockGetConfig(
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     //CLOCK_DATA_TYPE *pClockDataType;
     //pClockDataType = (CLOCK_DATA_TYPE *)(((OMX_COMPONENTTYPE*)hComponent)->pComponentPrivate);
-    if(pComponentConfigStructure == NULL){
+    if (pComponentConfigStructure == NULL) {
         loge("param error!!!\n");
         return OMX_ErrorBadParameter;
     }
-    switch (nIndex){
+    switch (nIndex) {
     case OMX_IndexConfigTimeCurrentMediaTime:
         eError = OMX_ClockGetCurrentMediaTime(hComponent,(OMX_TIME_CONFIG_TIMESTAMPTYPE*)pComponentConfigStructure);
         break;
@@ -309,11 +322,11 @@ static OMX_ERRORTYPE OMX_ClockSetConfig(
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     //CLOCK_DATA_TYPE *pClockDataType;
     //pClockDataType = (CLOCK_DATA_TYPE *)(((OMX_COMPONENTTYPE*)hComponent)->pComponentPrivate);
-    if(pComponentConfigStructure == NULL){
+    if (pComponentConfigStructure == NULL) {
         loge("param error!!!\n");
         return OMX_ErrorBadParameter;
     }
-    switch (nIndex){
+    switch (nIndex) {
     case OMX_IndexConfigTimeCurrentAudioReference:
         eError = OMX_ClockConfigTimeCurrentAudioReference(hComponent,(OMX_TIME_CONFIG_TIMESTAMPTYPE*)pComponentConfigStructure);
         break;
@@ -325,6 +338,7 @@ static OMX_ERRORTYPE OMX_ClockSetConfig(
         eError = OMX_ClockConfigTimeClientStartTime(hComponent,(OMX_TIME_CONFIG_TIMESTAMPTYPE*)pComponentConfigStructure);
         break;
     case OMX_IndexConfigTimePosition:// do seek
+        eError = OMX_ClockOMX_IndexConfigTimePosition(hComponent,(OMX_TIME_CONFIG_TIMESTAMPTYPE*)pComponentConfigStructure);
         break;
     case OMX_IndexConfigTimeActiveRefClock:
         break;
@@ -364,41 +378,41 @@ static OMX_ERRORTYPE OMX_ClockComponentTunnelRequest(
     OMX_PARAM_BUFFERSUPPLIERTYPE *pBufSupplier;
     CLOCK_DATA_TYPE* pClockDataType;
     pClockDataType = (CLOCK_DATA_TYPE *)(((OMX_COMPONENTTYPE*)hComp)->pComponentPrivate);
-    if(pClockDataType->state != OMX_StateLoaded)
+    if (pClockDataType->state != OMX_StateLoaded)
     {
         loge("Component is not in OMX_StateLoaded,it is in%d,it can not tunnel\n",pClockDataType->state);
         return OMX_ErrorInvalidState;
     }
 
-    if(nPort == CLOCK_PORT_OUT_VIDEO){
+    if (nPort == CLOCK_PORT_OUT_VIDEO) {
 
         pPort = &pClockDataType->sOutPortDef[CLOCK_PORT_OUT_VIDEO];
         pTunneledInfo = &pClockDataType->sOutPortTunneledInfo[CLOCK_PORT_OUT_VIDEO];
         pBufSupplier = &pClockDataType->sOutBufSupplier[CLOCK_PORT_OUT_VIDEO];
-    }else if(nPort == CLOCK_PORT_OUT_AUDIO){
+    } else if (nPort == CLOCK_PORT_OUT_AUDIO) {
         pPort = &pClockDataType->sOutPortDef[CLOCK_PORT_OUT_AUDIO];
         pTunneledInfo = &pClockDataType->sOutPortTunneledInfo[CLOCK_PORT_OUT_AUDIO];
         pBufSupplier = &pClockDataType->sOutBufSupplier[CLOCK_PORT_OUT_AUDIO];
-    }else{
+    } else {
         loge("component can not find \n");
         return OMX_ErrorBadParameter;
     }
 
     // cancle setup tunnel
-    if(NULL == hTunneledComp && 0 == nTunneledPort && NULL == pTunnelSetup){
+    if (NULL == hTunneledComp && 0 == nTunneledPort && NULL == pTunnelSetup) {
             pTunneledInfo->nTunneledFlag = OMX_FALSE;
             pTunneledInfo->nTunnelPortIndex = nTunneledPort;
             pTunneledInfo->pTunneledComp = hTunneledComp;
         return OMX_ErrorNone;
     }
 
-    if(pPort->eDir == OMX_DirOutput){
+    if (pPort->eDir == OMX_DirOutput) {
         pTunneledInfo->nTunnelPortIndex = nTunneledPort;
         pTunneledInfo->pTunneledComp = hTunneledComp;
         pTunneledInfo->nTunneledFlag = OMX_TRUE;
         pTunnelSetup->nTunnelFlags = 0;
         pTunnelSetup->eSupplier = pBufSupplier->eBufferSupplier;
-    }else if(pPort->eDir == OMX_DirInput){
+    } else if (pPort->eDir == OMX_DirInput) {
         OMX_PARAM_PORTDEFINITIONTYPE sTunneledPort;
         OMX_PARAM_BUFFERSUPPLIERTYPE sBuffSupplier;
         sTunneledPort.nPortIndex = nTunneledPort;
@@ -409,19 +423,19 @@ static OMX_ERRORTYPE OMX_ClockComponentTunnelRequest(
             return OMX_ErrorPortsNotCompatible;
         }
         OMX_GetParameter(hTunneledComp, OMX_IndexParamPortDefinition,&sTunneledPort);
-        if (pPort->eDomain != sTunneledPort.eDomain){
+        if (pPort->eDomain != sTunneledPort.eDomain) {
             loge("ports domain are not compatible: %d %d.\n",
                    pPort->eDomain, sTunneledPort.eDomain);
             return OMX_ErrorPortsNotCompatible;
         }
-        if(sTunneledPort.eDir != OMX_DirOutput){
+        if (sTunneledPort.eDir != OMX_DirOutput) {
             loge("both ports are input.\n");
             return OMX_ErrorPortsNotCompatible;
         }
 
         //negotiate buffer supplier
         OMX_GetParameter(hTunneledComp, OMX_IndexParamCompBufferSupplier,&sBuffSupplier);
-        if(sBuffSupplier.eBufferSupplier != pTunnelSetup->eSupplier){
+        if (sBuffSupplier.eBufferSupplier != pTunnelSetup->eSupplier) {
              loge("out_port and in_port supplier are different,please check code!!!!\n");
               return OMX_ErrorPortsNotCompatible;
         }
@@ -429,7 +443,7 @@ static OMX_ERRORTYPE OMX_ClockComponentTunnelRequest(
         pTunneledInfo->pTunneledComp = hTunneledComp;
         pTunneledInfo->nTunneledFlag = OMX_TRUE;
         pBufSupplier->eBufferSupplier = pTunnelSetup->eSupplier;
-    }else{
+    } else {
         loge("port is neither output nor input.\n");
         return OMX_ErrorPortsNotCompatible;
     }
@@ -477,7 +491,7 @@ OMX_ERRORTYPE OMX_ClockComponentDeInit(
     pClockDataType = (CLOCK_DATA_TYPE *)pComp->pComponentPrivate;
 
     pthread_mutex_lock(&pClockDataType->stateLock);
-    if(pClockDataType->state != OMX_StateLoaded){
+    if (pClockDataType->state != OMX_StateLoaded) {
         loge("compoent is in %d,but not in OMX_StateLoaded(1),can ont FreeHandle.\n",pClockDataType->state);
         pthread_mutex_unlock(&pClockDataType->stateLock);
         return OMX_ErrorIncorrectStateOperation;
@@ -556,14 +570,14 @@ OMX_ERRORTYPE OMX_ClockComponentInit(
 
     pClockDataType->sClockState.eState = OMX_TIME_ClockStateStopped;
     pClockDataType->sClockState.nStartTime = -1;
-    for(i=0; i<CLOCK_PORT_NUM_MAX; i++){
+    for(i=0; i<CLOCK_PORT_NUM_MAX; i++) {
         pClockDataType->sPortStartTime[i] = -1;
     }
     pClockDataType->sActiveRefClock.eClock = OMX_TIME_RefClockAudio;
 
     pClockDataType->sPauseTimeDurtion = 0;
 
-    if(aic_msg_create(&pClockDataType->sMsgQue)<0)
+    if (aic_msg_create(&pClockDataType->sMsgQue)<0)
     {
         loge("aic_msg_create fail!");
         eError = OMX_ErrorInsufficientResources;
@@ -575,7 +589,7 @@ OMX_ERRORTYPE OMX_ClockComponentInit(
     return eError;
 
 _EXIT2:
-    if(pClockDataType){
+    if (pClockDataType) {
         mpp_free(pClockDataType);
         pClockDataType = NULL;
     }
@@ -591,7 +605,7 @@ static void OMX_ClockEventNotify(
         OMX_U32 nData2,
         OMX_PTR pEventData)
 {
-    if(pClockDataType && pClockDataType->pCallbacks && pClockDataType->pCallbacks->EventHandler) {
+    if (pClockDataType && pClockDataType->pCallbacks && pClockDataType->pCallbacks->EventHandler) {
         pClockDataType->pCallbacks->EventHandler(
                     pClockDataType->hSelf,
                     pClockDataType->pAppData,event,
@@ -614,13 +628,13 @@ static void OMX_ClockStateChangeToInvalid(CLOCK_DATA_TYPE * pClockDataType)
 static void OMX_ClockStateChangeToLoaded(CLOCK_DATA_TYPE * pClockDataType)
 {
     //int ret;
-    if(pClockDataType->state == OMX_StateIdle){
+    if (pClockDataType->state == OMX_StateIdle) {
 
-    }else if(pClockDataType->state == OMX_StateExecuting){
+    } else if (pClockDataType->state == OMX_StateExecuting) {
 
-    }else if(pClockDataType->state == OMX_StatePause){
+    } else if (pClockDataType->state == OMX_StatePause) {
 
-    }else {
+    } else {
         OMX_ClockEventNotify(pClockDataType
                             ,OMX_EventError
                             ,OMX_ErrorIncorrectStateTransition
@@ -637,13 +651,13 @@ static void OMX_ClockStateChangeToLoaded(CLOCK_DATA_TYPE * pClockDataType)
 static void OMXClockStateChangeToIdle(CLOCK_DATA_TYPE * pClockDataType)
 {
     //int ret;
-    if(pClockDataType->state == OMX_StateLoaded){
+    if (pClockDataType->state == OMX_StateLoaded) {
 
-    }else if(pClockDataType->state == OMX_StatePause){
+    } else if (pClockDataType->state == OMX_StatePause) {
 
-    }else if(pClockDataType->state == OMX_StateExecuting){
+    } else if (pClockDataType->state == OMX_StateExecuting) {
 
-    }else{
+    } else {
         OMX_ClockEventNotify(pClockDataType
                             ,OMX_EventError
                             ,OMX_ErrorIncorrectStateTransition
@@ -661,17 +675,17 @@ static void OMXClockStateChangeToIdle(CLOCK_DATA_TYPE * pClockDataType)
 static void OMX_ClockStateChangeToExcuting(CLOCK_DATA_TYPE * pClockDataType)
 {
 
-    if(pClockDataType->state == OMX_StateLoaded){
+    if (pClockDataType->state == OMX_StateLoaded) {
         OMX_ClockEventNotify(pClockDataType
                             ,OMX_EventError
                             ,OMX_ErrorIncorrectStateTransition
                             , pClockDataType->state,NULL);
         loge("OMX_ErrorIncorrectStateTransition\n");
         return;
-    }else if(pClockDataType->state == OMX_StateIdle){
+    } else if (pClockDataType->state == OMX_StateIdle) {
 
 
-    }else if(pClockDataType->state == OMX_StatePause){
+    } else if (pClockDataType->state == OMX_StatePause) {
         OMX_S64 nCurMeidaTime;
         pClockDataType->sPauseTimeDurtion += (OMX_ClockGetSystemTime() - pClockDataType->sPauseTimePoint);
         printf("[%s:%d]OMX_ClockGetSystemTime:%ld,sPauseTimePoint:%ld,sPauseTimeDurtion:%ld,sWallTimeBase:%ld,sRefClockTimeBase:%ld\n"
@@ -684,7 +698,7 @@ static void OMX_ClockStateChangeToExcuting(CLOCK_DATA_TYPE * pClockDataType)
 
         nCurMeidaTime = (OMX_ClockGetSystemTime() - pClockDataType->sWallTimeBase - pClockDataType->sPauseTimeDurtion) + pClockDataType->sRefClockTimeBase;
         printf("[%s:%d]pClockDataType->sPauseTimeDurtion:%ld,nCurMeidaTime:%ld\n" ,__FUNCTION__,__LINE__,pClockDataType->sPauseTimeDurtion,nCurMeidaTime);
-    }else{
+    } else {
         OMX_ClockEventNotify(pClockDataType
                             ,OMX_EventError
                             ,OMX_ErrorIncorrectStateTransition
@@ -701,7 +715,7 @@ static void OMX_ClockStateChangeToExcuting(CLOCK_DATA_TYPE * pClockDataType)
 }
 static void OMX_ClockStateChangeToPause(CLOCK_DATA_TYPE * pClockDataType)
 {
-    if(pClockDataType->state == OMX_StateLoaded){
+    if (pClockDataType->state == OMX_StateLoaded) {
         OMX_ClockEventNotify(pClockDataType
                             ,OMX_EventError
                             ,OMX_ErrorIncorrectStateTransition
@@ -709,9 +723,9 @@ static void OMX_ClockStateChangeToPause(CLOCK_DATA_TYPE * pClockDataType)
         loge("OMX_ErrorIncorrectStateTransition\n");
         return;
 
-    }else if(pClockDataType->state == OMX_StateIdle){
+    } else if (pClockDataType->state == OMX_StateIdle) {
 
-    }else if(pClockDataType->state == OMX_StateExecuting){
+    } else if (pClockDataType->state == OMX_StateExecuting) {
         OMX_S64 nCurMeidaTime;
         printf("[%s:%d]OMX_ClockGetSystemTime:%ld,sPauseTimePoint:%ld,sPauseTimeDurtion:%ld,sWallTimeBase:%ld,sRefClockTimeBase:%ld\n"
             ,__FUNCTION__,__LINE__
@@ -731,7 +745,7 @@ static void OMX_ClockStateChangeToPause(CLOCK_DATA_TYPE * pClockDataType)
             ,nCurMeidaTime);
 
         pClockDataType->sPauseTimePoint = OMX_ClockGetSystemTime();
-    }else{
+    } else {
         OMX_ClockEventNotify(pClockDataType
                             ,OMX_EventError
                             ,OMX_ErrorIncorrectStateTransition
@@ -764,9 +778,9 @@ static OMX_ERRORTYPE OMX_ClockSendCommand(
     //struct aic_message sMsg;
     pClockDataType = (CLOCK_DATA_TYPE *)(((OMX_COMPONENTTYPE*)hComponent)->pComponentPrivate);
 
-    if(OMX_CommandStateSet == Cmd){
+    if (OMX_CommandStateSet == Cmd) {
         pthread_mutex_lock(&pClockDataType->stateLock);
-        if(pClockDataType->state == (OMX_STATETYPE)(nParam1)){
+        if (pClockDataType->state == (OMX_STATETYPE)(nParam1)) {
             logi("OMX_ErrorSameState\n");
             OMX_ClockEventNotify(pClockDataType
                 ,OMX_EventError
@@ -774,7 +788,7 @@ static OMX_ERRORTYPE OMX_ClockSendCommand(
             pthread_mutex_unlock(&pClockDataType->stateLock);
             return OMX_ErrorSameState;
         }
-        switch(nParam1){
+        switch(nParam1) {
         case OMX_StateInvalid:
             OMX_ClockStateChangeToInvalid(pClockDataType);
             break;
@@ -794,16 +808,16 @@ static OMX_ERRORTYPE OMX_ClockSendCommand(
             break;
         }
         pthread_mutex_unlock(&pClockDataType->stateLock);
-    }else if(OMX_CommandFlush == Cmd){
+    } else if (OMX_CommandFlush == Cmd) {
 
-    }else if(OMX_CommandPortDisable == Cmd){
+    } else if (OMX_CommandPortDisable == Cmd) {
 
-    }else if(OMX_CommandPortEnable == Cmd){
+    } else if (OMX_CommandPortEnable == Cmd) {
 
-    }else if(OMX_CommandMarkBuffer == (OMX_S32)Cmd){
+    } else if (OMX_CommandMarkBuffer == (OMX_S32)Cmd) {
 
-    }else if(OMX_CommandStop == (OMX_S32)Cmd){
-    }else{
+    } else if (OMX_CommandStop == (OMX_S32)Cmd) {
+    } else {
 
     }
 

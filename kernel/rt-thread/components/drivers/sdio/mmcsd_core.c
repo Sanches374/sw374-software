@@ -736,7 +736,9 @@ void mmcsd_detect(void *param)
                     if (init_sd(host, ocr))
                         mmcsd_power_off(host);
                     mmcsd_host_unlock(host);
+#ifndef AIC_SD_USING_HOTPLUG
                     rt_mb_send(&mmcsd_hotpluge_mb, (rt_ubase_t)host);
+#endif
                     continue;
                 }
 
@@ -770,7 +772,11 @@ void mmcsd_detect(void *param)
                     host->card = RT_NULL;
                 }
                 mmcsd_host_unlock(host);
+#ifndef AIC_SD_USING_HOTPLUG
                 rt_mb_send(&mmcsd_hotpluge_mb, (rt_ubase_t)host);
+#else
+                mmcsd_power_off(host);
+#endif
             }
         }
     }

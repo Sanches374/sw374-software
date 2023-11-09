@@ -41,9 +41,9 @@ config AIC_DISP_MIPI_DSI
     bool "Display MIPI-DSI interface"
     select AIC_DISP_MIPI_DSI_DRV
 
-config AIC_DISP_MIPI_DBI_SPI
-    bool "Display MIPI-DBI-SPI interface"
-    select AIC_DISP_MIPI_DBI_SPI_DRV
+config AIC_DISP_MIPI_DBI
+    bool "Display MIPI-DBI interface"
+    select AIC_DISP_MIPI_DBI_DRV
 endchoice
 
 config AIC_DI_TYPE
@@ -51,7 +51,7 @@ config AIC_DI_TYPE
     default 1 if AIC_DISP_RGB
     default 2 if AIC_DISP_LVDS
     default 3 if AIC_DISP_MIPI_DSI
-    default 4 if AIC_DISP_MIPI_DBI_SPI
+    default 4 if AIC_DISP_MIPI_DBI
 
 if AIC_DISP_LVDS
 source "bsp/artinchip/drv/display/Kconfig.lvds"
@@ -161,14 +161,36 @@ if AIC_DISPLAY_DRV
 source "bsp/artinchip/drv/display/panel/Kconfig"
 endif
 
-config AIC_PANEL_ENABLE_GPIO
-    string "panel backlight enable pin"
-    default "PE.19"
+choice
+    prompt "panel backlight control"
+    default AIC_GPIO_BACKLIGHT
     depends on AIC_DISPLAY_DRV
 
-config AIC_PANEL_ENABLE_GPIO_LOW
-    bool "panel backlight enable pin low active"
-    default n
-    depends on AIC_DISPLAY_DRV
+    config AIC_PWM_BACKLIGHT
+    bool "pwm"
+    depends on AIC_PWM_DRV
 
+    config AIC_GPIO_BACKLIGHT
+    bool "gpio"
+endchoice
 
+if AIC_GPIO_BACKLIGHT
+    config AIC_PANEL_ENABLE_GPIO
+        string "panel backlight enable pin"
+        default "PE.19"
+
+    config AIC_PANEL_ENABLE_GPIO_LOW
+        bool "panel backlight enable pin low active"
+        default n
+endif
+
+if AIC_PWM_BACKLIGHT
+    config AIC_PWM_BACKLIGHT_CHANNEL
+        int "pwm backlight channel"
+        default 3
+
+    config AIC_PWM_BRIGHTNESS_LEVEL
+        int "default brightness level"
+        default 80
+        range 0 100
+endif

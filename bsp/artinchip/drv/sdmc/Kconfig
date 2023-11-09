@@ -34,6 +34,10 @@ endmenu
 menu "SDMC1 Parameter"
     depends on AIC_USING_SDMC1
 
+    config AIC_SD_USING_HOTPLUG
+        bool "Using SDcard hotplug detection"
+        default n
+
     config AIC_SDMC1_IS_SDIO
         bool "SDMC1 connect to a SDIO device"
         select AIC_SDMC_IRQ_MODE

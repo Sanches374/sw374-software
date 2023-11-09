@@ -40,7 +40,13 @@ def PrefixPath(prefix, path):
     return False
 
 def PrepareUA(project, RTT_ROOT, BSP_ROOT):
-    with open('rtua.py', 'w') as ua:
+    if os.environ.has_key("PRJ_OUT_DIR"):
+        prj_out_dir = os.environ["PRJ_OUT_DIR"]
+        aic_root = os.environ["AIC_ROOT"]
+        ua_file = os.path.join(aic_root, prj_out_dir, 'rtua.py')
+    else:
+        ua_file = 'rtua.py'
+    with open(ua_file, 'w') as ua:
         # ua.write('import os\n')
         # ua.write('import sys\n')
         ua.write('\n')

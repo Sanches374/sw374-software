@@ -707,7 +707,7 @@ static s32 CMD_GET_PARTITION_TABLE_read_output_data(struct upg_cmd *cmd,
 {
     struct resp_header resp;
     struct storage_media *priv;
-    char *part_table = NULL;
+    char *part_table = "";
     u32 siz = 0;
 
     pr_debug("%s\n", __func__);
@@ -953,6 +953,79 @@ static void CMD_READ_FWC_DATA_end(struct upg_cmd *cmd)
     pr_debug("%s, l: %d\n", __func__, __LINE__);
 }
 
+/*
+ * UPG_PROTO_CMD_SET_UART_ARGS:
+ *   -> [CMD HEADER]
+ *   <- [RESP HEADER]
+ *   <- [FWC PARTITION DATA]
+ */
+static void CMD_SET_UART_ARGS_start(struct upg_cmd *cmd, s32 cmd_data_len)
+{
+    pr_debug("%s data len %d\n", __func__, cmd_data_len);
+    if (cmd->cmd != UPG_PROTO_CMD_SET_UART_ARGS)
+        return;
+
+    cmd->priv = 0;
+    cmd_state_init(cmd, CMD_STATE_START);
+}
+
+static s32 CMD_SET_UART_ARGS_write_input_data(struct upg_cmd *cmd, u8 *buf, s32 len)
+{
+    s32 clen = 0;
+    u32 baudrate = 0;
+
+    pr_debug("%s\n", __func__);
+    if (cmd->state == CMD_STATE_START)
+        cmd_state_set_next(cmd, CMD_STATE_ARG);
+
+    if (cmd->state == CMD_STATE_ARG) {
+        /*
+         * Enter recv argument state
+         */
+        if (len < 4)
+            return 0;
+        memcpy(&baudrate, buf, 4);
+        clen = 4;
+        cmd_state_set_next(cmd, CMD_STATE_RESP);
+    }
+    cmd->priv = (void *)(uintptr_t)baudrate;
+
+    return clen;
+}
+
+static s32 CMD_SET_UART_ARGS_read_output_data(struct upg_cmd *cmd, u8 *buf, s32 len)
+{
+    struct resp_header resp;
+    s32 siz = 0;
+
+    if (cmd->state == CMD_STATE_RESP) {
+        /*
+         * Enter read RESP state, to make it simple, HOST should read
+         * RESP in one read operation.
+         */
+        aicupg_gen_resp(&resp, cmd->cmd, (unsigned long)UPG_RESP_OK, 0);
+        siz = sizeof(struct resp_header);
+        memcpy(buf, &resp, siz);
+        cmd_state_set_next(cmd, CMD_STATE_END);
+    }
+
+    return siz;
+}
+
+extern void aic_upg_uart_baudrate_update(int baudrate);
+static void CMD_SET_UART_ARGS_end(struct upg_cmd *cmd)
+{
+    int baudrate = 0;
+
+    pr_debug("%s\n", __func__);
+    if (cmd->state == CMD_STATE_END) {
+        baudrate = (uintptr_t)cmd->priv;
+        aic_upg_uart_baudrate_update(baudrate);
+        cmd->priv = 0;
+        cmd_state_set_next(cmd, CMD_STATE_IDLE);
+    }
+}
+
 static struct upg_cmd fwc_cmd_list[] = {
     {
         UPG_PROTO_CMD_SET_FWC_META,
@@ -1016,6 +1089,13 @@ static struct upg_cmd fwc_cmd_list[] = {
         CMD_READ_FWC_DATA_write_input_data,
         CMD_READ_FWC_DATA_read_output_data,
         CMD_READ_FWC_DATA_end,
+    },
+    {
+        UPG_PROTO_CMD_SET_UART_ARGS,
+        CMD_SET_UART_ARGS_start,
+        CMD_SET_UART_ARGS_write_input_data,
+        CMD_SET_UART_ARGS_read_output_data,
+        CMD_SET_UART_ARGS_end,
     },
 };
 

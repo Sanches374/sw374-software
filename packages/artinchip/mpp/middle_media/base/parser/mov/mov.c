@@ -6,7 +6,7 @@
 */
 
 #include <stdlib.h>
-
+#include <inttypes.h>
 #include "aic_stream.h"
 #include "mov.h"
 #include "mov_tags.h"
@@ -245,7 +245,7 @@ static void mov_build_index(struct aic_mov_parser *c, struct mov_stream_ctx *st)
 				int keyframe = 0;
 				if (current_sample >= st->sample_count) {
 					loge("wrong sample count");
-					return ;
+					return;
 				}
 
 				if (!st->keyframe_count || current_sample+key_off == st->keyframes[stss_index]) {
@@ -628,7 +628,7 @@ static int mov_read_stsd_entries(struct aic_mov_parser *c, int entries)
 			rb16(c->stream);
 			rb16(c->stream);
 		} else if (size <= 7) {
-			loge("invalid size %ld in stsd", size);
+			loge("invalid size %"PRId64" in stsd", size);
 			return -1;
 		}
 
@@ -833,7 +833,7 @@ static int mov_read_stsz(struct aic_mov_parser *c, struct mov_atom atom)
 	if (!entries)
 		return 0;
 
-	if (sample_size){
+	if (sample_size) {
 		st->sample_count = entries;
 		return 0;
 	}
@@ -917,6 +917,7 @@ static void update_dts_shift(struct mov_stream_ctx *st, int duration)
 static int mov_read_ctts(struct aic_mov_parser *c, struct mov_atom atom)
 {
 	unsigned int i, entries;
+	int total_count = 0;
 
 	if (c->nb_streams < 1)
 		return 0;
@@ -947,6 +948,8 @@ static int mov_read_ctts(struct aic_mov_parser *c, struct mov_atom atom)
 		int count = rb32(c->stream);
 		int duration = rb32(c->stream);
 
+		total_count += count;
+
 		if (count <= 0) {
 			logi("ignore ctts entry");
 			continue;
@@ -959,6 +962,25 @@ static int mov_read_ctts(struct aic_mov_parser *c, struct mov_atom atom)
 		if (i+2 < entries) {
 			update_dts_shift(st, duration);
 		}
+	}
+
+	// if st->ctts_data[i].count > 1, we should relloc a large buffer for ctts
+	if (total_count != st->ctts_count) {
+		struct mov_stts *ctts_data_old = st->ctts_data;
+		int ctts_idx = 0;
+		int j;
+
+		st->ctts_data = mpp_alloc(total_count*sizeof(*st->ctts_data));
+		for (i=0; i<entries; i++) {
+			for(j=0; j<ctts_data_old[i].count; j++) {
+				st->ctts_data[ctts_idx].count = 1;
+				st->ctts_data[ctts_idx].duration = ctts_data_old[i].duration;
+				ctts_idx ++;
+			}
+		}
+
+		mpp_free(ctts_data_old);
+		st->ctts_count = total_count;
 	}
 
 	logi("dts shift: %d", st->dts_shift);
@@ -1081,6 +1103,83 @@ static int mov_read_mdat(struct aic_mov_parser *c, struct mov_atom atom)
 	return 0;
 }
 
+static int mp4_read_desc(struct aic_stream *s, int *tag)
+{
+	int len = 0;
+	*tag = r8(s);
+
+	int count = 4;
+	while (count--) {
+		int c = r8(s);
+		len = (len << 7) | (c & 0x7f);
+		if (!(c & 0x80))
+			break;
+	}
+	return len;
+}
+
+#define MP4ESDescrTag 			0x03
+#define MP4DecConfigDescrTag		0x04
+#define MP4DecSpecificDescrTag		0x05
+static int mp4_read_dec_config_descr(struct aic_mov_parser *c, struct mov_stream_ctx *st)
+{
+	enum CodecID codec_id;
+	int len, tag;
+
+	int object_type_id = r8(c->stream);
+	r8(c->stream);
+	rb24(c->stream);
+	rb32(c->stream);
+	rb32(c->stream); // avg bitrate
+
+	codec_id = codec_get_id(mp4_obj_type, object_type_id);
+	if (codec_id)
+		st->id = codec_id;
+
+	loge("st->id:0x%x\n",st->id);
+	len = mp4_read_desc(c->stream, &tag);
+	if (tag == MP4DecSpecificDescrTag) {
+		if (len > (1<<30))
+			return -1;
+
+		st->extra_data_size = len;
+		st->extra_data = (unsigned char*)mpp_alloc(len);
+		if (st->extra_data == NULL)
+			return -1;
+		memset(st->extra_data, 0, st->extra_data_size);
+
+		aic_stream_read(c->stream, st->extra_data, st->extra_data_size);
+	}
+
+	return 0;
+}
+
+static int mov_read_esds(struct aic_mov_parser *c, struct mov_atom atom)
+{
+	struct mov_stream_ctx *st;
+	int tag;
+	int ret = 0;
+
+	if (c->nb_streams < 1)
+		return 0;
+	st = c->streams[c->nb_streams-1];
+	rb32(c->stream);
+
+	mp4_read_desc(c->stream, &tag);
+	if (tag == MP4ESDescrTag) {
+		rb24(c->stream);
+	} else {
+		rb16(c->stream);
+	}
+
+	mp4_read_desc(c->stream, &tag);
+	if (tag == MP4DecConfigDescrTag) {
+		mp4_read_dec_config_descr(c, st);
+	}
+
+	return ret;
+}
+
 static const struct mov_parse_table mov_default_parse_table[] = {
 	{ MKTAG('c','o','6','4'), mov_read_stco },
 	{ MKTAG('c','t','t','s'), mov_read_ctts }, /* composition time to sample */
@@ -1112,6 +1211,7 @@ static const struct mov_parse_table mov_default_parse_table[] = {
 	{ MKTAG('u','d','t','a'), mov_read_default },
 	//{ MKTAG('c','m','o','v'), mov_read_cmov },
 	{ MKTAG('h','v','c','C'), mov_read_glbl },
+	{ MKTAG('e','s','d','s'), mov_read_esds },
 	{ 0, NULL }
 };
 
@@ -1144,7 +1244,7 @@ static int mov_read_default(struct aic_mov_parser *c, struct mov_atom atom)
 				total_size += 8;
 			}
 		}
-		logi("atom type:%c%c%c%c, parent:%c%c%c%c, sz: %ld %ld %ld",
+		logi("atom type:%c%c%c%c, parent:%c%c%c%c, sz:" "%"PRId64"%"PRId64"%"PRId64"",
 			(a.type)&0xff, (a.type>>8)&0xff,
 			(a.type>>16)&0xff, (a.type>>24)&0xff,
 			(atom.type)&0xff, (atom.type>>8)&0xff,
@@ -1259,19 +1359,10 @@ int mov_peek_packet(struct aic_mov_parser *c, struct aic_parser_packet *pkt)
 	pkt->pts = get_time(sample->timestamp, st->time_scale);
 
 	if (st->ctts_data && st->ctts_index < st->ctts_count) {
-		pkt->pts = sample->timestamp + st->dts_shift + st->ctts_data[st->ctts_index].duration;
+		pkt->pts = sample->timestamp + st->dts_shift + st->ctts_data[st->cur_sample_idx - 1].duration;
+
 		pkt->pts = get_time(pkt->pts, st->time_scale);
-
-		st->ctts_sample++;
-		if (st->ctts_index < st->ctts_count &&
-			st->ctts_data[st->ctts_index].count == st->ctts_sample) {
-			st->ctts_index++;
-			st->ctts_sample = 0;
-		}
 	}
-
-	logd("pkt: type: %d, pts: "FMT_d64", size: %d, offset: %ld",
-		pkt->type, pkt->pts, pkt->size, sample->pos);
 
 	return 0;
 }
@@ -1324,6 +1415,90 @@ int mov_read_header(struct aic_mov_parser *c)
 	if(!c->find_moov) {
 		loge("moov atom not find");
 		return -1;
+	}
+
+	return 0;
+}
+
+int find_index_by_pts(struct mov_stream_ctx *st,s64 pts)
+{
+	int i,index = 0;
+	int64_t min = INT64_MAX;
+	int64_t sample_pts;
+	int64_t diff;
+	struct index_entry *cur_sample = NULL;
+
+	for (i = 0; i < st->nb_index_entries; i++) {
+		cur_sample = &st->index_entries[i];
+		sample_pts = get_time(cur_sample->timestamp, st->time_scale);
+		diff = MPP_ABS(pts,sample_pts);
+		if (diff < min) {
+			min = diff;
+			index = i;
+		}
+	}
+
+	return index;
+}
+
+int  find_video_index_by_pts(struct mov_stream_ctx *video_st,s64 pts)
+{
+	int i,k,index = 0;
+	int64_t min = INT64_MAX;
+	int64_t sample_pts;
+	int64_t diff;
+	struct index_entry *cur_sample = NULL;
+
+	for (i = 0 ;i < video_st->keyframe_count;i++) {
+		k = video_st->keyframes[i]-1;
+		cur_sample = &video_st->index_entries[k];
+		sample_pts = get_time(cur_sample->timestamp, video_st->time_scale);
+		diff = MPP_ABS(pts,sample_pts);
+		if (diff < min) {
+			min = diff;
+			index = k;
+		}
+		logd("keyfame:%d,pts:%ld\n",k,sample_pts);
+	}
+	return index;
+}
+
+int mov_seek_packet(struct aic_mov_parser *c, s64 pts)
+{
+	int i;
+	struct mov_stream_ctx *cur_st = NULL;
+	struct mov_stream_ctx *video_st = NULL;
+	struct mov_stream_ctx *audio_st = NULL;
+	struct index_entry *cur_sample = NULL;
+	for (i = 0; i< c->nb_streams ;i++) {
+		cur_st = c->streams[i];
+		if ((!video_st) && (cur_st->type == MPP_MEDIA_TYPE_VIDEO)) {//only support first video stream
+			video_st = c->streams[i];
+		} else if ((!audio_st) && (cur_st->type == MPP_MEDIA_TYPE_AUDIO)) {//only support first audio stream
+			audio_st = c->streams[i];
+		}
+	}
+
+	if (video_st) {
+		if(video_st->id == CODEC_ID_MJPEG) {
+			video_st->cur_sample_idx = find_index_by_pts(video_st,pts);
+		} else {
+			if (!video_st->keyframes) {
+				loge("no keyframes\n");
+				return -1;
+			}
+			video_st->cur_sample_idx = find_video_index_by_pts(video_st,pts);
+		}
+	}
+
+	if (audio_st) {
+		int64_t tmp;
+		tmp = pts;
+		if (video_st) {
+			cur_sample = &video_st->index_entries[video_st->cur_sample_idx];
+			tmp = get_time(cur_sample->timestamp, video_st->time_scale);
+		}
+		audio_st->cur_sample_idx = find_index_by_pts(audio_st,tmp);
 	}
 
 	return 0;

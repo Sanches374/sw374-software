@@ -31,8 +31,10 @@
 #define ADCIM_FIFOSTS_ADC_ARBITER_IDLE  BIT(6)
 #define ADCIM_FIFOSTS_FIFO_ERR          BIT(5)
 #define ADCIM_FIFOSTS_CTR_MASK          GENMASK(4, 0)
+#define ADCDM_CAL_ADC_STANDARD_VAL      0x800
+#define ADCIM_CAL_ADC_VAL_OFFSET        0X32
 
-#ifdef CONFIG_ARTINCHIP_ADCIM_DM
+#ifdef AIC_ADCIM_DM_DRV
 #define ADCDM_RTP_CFG   0x03F0
 #define ADCDM_RTP_STS   0x03F4
 #define ADCDM_SRAM_CTL  0x03F8
@@ -59,19 +61,19 @@
 #define ADCDM_CHAN_NUM              16
 
 enum adcdm_sram_mode {
-    ADCDM_NORMAL_MODE,
-    ADCDM_DEBUG_MODE
+    ADCDM_NORMAL_MODE = 0,
+    ADCDM_DEBUG_MODE = 1
 };
 #endif
 
 struct adcim_dev {
-#ifdef CONFIG_ARTINCHIP_ADCIM_DM
+#ifdef AIC_ADCIM_DM_DRV
     u32 dm_cur_chan;
 #endif
     int usr_cnt;
 };
 
-#ifdef CONFIG_ARTINCHIP_ADCIM_DM
+#ifdef AIC_ADCIM_DM_DRV
 static struct adcim_dev g_adcim_dev = {0};
 #endif
 
@@ -103,12 +105,32 @@ int hal_adcim_calibration_set(unsigned int val)
     return 0;
 }
 
+int hal_adcim_auto_calibration(int adc_val, int st_voltage, int scale,
+                               int adc_max_val)
+{
+    u32 flag = 1;
+    u32 data = 0;
+    int new_voltage = 0;
+
+    adcim_writel(0x083F2f03, ADCIM_CALCSR);//auto cal
+    do {
+        flag = adcim_readl(ADCIM_CALCSR) & 0x00000001;
+    } while (flag);
+
+    data = (adcim_readl(ADCIM_CALCSR) >> 16) & 0xfff;
+    if (adc_val) {
+        new_voltage = (adc_val + ADCDM_CAL_ADC_STANDARD_VAL - data + ADCIM_CAL_ADC_VAL_OFFSET) * st_voltage * scale / adc_max_val;
+    }
+
+    return new_voltage;
+}
+
 void adcim_status_show(void)
 {
     int mcsr;
     int fifo;
     int version;
-#ifdef CONFIG_ARTINCHIP_ADCIM_DM
+#ifdef AIC_ADCIM_DM_DRV
     int rtp_cfg, rtp_sts, sram_ctl;
 #endif
 
@@ -116,20 +138,20 @@ void adcim_status_show(void)
     fifo = adcim_readl(ADCIM_FIFOSTS);
     version = adcim_readl(ADCIM_VERSION);
 
-#ifdef CONFIG_ARTINCHIP_ADCIM_DM
+#ifdef AIC_ADCIM_DM_DRV
     rtp_cfg = adcim_readl(ADCDM_RTP_CFG);
     rtp_sts = adcim_readl(ADCDM_RTP_STS);
     sram_ctl = adcim_readl(ADCDM_SRAM_CTL);
 #endif
 
-    printf("In ADCIM V%d.%02d:\n"
+    hal_log_info("In ADCIM V%d.%02d:\n"
                "Busy state: %d\n"
                "Semflag: %d\n"
                "Current Channel: %d\n"
                "ADC Arbiter Idel: %d\n"
                "FIFO Error: %d\n"
                "FIFO Counter: %d\n"
-#ifdef CONFIG_ARTINCHIP_ADCIM_DM
+#ifdef AIC_ADCIM_DM_DRV
                "\nIn DM:\nMode: %s, Current channel: %d/%ld\n"
                "Calibration val: %ld\n"
                "RTP PDET: %ld, DRV: %ld, VPSEL: %ld, VNSEL: %ld\n"
@@ -142,7 +164,7 @@ void adcim_status_show(void)
                fifo & ADCIM_FIFOSTS_ADC_ARBITER_IDLE ? 1 : 0,
                fifo & ADCIM_FIFOSTS_FIFO_ERR ? 1 : 0,
                fifo & ADCIM_FIFOSTS_CTR_MASK
-#ifdef CONFIG_ARTINCHIP_ADCIM_DM
+#ifdef AIC_ADCIM_DM_DRV
                , sram_ctl & ADCDM_SRAM_MODE ? "Debug" : "Normal",
                g_adcim_dev.dm_cur_chan, sram_ctl & ADCDM_SRAM_SEL_MASK,
                (rtp_cfg & ADCDM_RTP_CAL_VAL_MASK)
@@ -162,17 +184,16 @@ void adcim_calibration_show(void)
 
     cal = adcim_readl(ADCIM_CALCSR);
 
-    printf("Calibration Enable: %d\n \
-Current value: %d\n \
-ADC ACQ: %d\n", (cal & ADCIM_CALCSR_CAL_ENABLE) ? 0 : 1,
+    pr_info("Calibration Enable: %d\n Current value: %d\nADC ACQ: %d\n",
+           (cal & ADCIM_CALCSR_CAL_ENABLE) ? 0 : 1,
            (cal & ADCIM_CALCSR_CALVAL_MASK) >> ADCIM_CALCSR_CALVAL_SHIFT,
            (cal & ADCIM_CALCSR_ADC_ACQ_MASK) >> ADCIM_CALCSR_ADC_ACQ_SHIFT);
 }
 
-#ifdef CONFIG_ARTINCHIP_ADCIM_DM
+#ifdef AIC_ADCIM_DM_DRV
 void hal_dm_chan_show(void)
 {
-    printf("Current chan: %d/%ld\n", g_adcim_dev.dm_cur_chan,
+    pr_info("Current chan: %d/%ld\n", g_adcim_dev.dm_cur_chan,
                adcim_readl(ADCDM_SRAM_CTL) & ADCDM_SRAM_SEL_MASK);
 }
 
@@ -214,7 +235,6 @@ static void adcdm_sram_clear(u32 chan)
     val |= ADCDM_SRAM_CLR(chan);
     adcim_writel(val, ADCDM_SRAM_CTL);
 
-    udelay(10);
     val &= ~ADCDM_SRAM_CLR(chan);
     adcim_writel(val, ADCDM_SRAM_CTL);
 }
@@ -241,19 +261,19 @@ static void adcdm_sram_select(u32 chan)
     adcim_writel(val, ADCDM_SRAM_CTL);
 }
 
-ssize_t hal_adcdm_sram_write(char *buf, u32 offset, size_t count)
+ssize_t hal_adcdm_sram_write(int *buf, u32 offset, size_t count)
 {
     int i;
-    int *data = (int *)buf;
 
     if (count + offset > ADCDM_SRAM_SIZE)
         return 0;
-
+    hal_adcim_probe();
     adcdm_sram_mode(ADCDM_DEBUG_MODE);
     adcdm_sram_select(g_adcim_dev.dm_cur_chan);
 
-    for (i = 0; i < count / 4; i++)
-        adcim_writel(*data++, ADCDM_SRAM_BASE + i * 4);
+    for (i = 0; i < count; i++) {
+        adcim_writel(buf[i], ADCDM_SRAM_BASE + i * 4);
+    }
 
     adcdm_sram_mode(ADCDM_NORMAL_MODE);
     for (i = 0; i < ADCDM_CHAN_NUM; i++)

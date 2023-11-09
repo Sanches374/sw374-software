@@ -186,8 +186,10 @@ static rt_size_t rt_hwtimer_write(struct rt_device *dev, rt_off_t pos, const voi
     if ((timer->ops->start == RT_NULL) || (timer->ops->stop == RT_NULL))
         return 0;
 
+#ifndef AIC_GPTIMER_DRV
     if (size != sizeof(rt_hwtimerval_t))
         return 0;
+#endif
 
     timer->ops->stop(timer);
 
@@ -201,7 +203,11 @@ static rt_size_t rt_hwtimer_write(struct rt_device *dev, rt_off_t pos, const voi
         opm = HWTIMER_MODE_ONESHOT;
     }
 
+#ifdef AIC_GPTIMER_DRV
+    if (timer->ops->start(timer, t, opm, (void *)buffer + sizeof(rt_hwtimerval_t)) != RT_EOK)
+#else
     if (timer->ops->start(timer, t, opm) != RT_EOK)
+#endif
         size = 0;
 
     return size;

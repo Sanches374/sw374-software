@@ -11,7 +11,6 @@
 #define LOG_TAG         "WDT"
 #include "aic_core.h"
 #include "aic_hal.h"
-#include "aic_reboot_reason.h"
 #include "hal_wdt.h"
 #include "aic_drv_wdt.h"
 
@@ -103,9 +102,9 @@ void drv_wdt_stop(void)
 void drv_wdt_switch(rt_watchdog_t *wdt, int ch)
 {
     struct aic_wdt_dev *wdt_dev = (struct aic_wdt_dev*)wdt;
-    if (ch < 0 || ch >= AIC_WDT_CHAN_NUM)
+    if (ch < 0 || ch >= AIC_WDT_CHAN_NUM) {
         LOG_D("NO such channel:%d", ch);
-    else {
+    } else {
         wdt_dev->cur_chan = ch;
         hal_wdt_switch_chan(wdt_dev->cur_chan);
         LOG_D("Switch channel:%d", wdt_dev->cur_chan);
@@ -158,6 +157,20 @@ static rt_err_t drv_wdt_control(rt_watchdog_t *wdt, int cmd, void *args)
     case RT_DEVICE_CTRL_WDT_SET_CLR_THD:
         drv_wdt_set_clr_thd(&wdt_dev->wdt, *(uint16_t *)args);
         break;
+
+#ifdef AIC_WDT_DRV_V11
+    /* RST_EN_SEL*/
+    case RT_DEVICE_CTRL_WDT_SET_RST_CPU:
+        hal_wdt_rst_type_set(RST_CPU);
+        break;
+
+    case RT_DEVICE_CTRL_WDT_SET_RST_SYS:
+        hal_wdt_rst_type_set(RST_SYS);
+        break;
+
+    case RT_DEVICE_CTRL_WDT_GET_RST_EN:
+        return hal_wdt_rst_type_get();
+#endif
 
     default:
         LOG_I("Unsupported cmd: 0x%x", cmd);
@@ -225,24 +238,5 @@ static void cmd_wdt_status(int argc, char **argv)
     hal_wdt_status_show(0);
 }
 MSH_CMD_EXPORT_ALIAS(cmd_wdt_status, wdt_status, Show the status of Watchdog);
-
-void cmd_reboot(int argc, char **argv)
-{
-    u32 timeout = 0;
-    rt_device_t wdt_dev = RT_NULL;
-
-    wdt_dev =  rt_device_find("wdt");
-    rt_device_init(wdt_dev);
-
-    LOG_I("Restarting system ...\n");
-    aicos_msleep(100);
-    aic_set_reboot_reason(REBOOT_REASON_CMD_REBOOT);
-    rt_device_control(wdt_dev, RT_DEVICE_CTRL_WDT_SET_TIMEOUT, &timeout);
-    rt_device_control(wdt_dev, RT_DEVICE_CTRL_WDT_START, RT_NULL);
-
-    aicos_msleep(1000);
-    LOG_W("Watchdog doesn't work!");
-}
-MSH_CMD_EXPORT_ALIAS(cmd_reboot, reboot, Reboot the system);
 
 #endif

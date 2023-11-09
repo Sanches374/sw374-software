@@ -648,13 +648,18 @@ def aic_boot_create_ext_image(cfg, keydir, datadir):
         sys.exit(1)
     return bootimg
 
-def itb_create_image(itsname, itbname, keydir, dtbname):
+def itb_create_image(itsname, itbname, keydir, dtbname, script_dir):
+    mkcmd = os.path.join(script_dir, "mkimage")
+    if os.path.exists(mkcmd) == False:
+        mkcmd = "mkimage"
+    if sys.platform == "win32":
+        mkcmd += ".exe"
     # If the key exists, generate image signature information and write it to the itb file.
     # If the key exists, write the public key to the dtb file.
     if keydir != None and dtbname != None:
-        cmd = ["mkimage", "-f", itsname, "-k", keydir, "-K", dtbname, "-r", itbname]
+        cmd = [mkcmd, "-E", "-f", itsname, "-k", keydir, "-K", dtbname, "-r", itbname]
     else:
-        cmd = ["mkimage", "-f", itsname, itbname]
+        cmd = [mkcmd, "-E", "-f", itsname, itbname]
 
     ret = subprocess.run(cmd, stdout=subprocess.PIPE)
     if ret.returncode != 0:
@@ -1055,7 +1060,7 @@ def aic_create_parts_for_env(cfg):
 
     return part_str
 
-def uboot_env_create_image(srcfile, outfile, size, part_str):
+def uboot_env_create_image(srcfile, outfile, size, part_str, redund, script_dir):
     tmpfile = srcfile + ".part.tmp"
     fs = open(srcfile, "r+")
     envstr = fs.readlines()
@@ -1065,12 +1070,20 @@ def uboot_env_create_image(srcfile, outfile, size, part_str):
     fp.writelines(envstr)
     fp.close()
 
-    cmd = ["mkenvimage", "-s", str(size), "-o", outfile, tmpfile]
+    mkenvcmd = os.path.join(script_dir, "mkenvimage")
+    if os.path.exists(mkenvcmd) == False:
+        mkenvcmd = "mkenvimage"
+    if sys.platform == "win32":
+        mkenvcmd += ".exe"
+    if "enable" in redund:
+        cmd = [mkenvcmd, "-r","-s", str(size), "-o", outfile, tmpfile]
+    else:
+        cmd = [mkenvcmd, "-s", str(size), "-o", outfile, tmpfile]
     ret = subprocess.run(cmd, subprocess.PIPE)
     if ret.returncode != 0:
         sys.exit(1)
 
-def firmware_component_preproc(cfg, datadir, keydir):
+def firmware_component_preproc(cfg, datadir, keydir, bindir):
     """ Perform firmware component pre-process
     Args:
         cfg: Dict from JSON
@@ -1106,7 +1119,7 @@ def firmware_component_preproc(cfg, datadir, keydir):
                 if keypath == None:
                     print("File {} is not exist".format(keydir))
 
-            itb_create_image(srcfile, outfile, keypath, dtbfile)
+            itb_create_image(srcfile, outfile, keypath, dtbfile, bindir)
 
             # Generate a spl image with spl dtb file
             if "bin" in preproc_cfg["itb"][itbname].keys():
@@ -1121,7 +1134,6 @@ def firmware_component_preproc(cfg, datadir, keydir):
                     print("File {} is not exist".format(dstbin))
                     sys.exit(1)
                 cmd = ["cat {} {} > {}".format(srcfile, dtbfile, dstfile)]
-                print (cmd)
                 ret = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE)
                 if ret.returncode != 0:
                       sys.exit(1)
@@ -1129,9 +1141,12 @@ def firmware_component_preproc(cfg, datadir, keydir):
         # Need to generate uboot env bin
         imgnames = preproc_cfg["uboot_env"].keys()
         part_str = aic_create_parts_for_env(cfg)
+        envredund = "disable"
         for binname in imgnames:
             envfile = preproc_cfg["uboot_env"][binname]["file"]
             envsize = preproc_cfg["uboot_env"][binname]["size"]
+            if "redundant" in preproc_cfg["uboot_env"][binname]:
+                envredund = preproc_cfg["uboot_env"][binname]["redundant"]
             outfile = datadir + binname
             if VERBOSE:
                 print("\tCreating {} ...".format(outfile))
@@ -1139,7 +1154,9 @@ def firmware_component_preproc(cfg, datadir, keydir):
             if srcfile == None:
                 print("File {} is not exist".format(envfile))
                 sys.exit(1)
-            uboot_env_create_image(srcfile, outfile, envsize, part_str)
+            uboot_env_create_image(srcfile, outfile, envsize, part_str,
+                    envredund, bindir)
+
     if "aicboot" in preproc_cfg:
         # Need to generate aicboot image
         imgnames = preproc_cfg["aicboot"].keys()
@@ -1339,6 +1356,7 @@ def build_firmware_image(cfg, datadir):
     return 0
 
 if __name__ == "__main__":
+    default_bin_root = os.path.dirname(sys.argv[0])
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--config", type=str,
                         help="image configuration file name")
@@ -1367,7 +1385,8 @@ if __name__ == "__main__":
     cfg = parse_image_cfg(args.config)
     # Pre-process here, e.g: signature, encryption, ...
     if "temporary" in cfg:
-        firmware_component_preproc(cfg, args.datadir, args.keydir)
+        firmware_component_preproc(cfg, args.datadir, args.keydir,
+                default_bin_root)
 
     cfg["image"]["bootcfg"] = "bootcfg.txt"
     # Finally build the firmware image

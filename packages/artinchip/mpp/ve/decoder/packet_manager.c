@@ -367,3 +367,34 @@ int pm_get_ready_packet_num(struct packet_manager *pm)
 {
 	return pm->ready_num;
 }
+
+int pm_reset(struct packet_manager *pm)
+{
+	if (!pm) {
+		return -1;
+	}
+
+	aicos_mutex_take(pm->lock,AICOS_WAIT_FOREVER);
+	if (!mpp_list_empty(&pm->ready_list)) {
+		struct packet_impl *pkt1=NULL,*pkt2=NULL;
+		mpp_list_for_each_entry_safe(pkt1,pkt2,&pm->ready_list,list) {
+			mpp_list_del_init(&pkt1->list);
+			mpp_list_add_tail(&pkt1->list, &pm->empty_list);
+		}
+	}
+
+	logd("read_offset:%d,write_offset:%d,empty_num:%d,ready_num:%d,available_size:%d\n"
+	,pm->read_offset
+	,pm->write_offset
+	,pm->empty_num
+	,pm->ready_num
+	,pm->available_size);
+
+	pm->empty_num = pm->packet_count;
+	pm->ready_num = 0;
+	pm->read_offset = 0;
+	pm->write_offset = 0;
+	pm->available_size = pm->buffer_size;
+	aicos_mutex_give(pm->lock);
+	return 0;
+}

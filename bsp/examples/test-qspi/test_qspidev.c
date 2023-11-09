@@ -164,15 +164,18 @@ static void test_qspi_sendhex(int argc, char **argv)
     dmycyc = 0;
     data_len = 0;
     if (argc >= 5) {
-        dmycyc = strtol(argv[4], NULL, 16);
+        if (rt_memcmp(argv[4], "-", 1))
+            dmycyc = strtol(argv[4], NULL, 10);
         data_len = argc - 5;
     }
     data = RT_NULL;
+    printf("data len %ld\n", data_len);
     if (data_len) {
         align_len = roundup(data_len, CACHE_LINE_SIZE);
         data = aicos_malloc_align(0, align_len, CACHE_LINE_SIZE);
         for (i = 5; i < argc; i++) {
-            data[i] = (uint8_t)strtol(argv[i], NULL, 16);
+            data[i - 5] = (uint8_t)strtol(argv[i], NULL, 16);
+            printf("%s -> %02x\n", argv[i], data[i - 5]);
         }
     }
     rt_memset(&msg, 0, sizeof(msg));
@@ -194,7 +197,7 @@ static void test_qspi_sendhex(int argc, char **argv)
     rt_spi_take_bus((struct rt_spi_device *)g_qspi);
     ret = rt_qspi_transfer_message(g_qspi, &msg);
     if (ret != data_len) {
-        printf("Send data failed. ret 0x%lx\n", ret);
+        printf("Send data failed. ret 0x%x\n", (int)ret);
     }
     rt_spi_release_bus((struct rt_spi_device *)g_qspi);
     if (data)
@@ -236,7 +239,8 @@ static void test_qspi_recvhex(int argc, char **argv)
     }
     dmycyc = 0;
     if (argc >= 5) {
-        dmycyc = strtol(argv[4], NULL, 16);
+        if (rt_memcmp(argv[4], "-", 1))
+            dmycyc = strtol(argv[4], NULL, 16);
     }
     data_len = 0;
     if (argc >= 6) {
@@ -343,7 +347,7 @@ static void test_qspi_send(int argc, char **argv)
     rt_spi_take_bus((struct rt_spi_device *)g_qspi);
     ret = rt_qspi_transfer_message(g_qspi, &msg);
     if (ret != data_len) {
-        printf("Send data failed. ret 0x%lx\n", ret);
+        printf("Send data failed. ret 0x%x\n", (int)ret);
     }
     rt_spi_release_bus((struct rt_spi_device *)g_qspi);
 }
@@ -411,11 +415,13 @@ static void test_qspi_recv(int argc, char **argv)
     rt_spi_take_bus((struct rt_spi_device *)g_qspi);
     ret = rt_qspi_transfer_message(g_qspi, &msg);
     if (ret != data_len) {
-        printf("Recv data failed. ret 0x%lx\n", ret);
+        printf("Recv data failed. ret 0x%x\n", (int)ret);
     }
     rt_spi_release_bus((struct rt_spi_device *)g_qspi);
 }
 
+extern void test_qspi_slaverw(struct rt_qspi_device *qspi, int argc, char **argv);
+extern void test_qspi_send2slave(struct rt_qspi_device *qspi, int argc, char **argv);
 static void cmd_test_qspi(int argc, char **argv)
 {
     unsigned long size = 0, addr = 0, align_len;
@@ -454,9 +460,27 @@ static void cmd_test_qspi(int argc, char **argv)
     } else if (!rt_strcmp(argv[1], "recv")) {
         test_qspi_recv(argc - 1, &argv[1]);
         return;
+    } else if (!rt_strcmp(argv[1], "slaverw")) {
+#ifdef AIC_QSPI_DRV_V11
+        if (!g_qspi) {
+            printf("QSPI device is not init yet.\n");
+            return;
+        }
+        test_qspi_slaverw(g_qspi, argc - 1, &argv[1]);
+        return;
+#endif
+    } else if (!rt_strcmp(argv[1], "send2slave")) {
+#ifdef AIC_QSPI_DRV_V11
+        if (!g_qspi) {
+            printf("QSPI device is not init yet.\n");
+            return;
+        }
+        test_qspi_send2slave(g_qspi, argc - 1, &argv[1]);
+        return;
+#endif
     }
 help:
     qspi_usage();
 }
 
-MSH_CMD_EXPORT_ALIAS(cmd_test_qspi, qspidev, Test QSPI. "qspidev help" for more information);
+MSH_CMD_EXPORT_ALIAS(cmd_test_qspi, qspidev, Test QSPI);

@@ -200,12 +200,12 @@ int rt_blk_nand_register_device(const char *name,
     }
 
     blk_dev->mtd_device = device;
+    blk_dev->parent.type = RT_Device_Class_Block;
 
 #ifdef RT_USING_DEVICE_OPS
     blk_dev->parent.ops = &blk_dev_ops;
 #else
     /* register device */
-    blk_dev->parent.type = RT_Device_Class_Block;
     blk_dev->parent.init = NULL;
     blk_dev->parent.open = NULL;
     blk_dev->parent.close = NULL;

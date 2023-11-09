@@ -616,8 +616,9 @@ int spinand_continuous_read(struct aic_spinand *flash, u32 page, u8 *data,
         if (cpage % flash->info->pages_per_eraseblock) {
             pagealign = cpage / flash->info->pages_per_eraseblock *
                         flash->info->pages_per_eraseblock;
-        } else
+        } else {
             pagealign = cpage;
+        }
 
         blk = pagealign / flash->info->pages_per_eraseblock;
         if (spinand_block_isbad(flash, blk) != 0) {
@@ -628,8 +629,9 @@ int spinand_continuous_read(struct aic_spinand *flash, u32 page, u8 *data,
 
         if (cpage % flash->info->pages_per_eraseblock) {
             cpage = pagealign + flash->info->pages_per_eraseblock;
-        } else
+        } else {
             cpage += flash->info->pages_per_eraseblock;
+        }
     }
 
     if (((unsigned long)data) & (AIC_DMA_ALIGN_SIZE - 1)) {
@@ -875,7 +877,7 @@ exit_spinand_read:
 
 int spinand_erase(struct aic_spinand *flash, u32 offset, u32 size)
 {
-    int err;
+    int err = 0;
     u16 blk;
     u32 off = offset;
     u32 cnt = size;
@@ -915,7 +917,7 @@ int spinand_erase(struct aic_spinand *flash, u32 offset, u32 size)
 
 int spinand_write(struct aic_spinand *flash, u8 *addr, u32 offset, u32 size)
 {
-    int err;
+    int err = 0;
     u32 page;
     u32 off = offset;
     u16 blk;

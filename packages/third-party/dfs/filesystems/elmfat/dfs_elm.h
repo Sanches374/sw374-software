@@ -19,6 +19,18 @@ extern "C" {
 #define CACHE_LINE_SIZE     64
 #endif
 
+/* Definitions of physical drive number for each drive */
+#define SDMC_DISK        0
+#define SPINAND_DISK     1       /* spinand disk */
+#define USB_DISK         2       /* usb disk */
+#define SPINOR_DISK      3       /* spinor disk */
+#define RAM_DISK         4       /* Example: ram disk */
+
+struct dev_info {
+    char *dev_name;
+    int dev_type;
+};
+
 int elm_init(void);
 
 #ifdef __cplusplus

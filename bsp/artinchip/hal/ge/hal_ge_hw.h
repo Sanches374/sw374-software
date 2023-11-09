@@ -9,8 +9,8 @@
 #ifndef _GE_HW_H_
 #define _GE_HW_H_
 
-#include "aic_log.h"
 #include "aic_common.h"
+#include "aic_log.h"
 #include "aic_osal.h"
 #include "aic_io.h"
 #include "aic_hal_ge.h"

@@ -413,6 +413,7 @@ static s32 CMD_EXEC_write_input_data(struct upg_cmd *cmd, u8 *buf, s32 len)
     }
 
     fn = (exec_func)(unsigned long)addr;
+    aicos_dcache_clean();
     if (fn())
         cmd->priv = (void *)UPG_RESP_FAIL;
 out:

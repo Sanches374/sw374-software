@@ -27,11 +27,6 @@
                 "attr": ["required", "run"],
                 "ram": "0x00103000"
             },
-            "os": {
-                "file": "os.aic",
-                "attr": ["required"],
-                "ram": "0x40000000"
-            },
             "spl": {
                 "file": "bootloader.aic",
                 "attr": ["required", "run"],
@@ -45,7 +40,7 @@
                 "part": ["bootloader"]
             },
             "os": {
-                "file": "os.aic",
+                "file": "d21x_os.itb",
                 "attr": ["mtd", "required"],
                 "part": ["os"]
             },
@@ -77,14 +72,10 @@
                     "pbp": "d21x.pbp",
                 },
             },
-            "os.aic": {
-                "head_ver": "0x00010001",
-                "loader": {
-                    "file": "d21x.bin",
-                    "load address": "0x40000000",
-                    "entry point":  "0x40000100",
-                    "run in dram": "false",
-                }
+        },
+        "itb": {
+            "d21x_os.itb": {
+                "its": "d21x_os.its"
             },
         },
     },

@@ -11,7 +11,7 @@
 extern "C" {
 #endif
 
-#include "aic_common.h"
+#include <io.h>
 
 #ifndef BIT
 #define BIT(s) (1U << (s))
@@ -23,35 +23,6 @@ extern "C" {
 #define GENMASK_UL(h, l)    (((~(0UL)) - ((1UL) << (l)) + 1) & \
                              (~(0UL) >> (BITS_PER_LONG - 1 - (h))))
 
-static inline void __raw_writeb(u8 val, volatile void *addr)
-{
-    asm volatile("sb %0, 0(%1)" : : "r" (val), "r" (addr));
-}
-
-static inline u8 __raw_readb(const volatile void *addr)
-{
-    u8 val;
-
-    asm volatile("lb %0, 0(%1)" : "=r" (val) : "r" (addr));
-    return val;
-}
-
-static inline void __raw_writel(u32 val, volatile void *addr)
-{
-    asm volatile("sw %0, 0(%1)" : : "r"(val), "r"(addr));
-}
-
-static inline u32 __raw_readl(const volatile void *addr)
-{
-    u32 val;
-
-    asm volatile("lw %0, 0(%1)" : "=r"(val) : "r"(addr));
-    return val;
-}
-
-#define mmiowb_set_pending() \
-    do { \
-    } while (0)
 #define cpu_to_le32(val) (val)
 #define le32_to_cpu(val) (val)
 
@@ -61,11 +32,6 @@ static inline u32 __raw_readl(const volatile void *addr)
 #define writeb_cpu(v, c)    ((void)__raw_writeb((v), (c)))
 #define writel_cpu(v, c)    ((void)__raw_writel((u32)cpu_to_le32(v), (c)))
 
-#define __io_br()       do { } while (0)
-#define __io_ar(v)      __asm__ __volatile__("fence i,r" : : : "memory");
-#define __io_bw()       __asm__ __volatile__("fence w,o" : : : "memory");
-#define __io_aw()       mmiowb_set_pending()
-
 #define readb(c) \
     ({ \
         u8  __v; \
@@ -73,6 +39,7 @@ static inline u32 __raw_readl(const volatile void *addr)
         __v = readb_cpu((volatile void *)c); \
         __io_ar(__v); __v; \
     })
+
 #define readl(c) \
     ({ \
         u32 __v; \
@@ -88,6 +55,7 @@ static inline u32 __raw_readl(const volatile void *addr)
         writeb_cpu((v), (volatile void *)(c)); \
         __io_aw(); \
     })
+
 #define writel(v, c) \
     ({ \
         __io_bw(); \

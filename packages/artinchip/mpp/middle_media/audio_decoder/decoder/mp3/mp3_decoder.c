@@ -392,15 +392,20 @@ int __mp3_decode_control(struct aic_audio_decoder *decoder, int cmd, void *param
 }
 int __mp3_decode_reset(struct aic_audio_decoder *decoder)
 {
-    // struct mp3_audio_decoder *mp3_decoder = (struct mp3_audio_decoder *)decoder;
+     struct mp3_audio_decoder *mp3_decoder = (struct mp3_audio_decoder *)decoder;
 
-    // mp3_decoder->stop_flag = 1;
-    // pthread_join(mp3_decoder->decode_thread_id, NULL);
-    // mp3_decoder->stop_flag = 0;
-    // mp3_decoder->stream_end = 0;
-    // mp3_decoder->decode_thread_id = 0;
-    // audio_pm_reset(mp3_decoder->decoder.pm);
-    // audio_fm_reset(mp3_decoder->decoder.fm);
+     mp3_decoder->stop_flag = 1;
+     pthread_join(mp3_decoder->decode_thread_id, NULL);
+     mp3_decoder->stop_flag = 0;
+     mp3_decoder->stream_end = 0;
+     mp3_decoder->decode_thread_id = 0;
+     mp3_decoder->first_frame = 1;
+     mp3_decoder->first_packet = 1;
+     mp3_decoder->frame_duration = 0;
+     mp3_decoder->first_pts = 0;
+     mp3_decoder->frame_id = 0;	 
+     audio_pm_reset(mp3_decoder->decoder.pm);
+     audio_fm_reset(mp3_decoder->decoder.fm);
     return 0;
 }
 

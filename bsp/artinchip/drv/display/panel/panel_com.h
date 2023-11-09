@@ -21,9 +21,12 @@ struct aic_panel *aic_find_panel(u32 connector_type);
 extern struct aic_panel aic_panel_rgb;
 extern struct aic_panel aic_panel_lvds;
 extern struct aic_panel dsi_xm91080;
+extern struct aic_panel dsi_st7797;
 extern struct aic_panel dbi_ili9488;
 extern struct aic_panel dbi_ili9341;
 extern struct aic_panel dbi_st77903;
+extern struct aic_panel dbi_ili9486l;
+extern struct aic_panel srgb_hx8238;
 
 void panel_di_enable(struct aic_panel *panel, u32 ms);
 void panel_di_disable(struct aic_panel *panel, u32 ms);

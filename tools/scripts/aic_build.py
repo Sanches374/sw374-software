@@ -894,7 +894,7 @@ def mkimage_prebuild(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_def
     eclipse_sdk_post_build = eclipse_sdk_post_build.replace(prj_out_dir_n, '${ProjDirPath}/Debug')
     eclipse_sdk_post_build = eclipse_sdk_post_build.replace(aic_root, '${ProjDirPath}')
     eclipse_sdk_post_build = eclipse_sdk_post_build.replace(aic_root_n, '${ProjDirPath}')
-    eclipse_post_build = eclipse_post_build.replace('$TARGET', '${ProjDirPath}/Debug/${ProjName}.elf')
+    eclipse_sdk_post_build = eclipse_sdk_post_build.replace('$TARGET', '${ProjDirPath}/Debug/${ProjName}.elf')
     eclipse_sdk_post_build = eclipse_sdk_post_build.replace('\\', '/')
 
     post_objcopy = "${cross_prefix}${cross_objcopy}${cross_suffix} -O binary ${ProjName}.elf ${ProjName}.bin;"

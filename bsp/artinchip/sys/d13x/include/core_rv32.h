@@ -1051,11 +1051,11 @@ __STATIC_INLINE void csi_dcache_enable (void)
         __DCACHE_IALL(); /* invalidate all dcache */
         cache |= (CACHE_MHCR_DE_Msk | CACHE_MHCR_WB_Msk | CACHE_MHCR_WA_Msk | CACHE_MHCR_RS_Msk | CACHE_MHCR_BPE_Msk | CACHE_MHCR_L0BTB_Msk); /* enable all Cache */
         __set_MHCR(cache);
-        mhint = __get_MHINT();
-        mhint &= ~(MHINT_DPLD_Msk | MHINT_AMR_Msk | MHINT_PREF_N_Msk);
-        mhint |= (1<<MHINT_DPLD_Pos) | (1<<MHINT_AMR_Pos) | (3<<MHINT_PREF_N_Pos);
-        __set_MHINT(mhint);
     }
+    mhint = __get_MHINT();
+    mhint &= ~(MHINT_DPLD_Msk | MHINT_AMR_Msk | MHINT_PREF_N_Msk);
+    mhint |= (1<<MHINT_AMR_Pos);
+    __set_MHINT(mhint);
     __DSB();
     __ISB();
 #endif

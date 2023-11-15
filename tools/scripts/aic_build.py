@@ -426,6 +426,7 @@ def win_menuconfig_cmd(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_d
                 f.write('source "./bsp/artinchip/sys/{}/Kconfig.chip"\n'.format(prj_chip))
                 f.write('source "target/{}/{}/Kconfig.board"\n'.format(prj_chip, prj_board))
                 f.write('source "kernel/{}/Kconfig"\n'.format(prj_kernel))
+                f.write('source "application/{}/{}/Kconfig"\n'.format(app_os, prj_app))
                 if prj_kernel == 'rt-thread':
                     f.write('source "$PKGS_DIR/Kconfig"\n')
             os.system('menuconfig')

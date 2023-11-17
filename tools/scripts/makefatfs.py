@@ -68,7 +68,7 @@ def gen_fatfs(tooldir, srcdir, outimg, imgsiz, sector_siz, cluster):
         truncate = '{}truncate.exe -s {} {}'.format(tooldir, imgsiz, outimg)
         run_cmd(truncate)
 
-        mformat = '{}mformat.exe -F -M {} -T {} -c {} -i {}'.format(tooldir, sector_siz, sector_cnt, cluster, outimg)
+        mformat = '{}mformat.exe -M {} -T {} -c {} -i {}'.format(tooldir, sector_siz, sector_cnt, cluster, outimg)
         run_cmd(mformat)
 
         mcopy = '{}mcopy.exe -i {} -s {}\\\\ ::/'.format(tooldir, outimg, srcdir)

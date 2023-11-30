@@ -78,6 +78,7 @@
 			"upgmode_pin_input_reg": "0x18700000", // INPUT VAL REG
 			"upgmode_pin_input_msk": "0x1", // Bit MSK
 			"upgmode_pin_input_val": "0x0", // Bit VAL
+			"upgmode_pin_pullup_dly": "500", // n * 1us delay, limited to between 500us and 100ms
 		},
 		"uart": { // PBP's uart setting
 			"main": {

@@ -44,6 +44,10 @@ struct rt_pwm_configuration
     rt_uint32_t pul_num;
     rt_uint32_t pul_prd;
     rt_uint32_t pul_cmp;
+#ifdef AIC_DMA_DRV
+    rt_uint32_t *buf;
+    rt_uint32_t buf_len;
+#endif
 #endif
 };
 

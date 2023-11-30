@@ -577,11 +577,6 @@ OMX_ERRORTYPE OMX_AudioRenderComponentDeInit(
 
     aic_msg_destroy(&pAudioRenderDataType->sMsgQue);
 
-    if (pAudioRenderDataType->render) {
-        aic_audio_render_destroy(pAudioRenderDataType->render);
-        pAudioRenderDataType->render = NULL;
-    }
-
     mpp_free(pAudioRenderDataType);
     pAudioRenderDataType = NULL;
 
@@ -612,9 +607,8 @@ OMX_ERRORTYPE OMX_AudioRenderComponentInit(
     OMX_U32 i;
     //OMX_U32 cnt;
 
-    pthread_attr_t *attr = NULL;
-    attr = (pthread_attr_t*)mpp_alloc(sizeof(pthread_attr_t));
-    audio_thread_attr_init(attr);
+    pthread_attr_t attr;
+    audio_thread_attr_init(&attr);
 
     logi("OMX_AudioRenderComponentInit....\n");
 
@@ -699,7 +693,7 @@ OMX_ERRORTYPE OMX_AudioRenderComponentInit(
     pthread_mutex_init(&pAudioRenderDataType->stateLock, NULL);
     pthread_mutex_init(&pAudioRenderDataType->sWaitReayFrameLock, NULL);
     // Create the component thread
-    err = pthread_create(&pAudioRenderDataType->threadId, attr, OMX_AudioRenderComponentThread, pAudioRenderDataType);
+    err = pthread_create(&pAudioRenderDataType->threadId, &attr, OMX_AudioRenderComponentThread, pAudioRenderDataType);
     if (err || !pAudioRenderDataType->threadId)
     {
         loge("pthread_create fail!\n");
@@ -871,7 +865,7 @@ static void OMXAudioRenderStateChangeToIdle(AUDIO_RENDER_DATA_TYPE * pAudioRende
     }
 
     } else if (pAudioRenderDataType->state == OMX_StatePause) {
-
+        aic_audio_render_pause(pAudioRenderDataType->render);
     } else if (pAudioRenderDataType->state == OMX_StateExecuting) {
 
     } else {
@@ -1316,6 +1310,10 @@ _AIC_MSG_GET_:
         }
     }
 _EXIT:
+    if (pAudioRenderDataType->render) {
+        aic_audio_render_destroy(pAudioRenderDataType->render);
+        pAudioRenderDataType->render = NULL;
+    }
     printf("[%s:%d]nReceiveFrameNum:%d,"\
             "nLeftReadyFrameWhenCompoentExitNum:%d,"\
             "nShowFrameOkNum:%d,"\

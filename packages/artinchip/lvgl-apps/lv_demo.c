@@ -16,14 +16,20 @@
 #include "aic_ui.h"
 #include "aic_dec.h"
 #include <dfs_fs.h>
+#include "aic_time.h"
 
-#ifndef CACHE_IMG_NUM
-#define CACHE_IMG_NUM 15
+#ifndef LV_CACHE_IMG_NUM
+#define LV_CACHE_IMG_NUM 1
 #endif
 
 void lv_user_gui_init(void)
 {
-    lv_img_cache_set_size(CACHE_IMG_NUM);
+    // wait sdcard mounted
+    if (!strcmp(LVGL_STORAGE_PATH, "/sdcard")) {
+        aicos_msleep(1000);
+    }
+
+    lv_img_cache_set_size(LV_CACHE_IMG_NUM);
     aic_dec_create();
     aic_ui_init();
 }

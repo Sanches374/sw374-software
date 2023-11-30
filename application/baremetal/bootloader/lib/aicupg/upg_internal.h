@@ -75,6 +75,7 @@ struct upg_internal {
     int dev_type;
     int dev_id;
     struct upg_cfg cfg;
+    struct upg_init init;
 };
 
 /* FWC meta data will bie aligned to 512 */

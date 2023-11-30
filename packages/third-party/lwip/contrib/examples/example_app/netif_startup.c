@@ -115,7 +115,9 @@ void netif_startup(void)
 #endif /* AIC_USING_RTL8733_WLAN0 */
 
     /* the first netif as the default netif */
-    for (netif = netif_list; netif != NULL; netif = netif->next);
+    for (netif = netif_list; netif != NULL; netif = netif->next) {
+
+    }
 
     ifconfig();
 
@@ -125,6 +127,7 @@ void netif_startup(void)
     netif_set_default(netif);
 }
 
+#if NO_SYS
 extern void aic_phy_poll(void);
 void netif_baremetal_poll(void)
 {
@@ -138,3 +141,4 @@ void netif_baremetal_poll(void)
         }
     }
 }
+#endif

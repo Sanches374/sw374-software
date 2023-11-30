@@ -17,6 +17,7 @@
 #include "mpp_decoder.h"
 #include "mpp_fb.h"
 #include "aic_ui.h"
+#include "aic_time.h"
 
 #define PI 3.141592653589
 
@@ -358,7 +359,7 @@ static int ge_run_blit(lv_draw_ctx_t * draw_ctx, const lv_draw_img_dsc_t *draw_d
 
     /* ctrl */
     blt.ctrl.flags = draw_dsc->angle / 900;
-    if(draw_dsc->opa < LV_OPA_MAX && frame->buf.format != MPP_FMT_ARGB_8888)
+    if(draw_dsc->opa >= LV_OPA_MAX && frame->buf.format != MPP_FMT_ARGB_8888)
         blt.ctrl.alpha_en = 0;
     else
         blt.ctrl.alpha_en = 1;
@@ -472,7 +473,7 @@ static int ge_run_rotate(lv_draw_ctx_t * draw_ctx, const lv_draw_img_dsc_t *draw
     return LV_RES_OK;
 }
 
-static inline void RGB565_To_ARGB(unsigned short src_pixel, unsigned int* dst_color)
+static inline void rgb565_to_argb(unsigned short src_pixel, unsigned int* dst_color)
 {
     unsigned int a, r, g, b;
 
@@ -499,7 +500,7 @@ static int ge_run_fill(lv_draw_ctx_t * draw_ctx, unsigned int color, unsigned ch
     lv_coord_t blend_height = lv_area_get_height(blend_area);
 
     if (g_info.bits_per_pixel == 16) {
-        RGB565_To_ARGB((unsigned short)color, &color);
+        rgb565_to_argb((unsigned short)color, &color);
     }
 
     /* fill info */
@@ -749,6 +750,7 @@ LV_ATTRIBUTE_FAST_MEM void lv_draw_aic_img_decoded(struct _lv_draw_ctx_t * draw_
                 LV_LOG_ERROR("unsupported angle:%d zoom:%d\n", draw_dsc->angle, draw_dsc->zoom);
                 return;
             }
+
         } else {
             lv_draw_sw_img_decoded(draw_ctx, draw_dsc, coords, src_buf, cf);
         }

@@ -255,14 +255,16 @@ void netif_rx(int idx, unsigned int len)
 void netif_post_sleep_processing(void)
 {
 #if (CONFIG_LWIP_LAYER == 1)
-	lwip_POST_SLEEP_PROCESSING();	//For FreeRTOS tickless to enable Lwip ARP timer when leaving IPS - Alex Fang
+    /* for rtl lib 2.0, is not needed */
+//	lwip_POST_SLEEP_PROCESSING();	//For FreeRTOS tickless to enable Lwip ARP timer when leaving IPS - Alex Fang
 #endif
 }
 
 void netif_pre_sleep_processing(void)
 {
 #if (CONFIG_LWIP_LAYER == 1)
-	lwip_PRE_SLEEP_PROCESSING();
+    /* for rtl lib 2.0, is not needed */
+//	lwip_PRE_SLEEP_PROCESSING();
 #endif
 }
 

@@ -15,7 +15,7 @@
 #define gen_reg(val) (volatile void *)(val)
 #define USEC_PER_SEC (1000000)
 
-int aic_i2c_init(uint32_t i2c_idx)
+int aic_i2c_init(int32_t i2c_idx)
 {
     int ret = 0;
     ret = hal_clk_enable_deassertrst(CLK_I2C0 + i2c_idx);
@@ -208,7 +208,7 @@ static int32_t aic_i2c_wait_iic_transmit(unsigned long reg_base,
     int32_t ret = I2C_OK;
 
     do {
-        uint32_t timecount = timeout + aic_get_time_ms();
+        uint64_t timecount = timeout + aic_get_time_ms();
 
         while ((aic_i2c_get_transmit_fifo_num(reg_base) != 0U) &&
                (ret == EOK)) {
@@ -234,7 +234,7 @@ static int32_t aic_i2c_wait_receive(unsigned long reg_base,
     int32_t ret = I2C_OK;
 
     do {
-        uint32_t timecount = timeout + aic_get_time_ms();
+        uint64_t timecount = timeout + aic_get_time_ms();
 
         while ((aic_i2c_get_receive_fifo_num(reg_base) < wait_data_num) &&
                (ret == I2C_OK)) {

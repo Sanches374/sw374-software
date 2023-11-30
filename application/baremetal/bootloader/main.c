@@ -23,7 +23,6 @@
 #include <aic_time.h>
 #include <boot_time.h>
 #include <aic_clk_id.h>
-#include <upg_detect.h>
 #include <upg_uart.h>
 #include <hal_syscfg.h>
 #include <xspi_psram.h>
@@ -43,7 +42,7 @@ extern int drv_dma_init(void);
 
 #define MAX_HEAP_SIZE_IN_BOOT 0x800000
 
-#ifdef AIC_AXICFG_DRV
+#ifdef AIC_BOOTLOADER_AXICFG_SUPPORT
 struct hal_axicfg_table axi_cfg_table[HAL_AXICFG_PORT_MAX] = {
     { .enable = AXICFG_CPU_EN, .priority = (u8)AIC_AXICFG_PORT_CPU_PRIO },
     { .enable = AXICFG_AHB_EN, .priority = (u8)AIC_AXICFG_PORT_AHB_PRIO },
@@ -69,19 +68,19 @@ static int board_init(enum boot_device bd)
     /* psram init */
     aic_xspi_psram_init();
     boot_time_trace("PSRAM init done");
+#endif
 
-#ifdef AIC_AXICFG_DRV
+#ifdef AIC_BOOTLOADER_AXICFG_SUPPORT
     for (int i = 0; i < HAL_AXICFG_PORT_MAX; i++) {
         if (axi_cfg_table[i].enable) {
             hal_axicfg_module_init(i, axi_cfg_table[i].priority);
         }
     }
 #endif
-#endif
 
     heap_size = ((size_t)&__heap_end) - ((size_t)&__heap_start);
 
-    if (bd != BD_UDISK && bd != BD_SDFAT32)
+    if (bd != BD_UDISK && bd != BD_SDFAT32 && heap_size > 0x200000)
             heap_size = 0x200000;
 
     heap_start = (size_t)&__heap_end - heap_size;
@@ -106,14 +105,9 @@ int main(void)
 {
     enum boot_device bd;
     int ctrlc = -1;
-    s32 upgmode = 0;
     s32 id = -1;
 
     boot_time_trace("Enter main");
-    upgmode = upg_mode_detect();
-    if (upgmode) {
-        jump_to_rom_upgmode_entry();
-    }
 
 #ifdef AIC_SID_DRV
     hal_efuse_init();
@@ -136,13 +130,6 @@ int main(void)
 
     ctrlc = console_get_ctrlc();
     if (ctrlc < 0) {
-        if (upgmode) {
-            if (upgmode == UPG_DETECT_REASON_SOFT)
-                printf("Enter Upgrading Mode by Software.\n");
-            if (upgmode == UPG_DETECT_REASON_PIN)
-                printf("Enter Upgrading Mode by PIN.\n");
-            bd = BD_USB;
-        }
 #if defined(AICUPG_UDISK_ENABLE)
         id = usbh_get_connect_id();
         boot_time_trace("UDISK checked");
@@ -160,13 +147,15 @@ int main(void)
          */
         switch (bd) {
             case BD_USB:
+#if defined(AICUPG_USB_ENABLE)
                 usbd_connection_check_start();
                 if (usbd_connection_check_status()) {
                     usbd_connection_check_end();
                     console_set_bootcmd("aicupg usb 0");
-                } else {
-                    console_set_bootcmd("aicupg uart 0");
+                    break;
                 }
+#endif
+                console_set_bootcmd("aicupg uart 0");
                 break;
             case BD_UDISK:
                 if (id == 0)

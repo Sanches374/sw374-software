@@ -565,6 +565,7 @@ def chk_prepare_toolchain(aic_root, prj_chip, prj_board, prj_kernel, prj_app, pr
         with open(ready_f, 'r') as f:
             toolchain_os = f.readline().strip()
             old_toolchain_name = f.readline().strip()
+            f.close()
             if platform.system() != toolchain_os:
                 shutil.rmtree(toolchain_bpath)
             else:
@@ -599,7 +600,7 @@ def mkimage_get_mtdpart_size(imgname):
         lines = f.readlines()
         for ln in lines:
             name = ln.split(',')[1].replace('"', '').replace('*', '')
-            if imgname == name or imgname in name:
+            if imgname == name:
                 size = int(ln.split(',')[2])
                 return size
     print('Image {} is not used in any partition'.format(imgname))
@@ -711,6 +712,8 @@ def mkimage_gen_mkfs_action(img_id):
             cmdstr += '--outfile {}\n'.format(outimg)
             mkfscmd += cmdstr
         if data_siz > imgsize:
+            print('data_size:{}'.format(data_siz))
+            print('imgsize:{}'.format(imgsize))
             print('Error, the image size will larger than partition size')
             print('  -> {}'.format(outimg))
             sys.exit(0)
@@ -797,10 +800,13 @@ def mkimage_prebuild(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_def
         if get_config(prj_root_dir + '.config', env_enable) == 'y':
             os.system('cp ' + aic_pack_dir + 'env.txt ' + prj_out_dir)
 
+    if not os.path.exists(prj_out_dir):
+        os.makedirs(prj_out_dir)
     # Gen partition table
     CMD = 'python3 ' + aic_script_dir + 'gen_partition_table.py'
     CMD += ' -c ' + aic_pack_dir +  'image_cfg.json'
     CMD += ' -o ' + prj_root_dir + 'partition_table.h'
+    CMD += ' -j ' + prj_out_dir + 'partition.json'
     os.system(CMD)
     PRE_ACTION = CMD + ';'
 
@@ -808,8 +814,6 @@ def mkimage_prebuild(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_def
     CMD = 'python3 ' + aic_script_dir + 'gen_partition_file_list.py'
     CMD += ' -c ' + aic_pack_dir +  'image_cfg.json'
     CMD += ' -o ' + prj_out_dir + 'partition_file_list.h'
-    if not os.path.exists(prj_out_dir):
-        os.makedirs(prj_out_dir)
     os.system(CMD)
 
     MKFS_ACTION = ''
@@ -828,14 +832,20 @@ def mkimage_prebuild(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_def
         # packaged ddr files
         POST_ACTION += '@cp -r ' + aic_pack_dir + '* ' + prj_out_dir + '\n'
         if platform.system() == 'Linux':
-            MAKE_DDR_TOOL = aic_script_dir + 'mk_private_resource.py'
+            MAKE_DDR_TOOL = 'python3 ' + aic_script_dir + 'mk_private_resource.py'
         elif platform.system() == 'Windows':
             MAKE_DDR_TOOL = aic_script_dir + 'mk_private_resource.exe'
         DDR_JSON = prj_out_dir + 'ddr_init.json'
+        PART_JSON = prj_out_dir + 'partition.json'
         DDR_BIN = prj_out_dir + 'ddr_init.bin'
-        MAKE_DDR_ACTION = MAKE_DDR_TOOL + ' -v -c ' + DDR_JSON + ' -o ' + DDR_BIN + '\n'
+        MAKE_DDR_ACTION = MAKE_DDR_TOOL + ' -v -l {},{} -o {}\n'.format(DDR_JSON, PART_JSON, DDR_BIN)
         if os.path.exists(aic_pack_dir + 'ddr_init.json'):
             POST_ACTION += MAKE_DDR_ACTION
+        PBP_JSON = prj_out_dir + 'pbp_cfg.json'
+        PBP_BIN = prj_out_dir + 'pbp_cfg.bin'
+        MAKE_PBP_ACTION = MAKE_DDR_TOOL + ' -v -l {},{} -o {}\n'.format(PBP_JSON, PART_JSON, PBP_BIN)
+        if os.path.exists(aic_pack_dir + 'pbp_cfg.json'):
+            POST_ACTION += MAKE_PBP_ACTION
         # pack image files
         if mkimage_check_file_exist(aic_pack_dir, '*.pbp'):
             POST_ACTION += '@cp -r ' + aic_pack_dir + '/*.pbp ' + prj_out_dir + '\n'
@@ -864,12 +874,16 @@ def mkimage_prebuild(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_def
 
     eclipse_pre_build = PRE_ACTION
     eclipse_pre_build = eclipse_pre_build.replace('python3', '${ProjDirPath}/../../../tools/env/tools/Python39/python3')
+    eclipse_pre_build = eclipse_pre_build.replace(prj_out_dir, '${ProjDirPath}/Debug/')
+    eclipse_pre_build = eclipse_pre_build.replace(prj_out_dir_n, '${ProjDirPath}/Debug')
     eclipse_pre_build = eclipse_pre_build.replace(aic_root, '${ProjDirPath}/../../..')
     eclipse_pre_build = eclipse_pre_build.replace(aic_root_n, '${ProjDirPath}/../../..')
     eclipse_pre_build = eclipse_pre_build.replace('\\', '/')
 
     eclipse_sdk_pre_build = PRE_ACTION
     eclipse_sdk_pre_build = eclipse_sdk_pre_build.replace('python3', '${ProjDirPath}/tools/Python39/python3')
+    eclipse_sdk_pre_build = eclipse_sdk_pre_build.replace(prj_out_dir, '${ProjDirPath}/Debug/')
+    eclipse_sdk_pre_build = eclipse_sdk_pre_build.replace(prj_out_dir_n, '${ProjDirPath}/Debug')
     eclipse_sdk_pre_build = eclipse_sdk_pre_build.replace(aic_script_dir, '${ProjDirPath}/tools/scripts/')
     eclipse_sdk_pre_build = eclipse_sdk_pre_build.replace(aic_script_dir_n, '${ProjDirPath}/tools/scripts')
     eclipse_sdk_pre_build = eclipse_sdk_pre_build.replace(aic_root, '${ProjDirPath}')
@@ -880,6 +894,7 @@ def mkimage_prebuild(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_def
     eclipse_post_build = eclipse_post_build.replace('\n',';')
     eclipse_post_build = eclipse_post_build.replace('python3', '${ProjDirPath}/../../../tools/env/tools/Python39/python3')
     eclipse_post_build = eclipse_post_build.replace('@cp', '${ProjDirPath}/../../../tools/env/tools/bin/cp')
+    eclipse_post_build = eclipse_post_build.replace('@echo', '${ProjDirPath}/../../../tools/env/tools/bin/echo')
     eclipse_post_build = eclipse_post_build.replace(prj_out_dir, '${ProjDirPath}/Debug/')
     eclipse_post_build = eclipse_post_build.replace(prj_out_dir_n, '${ProjDirPath}/Debug')
     eclipse_post_build = eclipse_post_build.replace(aic_root, '${ProjDirPath}/../../..')
@@ -891,6 +906,7 @@ def mkimage_prebuild(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_def
     eclipse_sdk_post_build = eclipse_sdk_post_build.replace('\n',';')
     eclipse_sdk_post_build = eclipse_sdk_post_build.replace('python3', '${ProjDirPath}/tools/Python39/python3')
     eclipse_sdk_post_build = eclipse_sdk_post_build.replace('@cp', '${ProjDirPath}/tools/bin/cp')
+    eclipse_sdk_post_build = eclipse_sdk_post_build.replace('@echo', '${ProjDirPath}/tools/bin/echo')
     eclipse_sdk_post_build = eclipse_sdk_post_build.replace(prj_out_dir, '${ProjDirPath}/Debug/')
     eclipse_sdk_post_build = eclipse_sdk_post_build.replace(prj_out_dir_n, '${ProjDirPath}/Debug')
     eclipse_sdk_post_build = eclipse_sdk_post_build.replace(aic_root, '${ProjDirPath}')
@@ -999,7 +1015,8 @@ def mkimage_xip_postaction(aic_root, prj_chip, prj_kernel, prj_app, prj_defconfi
     XIP_POST_ACTION += '@echo ' + prj_kernel + "-" + prj_app + ': make XIP image begin...\n'
     XIP_POST_ACTION += rtconfig_objcpy + ' -O binary -j .text -j .eh_frame_hdr -j .eh_frame -j .gcc_except_table -j .rodata $TARGET ' + prj_out_dir + prj_chip + '.text.bin\n'
     XIP_POST_ACTION += rtconfig_objcpy + ' -O binary -j .ram.code -j .data $TARGET ' + prj_out_dir + prj_chip+ '.data.bin\n'
-    XIP_POST_ACTION += 'cat ' + prj_out_dir + prj_chip + '.text.bin' + ' ' + prj_out_dir + prj_chip + '.data.bin' + ' > ' + prj_out_dir + prj_chip + '.bin\n'
+
+    XIP_POST_ACTION += 'python3 '+ aic_script_dir + 'merge_files.py ' + '-i ' + prj_out_dir + prj_chip + '.text.bin' + ' ' + prj_out_dir + prj_chip + '.data.bin' + ' -o ' + prj_out_dir + prj_chip + '.bin\n'
     XIP_POST_ACTION += '@echo ' + prj_kernel + "-" + prj_app + ': make XIP image done... \n'
 
     return XIP_POST_ACTION
@@ -1016,7 +1033,8 @@ def mkimage_cpio(aic_root, prj_chip, prj_kernel, prj_app, prj_defconfig, rtconfi
     aic_system = platform.system()
 
     CPIO_POST_ACTION += '@echo ' + 'make CPIO image begin...\n'
-    CPIO_POST_ACTION += 'python3 tools/scripts/mkcpio.py ' + aic_system + ' ' + aic_root + ' ' + aic_pack_dir + ' ' + prj_out_dir + '\n'
+    CPIO_POST_ACTION += 'python3 ' + aic_script_dir + 'mkcpio.py ' + aic_system + ' ' + aic_root + ' ' + aic_pack_dir + ' ' + prj_out_dir + '\n'
+
     CPIO_POST_ACTION += '@echo ' + 'make CPIO image done...\n'
     return CPIO_POST_ACTION
 

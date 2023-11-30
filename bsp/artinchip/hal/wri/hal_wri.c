@@ -221,7 +221,20 @@ enum aic_reboot_reason aic_judge_reboot_reason(enum aic_warm_reset_type hw,
 
     /* First, check the software-triggered reboot */
     if (hw == WRI_TYPE_SP_WDOG_RST || hw == WRI_TYPE_CS_WDOG_RST || hw == WRI_TYPE_SC_WDOG_RST || hw == WRI_TYPE_SE_WDOG_RST) {
-            pr_info("Reboot action: Watchdog-Reset");
+            switch (hw) {
+            case WRI_TYPE_SP_WDOG_RST:
+                pr_info("Reboot action: SP Watchdog-Resetn");
+                break;
+            case WRI_TYPE_SC_WDOG_RST:
+                pr_info("Reboot action: SC Watchdog-Reset\n");
+                break;
+            case WRI_TYPE_SE_WDOG_RST:
+                pr_info("Reboot action: SE Watchdog-Reset\n");
+                break;
+            default:
+                pr_info("Reboot action: CS Watchdog-Reset\n");
+                break;
+            }
 
             switch (sw) {
             case REBOOT_REASON_UPGRADE:
@@ -293,31 +306,31 @@ enum aic_reboot_reason aic_judge_reboot_reason(enum aic_warm_reset_type hw,
             r = REBOOT_REASON_THS_RST;
             break;
         case WRI_TYPE_SP_DM_NDM_RST:
-            pr_info("Reboot reason: SP NDM Reset\n");
+            pr_info("Reboot reason: SPSS NDM Reset\n");
             r = REBOOT_REASON_SP_DM_NDM_RST;
             break;
         case WRI_TYPE_SP_DM_CPU_RST:
-            pr_info("Reboot reason: SP JTAG-Reset\n");
+            pr_info("Reboot reason: SPSS JTAG-Reset\n");
             r = REBOOT_REASON_SP_DM_CPU_RST;
             break;
         case WRI_TYPE_CS_DM_NDM_RST:
-            pr_info("Reboot reason: CS NDM Reset\n");
+            pr_info("Reboot reason: CSYS NDM Reset\n");
             r = REBOOT_REASON_CS_DM_NDM_RST;
             break;
         case WRI_TYPE_CS_DM_CPU_RST:
-            pr_info("Reboot reason: CS JTAG-Reset\n");
+            pr_info("Reboot reason: CSYS JTAG-Reset\n");
             r = REBOOT_REASON_CS_DM_CPU_RST;
             break;
         case WRI_TYPE_SC_DM_NDM_RST:
-            pr_info("Reboot reason: SC NDM Reset\n");
+            pr_info("Reboot reason: SCSS NDM Reset\n");
             r = REBOOT_REASON_SC_DM_NDM_RST;
             break;
         case WRI_TYPE_SC_DM_CPU_RST:
-            pr_info("Reboot reason: SC JTAG-Reset\n");
+            pr_info("Reboot reason: SCSS JTAG-Reset\n");
             r = REBOOT_REASON_SC_DM_CPU_RST;
             break;
         case WRI_TYPE_SE_DM_NDM_RST:
-            pr_info("Reboot reason: SE NDM Reset\n");
+            pr_info("Reboot reason: SESS NDM Reset\n");
             r = REBOOT_REASON_SE_DM_NDM_RST;
             break;
         default:
@@ -336,7 +349,7 @@ enum aic_reboot_reason aic_judge_reboot_reason(enum aic_warm_reset_type hw,
 
 void aic_set_reboot_reason(enum aic_reboot_reason r)
 {
-    u8 reason_num = RTC_REBOOT_REASON_MASK >> RTC_REBOOT_REASON_SHIFT;
+    u8 reason_num = WRI_REBOOT_REASON_MASK >> WRI_REBOOT_REASON_SHIFT;
 
     writel_bits(r, WRI_REBOOT_REASON_MASK, WRI_REBOOT_REASON_SHIFT,
                 WRI_SYS_BAK);

@@ -23,7 +23,7 @@ static s32 media_device_write(char *image_name, struct fwc_meta *pmeta)
     u8 *buf;
     s32 ret;
     ulong actread, total_len = 0;
-    u32 start_us;
+    u64 start_us;
 
     fwc = NULL;
     buf = NULL;
@@ -85,7 +85,7 @@ static s32 media_device_write(char *image_name, struct fwc_meta *pmeta)
     start_us = aic_get_time_us() - start_us;
     /*check data */
     printf("    Partition: %s programming done.\n", pmeta->partition);
-    pr_info("    Used time: %d.%d sec, Speed: %ld.%ld MB/s.\n",
+    pr_info("    Used time: %lld.%lld sec, Speed: %lld.%lld MB/s.\n",
             start_us / 1000000, start_us / 1000 % 1000,
             (total_len * 1000000 / start_us) / 1024 / 1024,
             (total_len * 1000000 / start_us) / 1024 % 1024);

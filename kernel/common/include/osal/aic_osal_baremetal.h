@@ -87,10 +87,10 @@ static inline void aicos_sem_delete(aicos_sem_t sem)
 static inline int aicos_sem_take(aicos_sem_t sem, uint32_t msec)
 {
     osal_semaphore_t sem_hdl = (osal_semaphore_t)sem;
-    unsigned int s_us = 0;
-    unsigned int e_us = 0;
+    u64 s_us = 0;
+    u64 e_us = 0;
 
-    if (sem_hdl->count > 0){
+    if (sem_hdl->count > 0) {
         sem_hdl->count--;
         return 0;
     }
@@ -108,7 +108,7 @@ static inline int aicos_sem_take(aicos_sem_t sem, uint32_t msec)
         }
     }
 
-    if (sem_hdl->count > 0){
+    if (sem_hdl->count > 0) {
         sem_hdl->count--;
         return 0;
     }
@@ -187,8 +187,8 @@ static inline void aicos_event_delete(aicos_event_t event)
 static inline int aicos_event_recv(aicos_event_t event, uint32_t set, uint32_t *recved, uint32_t msec)
 {
     osal_event_t event_hdl = (osal_event_t)event;
-    unsigned int s_us = 0;
-    unsigned int e_us = 0;
+    u64 s_us = 0;
+    u64 e_us = 0;
 
     if (set == 0)
         return -EINVAL;

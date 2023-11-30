@@ -242,7 +242,7 @@ static void rtp_get_valid_point(calibration *cal, int index,
     int sum_x =0;
     int sum_y = 0;
     int ret = 0;
-    u32 start_us, end_us;
+    u64 start_us, end_us;
 
     start_us = aic_get_time_us();
     do {

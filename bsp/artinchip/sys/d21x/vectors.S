@@ -138,6 +138,14 @@ Default_IRQHandler:
     la      t0, g_irqdata
     add     t0, t0, t1
     LOAD    a1, (t0)
+    /* g_irqcnt[irq_num]++ */
+    la      t0, g_irqcnt
+    srli    t1, t1, 1
+    add     a3, t0, t1
+    lw      t0, (a3)
+    addi    t0, t0, 1
+    sw      t0, (a3)
+
     /* call irq_handler_func(irq_num, irq_data) */
     jalr    t2
 

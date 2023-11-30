@@ -56,7 +56,7 @@ static int aic_sdmc_data_transfer(struct aic_sdmc *host,
 {
     int ret = 0;
     u32 mask, size, total;
-    u32 timeout, end, start = aic_get_time_ms();
+    u64 timeout, end, start = aic_get_time_ms();
 
     total = data->blksize * data->blks;
     timeout = aic_sdmc_get_timeout(host, total);
@@ -80,9 +80,8 @@ static int aic_sdmc_data_transfer(struct aic_sdmc *host,
             if (data->flags == MMC_DATA_READ &&
                     (mask & (SDMC_INT_RXDR | SDMC_INT_DAT_DONE))) {
                 size = hal_sdmc_data_rx(&host->host, (u32 *)data->buf, size);
-            }
-            else if (data->flags == MMC_DATA_WRITE &&
-                     (mask & SDMC_INT_TXDR)) {
+            } else if (data->flags == MMC_DATA_WRITE &&
+                       (mask & SDMC_INT_TXDR)) {
                 size = hal_sdmc_data_tx(&host->host, (u32 *)data->buf, size);
             }
         }
@@ -94,7 +93,7 @@ static int aic_sdmc_data_transfer(struct aic_sdmc *host,
 
         end = aic_get_time_ms();
         if (end - start > timeout) {
-            pr_err("Data timeout %d - %d > %d! size %d/%d, mode %s-%s, status 0x%x\n",
+            pr_err("Data timeout %lld - %lld > %lld! size %d/%d, mode %s-%s, status 0x%x\n",
                     end, start,
                     timeout, size * 4, total,
                     host->fifo_mode ? "FIFO" : "IDMA",
@@ -187,8 +186,8 @@ void aic_sdmc_request(struct aic_sdmc *host, struct aic_sdmc_cmd *cmd,
     s32 ret = 0, flags = 0, i;
     u32 retry = SDMC_TIMEOUT;
     u32 mask = 0;
-    u32 timeout = 500000;
-    u32 start = aic_get_time_us();
+    u64 timeout = 500000;
+    u64 start = aic_get_time_us();
     struct bounce_buffer bbstate;
     ALLOC_CACHE_ALIGN_BUFFER(struct aic_sdmc_idma_desc, cur_idma,
                              data ? DIV_ROUND_UP(data->blks, 8) : 0);
@@ -226,6 +225,9 @@ void aic_sdmc_request(struct aic_sdmc *host, struct aic_sdmc_cmd *cmd,
 
             hal_sdmc_idma_prepare(&host->host, data->blksize, data->blks,
                                   cur_idma, bbstate.bounce_buffer);
+        } else {
+            if (hal_sdmc_get_idma_status(&host->host))
+                hal_sdmc_idma_disable(&host->host);
         }
     }
 #ifdef SDMC_DUMP_CMD
@@ -335,8 +337,7 @@ static int aic_sdmc_setup_bus(struct aic_sdmc *host, u32 freq)
         /* bypass mode */
         mux = 1;
         div = 0;
-    }
-    else {
+    } else {
         div = aic_sdmc_get_best_div(sclk, freq);
         if (div <= 4) {
             mux = DIV_ROUND_UP(div, 2);

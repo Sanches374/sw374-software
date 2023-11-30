@@ -12,15 +12,11 @@
 #include <aic_common.h>
 #include <string.h>
 #include <aic_core.h>
+#include <boot_param.h>
+#include <private_param.h>
 #include "spinand_port.h"
 #include <mtd.h>
 #include <partition_table.h>
-
-#ifdef IMAGE_CFG_JSON_PARTS_MTD
-#define NAND_MTD_PARTS IMAGE_CFG_JSON_PARTS_MTD
-#else
-#define NAND_MTD_PARTS ""
-#endif
 
 static int mtd_spinand_read(struct mtd_dev *mtd, u32 offset, u8 *data, u32 len)
 {
@@ -244,15 +240,36 @@ static int mtd_spinand_continuous_read(struct mtd_dev *mtd, u32 offset,
 }
 #endif
 
-static char *get_part_str(u32 spi_bus)
+int nand_read_data(void *dev, unsigned long offset, void *buf,
+                   unsigned long len)
 {
-    char name[8] = {0};
+    return mtd_read(dev, offset, buf, len);
+}
 
-    strcpy(name, "spi0");
-    name[3] += spi_bus;
-    if (strncmp(name, NAND_MTD_PARTS, 4) == 0)
-        return NAND_MTD_PARTS;
-    return NULL;
+static char *aic_spinand_get_partition_string(struct mtd_dev *mtd)
+{
+    char *parts = NULL;
+
+#ifdef AIC_BOOTLOADER
+    void *res_addr;
+    res_addr = aic_get_boot_resource();
+    parts = private_get_partition_string(res_addr);
+    if (parts == NULL)
+        parts = IMAGE_CFG_JSON_PARTS_MTD;
+    if (parts)
+        parts = strdup(parts);
+#else
+    void *res_addr = NULL;
+    res_addr = aic_get_boot_resource_from_nand(mtd, mtd->writesize, nand_read_data);
+    parts = private_get_partition_string(res_addr);
+    if (parts == NULL)
+        parts = IMAGE_CFG_JSON_PARTS_MTD;
+    if (parts)
+        parts = strdup(parts);
+    if (res_addr)
+        free(res_addr);
+#endif
+    return parts;
 }
 
 struct aic_spinand *spinand_probe(u32 spi_bus)
@@ -310,8 +327,10 @@ struct aic_spinand *spinand_probe(u32 spi_bus)
     mtd->priv = (void *)flash;
     mtd_add_device(mtd);
 
-    partstr = get_part_str(spi_bus);
+    partstr = aic_spinand_get_partition_string(mtd);
     part = mtd_parts_parse(partstr);
+    if (partstr)
+        free(partstr);
     p = part;
     while (p) {
         mtd = malloc(sizeof(*mtd));

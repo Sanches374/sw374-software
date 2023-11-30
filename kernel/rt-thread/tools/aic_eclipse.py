@@ -249,9 +249,10 @@ def TargetEclipse(env, sdk=False, prj_name=None):
                 except:
                     pass
                 for f in glob.iglob(src_d + '/*'):
-                    des_f = os.path.basename(f)
-                    des_f = os.path.join(des_d, des_f)
-                    shutil.copy(f, des_f)
+                    if f.endswith(".a"):
+                        des_f = os.path.basename(f)
+                        des_f = os.path.join(des_d, des_f)
+                        shutil.copy(f, des_f)
             else:
                 d = '"' + "${ProjDirPath}\..\..\..\\" + rel_d + '"'
             SubElement(l_path, 'listOptionValue', builtIn="false", value=d)

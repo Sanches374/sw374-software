@@ -940,7 +940,7 @@ OMX_ERRORTYPE OMX_DemuxerComponentDeInit(
 }
 
 
-static int dec_thread_attr_init(pthread_attr_t *attr)
+static int demuxer_thread_attr_init(pthread_attr_t *attr)
 {
     // default stack size is 2K, it is not enough for decode thread
     if (attr == NULL) {
@@ -969,9 +969,8 @@ OMX_ERRORTYPE OMX_DemuxerComponentInit(
     OMX_PARAM_BUFFERSUPPLIERTYPE *pAudioBufSupplier,*pVideoBufSupplier;
 
 
-    pthread_attr_t *attr = NULL;
-    attr = (pthread_attr_t*)mpp_alloc(sizeof(pthread_attr_t));
-    dec_thread_attr_init(attr);
+    pthread_attr_t attr;
+    demuxer_thread_attr_init(&attr);
 
     logd("OMX_DemuxerComponentInit....");
 
@@ -1090,7 +1089,7 @@ OMX_ERRORTYPE OMX_DemuxerComponentInit(
 
     pthread_mutex_init(&pDemuxerDataType->stateLock, NULL);
     // Create the component thread
-    err = pthread_create(&pDemuxerDataType->threadId, attr, OMX_DemuxerComponentThread, pDemuxerDataType);
+    err = pthread_create(&pDemuxerDataType->threadId, &attr, OMX_DemuxerComponentThread, pDemuxerDataType);
     //if (err || !pDemuxerDataType->threadId)
     if (err)
     {

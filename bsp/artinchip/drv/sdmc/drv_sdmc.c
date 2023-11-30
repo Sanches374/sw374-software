@@ -237,7 +237,8 @@ static void aic_sdmc_request(struct rt_mmcsd_host *rthost,
             hal_sdmc_idma_prepare(&host->host, data->blksize, data->blks,
                                   cur_idma, bbstate.bounce_buffer);
         } else {
-            hal_sdmc_idma_disable(&host->host);
+            if (hal_sdmc_get_idma_status(&host->host))
+                hal_sdmc_idma_disable(&host->host);
         }
     }
     if (data)

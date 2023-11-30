@@ -106,6 +106,7 @@ static struct aic_qspi_bus qspi_bus_arr[] = {
 #endif
 };
 
+char *aic_spinor_get_partition_string(struct mtd_dev *mtd);
 static void retry_delay_100us(void)
 {
     aicos_udelay(100);
@@ -327,17 +328,6 @@ static int sfud_mtd_write(struct mtd_dev *mtd, u32 offset, uint8_t *data,
     return sfud_write(flash, start, dolen, data);
 }
 
-static char *get_part_str(u32 spi_bus)
-{
-    char name[8] = {0};
-
-    strcpy(name, "spi0");
-    name[3] += spi_bus;
-    if (strncmp(name, NOR_MTD_PARTS, 4) == 0)
-        return NOR_MTD_PARTS;
-    return NULL;
-}
-
 sfud_flash *sfud_probe(u32 spi_bus)
 {
     sfud_err result = SFUD_SUCCESS;
@@ -411,8 +401,9 @@ sfud_flash *sfud_probe(u32 spi_bus)
     mtd->priv = &qspi->attached_flash;
     mtd_add_device(mtd);
 
-    partstr = get_part_str(spi_bus);
+    partstr = aic_spinor_get_partition_string(mtd);
     part = mtd_parts_parse(partstr);
+    free(partstr);
     p = part;
     while (p) {
         mtd = malloc(sizeof(*mtd));

@@ -143,7 +143,7 @@ int spinand_isbusy(struct aic_spinand *flash, u8 *status)
     u8 SR = 0xFF;
     int result;
 
-    u32 start_us, stop_us = 30000;
+    u64 start_us, stop_us = 30000;
     start_us = aic_get_time_us();
 
     do {

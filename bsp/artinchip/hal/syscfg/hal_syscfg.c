@@ -109,23 +109,17 @@ enum fpga_gmac_clk_t {
 #define SYSCFG_LDO18_CFG_LDO18_EN_MASK   BIT(4)
 #define SYSCFG_LDO18_CFG_LDO18_VAL_SHIFT 0
 #define SYSCFG_LDO18_CFG_LDO18_VAL_MASK  GENMASK(2, 0)
+#define LDO18_VAL_DEFAULT 255
+
 enum syscfg_ldo18_cfg_ldo18_en_t {
     LDO18_EN_DISABLE = 0,
     LDO18_EN_ENABLE = 1,
 };
 
-enum syscfg_ldo18_cfg_ldo18_val_t {
-    LDO18_VAL_1_71V = 0,
-    LDO18_VAL_1_74V = 1,
-    LDO18_VAL_1_77V = 2,
-    LDO18_VAL_1_80V = 3,
-    LDO18_VAL_1_83V = 4,
-    LDO18_VAL_1_86V = 5,
-    LDO18_VAL_1_89V = 6,
-    LDO18_VAL_1_92V = 7,
-    LDO18_VAL_DEFAULT = 255
-};
+#endif
 
+
+#if defined(AIC_SYSCFG_DRV_V11) || defined(AIC_SYSCFG_DRV_V12)
 #define SYSCFG_LDO1X_CFG                 0x28
 #define SYSCFG_LDO1X_CFG_LDO1X_VAL_SHIFT 0
 #define SYSCFG_LDO1X_CFG_LDO1X_VAL_MASK  GENMASK(2, 0)
@@ -135,31 +129,11 @@ enum syscfg_ldo18_cfg_ldo18_val_t {
 #define SYSCFG_LDO1X_CFG_LDO1X_PD_FAST_MASK   BIT(5)
 #define SYSCFG_LDO1X_CFG_LDO1X_SOFT_EN_SHIFT  6
 #define SYSCFG_LDO1X_CFG_LDO1X_SOFT_EN_MASK   BIT(6)
-
+#define LDO1X_VAL_DEFAULT 255
 
 enum syscfg_ldo1x_cfg_ldo1x_en_t {
     LDO1X_EN_DISABLE = 0,
     LDO1X_EN_ENABLE = 1,
-};
-
-enum syscfg_ldo1x_cfg_ldo1x_val_t {
-    LDO1X_VAL_0_90V = 0,
-    LDO1X_VAL_0_95V = 1,
-    LDO1X_VAL_1_00V = 2,
-    LDO1X_VAL_1_05V = 3,
-    LDO1X_VAL_1_10V = 4,
-    LDO1X_VAL_1_15V = 5,
-    LDO1X_VAL_1_20V = 6,
-    LDO1X_VAL_1_25V = 7,
-    LDO1X_VAL_1_30V = 8,
-    LDO1X_VAL_1_35V = 9,
-    LDO1X_VAL_1_40V = 10,
-    LDO1X_VAL_1_50V = 11,
-    LDO1X_VAL_1_60V = 12,
-    LDO1X_VAL_1_70V = 13,
-    LDO1X_VAL_1_80V = 14,
-    LDO1X_VAL_1_90V = 15,
-    LDO1X_VAL_DEFAULT = 255,
 };
 #endif
 
@@ -209,8 +183,8 @@ static s32 syscfg_fpga_drp_wr(u8 addr, u16 data)
                   | SYSCFG_MMCM2_CTL_DRP_DWE | SYSCFG_MMCM2_CTL_DRP_START
                   | SYSCFG_MMCM2_CTL_DRP_RESET, SYSCFG_MMCM2_CTL);
 
-    while (syscfg_readl(SYSCFG_MMCM2_CTL) & SYSCFG_MMCM2_CTL_DRP_START)
-        ;
+    while (syscfg_readl(SYSCFG_MMCM2_CTL) & SYSCFG_MMCM2_CTL_DRP_START) {
+    }
 
     aicos_udelay(20);
 
@@ -229,8 +203,8 @@ static u16 syscfg_fpga_drp_rd(u16 addr)
             | SYSCFG_MMCM2_CTL_DRP_START;
 
     syscfg_writel(val, SYSCFG_MMCM2_CTL);
-    while (syscfg_readl(SYSCFG_MMCM2_CTL) & SYSCFG_MMCM2_CTL_DRP_START)
-        ;
+    while (syscfg_readl(SYSCFG_MMCM2_CTL) & SYSCFG_MMCM2_CTL_DRP_START) {
+    }
 
     return syscfg_readl(SYSCFG_MMCM2_STA) >> SYSCFG_MMCM2_STA_DRP_DOUT_SHIFT;
 }
@@ -443,7 +417,7 @@ static void syscfg_ldo25_xspi_init(void)
 }
 #endif
 
-#if defined(AIC_SYSCFG_DRV_V11)
+#if defined(AIC_SYSCFG_DRV_V11) || defined(AIC_SYSCFG_DRV_V12)
 #define LDO1X_DISABLE_BIT4_6_VAL_STEP1   0x30
 #define LDO1X_DISABLE_BIT4_6_VAL_STEP2   0x70
 #define LDO1X_DISABLE_BIT4_6_VAL_STEP3   0x60
@@ -550,6 +524,15 @@ s32 hal_syscfg_probe(void)
     syscfg_ldo18_init(LDO18_EN_ENABLE, AIC_SYSCFG_LDO18_VOL_VAL);
 #else
     syscfg_ldo18_init(LDO18_EN_DISABLE, LDO18_VAL_DEFAULT);
+#endif
+#endif
+
+#ifdef AIC_SYSCFG_DRV_V12
+#ifdef AIC_SYSCFG_LDO1X_ENABLE
+    syscfg_ldo1x_init(LDO1X_EN_ENABLE, AIC_SYSCFG_LDO1X_VOL_VAL);
+#else
+    // disable ldo1x, the broom code maybe enable it.
+    syscfg_ldo1x_init(LDO1X_EN_DISABLE, LDO1X_VAL_DEFAULT);
 #endif
 #endif
 

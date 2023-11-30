@@ -131,7 +131,7 @@ int hal_xspi_set_cmd_width(hal_xspi_handle *h, u8 ddr_sdr_mode, u8 lines)
     io_l = (val & LUTN_BIT_IO_CFG_L_MSK) >> LUTN_BIT_IO_CFG_L_OFS;
     oper_l = (val & LUTN_BIT_OPERAND_L_MSK) >> LUTN_BIT_OPERAND_L_OFS;
 
-    if(ddr_sdr_mode == xspi_ddr){
+    if (ddr_sdr_mode == xspi_ddr) {
         ins_h = XSPI_ADDR_DDR;
     } else {
         ins_h = XSPI_ADDR;
@@ -167,7 +167,7 @@ int hal_xspi_set_cmd(hal_xspi_handle *h, u8 ddr_sdr_mode, u8 cmd)
     io_l = (val & LUTN_BIT_IO_CFG_L_MSK) >> LUTN_BIT_IO_CFG_L_OFS;
     oper_l = (val & LUTN_BIT_OPERAND_L_MSK) >> LUTN_BIT_OPERAND_L_OFS;
 
-    if(ddr_sdr_mode == xspi_ddr){
+    if (ddr_sdr_mode == xspi_ddr) {
         ins_h = XSPI_CMD_DDR;
     } else {
         ins_h = XSPI_CMD;
@@ -208,7 +208,7 @@ int hal_xspi_set_addr_width(hal_xspi_handle *h, u8 ddr_sdr_mode, u8 lines, u8 bw
     io_l = (val & LUTN_BIT_IO_CFG_L_MSK) >> LUTN_BIT_IO_CFG_L_OFS;
     oper_l = (val & LUTN_BIT_OPERAND_L_MSK) >> LUTN_BIT_OPERAND_L_OFS;
 
-    if(ddr_sdr_mode == xspi_ddr){
+    if (ddr_sdr_mode == xspi_ddr) {
         ins_l = XSPI_ADDR_DDR;
     } else {
         ins_l = XSPI_ADDR;
@@ -291,7 +291,7 @@ int hal_xspi_set_write_cnt(hal_xspi_handle *h, u8 ddr_sdr_mode, u8 lines, u32 co
     io_l = (val & LUTN_BIT_IO_CFG_L_MSK) >> LUTN_BIT_IO_CFG_L_OFS;
     oper_l = (val & LUTN_BIT_OPERAND_L_MSK) >> LUTN_BIT_OPERAND_L_OFS;
 
-    if(ddr_sdr_mode == xspi_ddr){
+    if (ddr_sdr_mode == xspi_ddr) {
         ins_l = XSPI_WRITE_DDR;
     } else {
         ins_l = XSPI_WRITE;
@@ -328,7 +328,7 @@ int hal_xspi_set_read_cnt(hal_xspi_handle *h, u8 ddr_sdr_mode, u8 lines, u32 cou
     io_l = (val & LUTN_BIT_IO_CFG_L_MSK) >> LUTN_BIT_IO_CFG_L_OFS;
     oper_l = (val & LUTN_BIT_OPERAND_L_MSK) >> LUTN_BIT_OPERAND_L_OFS;
 
-    if(ddr_sdr_mode == xspi_ddr){
+    if (ddr_sdr_mode == xspi_ddr) {
         ins_l = XSPI_READ_DDR;
     } else {
         ins_l = XSPI_READ;
@@ -357,7 +357,8 @@ int hal_xspi_start_transfer(hal_xspi_handle *h)
 
 static int hal_xspi_fifo_write(u32 base, u8 *data, u32 len, u32 tmo)
 {
-    u32 dolen, free_len, start_us;
+    u32 dolen, free_len;
+    u64 start_us;
 
     start_us = aic_get_time_us();
     while (len) {
@@ -384,7 +385,8 @@ static int hal_xspi_fifo_write(u32 base, u8 *data, u32 len, u32 tmo)
 
 static int hal_xspi_fifo_read(u32 base, u8 *data, u32 len, u32 tmo_us)
 {
-    u32 dolen, start_us;
+    u32 dolen;
+    u64 start_us;
 
     start_us = aic_get_time_us();
     while (len) {
@@ -423,7 +425,7 @@ static u32 hal_xspi_calc_timeout(u32 bus_hz, u32 bw, u32 len)
 
 static int hal_xspi_wait_transfer_done(u32 base, u32 tmo)
 {
-    u32 start_us, cur;
+    u64 start_us, cur;
 
     start_us = aic_get_time_us();
     while (xspi_hw_check_idle_status(base) == XSPI_BUSY) {

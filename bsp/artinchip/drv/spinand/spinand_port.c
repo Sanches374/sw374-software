@@ -13,6 +13,8 @@
 #include <drv_qspi.h>
 #include <drv_spienc.h>
 #include <partition_table.h>
+#include <boot_param.h>
+#include <private_param.h>
 #include "spinand.h"
 #include "spinand_parts.h"
 #include "spinand_block.h"
@@ -314,6 +316,41 @@ static rt_err_t spinand_mtd_block_markbad(struct rt_mtd_nand_device *device,
     return result;
 }
 
+static int nand_read_data(void *dev, unsigned long offset, void *buf,
+                   unsigned long len)
+{
+    struct aic_spinand *flash = dev;
+    rt_err_t result;
+    rt_off_t page;
+
+    result = rt_mutex_take(flash->lock, RT_WAITING_FOREVER);
+    RT_ASSERT(result == RT_EOK);
+
+    page = offset / flash->info->page_size;
+    result = spinand_read_page(flash, page, buf, len, NULL, 0);
+
+    rt_mutex_release(flash->lock);
+
+    return result;
+}
+
+static char *aic_spinand_get_partition_string(struct aic_spinand *flash)
+{
+    char *parts = NULL;
+    void *res_addr = NULL;
+
+    res_addr = aic_get_boot_resource_from_nand(flash, flash->info->page_size,
+                                               nand_read_data);
+    parts = private_get_partition_string(res_addr);
+    if (parts == NULL)
+        parts = IMAGE_CFG_JSON_PARTS_MTD;
+    if (parts)
+        parts = rt_strdup(parts);
+    if (res_addr)
+        free(res_addr);
+    return parts;
+}
+
 static struct rt_mtd_nand_driver_ops spinand_ops = {
     spinand_read_id,           spinand_mtd_read,
     spinand_mtd_write,         NULL,
@@ -327,6 +364,7 @@ rt_err_t rt_hw_mtd_spinand_init(struct aic_spinand *flash)
     rt_uint32_t blocksize;
     int i = 0, cnt;
     rt_err_t result;
+    char *partstr = NULL;
 
     if (flash->IsInited)
         return RT_EOK;
@@ -341,7 +379,10 @@ rt_err_t rt_hw_mtd_spinand_init(struct aic_spinand *flash)
     if (result != RT_EOK)
         return -RT_ERROR;
 
-    parts = mtd_parts_parse(IMAGE_CFG_JSON_PARTS_MTD);
+    partstr = aic_spinand_get_partition_string(flash);
+    parts = mtd_parts_parse(partstr);
+    if (partstr)
+        free(partstr);
     p = parts;
     cnt = 0;
     while (p) {
@@ -496,7 +537,7 @@ static int ncontread(int argc, char **argv)
     rt_uint8_t *data_ptr = RT_NULL;
     struct rt_mtd_nand_device *device;
     rt_uint32_t partition, page, size;
-    rt_uint32_t start_us;
+    rt_uint64_t start_us;
 
     if (argc != 4) {
         pr_err("Usage %s: %s <partition_no> <page> <size>.\n", __func__,

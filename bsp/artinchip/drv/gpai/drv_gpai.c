@@ -13,7 +13,7 @@
 
 #define LOG_TAG            "GPAI"
 #include "aic_core.h"
-
+#include "aic_dma_id.h"
 #include "hal_gpai.h"
 
 #define AIC_GPAI_NAME      "gpai"
@@ -28,7 +28,12 @@ struct aic_gpai_ch aic_gpai_chs[] = {
     {
         .id = 0,
         .available = 1,
-        .mode = AIC_GPAI_MODE_SINGLE,
+#ifdef AIC_GPAI_DRV_V11
+        .dma_port_id = DMA_ID_GPAI0,
+#endif
+        .obtain_data_mode = AIC_GPAI_OBTAIN_DATA_BY_DMA,
+        .smp_period = 1,
+        .mode = AIC_GPAI_MODE_PERIOD,
         .fifo_depth = 64,
     },
 #endif
@@ -36,6 +41,10 @@ struct aic_gpai_ch aic_gpai_chs[] = {
     {
         .id = 1,
         .available = 1,
+#ifdef AIC_GPAI_DRV_V11
+        .dma_port_id = DMA_ID_GPAI1,
+#endif
+        .obtain_data_mode = AIC_GPAI_OBTAIN_DATA_BY_CPU,
         .mode = AIC_GPAI_MODE_SINGLE,
         .fifo_depth = 64,
     },
@@ -44,7 +53,12 @@ struct aic_gpai_ch aic_gpai_chs[] = {
     {
         .id = 2,
         .available = 1,
-        .mode = AIC_GPAI_MODE_SINGLE,
+#ifdef AIC_GPAI_DRV_V11
+        .dma_port_id = DMA_ID_GPAI2,
+#endif
+        .obtain_data_mode = AIC_GPAI_OBTAIN_DATA_BY_CPU,
+        .smp_period = 1,
+        .mode = AIC_GPAI_MODE_PERIOD,
         .fifo_depth = 8,
     },
 #endif
@@ -52,6 +66,10 @@ struct aic_gpai_ch aic_gpai_chs[] = {
     {
         .id = 3,
         .available = 1,
+#ifdef AIC_GPAI_DRV_V11
+        .dma_port_id = DMA_ID_GPAI3,
+#endif
+        .obtain_data_mode = AIC_GPAI_OBTAIN_DATA_BY_CPU,
         .mode = AIC_GPAI_MODE_SINGLE,
         .fifo_depth = 8,
     },
@@ -60,6 +78,10 @@ struct aic_gpai_ch aic_gpai_chs[] = {
     {
         .id = 4,
         .available = 1,
+#ifdef AIC_GPAI_DRV_V11
+        .dma_port_id = DMA_ID_GPAI4,
+#endif
+        .obtain_data_mode = AIC_GPAI_OBTAIN_DATA_BY_CPU,
         .mode = AIC_GPAI_MODE_SINGLE,
         .fifo_depth = 8,
     },
@@ -68,6 +90,10 @@ struct aic_gpai_ch aic_gpai_chs[] = {
     {
         .id = 5,
         .available = 1,
+#ifdef AIC_GPAI_DRV_V11
+        .dma_port_id = DMA_ID_GPAI5,
+#endif
+        .obtain_data_mode = AIC_GPAI_OBTAIN_DATA_BY_CPU,
         .mode = AIC_GPAI_MODE_SINGLE,
         .fifo_depth = 8,
     },
@@ -76,6 +102,10 @@ struct aic_gpai_ch aic_gpai_chs[] = {
     {
         .id = 6,
         .available = 1,
+#ifdef AIC_GPAI_DRV_V11
+        .dma_port_id = DMA_ID_GPAI6,
+#endif
+        .obtain_data_mode = AIC_GPAI_OBTAIN_DATA_BY_CPU,
         .mode = AIC_GPAI_MODE_SINGLE,
         .fifo_depth = 8,
     },
@@ -84,6 +114,10 @@ struct aic_gpai_ch aic_gpai_chs[] = {
     {
         .id = 7,
         .available = 1,
+#ifdef AIC_GPAI_DRV_V11
+        .dma_port_id = DMA_ID_GPAI7,
+#endif
+        .obtain_data_mode = AIC_GPAI_OBTAIN_DATA_BY_CPU,
         .mode = AIC_GPAI_MODE_SINGLE,
         .fifo_depth = 8,
     },
@@ -93,6 +127,8 @@ struct aic_gpai_ch aic_gpai_chs[] = {
     {
         .id = 8,
         .available = 1,
+        .dma_port_id = DMA_ID_GPAI8,
+        .obtain_data_mode = AIC_GPAI_OBTAIN_DATA_BY_CPU,
         .mode = AIC_GPAI_MODE_SINGLE,
         .fifo_depth = 8,
     },
@@ -101,6 +137,8 @@ struct aic_gpai_ch aic_gpai_chs[] = {
     {
         .id = 9,
         .available = 1,
+        .dma_port_id = DMA_ID_GPAI9,
+        .obtain_data_mode = AIC_GPAI_OBTAIN_DATA_BY_CPU,
         .mode = AIC_GPAI_MODE_SINGLE,
         .fifo_depth = 8,
     },
@@ -109,6 +147,8 @@ struct aic_gpai_ch aic_gpai_chs[] = {
     {
         .id = 10,
         .available = 1,
+        .dma_port_id = DMA_ID_GPAI10,
+        .obtain_data_mode = AIC_GPAI_OBTAIN_DATA_BY_CPU,
         .mode = AIC_GPAI_MODE_SINGLE,
         .fifo_depth = 8,
     },
@@ -117,6 +157,8 @@ struct aic_gpai_ch aic_gpai_chs[] = {
     {
         .id = 11,
         .available = 1,
+        .dma_port_id = DMA_ID_GPAI11,
+        .obtain_data_mode = AIC_GPAI_OBTAIN_DATA_BY_CPU,
         .mode = AIC_GPAI_MODE_SINGLE,
         .fifo_depth = 8,
     },
@@ -136,8 +178,10 @@ static rt_err_t drv_gpai_enabled(struct rt_adc_device *dev,
     if (enabled) {
         aich_gpai_ch_init(chan, chan->pclk_rate);
         chan->irq_count = 0;
-        if (chan->mode == AIC_GPAI_MODE_SINGLE)
+        if (chan->mode == AIC_GPAI_MODE_SINGLE) {
+            chan->irq_count++;
             chan->complete = aicos_sem_create(0);
+        }
     } else {
         aich_gpai_ch_enable(chan->id, 0);
         if (chan->mode == AIC_GPAI_MODE_SINGLE) {
@@ -165,19 +209,58 @@ static rt_uint8_t drv_gpai_resolution(struct rt_adc_device *dev)
     return 12;
 }
 
-static rt_err_t drv_gpai_get_irq_count(struct rt_adc_device *dev, rt_uint32_t ch)
+static rt_uint32_t drv_gpai_get_irq_count(struct rt_adc_device *dev,
+                                          rt_uint32_t channel)
 {
-    struct aic_gpai_ch *chan = hal_gpai_ch_is_valid(ch);
+    struct aic_gpai_ch *chan = hal_gpai_ch_is_valid(channel);
 
-    if (!chan)
+    if (!chan || chan->obtain_data_mode == AIC_GPAI_OBTAIN_DATA_BY_DMA)
         return -RT_EINVAL;
+
     return chan->irq_count;
 }
+
+#if defined(AIC_GPAI_DRV_V11) && defined(AIC_DMA_DRV)
+static rt_err_t drv_gpai_config_dma(struct rt_adc_device *dev, void *dma_info)
+{
+    if (!dma_info)
+        return -RT_EINVAL;
+
+    struct aic_dma_transfer_info *chan_info;
+    chan_info = (struct aic_dma_transfer_info *)dma_info;
+    struct aic_gpai_ch *chan = hal_gpai_ch_is_valid(chan_info->chan_id);
+
+    if (!chan || chan->obtain_data_mode == AIC_GPAI_OBTAIN_DATA_BY_CPU)
+        return -RT_EINVAL;
+
+    chan->dma_rx_info.buf = chan_info->buf;
+    chan->dma_rx_info.buf_size = chan_info->buf_size;
+    chan->dma_rx_info.callback = chan_info->callback;
+    chan->dma_rx_info.callback_param = chan_info->callback_param;
+    hal_gpai_config_dma(chan);
+
+    return RT_EOK;
+}
+
+static rt_err_t drv_gpai_get_dma_data(struct rt_adc_device *dev,
+                                      rt_uint32_t channel)
+{
+    struct aic_gpai_ch *chan = hal_gpai_ch_is_valid(channel);
+
+    hal_gpai_start_dma(chan);
+
+    return RT_EOK;
+}
+#endif
 
 static const struct rt_adc_ops aic_adc_ops =
 {
     .enabled = drv_gpai_enabled,
     .convert = drv_gpai_convert,
+#if defined(AIC_GPAI_DRV_V11) && defined(AIC_DMA_DRV)
+    .config_dma = drv_gpai_config_dma,
+    .get_dma_data = drv_gpai_get_dma_data,
+#endif
     .get_resolution = drv_gpai_resolution,
     .get_irq_count = drv_gpai_get_irq_count,
 };

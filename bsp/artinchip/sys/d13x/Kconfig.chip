@@ -26,6 +26,10 @@ config CACHE_LINE_SIZE
     default 32
     depends on AIC_CHIP_D13X
 
+config CPU_DCACHE_PREFETCH_EN
+    bool "DCACHE prefetch enable"
+    default n
+
 config CPU_BASE
     hex
     default 0x20000000 if !QEMU_RUN
@@ -113,7 +117,7 @@ config AIC_UART_DRV
     default n
     select RT_USING_SERIAL if DRIVER_DRV_EN
 
-config AIC_UART_DRV_V10
+config AIC_UART_DRV_V11
     bool
     default y if AIC_UART_DRV
 
@@ -187,7 +191,15 @@ config AIC_XSPI_DRV_VER
 
 config AIC_AXICFG_DRV
     bool
-    default y
+    default n
+
+config AIC_AXICFG_DRV_V10
+    bool
+    default y if AIC_AXICFG_DRV
+
+config AIC_AXICFG_DRV_VER
+    string
+    default "10" if AIC_AXICFG_DRV_V10
 
 #--------------------------------------------
 # WRI driver global option

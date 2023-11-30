@@ -57,8 +57,8 @@ static void _system_init_for_kernel(void)
     drv_irq_vectors_init();
 
 #ifndef QEMU_RUN
-    aic_clk_lowpower();
     aic_gtc_enable();
+    aic_clk_lowpower();
 #endif
     csi_coret_config(drv_get_sys_freq() / CONFIG_SYSTICK_HZ, CORET_IRQn);    //10ms
     drv_irq_enable(CORET_IRQn);

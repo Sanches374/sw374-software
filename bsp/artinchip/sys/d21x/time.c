@@ -35,14 +35,14 @@ u64 aic_get_ticks(void)
     return csi_clint_get_value();
 }
 
-u32 aic_get_time_us(void)
+u64 aic_get_time_us(void)
 {
-    u32 cnt = (drv_get_sys_freq() / 1000000U);
+    u64 cnt = (drv_get_sys_freq() / 1000000U);
 
-    return (u32)(aic_get_ticks() / cnt);
+    return (aic_get_ticks() / cnt);
 }
 
-uint32_t aic_get_time_ms(void)
+u64 aic_get_time_ms(void)
 {
     return aic_get_time_us() / 1000;
 }

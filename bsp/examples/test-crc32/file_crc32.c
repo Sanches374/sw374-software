@@ -36,7 +36,7 @@ static void file_crc32(int argc, char **argv)
 {
     int fd;
     uint8_t *buffer;
-    uint32_t start_us;
+    uint64_t start_us;
 
     if (argc != 2) {
         pr_err("Usage %s: %s <file name>.\n", __func__, __func__);

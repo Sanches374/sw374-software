@@ -63,7 +63,9 @@ struct rot_id_info rot_mode_list[] = {
     {1, 74},
     {74, 1},
     {1, 149},
+#ifndef AIC_CHIP_D12X
     {149, 75},
+#endif
     {75, 149},
     {149, 1},
 };
@@ -105,7 +107,9 @@ static void point_callback(lv_timer_t *tmr)
         ui_snprintf(data_str, "%spoint/point_%05d.png", LVGL_DIR, id);
         lv_img_set_src(img_point, data_str);
         lv_img_set_angle(img_point, 0);
-#ifdef AIC_CHIP_D13X
+#if defined(AIC_CHIP_D13X)
+        lv_timer_set_period(speed_timer, 150);
+#elif defined(AIC_CHIP_D12X)
         lv_timer_set_period(speed_timer, 100);
 #endif
     } else {
@@ -115,7 +119,7 @@ static void point_callback(lv_timer_t *tmr)
         lv_img_set_src(img_point, data_str);
         lv_img_set_pivot(img_point, 210, 210);
         lv_img_set_angle(img_point, (int16_t)rot_angle);
-#ifdef AIC_CHIP_D13X
+#if defined(AIC_CHIP_D13X) || defined(AIC_CHIP_D12X)
         lv_timer_set_period(speed_timer, 300);
 #endif
     }
@@ -550,7 +554,26 @@ void meter_ui_init()
     lv_label_set_text(bg_fps, "");
     lv_obj_set_style_text_color(bg_fps, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(bg_fps, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+#if LV_USE_FREETYPE ==  1
+    static lv_ft_info_t info;
+    // FreeType uses C standard file system, so no driver letter is required
+    info.name = "/rodata/lvgl_data/font/Lato-Regular.ttf";
+    info.weight = 22;
+    info.style = FT_FONT_STYLE_NORMAL;
+    info.mem = NULL;
+    if(!lv_ft_font_init(&info)) {
+        LV_LOG_ERROR("create failed.");
+    }
+
+    // Create style
+    static lv_style_t style;
+    lv_style_init(&style);
+    lv_style_set_text_font(&style, info.font);
+    lv_obj_add_style(bg_fps, &style, 0);
+#else
     lv_obj_set_style_text_font(bg_fps, &ui_font_Title, LV_PART_MAIN | LV_STATE_DEFAULT);
+#endif
 
     lv_timer_create(point_callback, 10, 0);
     lv_timer_create(fps_callback, 1000, 0);

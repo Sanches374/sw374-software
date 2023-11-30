@@ -27,6 +27,10 @@
 #define ALIGN_128B(x) ALIGN_UP(x, 128)
 #define GE_TIMEOUT (1000 * 2) //second
 #define HW_RUNNING_EVENT        0x02
+#define BIT_SHIFT(bit) (1 << (bit))
+#define INIT_PHASE(step) (((step) >= BIT_SHIFT(16)) ? \
+                         (((step) >> 1) - BIT_SHIFT(15)) :\
+                         ((step) >> 1))
 
 #ifdef AIC_GE_DRV_V11
 #define GE_CLOCK   (150000000)
@@ -579,19 +583,15 @@ static int ge_config_scaler(struct aic_ge_data *data,
         } else {
             dx[0] = (in_w[0] << 16) / out_w;
             dy[0] = (in_h[0] << 16) / out_h;
-            h_phase[0] = (dx[0] >= 65536) ?
-                     ((dx[0] >> 1) - 32768) :
-                     (dx[0] >> 1);
-            v_phase[0] = (dy[0] >= 65536) ?
-                     ((dy[0] >> 1) - 32768) :
-                     (dy[0] >> 1);
+            h_phase[0] = INIT_PHASE(dx[0]);
+            v_phase[0] = INIT_PHASE(dy[0]);
         }
         break;
     case MPP_FMT_YUV400:
         dx[0] = (in_w[0] << 16) / out_w;
         dy[0] = (in_h[0] << 16) / out_h;
-        h_phase[0] = dx[0] >> 1;
-        v_phase[0] = dy[0] >> 1;
+        h_phase[0] = INIT_PHASE(dx[0]);
+        v_phase[0] = INIT_PHASE(dy[0]);
         break;
     case MPP_FMT_YUV420P:
     case MPP_FMT_NV12:
@@ -602,8 +602,8 @@ static int ge_config_scaler(struct aic_ge_data *data,
 
         dx[0] = (in_w[0] << 16) / out_w;
         dy[0] = (in_h[0] << 16) / out_h;
-        h_phase[0] = dx[0] >> 1;
-        v_phase[0] = dy[0] >> 1;
+        h_phase[0] = INIT_PHASE(dx[0]);
+        v_phase[0] = INIT_PHASE(dy[0]);
 
         dx[0] = dx[0] & (~1);
         dy[0] = dy[0] & (~1);
@@ -638,8 +638,8 @@ static int ge_config_scaler(struct aic_ge_data *data,
 
         dx[0] = (in_w[0] << 16) / out_w;
         dy[0] = (in_h[0] << 16) / out_h;
-        h_phase[0] = dx[0] >> 1;
-        v_phase[0] = dy[0] >> 1;
+        h_phase[0] = INIT_PHASE(dx[0]);
+        v_phase[0] = INIT_PHASE(dy[0]);
 
         dx[0] = dx[0] & (~1);
         h_phase[0] = h_phase[0] & (~1);
@@ -661,8 +661,8 @@ static int ge_config_scaler(struct aic_ge_data *data,
 
         dx[0] = (in_w[0] << 16) / out_w;
         dy[0] = (in_h[0] << 16) / out_h;
-        h_phase[0] = dx[0] >> 1;
-        v_phase[0] = dy[0] >> 1;
+        h_phase[0] = INIT_PHASE(dx[0]);
+        v_phase[0] = INIT_PHASE(dy[0]);
 
         dx[1] = dx[0];
         dy[1] = dy[0];

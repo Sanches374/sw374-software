@@ -24,6 +24,8 @@ enum de_qos_plane {
 #define DE_FREQ             (200 * 1000 * 1000)
 #elif defined(AIC_DE_DRV_V11) || defined(AIC_DE_V11)
 #define DE_FREQ             (150 * 1000 * 1000)
+#elif defined(AIC_DE_DRV_V12) || defined(AIC_DE_V12)
+#define DE_FREQ             (150 * 1000 * 1000)
 #endif
 
 #define DE_CTRL_DITHER_EN                     BIT(0)
@@ -377,7 +379,7 @@ void de_set_ui_layer_size(void *base_addr, u32 w, u32 h,
 /**
  *@ g_alpha (0~255)
  *@ alpha_mode
- * 0：pixel alpha
+ * 0: pixel alpha
  * 1: global alpha
  * 2: mixer alpha
  */

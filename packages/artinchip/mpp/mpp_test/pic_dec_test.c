@@ -21,6 +21,7 @@
 #include "mpp_decoder.h"
 #include "mpp_mem.h"
 #include "mpp_log.h"
+#include "mpp_ge.h"
 
 static void print_help(char *program)
 {
@@ -45,52 +46,75 @@ static int get_file_size(int fd, char* path)
 	return st.st_size;
 }
 
-static int set_ui_layer_alpha(struct mpp_fb* fb, int val)
+static int ge_bitblt(struct ge_bitblt *blt)
 {
     int ret = 0;
-    struct aicfb_alpha_config alpha = {0};
+    struct mpp_ge *ge = mpp_ge_open();
 
-    alpha.layer_id = AICFB_LAYER_TYPE_UI;
-    alpha.enable = 1;
-    alpha.mode = 1;
-    alpha.value = val;
-    ret = mpp_fb_ioctl(fb, AICFB_UPDATE_ALPHA_CONFIG, &alpha);
-    if (ret < 0)
-        loge("ioctl() failed! errno: %d\n", ret);
+    if (!ge) {
+        loge("open ge device error\n");
+    }
 
-    return ret;
+    ret = mpp_ge_bitblt(ge, blt);
+    if (ret < 0) {
+        loge("bitblt task failed\n");
+        return ret;
+    }
+
+    ret = mpp_ge_emit(ge);
+    if (ret < 0) {
+        loge("emit task failed\n");
+        return ret;
+    }
+
+    ret = mpp_ge_sync(ge);
+    if (ret < 0) {
+        loge("ge sync fail\n");
+        return ret;
+    }
+
+    mpp_ge_close(ge);
+
+    return 0;
 }
 
 static void render_frame(struct mpp_fb* fb, struct mpp_frame* frame)
 {
-    struct aicfb_layer_data layer = {0};
-    set_ui_layer_alpha(fb, 10);
+    struct ge_bitblt blt;
+    struct aicfb_screeninfo info = { 0 };
 
-    layer.layer_id = AICFB_LAYER_TYPE_VIDEO;
-    layer.rect_id = 0;
-    layer.enable = 1;
-    layer.buf.phy_addr[0] = frame->buf.phy_addr[0];
-    layer.buf.phy_addr[1] = frame->buf.phy_addr[1];
-    layer.buf.phy_addr[2] = frame->buf.phy_addr[2];
-    layer.buf.stride[0] = frame->buf.stride[0];
-    layer.buf.stride[1] = frame->buf.stride[1];
-    layer.buf.stride[2] = frame->buf.stride[2];
-    layer.buf.size.width = frame->buf.size.width;
-    layer.buf.size.height = frame->buf.size.height;
-    layer.buf.crop_en = 0;
-    layer.buf.format = frame->buf.format;
-    layer.buf.buf_type = MPP_PHY_ADDR;
-
-    logi("phy_addr: %x, stride: %d", layer.buf.phy_addr[0], layer.buf.stride[0]);
-    logi("width: %d, height: %d, format: %d", layer.buf.size.width, layer.buf.size.height, frame->buf.format);
-
-    int ret = mpp_fb_ioctl(fb, AICFB_UPDATE_LAYER_CONFIG, &layer);
-    if(ret < 0) {
-        loge("update_layer_config error, %d", ret);
+    int ret = mpp_fb_ioctl(fb, AICFB_GET_SCREENINFO, &info);
+    if (ret) {
+        loge("get screen info failed\n");
     }
-    aicos_msleep(2000);
-}
 
+    memset(&blt, 0, sizeof(struct ge_bitblt));
+    memcpy(&blt.src_buf, &frame->buf, sizeof(struct mpp_buf));
+
+    blt.dst_buf.buf_type = MPP_PHY_ADDR;
+    blt.dst_buf.phy_addr[0] = (u32)(unsigned long)info.framebuffer;
+    blt.dst_buf.format = info.format;
+    blt.dst_buf.stride[0] = info.stride;
+    blt.dst_buf.size.width = info.width;
+    blt.dst_buf.size.height = info.height;
+    blt.dst_buf.crop_en = 1;
+    if (blt.src_buf.crop_en) {
+        blt.dst_buf.crop.x = blt.src_buf.crop.x;
+        blt.dst_buf.crop.y = blt.src_buf.crop.y;
+        blt.dst_buf.crop.width = blt.src_buf.crop.width;
+        blt.dst_buf.crop.height = blt.src_buf.crop.height;
+    } else {
+        blt.dst_buf.crop.x = 0;
+        blt.dst_buf.crop.y = 0;
+        blt.dst_buf.crop.width = blt.src_buf.size.width;
+        blt.dst_buf.crop.height = blt.src_buf.size.height;
+    }
+
+    logi("phy_addr: %x, stride: %d", blt.src_buf.phy_addr[0], blt.src_buf.stride[0]);
+    logi("width: %d, height: %d, format: %d", blt.src_buf.size.width, blt.src_buf.size.height, blt.src_buf.format);
+
+    ge_bitblt(&blt);
+}
 
 void pic_test(int argc, char **argv)
 {
@@ -190,7 +214,7 @@ void pic_test(int argc, char **argv)
 
     fb = mpp_fb_open();
 
-    //* 1. create mpp_decoder
+    // 1. create mpp_decoder
     struct mpp_decoder* dec = mpp_decoder_create(type);
 
     struct decode_config config;
@@ -216,24 +240,24 @@ void pic_test(int argc, char **argv)
         mpp_decoder_control(dec, MPP_DEC_INIT_CMD_SET_SCALE, &scale);
     }
 
-    //* 2. init mpp_decoder
+    // 2. init mpp_decoder
     mpp_decoder_init(dec, &config);
 
-    //* 3. get an empty packet from mpp_decoder
+    // 3. get an empty packet from mpp_decoder
     struct mpp_packet packet;
     memset(&packet, 0, sizeof(struct mpp_packet));
     mpp_decoder_get_packet(dec, &packet, file_len);
 
-    //* 4. copy data to packet
+    // 4. copy data to packet
     int r_len = read(input_fd, packet.data, file_len);
     packet.size = r_len;
     packet.flag = PACKET_FLAG_EOS;
     logi("read len: %d", r_len);
 
-    //* 5. put the packet to mpp_decoder
+    // 5. put the packet to mpp_decoder
     mpp_decoder_put_packet(dec, &packet);
 
-    //* 6. decode
+    // 6. decode
     //time_start(mpp_decoder_decode);
     ret = mpp_decoder_decode(dec);
     if(ret < 0) {
@@ -242,19 +266,19 @@ void pic_test(int argc, char **argv)
     }
     //time_end(mpp_decoder_decode);
 
-    //* 7. get a decoded frame
+    // 7. get a decoded frame
     struct mpp_frame frame;
     memset(&frame, 0, sizeof(struct mpp_frame));
     mpp_decoder_get_frame(dec, &frame);
 
-    //* 8. compare data
+    // 8. compare data
     render_frame(fb, &frame);
 
-    //* 9. return this frame
+    // 9. return this frame
     mpp_decoder_put_frame(dec, &frame);
 
 out:
-    //* 10. destroy mpp_decoder
+    // 10. destroy mpp_decoder
     mpp_decoder_destory(dec);
 
     if (fb)

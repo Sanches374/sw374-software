@@ -198,11 +198,9 @@ int32_t hal_usart_config_baudrate(usart_handle_t handle, uint32_t baud)
     /* baudrate=(seriak clock freq)/(16*divisor); algorithm :rounding*/
     uint32_t divisor = ((hal_clk_get_freq(CLK_UART0 + usart_priv->idx)  * 10) / baud) >> 4;
 
-    if ((divisor % 10) >= 5)
-    {
+    if ((divisor % 10) >= 5) {
         divisor = (divisor / 10) + 1;
-    } else
-    {
+    } else {
         divisor = divisor / 10;
     }
 
@@ -435,7 +433,7 @@ int32_t hal_usart_getchar(usart_handle_t handle, uint8_t *ch)
     aic_usart_priv_t *usart_priv = handle;
     aic_usart_reg_t *addr = (aic_usart_reg_t *)(usart_priv->base);
 
-    while (!(addr->LSR & LSR_DATA_READY));
+    while (!(addr->LSR & LSR_DATA_READY)) {};
 
     *ch = addr->RBR;
 
@@ -511,17 +509,16 @@ void hal_usart_intr_threshold_empty(int32_t idx, aic_usart_priv_t *usart_priv)
     volatile int i = 500;
     aic_usart_reg_t *addr = (aic_usart_reg_t *)(usart_priv->base);
 
-    if (usart_priv->tx_cnt >= usart_priv->tx_total_num)
-    {
+    if (usart_priv->tx_cnt >= usart_priv->tx_total_num) {
         addr->IER &= (~IER_THRE_INT_ENABLE);
         usart_priv->last_tx_num = usart_priv->tx_total_num;
 
         /* fix hardware bug */
-        while (addr->USR & USR_UART_BUSY);
+        while (addr->USR & USR_UART_BUSY) {};
 
         i = 500;
 
-        while (i--);
+        while (i--) {};
 
         usart_priv->tx_cnt = 0;
         usart_priv->tx_busy = 0;
@@ -532,14 +529,13 @@ void hal_usart_intr_threshold_empty(int32_t idx, aic_usart_priv_t *usart_priv)
         {
             usart_priv->cb_event(idx, USART_EVENT_SEND_COMPLETE);
         }
-    } else
-    {
+    } else {
         /* fix hardware bug */
-        while (addr->USR & USR_UART_BUSY);
+        while (addr->USR & USR_UART_BUSY) {};
 
         i = 500;
 
-        while (i--);
+        while (i--) {};
 
         addr->THR = *((uint8_t *)usart_priv->tx_buf);
         usart_priv->tx_cnt++;
@@ -671,11 +667,9 @@ static void hal_usart_intr_char_timeout(int32_t idx, aic_usart_priv_t *usart_pri
         return;
     }
 
-    if (usart_priv->cb_event)
-    {
+    if (usart_priv->cb_event) {
         usart_priv->cb_event(idx, USART_EVENT_RECEIVED);
-    } else
-    {
+    } else {
         aic_usart_reg_t *addr = (aic_usart_reg_t *)(usart_priv->base);
 
         uint32_t timecount = 0;
@@ -765,12 +759,14 @@ usart_handle_t hal_usart_initialize(int32_t idx, usart_event_cb_t cb_event, void
     usart_priv->idx = idx;
     aic_usart_reg_t *addr = (aic_usart_reg_t *)(usart_priv->base);
 
-    /* enable received data available */
-    addr->IER = IER_RDA_INT_ENABLE | IIR_RECV_LINE_ENABLE;
-
     if (handler != NULL) {
+        /* enable received data available */
+        addr->IER = IER_RDA_INT_ENABLE | IIR_RECV_LINE_ENABLE;
+
         aicos_request_irq(usart_priv->irq, handler, 0, "uart", NULL);
         aicos_irq_enable(usart_priv->irq);
+    } else {
+        addr->IER = 0;
     }
 
     return usart_priv;
@@ -1127,8 +1123,7 @@ int32_t hal_usart_flush(usart_handle_t handle, usart_flush_type_e type)
                 return ERR_USART(DRV_ERROR_TIMEOUT);
             }
         }
-    } else if (type == USART_FLUSH_READ)
-    {
+    } else if (type == USART_FLUSH_READ) {
         while (addr->LSR & 0x1) {
             timecount++;
 
@@ -1137,8 +1132,7 @@ int32_t hal_usart_flush(usart_handle_t handle, usart_flush_type_e type)
                 return ERR_USART(DRV_ERROR_TIMEOUT);
             }
         }
-    } else
-    {
+    } else {
         return ERR_USART(DRV_ERROR_PARAMETER);
     }
 
@@ -1162,28 +1156,22 @@ int32_t hal_usart_set_interrupt(usart_handle_t handle, usart_intr_type_e type, i
     switch (type)
     {
         case USART_INTR_WRITE:
-            if (flag == 0)
-            {
+            if (flag == 0) {
                 addr->IER &= ~IER_THRE_INT_ENABLE;
-            } else if (flag == 1)
-            {
+            } else if (flag == 1) {
                 addr->IER |= IER_THRE_INT_ENABLE;
-            } else
-            {
+            } else {
                 return ERR_USART(DRV_ERROR_PARAMETER);
             }
 
             break;
 
         case USART_INTR_READ:
-            if (flag == 0)
-            {
+            if (flag == 0) {
                 addr->IER &= ~IER_RDA_INT_ENABLE;
-            } else if (flag == 1)
-            {
+            } else if (flag == 1) {
                 addr->IER |= IER_RDA_INT_ENABLE;
-            } else
-            {
+            } else {
                 return ERR_USART(DRV_ERROR_PARAMETER);
             }
 
@@ -1208,11 +1196,9 @@ uint32_t hal_usart_get_tx_count(usart_handle_t handle)
 
     aic_usart_priv_t *usart_priv = handle;
 
-    if (usart_priv->tx_busy)
-    {
+    if (usart_priv->tx_busy) {
         return usart_priv->tx_cnt;
-    } else
-    {
+    } else {
         return usart_priv->last_tx_num;
     }
 }
@@ -1227,11 +1213,9 @@ uint32_t hal_usart_get_rx_count(usart_handle_t handle)
     USART_NULL_PARAM_CHK(handle);
     aic_usart_priv_t *usart_priv = handle;
 
-    if (usart_priv->rx_busy)
-    {
+    if (usart_priv->rx_busy) {
         return usart_priv->rx_cnt;
-    } else
-    {
+    } else {
         return usart_priv->last_rx_num;
     }
 }

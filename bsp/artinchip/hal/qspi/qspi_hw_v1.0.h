@@ -686,6 +686,12 @@ static inline void qspi_hw_bit_mode_set_cs_pol(u32 base, bool high_active)
     writel(reg_val, QSPI_REG_BMTC(base));
 }
 
+static inline u32 qspi_hw_bit_mode_get_cs_pol(u32 base)
+{
+    u32 val = readl(QSPI_REG_BMTC(base));
+    return ((val & BMTC_BIT_SPOL_MSK) >> BMTC_BIT_SPOL_OFS);
+}
+
 static inline void qspi_hw_bit_mode_set_ss_owner(u32 base, bool soft_ctrl)
 {
     u32 val = readl(QSPI_REG_BMTC(base));

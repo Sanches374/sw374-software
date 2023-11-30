@@ -183,7 +183,7 @@ static void rtp_entry(void *parameter)
 {
     int cnt = 0;
     struct rt_touch_data *data;
-    int max = *((int*)parameter);
+    int max = (int)parameter;
 
     pr_info("Try to read %d points from RTP ...\n", max);
 

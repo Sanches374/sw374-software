@@ -20,7 +20,7 @@
 #include <rtdbg.h>
 
 #ifndef LPKG_LVGL_THREAD_STACK_SIZE
-#define LPKG_LVGL_THREAD_STACK_SIZE 4096
+#define LPKG_LVGL_THREAD_STACK_SIZE 4096 * 2
 #endif /* LPKG_LVGL_THREAD_STACK_SIZE */
 
 #ifndef LPKG_LVGL_THREAD_PRIO
@@ -33,7 +33,7 @@ extern void lv_port_indev_init(void);
 extern void lv_user_gui_init(void);
 
 static struct rt_thread lvgl_thread;
-static ALIGN(8) rt_uint8_t lvgl_thread_stack[4096 * 2];
+static ALIGN(8) rt_uint8_t lvgl_thread_stack[LPKG_LVGL_THREAD_STACK_SIZE];
 
 #if LV_USE_LOG
 static void lv_rt_log(const char *buf)

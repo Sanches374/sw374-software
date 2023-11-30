@@ -88,9 +88,9 @@ static unsigned long clk_pll_recalc_rate(struct aic_clk_comm_cfg *comm_cfg,
     if (pll->type == AIC_PLL_FRA)
         fra_en = (readl(cmu_reg(pll->offset_fra)) >> PLL_FRAC_EN_BIT) & 0x1;
 
-    if (pll->type == AIC_PLL_INT || !fra_en)
+    if (pll->type == AIC_PLL_INT || !fra_en) {
         rate = parent_rate / (factor_p + 1) * (factor_n + 1) / (factor_m + 1);
-    else {
+    } else {
         fra_in = readl(cmu_reg(pll->offset_fra)) & PLL_FRAC_DIV_MASK;
         rate_int =
                 parent_rate / (factor_p + 1) * (factor_n + 1) / (factor_m + 1);
@@ -188,6 +188,10 @@ static int clk_pll_set_rate(struct aic_clk_comm_cfg *comm_cfg,
     else
         factor_m = 0;
 
+    /* Avoid factor_m == 2 */
+    if (factor_m == 2)
+        factor_m = 3;
+
     if (factor_m > PLL_FACTORM_MASK)
         factor_m = PLL_FACTORM_MASK;
 
@@ -255,9 +259,9 @@ static int clk_pll_set_rate(struct aic_clk_comm_cfg *comm_cfg,
     reg_val |= (1 << PLL_OUT_SYS | 1 << PLL_EN_BIT);
     writel(reg_val, cmu_reg(pll->offset_gen));
 
-    if (!clk_pll_wait_lock())
+    if (!clk_pll_wait_lock()) {
         clk_pll_bypass(pll, 0);
-    else {
+    } else {
         //pr_err("%d not lock\n", pll->id);
         return -EAGAIN;
     }

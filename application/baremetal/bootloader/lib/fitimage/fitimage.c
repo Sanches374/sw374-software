@@ -247,7 +247,7 @@ int spl_load_fit_image(struct spl_load_info *info, struct spl_fit_info *ctx, int
     const void *fit = ctx->fit;
     bool external_data = false;
     struct mtd_dev *mtd = (struct mtd_dev *)info->dev;
-    u32 start_us;
+    u64 start_us;
 
     if (fit_image_get_load(fit, node, &load_addr))
     {

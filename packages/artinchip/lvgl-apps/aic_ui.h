@@ -11,37 +11,13 @@ extern "C" {
 #endif
 
 #include <stdio.h>
+#include <stdlib.h>
 
-#define USE_DATA_PATH     0
-#define USE_SDCARD_PATH   1
-#define USE_UDISK_PATH    2
-
-#define LVGL_DATA_PATH USE_DATA_PATH
-
-#ifdef RT_USING_DFS_ROMFS
-#if LVGL_DATA_PATH == USE_DATA_PATH
-#define STORAGE_PATH "/data/"
-#elif  LVGL_DATA_PATH == USE_SDCARD_PATH
-#define STORAGE_PATH "/sdcard/"
-#elif  LVGL_DATA_PATH == USE_UDISK_PATH
-#define STORAGE_PATH "/udisk/"
-#else
-#define STORAGE_PATH "/"
-#endif // LVGL_DATA_PATH
-#else
-#define STORAGE_PATH "/rodata/"
-#endif // RT_USING_DFS_ROMFS
-
-#ifdef LPKG_USING_RAMDISK
-#define LVGL_DIR "L:/ram/lvgl_data/"
-#else
-#ifdef AIC_CHIP_D13X
-#define LVGL_DIR "L:/rodata/lvgl_data/"
-#else
-#define LVGL_DIR "L:"STORAGE_PATH"lvgl_data/"
-#endif // AIC_CHIP_D13X
-#endif // LPKG_USING_RAMDISK
-#define FILE_LIST_PATH STORAGE_PATH"lvgl_video/"
+#ifndef LVGL_STORAGE_PATH
+#define LVGL_STORAGE_PATH "/rodata/lvgl_data"
+#endif
+#define LVGL_DIR "L:"LVGL_STORAGE_PATH"/"
+#define FILE_LIST_PATH LVGL_STORAGE_PATH"/video/"
 
 #define CONN(x, y) x#y
 #define LVGL_PATH(y) CONN(LVGL_DIR, y)
@@ -54,18 +30,10 @@ extern "C" {
                  w, h, blend, color);
 #define FAKE_IMAGE_NAME(name) (fake_##name)
 
-/* avoid using sscanf function now */
-#if 0
-static inline void FAKE_IMAGE_PARSE(char *fake_name, int *width,
-                                    int *height, int *blend,
-                                    unsigned int *color)
-{
-        sscanf(fake_name + 3, "%dx%d_%d_%08x", width, height, blend, color);
-}
+#define FAKE_IMAGE_PARSE(fake_name, pwidth, pheight, pblend, pcolor) \
+        fake_image_parse(fake_name, pwidth, pheight, pblend, pcolor)
 
-#else
-#include <stdlib.h>
-static inline void FAKE_IMAGE_PARSE(char *fake_name, int *width,
+static inline void fake_image_parse(char *fake_name, int *width,
                                     int *height, int *blend,
                                     unsigned int *color)
 {
@@ -79,8 +47,8 @@ static inline void FAKE_IMAGE_PARSE(char *fake_name, int *width,
     *blend = strtol(cur_ptr, &pos_ptr, 10);
     cur_ptr = pos_ptr + 1;
     *color = strtol(cur_ptr, &pos_ptr, 16);
+    return;
 }
-#endif
 
 #define ui_snprintf(fmt, arg...) snprintf(fmt, 127, ##arg)
 

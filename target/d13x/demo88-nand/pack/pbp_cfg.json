@@ -1,0 +1,74 @@
+{
+	"system": {
+		"upgmode": { // Set PIN to enter BROM's upgrading mode
+			"upgmode_pin_cfg_reg": "0x18700080", // PINMUX REG, PA0
+			"upgmode_pin_cfg_val": "0x10321",    // PINMUX VAL
+			"upgmode_pin_input_reg": "0x18700000", // INPUT VAL REG
+			"upgmode_pin_input_msk": "0x1", // Bit MSK
+			"upgmode_pin_input_val": "0x0", // Bit VAL
+			"upgmode_pin_pullup_dly": "500", // us
+		},
+		"uart": { // PBP's uart setting
+			"main": {
+				"uart_id": "0", // UART0 for log output
+				"uart_tx_pin_cfg_reg": "0x18700080", // PA0
+				"uart_tx_pin_cfg_val": "0x035",
+				"uart_rx_pin_cfg_reg": "0x18700084", // PA1
+				"uart_rx_pin_cfg_val": "0x035",
+
+				// "uart_id": "0", // UART0 for log output
+				// "uart_tx_pin_cfg_reg": "0x18700E88", // PN2
+				// "uart_tx_pin_cfg_val": "0x324",
+				// "uart_rx_pin_cfg_reg": "0x18700E8C", // PN3
+				// "uart_rx_pin_cfg_val": "0x324",
+
+				// "uart_id": "1", // UART1 for log output
+				// "uart_tx_pin_cfg_reg": "0x18700090", // PA4
+				// "uart_tx_pin_cfg_val": "0x325",
+				// "uart_rx_pin_cfg_reg": "0x18700094", // PA5
+				// "uart_rx_pin_cfg_val": "0x325",
+
+				// "uart_id": "3", // UART3 for log output
+				// "uart_tx_pin_cfg_reg": "0x187004B8", // PE14
+				// "uart_tx_pin_cfg_val": "0x325",
+				// "uart_rx_pin_cfg_reg": "0x187004BC", // PE15
+				// "uart_rx_pin_cfg_val": "0x325",
+
+				// "uart_id": "4", // UART4 for log output
+				// "uart_tx_pin_cfg_reg": "0x18700198", // PB6
+				// "uart_tx_pin_cfg_val": "0x325",
+				// "uart_rx_pin_cfg_reg": "0x1870019C", // PB7
+				// "uart_rx_pin_cfg_val": "0x325",
+
+				// "uart_id": "5", // UART5 for log output
+				// "uart_tx_pin_cfg_reg": "0x18700490", // PE4
+				// "uart_tx_pin_cfg_val": "0x325",
+				// "uart_rx_pin_cfg_reg": "0x18700494", // PE5
+				// "uart_rx_pin_cfg_val": "0x325",
+			},
+		},
+		"jtag": {
+			"jtag_only": "0", // 1: Boot code stop in PBP after DDR init and jtag init
+			"main": {
+				"jtag_id": "0",
+				"jtag_do_pin_cfg_reg": "0x187000A0", // PA8
+				"jtag_do_pin_cfg_val": "0x338",
+				"jtag_di_pin_cfg_reg": "0x187000A4", // PA9
+				"jtag_di_pin_cfg_val": "0x338",
+				"jtag_ms_pin_cfg_reg": "0x187000A8", // PA10
+				"jtag_ms_pin_cfg_val": "0x338",
+				"jtag_ck_pin_cfg_reg": "0x187000AC", // PA11
+				"jtag_ck_pin_cfg_val": "0x338",
+
+				// "jtag_do_pin_cfg_reg": "0x1870028C", // PC3
+				// "jtag_do_pin_cfg_val": "0x336",
+				// "jtag_di_pin_cfg_reg": "0x18700284", // PC1
+				// "jtag_di_pin_cfg_val": "0x336",
+				// "jtag_ms_pin_cfg_reg": "0x18700280", // PC0
+				// "jtag_ms_pin_cfg_val": "0x336",
+				// "jtag_ck_pin_cfg_reg": "0x18700294", // PC5
+				// "jtag_ck_pin_cfg_val": "0x336",
+			},
+		},
+	},
+}

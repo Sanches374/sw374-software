@@ -131,16 +131,16 @@ static int aic_rgb_attach_panel(struct aic_panel *panel)
     comp->panel = panel;
 
     if (rgb->mode == PRGB)
-#ifdef AIC_DISP_RGB_DRV_V11
-        comp->sclk_rate = pixclk * 2;
-#else
+#ifdef AIC_DISP_RGB_DRV_V10
         comp->sclk_rate = pixclk * 4;
+#else
+        comp->sclk_rate = pixclk * 2;
 #endif
     else if (rgb->mode == SRGB)
-#ifdef AIC_DISP_RGB_DRV_V11
-        comp->sclk_rate = pixclk * 6;
-#else
+#ifdef AIC_DISP_RGB_DRV_V10
         comp->sclk_rate = pixclk * 12;
+#else
+        comp->sclk_rate = pixclk * 16;
 #endif
 
     pll_disp_rate = comp->sclk_rate;

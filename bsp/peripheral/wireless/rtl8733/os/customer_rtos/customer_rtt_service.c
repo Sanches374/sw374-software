@@ -593,6 +593,8 @@ _timerHandle rtt_timerCreate(const signed char *pcTimerName,
     else
         flag |= RT_TIMER_FLAG_ONE_SHOT;
 
+    flag |= RT_TIMER_FLAG_SOFT_TIMER;
+
     rt_timer = rt_timer_create((const char *)pcTimerName,
                                          pxCallbackFunction, pvTimerID,
                                          xTimerPeriodInTicks, flag);

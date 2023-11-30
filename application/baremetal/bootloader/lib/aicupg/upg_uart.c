@@ -164,7 +164,7 @@ int recv_buf_peek(struct dma_input *in)
 {
     int newlen, rdlen, timeout = 100;
     bool wait = false;
-    volatile u32 start, cur;
+    volatile u64 start, cur;
 
     /* Read all data in uart fifo as fast as posible */
     if (recv_buf_in_idx >= UART_RECV_BUF_LEN) {
@@ -189,7 +189,7 @@ int recv_buf_peek(struct dma_input *in)
 
         cur = aic_get_time_us();
         /* Tell caller some key information */
-        in->head = uart_recv_buf[recv_buf_out_idx];
+        in->head = (u8)uart_recv_buf[recv_buf_out_idx];
         if (in->head == SOH) {
             if (newlen < 4) {
                 /* Got frame, but data is not all arrived */
@@ -198,7 +198,7 @@ int recv_buf_peek(struct dma_input *in)
                 continue;
             }
 
-            in->frm_len = uart_recv_buf[recv_buf_out_idx + 3];
+            in->frm_len = (u8)uart_recv_buf[recv_buf_out_idx + 3];
             if (newlen < (in->frm_len + 6)) {
                 /* Got frame, but data is not all arrived */
                 wait = true;
@@ -227,7 +227,7 @@ int recv_buf_peek(struct dma_input *in)
 
 static int uart_conn_detect_proc(void)
 {
-    u32 delta, cur_tm;
+    u64 delta, cur_tm;
     char ch = 0;
 
     ch = (char)recv_buf_read_byte(upg_uart_id);
@@ -266,7 +266,7 @@ static int uart_conn_normal_proc(void)
 {
     u8 ch, frame[LNG_FRM_MAX_LEN];
     int cnt, ret, tmo_check;
-    u32 delta, cur_tm;
+    u64 delta, cur_tm;
     struct dma_input in;
     struct phy_data_rw rw;
 
@@ -455,7 +455,7 @@ int aic_upg_uart_send(u8 *buf, int len)
 {
     u8 ch, *pframe, *p;
     int ret, rest, slice, flen, resend_cnt;
-    volatile u32 start, cur;
+    volatile u64 start, cur;
 
     pframe = g_uart_send_recv_buf;
     if (wait_host_to_recv_mode()) {
@@ -555,7 +555,7 @@ static int aic_upg_uart_recv(u8 *buf, int len)
 {
     u8 ch, *pframe, *p;
     int ret, gotlen, timeout = 10000;
-    volatile u32 start, cur;
+    volatile u64 start, cur;
     struct dma_input in;
 
     pframe = g_uart_send_recv_buf;
@@ -646,7 +646,7 @@ static int read_short_frame_data(u8 *buf, int len)
         return UART_NO_DATA;
     }
 
-    pr_debug("SHORT: %d\n", aic_get_time_us());
+    pr_debug("SHORT: %llu\n", aic_get_time_us());
     // hexdump(buf, len, 1);
     blk1 = buf[1];
     blk2 = buf[2];

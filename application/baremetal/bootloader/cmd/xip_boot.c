@@ -105,7 +105,7 @@ static int do_xip_boot(int argc, char *argv[])
     // need to delay, otherwise bootup unstable.
     aicos_udelay(1000 * 100);
 
-    printf("XIP boot, start entry: 0x%lx, used %u us...\n", (unsigned long)ep, aic_get_time_us());
+    printf("XIP boot, start entry: 0x%lx, used %llu us...\n", (unsigned long)ep, aic_get_time_us());
     /* boot */
     aicos_dcache_clean();
     ep();

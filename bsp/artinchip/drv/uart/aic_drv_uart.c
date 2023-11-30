@@ -128,13 +128,13 @@ static rt_err_t drv_uart_configure(struct rt_serial_device *serial, struct seria
         parity = USART_PARITY_NONE;
 
     if (cfg->stop_bits == 1)
-        stopbits = USART_STOP_BITS_1 ;
+        stopbits = USART_STOP_BITS_1;
     else if (cfg->stop_bits == 2)
-        stopbits = USART_STOP_BITS_2 ;
+        stopbits = USART_STOP_BITS_2;
     else if (cfg->stop_bits == 3)
-        stopbits = USART_STOP_BITS_1_5 ;
+        stopbits = USART_STOP_BITS_1_5;
     else
-        stopbits = USART_STOP_BITS_0_5 ;
+        stopbits = USART_STOP_BITS_0_5;
 
     if (cfg->data_bits == 5)
         databits = USART_DATA_BITS_5;
@@ -266,7 +266,7 @@ int drv_usart_init(void)
     int u = 0;
     int i = 0;
 
-    for (i=0; i<sizeof(uart_dev_paras)/sizeof(struct drv_uart_dev_para); i++){
+    for (i=0; i<sizeof(uart_dev_paras)/sizeof(struct drv_uart_dev_para); i++) {
         u = uart_dev_paras[i].index;
         serial[u].ops                 = & drv_uart_ops;
         serial[u].config              = config;
@@ -282,11 +282,19 @@ int drv_usart_init(void)
         hal_reset_assert(RESET_UART0 + u);
         aic_udelay(10000);
         hal_reset_deassert(RESET_UART0 + u);
+#ifdef FINSH_POLL_MODE
+        uart_handle[u] = hal_usart_initialize(u, NULL, NULL);
+#else
         uart_handle[u] = hal_usart_initialize(u, NULL, drv_usart_irqhandler);
+#endif
 
         rt_hw_serial_register(&serial[u],
                               uart_dev_paras[i].name,
+#ifdef FINSH_POLL_MODE
+                              RT_DEVICE_FLAG_RDWR,
+#else
                               RT_DEVICE_FLAG_RDWR | RT_DEVICE_FLAG_INT_RX,
+#endif
                               uart_handle[u]);
     }
 

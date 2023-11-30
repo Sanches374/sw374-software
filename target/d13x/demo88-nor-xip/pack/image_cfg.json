@@ -56,7 +56,10 @@
                     "file": "bootloader.bin",
                     "load address": "0x30100000",
                     "entry point":  "0x30100100",
-                    "run in dram": "false",
+                },
+                "resource": {
+                    "private": "pbp_cfg.bin",
+                    "pbp": "d13x.pbp",
                 },
             },
             "os.aic": {

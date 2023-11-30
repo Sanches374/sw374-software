@@ -49,6 +49,88 @@ def size_str_to_int(size_str):
         return 0
     return int(size_str, 10)
 
+def aic_create_parts_json(cfg):
+    mtd = ""
+    ubi = ""
+    gpt = ""
+
+    part_str = '{\n\t"partitions": {\n'
+    part_type = []
+    part_size = 0
+    part_offs = 0
+    total_siz = 0
+    media_type = cfg["image"]["info"]["media"]["type"]
+    if media_type == "spi-nand" or media_type == "spi-nor":
+        total_siz = size_str_to_int(cfg[media_type]["size"])
+        partitions = cfg[media_type]["partitions"]
+        part_type.append("mtd")
+        mtd = "spi{}.0:".format(cfg["image"]["info"]["media"]["device_id"])
+        if len(partitions) == 0:
+            print("Partition table is empty")
+            sys.exit(1)
+        for part in partitions:
+            itemstr = ""
+            if "size" not in partitions[part]:
+                print("No size value for partition: {}".format(part))
+            part_offs += part_size
+            itemstr += partitions[part]["size"]
+            part_size = size_str_to_int(partitions[part]["size"])
+            if partitions[part]["size"] == "-":
+                part_size = total_siz - part_offs
+            if "offset" in partitions[part]:
+                itemstr += "@{}".format(partitions[part]["offset"])
+                part_offs = size_str_to_int(partitions[part]["offset"])
+            itemstr += "({})".format(part)
+            mtd += itemstr + ","
+            if "ubi" in partitions[part]:
+                part_type.append("ubi")
+                volumes = partitions[part]["ubi"]
+                if len(volumes) == 0:
+                    print("Volume of {} is empty".format(part))
+                    sys.exit(1)
+                ubi += "{}:".format(part)
+                for vol in volumes:
+                    itemstr = ""
+                    if "size" not in volumes[vol]:
+                        print("No size value for ubi volume: {}".format(vol))
+                    itemstr += volumes[vol]["size"]
+                    if "offset" in volumes[vol]:
+                        itemstr += "@{}".format(volumes[vol]["offset"])
+                    itemstr += "({})".format(vol)
+                    ubi += itemstr + ","
+                ubi = ubi[0:-1] + ";"
+
+        mtd = mtd[0:-1]
+        part_str += "\t\t\"mtd\" : \"{}\",\n".format(mtd)
+        if len(ubi) > 0:
+            ubi = ubi[0:-1]
+            part_str += "\t\t\"ubi\" : \"{}\",\n".format(ubi)
+    elif media_type == "mmc":
+        part_type.append("gpt")
+        partitions = cfg[media_type]["partitions"]
+        if len(partitions) == 0:
+            print("Partition table is empty")
+            sys.exit(1)
+        for part in partitions:
+            itemstr = ""
+            if "size" not in partitions[part]:
+                print("No size value for partition: {}".format(part))
+            itemstr += partitions[part]["size"]
+            if "offset" in partitions[part]:
+                itemstr += "@{}".format(partitions[part]["offset"])
+            itemstr += "({})".format(part)
+            gpt += itemstr + ","
+        gpt = gpt[0:-1]
+        part_str += "\t\t\"gpt\" : \"{}\",\n".format(gpt)
+        # parts_mmc will be deleted later, keep it just for old version AiBurn tool
+    else:
+        print("Not supported media type: {}".format(media_type))
+        sys.exit(1)
+
+    part_str += '\t\t"type": {},\n'.format(str(part_type).replace("'", '"'))
+    part_str += "\t}\n}"
+    return part_str
+
 def aic_create_parts_string(cfg):
     mtd = ""
     ubi = ""
@@ -141,12 +223,21 @@ if __name__ == "__main__":
                         help="image configuration file name")
     parser.add_argument("-o", "--outfile", type=str,
                         help="output partition file")
+    parser.add_argument("-j", "--json", type=str,
+                        help="output partition json file")
     args = parser.parse_args()
     if args.config == None:
         print('Error, option --config is required.')
         sys.exit(1)
 
     cfg = parse_image_cfg(args.config)
+    parts = aic_create_parts_json(cfg)
+    if args.json == None:
+        print(parts)
+    else:
+        with open(args.json, "w+") as f:
+            f.write(parts)
+
     parts = aic_create_parts_string(cfg)
     if args.outfile == None:
         print(parts)
@@ -157,6 +248,5 @@ if __name__ == "__main__":
             f.write("#define _AIC_IMAGE_CFG_JSON_PARTITION_TABLE_H_\n\n")
             f.write(parts)
             f.write("\n#endif\n")
-            f.close()
 
 

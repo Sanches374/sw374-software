@@ -117,7 +117,7 @@ static int do_mtd_read(int argc, char *argv[])
     u8 *data;
     char *name;
     unsigned long addr, offset, size;
-    u32 start_us;
+    u64 start_us;
 
     name = argv[1];
     addr = strtol(argv[2], NULL, 0);

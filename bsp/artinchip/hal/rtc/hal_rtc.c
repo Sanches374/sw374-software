@@ -288,6 +288,12 @@ void hal_rtc_set_alarm(u32 sec)
     hal_rtc_alarm_irq_enable(1);
 }
 
+static void hal_rtc_low_power(void)
+{
+    RTC_WRITEB(0x4f, RTC_REG_ANALOG0);
+    RTC_WRITEB(0x4d, RTC_REG_ANALOG1);
+}
+
 s32 hal_rtc_register_callback(rtc_callback_t callback)
 {
     if (callback == NULL) {
@@ -343,6 +349,7 @@ s32 hal_rtc_init(void)
 
     aich_rtc.inited = 1;
     hal_rtc_enable(1);
+    hal_rtc_low_power();
     return 0;
 }
 

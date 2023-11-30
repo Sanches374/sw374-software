@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
@@ -56,11 +56,11 @@ static void cal_frame_rate()
     if (start_cal == 0) {
         start_cal = 1;
         start.tv_sec = 0;
-        start.tv_usec = aic_get_time_us();
+        start.tv_usec = (long)aic_get_time_us();
     }
 
     end.tv_sec = 0;
-    end.tv_usec = aic_get_time_us();
+    end.tv_usec = (long)aic_get_time_us();
     gap = get_time_gap(&start, &end);
     if (gap >= interval) {
         draw_fps = cal_fps(gap, frame_cnt);
@@ -118,18 +118,6 @@ void sync_disp_buf(lv_disp_drv_t * drv, lv_color_t * color_p, const lv_area_t * 
         return;
     }
 
-    ret = mpp_ge_emit(g_ge);
-    if (ret < 0) {
-        LV_LOG_ERROR("emit fail\n");
-        return;
-    }
-
-    ret = mpp_ge_sync(g_ge);
-    if (ret < 0) {
-        LV_LOG_ERROR("sync fail\n");
-        return;
-    }
-
     return;
 }
 
@@ -170,12 +158,25 @@ static void fbdev_flush(lv_disp_drv_t * drv, const lv_area_t * area, lv_color_t 
                     sync_disp_buf(drv, color_p, &disp->inv_areas[i]);
                 }
             }
+
+            if (disp->inv_p) {
+                int ret = mpp_ge_emit(g_ge);
+                if (ret < 0) {
+                    LV_LOG_ERROR("emit fail\n");
+                    return;
+                }
+
+                ret = mpp_ge_sync(g_ge);
+                if (ret < 0) {
+                    LV_LOG_ERROR("sync fail\n");
+                    return;
+                }
+            }
         }
 
         cal_frame_rate();
         lv_disp_flush_ready(drv);
-    }
-    else {
+    } else {
         lv_disp_flush_ready(drv);
     }
 }

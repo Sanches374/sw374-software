@@ -557,6 +557,16 @@ int mjpeg_find_marker(struct mjpeg_dec_ctx *s,
     return start_code;
 }
 
+static void skip_variable_marker(struct mjpeg_dec_ctx *s)
+{
+    int left = read_bits(&s->gb, 16);
+    left -= 2;
+    while(left) {
+        skip_bits(&s->gb, 8);
+        left --;
+    }
+}
+
 int __mjpeg_decode_frame(struct mpp_decoder *ctx)
 {
     struct mjpeg_dec_ctx *s = (struct mjpeg_dec_ctx*)ctx;
@@ -604,6 +614,7 @@ int __mjpeg_decode_frame(struct mpp_decoder *ctx)
         }
 
         s->start_code = start_code;
+        logi("startcode: %02x", start_code);
 
         /* process markers */
         if (start_code >= RST0 && start_code <= RST7) {
@@ -614,15 +625,16 @@ int __mjpeg_decode_frame(struct mpp_decoder *ctx)
             /* Comment */
         } else if (start_code == COM) {
             logd("com marker: %d", start_code & 0xff);
-        } else if (start_code == DQT) {
-            ret = mjpeg_decode_dqt(s);
-            if (ret < 0)
-                return ret;
         }
 
         ret = -1;
 
         switch (start_code) {
+        case DQT:
+            ret = mjpeg_decode_dqt(s);
+            if (ret < 0)
+                return ret;
+            break;
         case SOI:
             s->restart_interval = 0;
             s->restart_count = 0;
@@ -636,11 +648,14 @@ int __mjpeg_decode_frame(struct mpp_decoder *ctx)
             }
             break;
         case SOF0:
+            logi("baseline");
         case SOF1:
+            logi("SOF1");
             if ((ret = mjpeg_decode_sof(s)) < 0)
                 goto fail;
             break;
         case SOF2:
+            loge("progressive, not support");
             if ((ret = mjpeg_decode_sof(s)) < 0)
                 goto fail;
             break;
@@ -662,7 +677,7 @@ int __mjpeg_decode_frame(struct mpp_decoder *ctx)
                 goto fail;
 
             pm_enqueue_empty_packet(s->decoder.pm, s->curr_packet);
-            break;
+            goto the_end;
         case DRI:
             if ((ret = mjpeg_decode_dri(s)) < 0)
                 return ret;
@@ -680,6 +695,10 @@ int __mjpeg_decode_frame(struct mpp_decoder *ctx)
         case SOF15:
         case JPG:
             loge("mjpeg: unsupported coding type (%x)", start_code);
+            break;
+        default:
+            logi("skip this marker: %02x", start_code);
+            skip_variable_marker(s);
             break;
         }
 

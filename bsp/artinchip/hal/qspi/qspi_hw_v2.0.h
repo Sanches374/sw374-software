@@ -458,6 +458,14 @@ static inline void qspi_hw_set_slave_txdelay_en(u32 base, u32 en)
     writel(val, QSPI_REG_TCFG(base));
 }
 
+static inline void qspi_hw_set_rxindly_en(u32 base, u32 en)
+{
+    u32 val = readl(QSPI_REG_TCFG(base));
+    val &= ~(TCFG_BIT_RXINDLY_EN_MSK);
+    val |= TCFG_BIT_RXINDLY_EN_VAL(en);
+    writel(val, QSPI_REG_TCFG(base));
+}
+
 static inline void qspi_hw_cs_init(u32 base, u32 pol, u32 level,
                                    u32 soft_ctrl)
 {
@@ -1186,6 +1194,12 @@ static inline void qspi_hw_bit_mode_set_cs_pol(u32 base, bool high_active)
     writel(reg_val, QSPI_REG_BMTC(base));
 }
 
+static inline u32 qspi_hw_bit_mode_get_cs_pol(u32 base)
+{
+    u32 val = readl(QSPI_REG_BMTC(base));
+    return ((val & BMTC_BIT_SPOL_MSK) >> BMTC_BIT_SPOL_OFS);
+}
+
 static inline void qspi_hw_bit_mode_set_ss_owner(u32 base, bool soft_ctrl)
 {
     u32 val = readl(QSPI_REG_BMTC(base));
@@ -1282,7 +1296,7 @@ static inline int qspi_hw_bit_mode_read(u32 base, u8 *rx_buf, u32 rx_len)
         /* Read rx bits */
         rxbits = readl(QSPI_REG_BMRXD(base));
         for (i = 0; i < dolen; i++)
-            p[i] = (rxbits >> ((3 - i) * 8)) & 0xFF;
+            p[i] = (rxbits >> (i * 8)) & 0xFF;
         p += dolen;
         remain -= dolen;
     }
@@ -1309,7 +1323,7 @@ static inline int qspi_hw_bit_mode_write(u32 base, const u8 *tx_buf, u32 tx_len)
             dolen = 4;
         /* Prepare and write tx bits */
         for (i = 0; i < dolen; i++)
-            txbits |= p[i] << ((3 - i) * 8);
+            txbits |= p[i] << (i * 8);
         writel(txbits, QSPI_REG_BMTXD(base));
 
         /* Configure tx length and start transfer */

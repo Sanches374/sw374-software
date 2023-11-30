@@ -172,17 +172,14 @@ void dump_qh(struct usb_ehci_qh_s *qh)
 #else
 void dump_hcor(volatile struct ehci_hcor_s *hcor)
 {
-    ;
 }
 
 void dump_qtd(struct usb_ehci_qtd_s *qtd)
 {
-    ;
 }
 
 void dump_qh(struct usb_ehci_qh_s *qh)
 {
-    ;
 }
 #endif
 
@@ -459,20 +456,16 @@ static int usb_ehci_qh_foreach(struct usb_ehci_qh_s *qh, u32 **bp,
         if ((physaddr & QH_HLP_T) != 0) {
             /* Set the next pointer to NULL.  This will terminate the loop. */
             next = NULL;
-        }
-
-        /* Is the next QH the asynchronous list head which will always be at
-         * the end of the asynchronous queue?
-         */
-        else if ((physaddr & QH_HLP_MASK) == (u32)(uintptr_t)&g_asynchead) {
+        } else if ((physaddr & QH_HLP_MASK) == (u32)(uintptr_t)&g_asynchead) {
+            /* Is the next QH the asynchronous list head which will always be at
+             * the end of the asynchronous queue?
+             */
             /* That will also terminate the loop */
             next = NULL;
-        }
-
-        /* Otherwise, there is a QH structure after this one that describes
-         * another transaction.
-         */
-        else {
+        } else {
+            /* Otherwise, there is a QH structure after this one that describes
+             * another transaction.
+             */
             physaddr = (qh->hw.hlp) & QH_HLP_MASK;
             next = (struct usb_ehci_qh_s *)(uintptr_t)(physaddr);
         }
@@ -735,7 +728,7 @@ int usbh_ep_free(usbh_epinfo_t ep)
 static int usb_ehci_reset(int id)
 {
     u32 regval = 0;
-    u32 start_us;
+    u64 start_us;
     volatile struct ehci_hcor_s *hcor;
 
     hcor = (struct ehci_hcor_s *)USB_EHCI_HCOR_BASE(id);
@@ -839,7 +832,8 @@ static int usb_ehci_wait_usbsts(int id, u32 maskbits, u32 donebits, u32 timeout)
 
 int usbh_portchange_wait(int id)
 {
-    u32 usbsts, pending, regval, start_us;
+    u32 usbsts, pending, regval;
+    u64 start_us;
     volatile struct ehci_hcor_s *hcor;
 
     hcor = (struct ehci_hcor_s *)USB_EHCI_HCOR_BASE(id);
@@ -904,7 +898,7 @@ int usbh_get_port_connect_status(int id, int port)
 
 int usbh_reset_port(int port, int id)
 {
-    u32 start_us;
+    u64 start_us;
     u32 regval;
     volatile struct ehci_hcor_s *hcor;
 

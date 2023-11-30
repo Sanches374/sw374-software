@@ -17,7 +17,7 @@
 #include "cpu_usage.h"
 #endif
 
-#ifdef  AIC_USING_FS_IMAGE_1
+#ifdef AIC_MPP_PLAYER_INTERFACE
 #define VIDEO_PLAYER
 #endif
 
@@ -761,7 +761,26 @@ void base_ui_init()
     lv_label_set_text(main_title, "Meter");
     lv_obj_set_style_text_color(main_title, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(main_title, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+#if LV_USE_FREETYPE ==  1
+    static lv_ft_info_t info;
+    // FreeType uses C standard file system, so no driver letter is required
+    info.name = "/rodata/lvgl_data/font/Lato-Regular.ttf";
+    info.weight = 24;
+    info.style = FT_FONT_STYLE_NORMAL;
+    info.mem = NULL;
+    if(!lv_ft_font_init(&info)) {
+        LV_LOG_ERROR("create failed.");
+    }
+
+    /*Create style*/
+    static lv_style_t style;
+    lv_style_init(&style);
+    lv_style_set_text_font(&style, info.font);
+    lv_obj_add_style(main_title, &style, 0);
+#else
     lv_obj_set_style_text_font(main_title, &ui_font_Title, LV_PART_MAIN | LV_STATE_DEFAULT);
+#endif
 
     bg_fps = lv_label_create(img_bg);
     lv_obj_set_width(bg_fps, LV_SIZE_CONTENT);

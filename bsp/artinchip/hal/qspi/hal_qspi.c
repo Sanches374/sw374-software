@@ -51,7 +51,6 @@ void hal_qspi_master_bit_mode_init(u32 base)
 #endif
 
     /* set chip select number */
-    qspi_hw_bit_mode_set_cs_num(0, base);
     qspi_hw_bit_mode_set_cs_pol(base, false);
     qspi_hw_bit_mode_set_ss_owner(base, true);
 }
@@ -71,10 +70,12 @@ int hal_qspi_master_transfer_bit_mode(qspi_master_handle *h, struct qspi_bm_tran
     if (!t->tx_len && !t->rx_len)
         return -EINVAL;
 
-    if (t->tx_data)
+    if (t->tx_data) {
         ret = qspi_hw_bit_mode_write(base, t->tx_data, t->tx_len);
-    if (t->rx_data)
+    }
+    if (t->rx_data) {
         ret = qspi_hw_bit_mode_read(base, t->rx_data, t->rx_len);
+    }
 
     return ret; /* In progress */
 }
@@ -94,10 +95,6 @@ int hal_qspi_master_init(qspi_master_handle *h, struct qspi_master_config *cfg)
     if (base == QSPI_INVALID_BASE) {
         hal_log_err("invalid spi controller index %d\n", cfg->idx);
         return -ENODEV;
-    }
-
-    if (h->bit_mode) {
-        hal_qspi_master_bit_mode_init(base);
     }
 
     sclk = cfg->clk_in_hz;
@@ -139,9 +136,16 @@ int hal_qspi_master_init(qspi_master_handle *h, struct qspi_master_config *cfg)
     qspi_hw_reset_fifo(base);
     qspi_hw_set_fifo_watermark(base, QSPI_TX_WATERMARK, QSPI_RX_WATERMARK);
 
+#if defined(AIC_QSPI_DRV_V20)
+    qspi_hw_set_rxindly_en(base, true);
+#endif
     qspi->clk_id = cfg->clk_id;
     qspi->cb = NULL;
     qspi->cb_priv = NULL;
+
+    if (h->bit_mode) {
+        hal_qspi_master_bit_mode_init(base);
+    }
 
     return 0;
 }
@@ -243,13 +247,23 @@ int hal_qspi_master_set_cs(qspi_master_handle *h, u32 cs_num, bool enable)
     CHECK_PARAM(h, -EINVAL);
     qspi = (struct qspi_master_state *)h;
     base = qspi_hw_index_to_base(qspi->idx);
-    pol = qspi_hw_get_cs_polarity(base);
 
     if (h->bit_mode) {
-        qspi_hw_bit_mode_set_cs_level(base, enable);
+        pol = qspi_hw_bit_mode_get_cs_pol(base);
+
+        if (enable)
+            level = (pol == QSPI_CS_POL_VALID_LOW) ? QSPI_CS_LEVEL_LOW :
+                                                     QSPI_CS_LEVEL_HIGH;
+        else
+            level = (pol == QSPI_CS_POL_VALID_LOW) ? QSPI_CS_LEVEL_HIGH :
+                                                     QSPI_CS_LEVEL_LOW;
+
+        qspi_hw_bit_mode_set_cs_num(cs_num, base);
+        qspi_hw_bit_mode_set_cs_level(base, level);
         return 0;
     }
 
+    pol = qspi_hw_get_cs_polarity(base);
     if (enable)
         level = (pol == QSPI_CS_POL_VALID_LOW) ? QSPI_CS_LEVEL_LOW :
                                                  QSPI_CS_LEVEL_HIGH;
@@ -376,7 +390,7 @@ int hal_qspi_master_set_bus_width(qspi_master_handle *h, u32 bus_width)
 
 int qspi_wait_transfer_done(u32 base, u32 tmo)
 {
-    u32 start_us, cur;
+    u64 start_us, cur;
 
     start_us = aic_get_time_us();
     while (qspi_hw_check_transfer_done(base) == false) {
@@ -390,7 +404,7 @@ int qspi_wait_transfer_done(u32 base, u32 tmo)
 #ifdef AIC_DMA_DRV_V20
 int qspi_wait_gpdma_tx_done(u32 base, u32 tmo)
 {
-    u32 start_us, cur;
+    u64 start_us, cur;
 
     start_us = aic_get_time_us();
     while (qspi_hw_check_gpdma_tx_done(base) == false) {
@@ -403,7 +417,7 @@ int qspi_wait_gpdma_tx_done(u32 base, u32 tmo)
 
 int qspi_wait_gpdma_rx_done(u32 base, u32 tmo)
 {
-    u32 start_us, cur;
+    u64 start_us, cur;
 
     start_us = aic_get_time_us();
     while (qspi_hw_check_gpdma_rx_done(base) == false) {
@@ -417,7 +431,8 @@ int qspi_wait_gpdma_rx_done(u32 base, u32 tmo)
 
 int qspi_fifo_write_data(u32 base, u8 *data, u32 len, u32 tmo)
 {
-    u32 dolen, free_len, start_us;
+    u32 dolen, free_len;
+    u64 start_us;
 
     start_us = aic_get_time_us();
     while (len) {
@@ -443,7 +458,8 @@ int qspi_fifo_write_data(u32 base, u8 *data, u32 len, u32 tmo)
 
 int qspi_fifo_read_data(u32 base, u8 *data, u32 len, u32 tmo_us)
 {
-    u32 dolen, start_us;
+    u32 dolen;
+    u64 start_us;
 
     start_us = aic_get_time_us();
     while (len) {
@@ -541,7 +557,8 @@ out:
 #ifdef AIC_DMA_DRV
 static int qspi_master_wait_dma_done(struct aic_dma_chan *ch, u32 tmo)
 {
-    u32 start_us, cur, left;
+    u64 start_us, cur;
+    u32 left;
 
     start_us = aic_get_time_us();
     while (hal_dma_chan_tx_status(ch, &left) != DMA_COMPLETE && left) {

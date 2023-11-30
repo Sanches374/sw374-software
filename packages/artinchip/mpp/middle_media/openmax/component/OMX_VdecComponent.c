@@ -800,9 +800,8 @@ OMX_ERRORTYPE OMX_VdecComponentInit(
     //OMX_U32 cnt;
 
 
-    pthread_attr_t *attr = NULL;
-    attr = (pthread_attr_t*)mpp_alloc(sizeof(pthread_attr_t));
-    dec_thread_attr_init(attr);
+    pthread_attr_t attr;
+    dec_thread_attr_init(&attr);
 
     logw("OMX_VdecComponentInit....");
 
@@ -912,7 +911,7 @@ OMX_ERRORTYPE OMX_VdecComponentInit(
 
     pthread_mutex_init(&pVdecDataType->stateLock, NULL);
     // Create the component thread
-    err = pthread_create(&pVdecDataType->threadId, attr, OMX_VdecComponentThread, pVdecDataType);
+    err = pthread_create(&pVdecDataType->threadId, &attr, OMX_VdecComponentThread, pVdecDataType);
     //if (err || !pVdecDataType->threadId)
     if (err)
     {

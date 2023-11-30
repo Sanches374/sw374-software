@@ -1,6 +1,7 @@
 
 source "bsp/peripheral/spinand/Kconfig"
 source "bsp/peripheral/spinor_sfud/Kconfig"
+source "bsp/peripheral/nftl/Kconfig"
 
 config AIC_WIRELESS_LAN
        bool "Wireless Lan"

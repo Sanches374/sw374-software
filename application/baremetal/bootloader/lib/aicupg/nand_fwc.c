@@ -14,6 +14,10 @@
 #include "upg_internal.h"
 #include "nand_fwc_spl.h"
 
+#ifdef AIC_NFTL_SUPPORT
+#include <nftl_api.h>
+#endif
+
 #define MAX_NAND_NAME 32
 
 struct aicupg_mtd_partition {
@@ -51,9 +55,42 @@ static s32 nand_fwc_get_mtd_partitions(struct fwc_info *fwc,
             name[cnt] = '\0';
             priv->mtd[idx] = mtd_get_device(name);
             if (!priv->mtd[idx]) {
-                pr_err("MTD %s part not found.\n", name);
+                pr_err("MTD %s priv not found.\n", name);
                 return -1;
             }
+
+#ifdef AIC_NFTL_SUPPORT
+            if (strstr(fwc->meta.attr, "block")) {
+                priv->nftl_handler[idx] = aicos_malloc(MEM_CMA, sizeof(struct nftl_api_handler_t)); //malloc(sizeof(struct _nftl_handler));
+                if (!priv->nftl_handler[idx]) {
+                    pr_err("priv->nftl_handler[%d] Out of memory, malloc failed.\n", idx);
+                    aicos_free(MEM_CMA, priv->nftl_handler[idx]); //free(priv->nftl_handler[idx]);
+                } else {
+                    memset(priv->nftl_handler[idx], 0, sizeof(struct nftl_api_handler_t));
+                    priv->nftl_handler[idx]->priv_mtd = (void *)priv->mtd[idx];
+
+                    priv->nftl_handler[idx]->nandt = aicos_malloc(MEM_CMA, sizeof(struct nftl_api_nand_t));
+
+                    priv->nftl_handler[idx]->nandt->page_size = priv->mtd[idx]->writesize;
+                    priv->nftl_handler[idx]->nandt->oob_size = priv->mtd[idx]->oobsize;
+                    priv->nftl_handler[idx]->nandt->pages_per_block = priv->mtd[idx]->erasesize / priv->mtd[idx]->writesize;
+                    priv->nftl_handler[idx]->nandt->block_total = priv->mtd[idx]->size / priv->mtd[idx]->erasesize;
+                    priv->nftl_handler[idx]->nandt->block_start = priv->mtd[idx]->start / priv->mtd[idx]->erasesize;
+                    priv->nftl_handler[idx]->nandt->block_end =  (priv->mtd[idx]->start + priv->mtd[idx]->size) / priv->mtd[idx]->erasesize;
+
+                    for (int offset_e = priv->mtd[idx]->start; offset_e < priv->mtd[idx]->start + priv->mtd[idx]->size;) {
+                        mtd_erase(priv->mtd[idx], offset_e, priv->mtd[idx]->erasesize);
+                        offset_e += priv->mtd[idx]->erasesize;
+                    }
+
+                    if (nftl_api_init(priv->nftl_handler[idx], idx)) {
+                        pr_err("[NE]nftl_initialize failed\n");
+                        return -1;
+                    }
+                }
+            }
+#endif
+
             idx++;
             cnt = 0;
         }
@@ -326,12 +363,69 @@ s32 nand_fwc_mtd_write(struct fwc_info *fwc, u8 *buf, s32 len)
     return len;
 }
 
+#ifdef AIC_NFTL_SUPPORT
+s32 nand_fwc_nftl_write(struct fwc_info *fwc, u8 *buf, s32 len)
+{
+    struct aicupg_nand_priv *priv;
+    struct nftl_api_handler_t *nftl_handler;
+    struct mtd_dev *mtd;
+    unsigned long offset, erase_offset;
+    int i, ret = 0;
+
+    priv = (struct aicupg_nand_priv *)fwc->priv;
+    int32_t start_offset, start_page, start_sector, sector_total;
+    for (i = 0; i < MAX_DUPLICATED_PART; i++) {
+        nftl_handler = priv->nftl_handler[i];
+        if (!nftl_handler)
+            continue;
+
+        mtd = priv->mtd[i];
+        if (!mtd)
+            continue;
+
+        offset = priv->start_offset[i];
+        if ((offset + len) > (mtd->size)) {
+            pr_err("Not enough space to write mtd %s\n", mtd->name);
+            return 0;
+        }
+
+        /* erase 1 sector when offset+len more than erased address */
+        erase_offset = priv->erase_offset[i];
+
+        if (mtd_block_isbad(mtd, erase_offset)) {
+            pr_err(" Write block is bad, skip it.\n");
+            priv->start_offset[i] = offset + mtd->erasesize;
+            offset = priv->start_offset[i];
+        }
+
+        start_offset = offset;
+        start_page = start_offset / mtd->writesize;
+        start_sector = start_page * 4;
+        sector_total = (len / mtd->writesize) * 4;
+
+        nftl_api_write(nftl_handler, start_sector, sector_total, buf);
+        nftl_api_write_cache(nftl_handler, 0xffff);
+        //nftl_handler->write_data(nftl_handler, start_sector, sector_total, buf);
+        //nftl_handler->flush_write_cache(nftl_handler, 0xffff);
+        priv->start_offset[i] = offset + len;
+    }
+
+    pr_debug("%s, data len %d, trans len %d\n", __func__, len, fwc->trans_size);
+    (void)ret;
+    return len;
+}
+#endif
+
 s32 nand_fwc_data_write(struct fwc_info *fwc, u8 *buf, s32 len)
 {
     struct aicupg_nand_priv *priv;
 
     if (aicupg_get_fwc_attr(fwc) & FWC_ATTR_DEV_UFFS) {
         len = nand_fwc_uffs_write(fwc, buf, len);
+    } else if (aicupg_get_fwc_attr(fwc) & FWC_ATTR_DEV_BLOCK) {
+#ifdef AIC_NFTL_SUPPORT
+        nand_fwc_nftl_write(fwc, buf, len);
+#endif
     } else if (aicupg_get_fwc_attr(fwc) & FWC_ATTR_DEV_MTD) {
         priv = (struct aicupg_nand_priv *)fwc->priv;
         if (priv->spl_flag)
@@ -368,6 +462,18 @@ void nand_fwc_data_end(struct fwc_info *fwc)
     priv = (struct aicupg_nand_priv *)fwc->priv;
     if (!priv)
         return;
+
+#ifdef AIC_NFTL_SUPPORT
+    struct nftl_api_handler_t *nftl_handler;
+    for (int i = 0; i < MAX_DUPLICATED_PART; i++) {
+        nftl_handler = priv->nftl_handler[i];
+        if (!nftl_handler)
+            continue;
+
+        nftl_api_write_cache(nftl_handler, 0xffff);
+        free(nftl_handler);
+    }
+#endif
 
     pr_debug("trans len all %d\n", fwc->trans_size);
     free(priv);

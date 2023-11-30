@@ -46,6 +46,7 @@ static void aicupg_help(void)
 
 #define AICUPG_ARGS_MAX 4
 extern struct usb_device usbupg_device;
+extern void stdio_unset_uart(int id);
 
 static int ctrlc(void)
 {
@@ -77,6 +78,7 @@ static int do_uart_protocol_upg(int intf)
     int ret = 0;
 
 #if defined(AICUPG_UART_ENABLE)
+    stdio_unset_uart(intf);
     aic_upg_uart_init(intf);
     while (1) {
         if (ctrlc())
@@ -93,9 +95,12 @@ static int do_usb_protocol_upg(int intf)
     int ret = 0;
 
 #if defined(AICUPG_USB_ENABLE)
+    struct upg_init init;
 #ifndef AIC_SYSCFG_DRV_V12
     syscfg_usb_phy0_sw_host(0);
 #endif
+    init.mode = INIT_MODE(UPG_MODE_FULL_DISK_UPGRADE);
+    aicupg_initialize(&init);
     aic_udc_init(&usbupg_device);
     while (1) {
         if (ctrlc())

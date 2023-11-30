@@ -22,8 +22,10 @@ extern "C" {
 #define DMA_IRQ_CHAN_NR         4
 
 #define DMA_IRQ_EN_REG(x)       ((x) * 0x04 + 0x00)
+#define DMA_IRQ_DIS_REG(x)      ((x) * 0x04 + 0x20)
 
-#if defined(AIC_DMA_DRV_V10) || defined(AIC_DMA_DRV_V11)
+#if defined(AIC_DMA_DRV_V10) || defined(AIC_DMA_DRV_V11) \
+    || defined(AIC_DMA_DRV_V12)
 #define DMA_CHAN_OFFSET         (0x40)
 #define DMA_IRQ_STA_REG(x)      ((x) * 0x04 + 0x10)
 #define DMA_CH_STA_REG          (0x0030)
@@ -40,6 +42,7 @@ extern "C" {
 /*
  * define dma_v1.x register list
  */
+#define DMA_MEM_CFG             (0x0020)
 #define DMA_GATE_REG            (0x0028)
 #define DMA_CH_EN_REG           (0x0000)
 #define DMA_CH_PAUSE_REG        (0x0004)
@@ -85,7 +88,8 @@ extern "C" {
 /*
  * define macro for access register for specific channel
  */
-#if defined(AIC_DMA_DRV_V10) || defined(AIC_DMA_DRV_V11)
+#if defined(AIC_DMA_DRV_V10) || defined(AIC_DMA_DRV_V11) \
+    || defined(AIC_DMA_DRV_V12)
 #define DMA_IRQ_HALF_TASK   BIT(0)
 #define DMA_IRQ_ONE_TASK    BIT(1)
 #define DMA_IRQ_ALL_TASK    BIT(2)
@@ -114,7 +118,8 @@ extern "C" {
 /*
  * define bit index in channel configuration register
  */
-#if defined(AIC_DMA_DRV_V10) || defined(AIC_DMA_DRV_V11)
+#if defined(AIC_DMA_DRV_V10) || defined(AIC_DMA_DRV_V11) \
+    || defined(AIC_DMA_DRV_V12)
 /* dma_v1.x task  config */
 #define DST_WIDTH_BITSHIFT  25
 #define DST_ADDR_BITSHIFT   24
@@ -149,6 +154,13 @@ extern "C" {
 #define DMA_HANDSHAKE_MODE  1
 #define DMA_DST_MODE_SHIFT  3
 #define DMA_SRC_MODE_SHIFT  2
+#if defined(AIC_DMA_DRV_V12)
+#define DMA_SRC_HANDSHAKE_ENABLE    5
+#define DMA_DST_HANDSHAKE_ENABLE    6
+#else
+#define DMA_SRC_HANDSHAKE_ENABLE    4
+#define DMA_DST_HANDSHAKE_ENABLE    4
+#endif
 #define DMA_S_WAIT_D_HANDSHAKE  (DMA_HANDSHAKE_MODE << DMA_DST_MODE_SHIFT)
 #define DMA_S_HANDSHAKE_D_WAIT  (DMA_HANDSHAKE_MODE << DMA_SRC_MODE_SHIFT)
 #define DMA_S_WAIT_D_WAIT   (DMA_WAIT_MODE)
@@ -157,15 +169,17 @@ extern "C" {
 /*
  * define bit index in channel pause register
  */
-#if defined(AIC_DMA_DRV_V10) || defined(AIC_DMA_DRV_V11)
+#if defined(AIC_DMA_DRV_V10) || defined(AIC_DMA_DRV_V11) \
+    || defined(AIC_DMA_DRV_V12)
 #define  DMA_CH_RESUME      0x00
-#define  DMA_CH_PAUSE       0x10
+#define  DMA_CH_PAUSE       0x01
 #endif
 
 #ifdef AIC_DMA_DRV_V20
 #define DMA_CH_RESUME       0x00
-#define DMA_CH_PAUSE        0x01
-#define DMA_CH_BYTEMODE     0x20
+#define DMA_CH_LINK_PAUSE   0x01
+#define DMA_CH_TASK_PAUSE   0x02
+#define DMA_CH_ABANDON      0x04
 #endif
 
 #define DMA_CH_MEMSET       0x10

@@ -1062,7 +1062,7 @@ OMX_ERRORTYPE OMX_VideoRenderComponentDeInit(
     return eError;
 }
 
-static int dec_thread_attr_init(pthread_attr_t *attr)
+static int video_thread_attr_init(pthread_attr_t *attr)
 {
     // default stack size is 2K, it is not enough for decode thread
     if (attr == NULL) {
@@ -1085,9 +1085,8 @@ OMX_ERRORTYPE OMX_VideoRenderComponentInit(
     OMX_U32 i;
     //OMX_U32 cnt;
 
-    pthread_attr_t *attr = NULL;
-    attr = (pthread_attr_t*)mpp_alloc(sizeof(pthread_attr_t));
-    dec_thread_attr_init(attr);
+    pthread_attr_t attr;
+    video_thread_attr_init(&attr);
 
     logw("OMX_VideoRenderComponentInit....");
 
@@ -1178,7 +1177,7 @@ OMX_ERRORTYPE OMX_VideoRenderComponentInit(
 
     pthread_mutex_init(&pVideoRenderDataType->stateLock, NULL);
     // Create the component thread
-    err = pthread_create(&pVideoRenderDataType->threadId, attr, OMX_VideoRenderComponentThread, pVideoRenderDataType);
+    err = pthread_create(&pVideoRenderDataType->threadId, &attr, OMX_VideoRenderComponentThread, pVideoRenderDataType);
     //if (err || !pVideoRenderDataType->threadId)
     if (err)
     {

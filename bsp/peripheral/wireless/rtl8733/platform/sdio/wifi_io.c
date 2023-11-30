@@ -103,9 +103,6 @@ int wifi_sdio_probe(struct rt_mmcsd_card *card)
 
     sdio_enable_func(rtt_sdio_func);
     sdio_set_block_size(rtt_sdio_func, 512);
-#ifdef RTL8733_PROBE_TEST
-    wifi_fake_driver_probe_rtlwifi(wifi_sdio_func);
-#endif
 
 	if(wifi_on(1)<0){
 		pr_err("ERROR: Wifi on failed!\n");

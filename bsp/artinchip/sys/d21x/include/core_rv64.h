@@ -747,11 +747,11 @@ __STATIC_INLINE void csi_icache_enable(void)
         __ICACHE_IALL();
         cache |= CACHE_MHCR_IE_Msk;
         __set_MHCR(cache);
-        mhint = __get_MHINT();
-        mhint &= ~(MHINT_IPLD_Msk | MHINT_IWPE_Msk);
-        mhint |= (1<<MHINT_IPLD_Pos) | (1<<MHINT_IWPE_Pos);
-        __set_MHINT(mhint);
     }
+    mhint = __get_MHINT();
+    mhint &= ~(MHINT_IPLD_Msk | MHINT_IWPE_Msk | MHINT_DPLD_Msk | MHINT_AMR_Msk | MHINT_DDIS_Msk);
+    mhint |= (1<<MHINT_IPLD_Pos) | (1<<MHINT_IWPE_Pos) | (1<<MHINT_DPLD_Pos) | (1<<MHINT_AMR_Pos) | (3<<MHINT_DDIS_Pos);
+    __set_MHINT(mhint);
     __DSB();
     __ISB();
 #endif
@@ -774,7 +774,7 @@ __STATIC_INLINE void csi_icache_disable(void)
         cache &= ~CACHE_MHCR_IE_Msk; /* disable icache */
         __set_MHCR(cache);
         mhint = __get_MHINT();
-        mhint &= ~(MHINT_IPLD_Msk | MHINT_IWPE_Msk);
+        mhint &= ~(MHINT_IPLD_Msk | MHINT_IWPE_Msk | MHINT_DPLD_Msk | MHINT_AMR_Msk | MHINT_DDIS_Msk);
         __set_MHINT(mhint);
         __ICACHE_IALL(); /* invalidate all icache */
     }

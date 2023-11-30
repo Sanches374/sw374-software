@@ -1,6 +1,7 @@
 config RTL8733_WLAN_DRV
     bool
     default n
+    select RT_USING_TIMER_SOFT
 
 config RTL8733_WLAN_INTF_SDIO
     bool

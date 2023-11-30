@@ -50,4 +50,20 @@
 // #define LV_COLOR_SCREEN_TRANSP    1
 #endif /* LPKG_USING_LV_MUSIC_DEMO */
 
+#define LV_USE_FREETYPE 0
+#if LV_USE_FREETYPE
+    // Memory used by FreeType to cache characters [bytes]
+    #define LV_FREETYPE_CACHE_SIZE (16 * 1024)
+    #if LV_FREETYPE_CACHE_SIZE >= 0
+        // 1: bitmap cache use the sbit cache, 0:bitmap cache use the image cache.
+        // sbit cache:it is much more memory efficient for small bitmaps(font size < 256)
+        // if font size >= 256, must be configured as image cache */
+        #define LV_FREETYPE_SBIT_CACHE 0
+        // Maximum number of opened FT_Face/FT_Size objects managed by this cache instance.
+        // (0:use system defaults)
+        #define LV_FREETYPE_CACHE_FT_FACES 0
+        #define LV_FREETYPE_CACHE_FT_SIZES 0
+    #endif
+#endif
+
 #endif

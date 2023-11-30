@@ -751,9 +751,8 @@ OMX_ERRORTYPE OMX_AdecComponentInit(
     OMX_U32 i;
     //OMX_U32 cnt;
 
-    pthread_attr_t *attr = NULL;
-    attr = (pthread_attr_t*)mpp_alloc(sizeof(pthread_attr_t));
-    adc_thread_attr_init(attr);
+    pthread_attr_t attr;
+    adc_thread_attr_init(&attr);
 
     logi("OMX_AdecComponentInit....\n");
 
@@ -862,7 +861,7 @@ OMX_ERRORTYPE OMX_AdecComponentInit(
 
     pthread_mutex_init(&pAdecDataType->stateLock, NULL);
     // Create the component thread
-    err = pthread_create(&pAdecDataType->threadId, attr, OMX_AdecComponentThread, pAdecDataType);
+    err = pthread_create(&pAdecDataType->threadId, &attr, OMX_AdecComponentThread, pAdecDataType);
     if (err || !pAdecDataType->threadId) {
         loge("pthread_create fail!\n");
         eError = OMX_ErrorInsufficientResources;

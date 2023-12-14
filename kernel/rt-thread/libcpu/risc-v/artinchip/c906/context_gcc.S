@@ -63,6 +63,12 @@ rt_hw_context_switch_to:
     li      t1, 1
     sw      t1, (t0)
 
+    /* make sure wite instruction is complete */
+    fence
+    lw      t1, (t0)
+    fence
+    sync.is
+
     /* enable global interrup */
     csrsi   mstatus, 8
 
@@ -83,6 +89,11 @@ rt_hw_context_switch_to:
 rt_hw_context_switch:
     .globl rt_hw_context_switch_interrupt
 rt_hw_context_switch_interrupt:
+    addi    sp, sp, -(3 * REGBYTES)
+    STORE   t0, 0 * REGBYTES(sp)
+    STORE   t1, 1 * REGBYTES(sp)
+    STORE   t2, 2 * REGBYTES(sp)
+
     /* check rt_thread_switch_interrupt_flag */
     la      t0, rt_thread_switch_interrupt_flag
     lw      t1, (t0)
@@ -99,10 +110,22 @@ rt_hw_context_switch_interrupt:
     /* update to_thread */
     la      t0, rt_interrupt_to_thread
     STORE   a1, (t0)
+
     /* set software interrupt */
     li      t0, TSPEND_INTIP
     li      t1, 1
     sw      t1, (t0)
+
+    /* make sure wite instruction is complete */
+    fence
+    lw      t1, (t0)
+    fence
+    sync.is
+
+    LOAD    t0, 0 * REGBYTES(sp)
+    LOAD    t1, 1 * REGBYTES(sp)
+    LOAD    t2, 2 * REGBYTES(sp)
+    addi    sp, sp, (3 * REGBYTES)
 
     ret
 

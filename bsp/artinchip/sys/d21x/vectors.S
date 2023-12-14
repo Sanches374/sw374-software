@@ -57,7 +57,7 @@ Default_IRQHandler:
     la      sp, g_top_irqstack
 
     /* ipush */
-    addi    sp, sp, -(18 * FREGBYTES)
+    addi    sp, sp, -(18 * REGBYTES)
     STORE   x1, 1 * REGBYTES(sp)    // ra
     csrr    x1, mepc
     STORE   x1, 0 * REGBYTES(sp)    // mepc
@@ -213,7 +213,7 @@ Default_IRQHandler:
     LOAD    x30, 16 * REGBYTES(sp)  // t5
     LOAD    x31, 17 * REGBYTES(sp)  // t6
 
-    addi    sp, sp, (18 * FREGBYTES)
+    addi    sp, sp, (18 * REGBYTES)
 
     /* Restore sp to normal stack */
     csrr    sp, mscratch

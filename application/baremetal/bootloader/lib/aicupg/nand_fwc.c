@@ -78,7 +78,7 @@ static s32 nand_fwc_get_mtd_partitions(struct fwc_info *fwc,
                     priv->nftl_handler[idx]->nandt->block_start = priv->mtd[idx]->start / priv->mtd[idx]->erasesize;
                     priv->nftl_handler[idx]->nandt->block_end =  (priv->mtd[idx]->start + priv->mtd[idx]->size) / priv->mtd[idx]->erasesize;
 
-                    for (int offset_e = priv->mtd[idx]->start; offset_e < priv->mtd[idx]->start + priv->mtd[idx]->size;) {
+                    for (int offset_e = 0; offset_e < priv->mtd[idx]->size;) {
                         mtd_erase(priv->mtd[idx], offset_e, priv->mtd[idx]->erasesize);
                         offset_e += priv->mtd[idx]->erasesize;
                     }

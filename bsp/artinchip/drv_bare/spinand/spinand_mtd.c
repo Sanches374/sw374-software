@@ -53,13 +53,13 @@ static int mtd_spinand_read_oob(struct mtd_dev *mtd, u32 offset, u8 *data,
     flash = (struct aic_spinand *)mtd->priv;
 
     if (offset % flash->info->page_size) {
-        printf("Offset not aligned with a page (0x%x)\r\n",
+        pr_err("Offset not aligned with a page (0x%x)\r\n",
                flash->info->page_size);
         return -1;
     }
 
     if ((mtd->size - offset) < flash->info->page_size) {
-        printf("Offset: 0x%x is out of mtd size: 0x%lx.\n", offset, mtd->size);
+        pr_err("Offset: 0x%x is out of mtd size: 0x%lx.\n", offset, mtd->size);
         return -1;
     }
 
@@ -75,6 +75,7 @@ static int mtd_spinand_erase(struct mtd_dev *mtd, u32 offset, u32 len)
     u8 err;
     u32 start, dolen;
     struct aic_spinand *flash;
+    u32 flash_size = 0;
 
     if (!mtd)
         return -1;
@@ -86,6 +87,14 @@ static int mtd_spinand_erase(struct mtd_dev *mtd, u32 offset, u32 len)
 
     if ((mtd->size - offset) < dolen)
         dolen = mtd->size - offset;
+
+    flash_size = flash->info->page_size * flash->info->pages_per_eraseblock *
+                 flash->info->block_per_lun;
+    if ((start + dolen) > flash_size) {
+        pr_err("Erase range 0x%x out of flash capacity 0x%x!\n", start + dolen,
+               flash_size);
+        return -1;
+    }
 
     err = spinand_erase(flash, start, dolen);
     return err;
@@ -107,12 +116,12 @@ static int mtd_spinand_block_isbad(struct mtd_dev *mtd, u32 offset)
     blocksize = flash->info->page_size * flash->info->pages_per_eraseblock;
 
     if (offset % blocksize) {
-        printf("Offset not aligned with a block (0x%x)\r\n", blocksize);
+        pr_err("Offset not aligned with a block (0x%x)\r\n", blocksize);
         return -1;
     }
 
     if ((mtd->size - offset) < blocksize) {
-        printf("Offset: 0x%x is out of mtd size: 0x%lx.\n", offset, mtd->size);
+        pr_err("Offset: 0x%x is out of mtd size: 0x%lx.\n", offset, mtd->size);
         return -1;
     }
 
@@ -121,7 +130,7 @@ static int mtd_spinand_block_isbad(struct mtd_dev *mtd, u32 offset)
 
     err = spinand_block_isbad(flash, blk);
     if (err != 0) {
-        printf("Block %d is bad.\n", blk);
+        pr_err("Block %d is bad.\n", blk);
     }
     return err;
 }
@@ -142,12 +151,12 @@ static int mtd_spinand_block_markbad(struct mtd_dev *mtd, u32 offset)
     blocksize = flash->info->page_size * flash->info->pages_per_eraseblock;
 
     if (offset % blocksize) {
-        printf("Offset not aligned with a block (0x%x)\r\n", blocksize);
+        pr_err("Offset not aligned with a block (0x%x)\r\n", blocksize);
         return -1;
     }
 
     if ((mtd->size - offset) < blocksize) {
-        printf("Offset: 0x%x is out of mtd size: 0x%lx.\n", offset, mtd->size);
+        pr_err("Offset: 0x%x is out of mtd size: 0x%lx.\n", offset, mtd->size);
         return -1;
     }
 
@@ -156,7 +165,7 @@ static int mtd_spinand_block_markbad(struct mtd_dev *mtd, u32 offset)
 
     err = spinand_block_markbad(flash, blk);
     if (err != 0) {
-        printf("Mark badblock %d failed.\n",blk);
+        pr_err("Mark badblock %d failed.\n", blk);
     }
     return err;
 }
@@ -196,13 +205,13 @@ static int mtd_spinand_write_oob(struct mtd_dev *mtd, u32 offset, u8 *data,
     flash = (struct aic_spinand *)mtd->priv;
 
     if (offset % flash->info->page_size) {
-        printf("Offset not aligned with a page (0x%x)\r\n",
+        pr_err("Offset not aligned with a page (0x%x)\r\n",
                flash->info->page_size);
         return -1;
     }
 
     if ((mtd->size - offset) < flash->info->page_size) {
-        printf("Offset: 0x%x is out of mtd size: 0x%lx.\n", offset, mtd->size);
+        pr_err("Offset: 0x%x is out of mtd size: 0x%lx.\n", offset, mtd->size);
         return -1;
     }
 
@@ -260,7 +269,8 @@ static char *aic_spinand_get_partition_string(struct mtd_dev *mtd)
         parts = strdup(parts);
 #else
     void *res_addr = NULL;
-    res_addr = aic_get_boot_resource_from_nand(mtd, mtd->writesize, nand_read_data);
+    res_addr =
+        aic_get_boot_resource_from_nand(mtd, mtd->writesize, nand_read_data);
     parts = private_get_partition_string(res_addr);
     if (parts == NULL)
         parts = IMAGE_CFG_JSON_PARTS_MTD;
@@ -303,7 +313,7 @@ struct aic_spinand *spinand_probe(u32 spi_bus)
 
     err = spinand_flash_init(flash);
     if (err < 0) {
-        printf("Failed to probe spinand flash.\n");
+        pr_err("Failed to probe spinand flash.\n");
         return NULL;
     }
 

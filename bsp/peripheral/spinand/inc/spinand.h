@@ -21,7 +21,7 @@
 
 #undef pr_debug
 #ifdef AIC_SPINAND_DRV_DEBUG
-#define pr_debug    pr_info
+#define pr_debug pr_info
 #else
 #define pr_debug(fmt, ...)
 #endif
@@ -34,6 +34,8 @@ struct nand_bbt {
     u8 *cache;
 };
 
+struct aic_spinand;
+
 /* SPI NAND flash information */
 struct aic_spinand_info {
     u32 devid;
@@ -44,6 +46,7 @@ struct aic_spinand_info {
     u8 is_die_select;
     const char *sz_description;
     struct spi_nand_cmd_cfg *cmd;
+    int (*get_status)(struct aic_spinand *flash, u8 status);
 };
 typedef struct aic_spinand_info *aic_spinand_info_t;
 
@@ -175,14 +178,15 @@ struct spi_nand_cmd_cfg {
 #define CFG_QUAD_ENABLE BIT(0)
 
 /* status register */
-#define REG_STATUS              0xc0
-#define STATUS_BUSY             BIT(0)
-#define STATUS_ERASE_FAILED     BIT(2)
-#define STATUS_PROG_FAILED      BIT(3)
-#define STATUS_ECC_MASK         GENMASK(5, 4)
-#define STATUS_ECC_NO_BITFLIPS  (0 << 4)
-#define STATUS_ECC_HAS_BITFLIPS (1 << 4)
-#define STATUS_ECC_UNCOR_ERROR  (2 << 4)
+#define REG_STATUS          0xc0
+#define STATUS_BUSY         BIT(0)
+#define STATUS_ERASE_FAILED BIT(2)
+#define STATUS_PROG_FAILED  BIT(3)
+
+#define STATUS_ECC_MASK             GENMASK(5, 4)
+#define STATUS_ECC_NO_BITFLIPS      (0 << 4)
+#define STATUS_ECC_HAS_1_4_BITFLIPS (1 << 4)
+#define STATUS_ECC_UNCOR_ERROR      (2 << 4)
 
 #ifdef SPI_NAND_WINBOND
 extern const struct spinand_manufacturer winbond_spinand_manufacturer;

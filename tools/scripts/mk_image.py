@@ -663,9 +663,9 @@ def itb_create_image(itsname, itbname, keydir, dtbname, script_dir):
     # If the key exists, generate image signature information and write it to the itb file.
     # If the key exists, write the public key to the dtb file.
     if keydir != None and dtbname != None:
-        cmd = [mkcmd, "-E", "-f", itsname, "-k", keydir, "-K", dtbname, "-r", itbname]
+        cmd = [mkcmd, "-E", "-B 0x800", "-f", itsname, "-k", keydir, "-K", dtbname, "-r", itbname]
     else:
-        cmd = [mkcmd, "-E", "-f", itsname, itbname]
+        cmd = [mkcmd, "-E", "-B 0x800", "-f", itsname, itbname]
 
     ret = subprocess.run(cmd, stdout=subprocess.PIPE)
     if ret.returncode != 0:
@@ -1207,37 +1207,38 @@ def generate_bootcfg(bcfgfile, cfg):
                 "#   Packed image file is example.img, boot1 use it.\n",
                 "\n\n",
                 ]
-    bcfgfile.writelines(comments)
+    bytes_comments = [comment.encode() for comment in comments]
+    bcfgfile.writelines(bytes_comments)
 
     fwcset = cfg["image"]["updater"]
     fwckeys = cfg["image"]["updater"].keys()
     if "spl" in fwckeys:
         fwcname = "spl"
         linestr = "# {}\n".format(fwcset[fwcname]["file"])
-        bcfgfile.write(linestr)
+        bcfgfile.write(linestr.encode())
         linestr = "boot0={}@{}\n".format(hex(fwcset[fwcname]["filesize"]),
                                         hex(fwcset[fwcname]["file_off"]))
-        bcfgfile.write(linestr)
+        bcfgfile.write(linestr.encode())
 
     if "uboot" in fwckeys:
         fwcname = "uboot"
         linestr = "# {}\n".format(fwcset[fwcname]["file"])
-        bcfgfile.write(linestr)
+        bcfgfile.write(linestr.encode())
         linestr = "boot1={}@{}\n".format(hex(fwcset[fwcname]["filesize"]),
                                         hex(fwcset[fwcname]["file_off"]))
-        bcfgfile.write(linestr)
+        bcfgfile.write(linestr.encode())
 
     if "env" in fwckeys:
         fwcname = "env"
         linestr = "# {}\n".format(fwcset[fwcname]["file"])
-        bcfgfile.write(linestr)
+        bcfgfile.write(linestr.encode())
         linestr = "env={}@{}\n".format(hex(fwcset[fwcname]["filesize"]),
                                        hex(fwcset[fwcname]["file_off"]))
-        bcfgfile.write(linestr)
+        bcfgfile.write(linestr.encode())
 
     imgfn = img_gen_fw_file_name(cfg)
     linestr = "image={}\n".format(imgfn)
-    bcfgfile.write(linestr)
+    bcfgfile.write(linestr.encode())
     bcfgfile.flush()
 
 def get_spinand_image_list(cfg, datadir):
@@ -1356,7 +1357,7 @@ def build_firmware_image(cfg, datadir):
         print("\tImage file is generated: {}/{}\n\n".format(img_path, img_name))
 
     bootcfg_fn = datadir + cfg["image"]["bootcfg"]
-    with open(bootcfg_fn, 'w') as bcfgfile:
+    with open(bootcfg_fn, 'wb') as bcfgfile:
         generate_bootcfg(bcfgfile, cfg)
         bcfgfile.flush()
     return 0

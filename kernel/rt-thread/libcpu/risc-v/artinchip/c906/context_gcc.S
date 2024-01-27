@@ -31,6 +31,16 @@ vPortYield:
     or      t1, t1, t2
     sb      t1, (t0)
 
+    /* make sure wite instruction is complete */
+    fence
+    lw      t1, (t0)
+    fence
+#ifdef __riscv_xthead
+    sync.is
+#else
+    .long   0x01b0000b
+#endif
+
     ret
 
 /*
@@ -67,7 +77,11 @@ rt_hw_context_switch_to:
     fence
     lw      t1, (t0)
     fence
+#ifdef __riscv_xthead
     sync.is
+#else
+    .long   0x01b0000b
+#endif
 
     /* enable global interrup */
     csrsi   mstatus, 8
@@ -120,7 +134,11 @@ rt_hw_context_switch_interrupt:
     fence
     lw      t1, (t0)
     fence
+#ifdef __riscv_xthead
     sync.is
+#else
+    .long   0x01b0000b
+#endif
 
     LOAD    t0, 0 * REGBYTES(sp)
     LOAD    t1, 1 * REGBYTES(sp)

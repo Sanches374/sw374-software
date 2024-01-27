@@ -13,11 +13,14 @@
 #include <string.h>
 #include <aic_common.h>
 
-#define MAX_PARTITION_NAME 64
+#ifndef _AIC_PARTITION_H_
+#define _AIC_PARTITION_H_
+
+#define MAX_PARTITION_NAME 144
 struct aic_partition {
     char name[MAX_PARTITION_NAME];
-    u32 start;
-    u32 size;
+    u64 start;
+    u64 size;
     struct aic_partition *next;
 };
 
@@ -27,3 +30,4 @@ struct aic_partition *aic_part_get_byname(struct aic_partition *head, char *name
 void aic_part_free(struct aic_partition *head);
 void aic_part_dump(struct aic_partition *head);
 
+#endif

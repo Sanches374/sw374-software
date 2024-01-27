@@ -22,6 +22,7 @@ typedef enum
     DEVICE_MMC,
     DEVICE_SPINAND,
     DEVICE_SPINOR,
+    DEVICE_XIPNOR,
 } boot_dev_type;
 
 /**

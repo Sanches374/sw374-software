@@ -45,7 +45,11 @@ irq_nested_level:
     .weak   Default_IRQHandler
     .type   Default_IRQHandler, %function
 Default_IRQHandler:
+#ifdef __riscv_xthead
     ipush
+#else
+    .long   0x0040000b
+#endif
 
 #ifdef ARCH_RISCV_FPU
     addi    sp, sp, -(20 * FREGBYTES)
@@ -138,8 +142,11 @@ Default_IRQHandler:
 
     addi    sp, sp, (20 * FREGBYTES)
 #endif
+#ifdef __riscv_xthead
     ipop
-
+#else
+    .long   0x0050000b
+#endif
 
 /******************************************************************************
  * Functions:

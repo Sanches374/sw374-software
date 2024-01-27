@@ -15,7 +15,10 @@
 #include <aic_core.h>
 #include <libfdt.h>
 #include <hexdump.h>
+#include <aic_crc32.h>
 #include "fitimage.h"
+
+//#define CRC32_MTD_READ
 
 int fit_find_config_node(const void *fdt)
 {
@@ -237,6 +240,9 @@ int fit_image_get_entry(const void *fit, int noffset, ulong *entry)
     return fit_image_get_address(fit, noffset, FIT_ENTRY_PROP, entry);
 }
 
+/*
+ * offset: The offset relative to the itb file start location
+ */
 static int spl_read(struct spl_load_info *info, ulong offset, void *buf, int size)
 {
     int rdlen = 0;
@@ -261,6 +267,14 @@ static int spl_read(struct spl_load_info *info, ulong offset, void *buf, int siz
         rdlen = info->bl_len * blkcnt;
         rdlen = min(rdlen, size);
 #endif
+    } else if (info->dev_type == DEVICE_XIPNOR) {
+        ulong xip_base = (ulong)info->priv;
+        int i;
+
+        for (i = 0; i < size; i++)
+            *(u8 *)(buf + i) = *(u8 *)(xip_base + offset + i);
+
+        rdlen = size;
     }
 
     return rdlen;
@@ -294,22 +308,27 @@ int spl_load_fit_image(struct spl_load_info *info, struct spl_fit_info *ctx, int
     if (external_data)
     {
         if (fit_image_get_data_size(fit, node, &length))
-            return -1;
+            goto __get_entry;
 
-        start_us =  aic_get_time_us();
-        ret = spl_read(info, offset, (u8 *)load_addr, length);
-        show_speed("spl read", length, aic_get_time_us() - start_us);
+        if (info->dev_type == DEVICE_XIPNOR && load_addr >= 0x60000000)
+            goto __get_entry;
+        else
+        {
+            start_us =  aic_get_time_us();
+            ret = spl_read(info, offset, (u8 *)load_addr, length);
+            show_speed("spl read", length, aic_get_time_us() - start_us);
 
 #ifdef CRC32_MTD_READ
-        unsigned int crc32_val = crc32(0, NULL, 0);
-        crc32_val = crc32(crc32_val, (u8 *)load_addr, length);
-        printf("mtd read crc32 = 0x%x KB/s\n", crc32_val);
+            unsigned int crc32_val = crc32(0, NULL, 0);
+            crc32_val = crc32(crc32_val, (u8 *)load_addr, length);
+            printf("mtd read crc32 = 0x%x KB/s\n", crc32_val);
 #endif
 
-        if (ret < 0)
-        {
-            printf("spl read external_data error\n");
-            return -1;
+            if (ret < 0)
+            {
+                printf("spl read external_data error\n");
+                return -1;
+            }
         }
     }
     else
@@ -318,6 +337,7 @@ int spl_load_fit_image(struct spl_load_info *info, struct spl_fit_info *ctx, int
         return -1;
     }
 
+__get_entry:
     if (entry_point)
     {
         if (fit_image_get_entry(fit, node, entry_point))

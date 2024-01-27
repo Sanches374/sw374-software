@@ -103,6 +103,10 @@ extern "C" {
 #define CTL_BIT_AXI_BURST_OFS           (3)
 #define CTL_BIT_AXI_BURST_MSK           (0x1 << CTL_BIT_AXI_BURST_OFS)
 #define CTL_BIT_AXI_BURST_VAL(v)        (((v) << CTL_BIT_AXI_BURST_OFS) & CTL_BIT_AXI_BURST_MSK)
+#define CTL_BIT_TIMEOUT_OFS             (7)
+#define CTL_BIT_TIMEOUT_MSK             (0x1 << CTL_BIT_TIMEOUT_OFS)
+#define CTL_BIT_TIMEOUT_VAL(v)          (((v) << CTL_BIT_TIMEOUT_OFS) & CTL_BIT_TIMEOUT_MSK)
+
 
 
 /*  0x0028 XSPI_FCR */
@@ -692,6 +696,20 @@ static inline void xspi_hw_set_wrap_burst_split(u32 base, u8 enable)
 
     writel(val, XSPI_REG_CTL(base));
 }
+
+static inline void xspi_hw_set_timeout(u32 base, u32 timeout)
+{
+    u32 val = 0;
+    val = readl(XSPI_REG_CTL(base));
+    val &= ~(CTL_BIT_TIMEOUT_MSK);
+    val |= CTL_BIT_TIMEOUT_VAL(1);
+    writel(val, XSPI_REG_CTL(base));
+
+    val = timeout;
+    writel(val, XSPI_REG_TO(base));
+
+}
+
 
 #ifdef __cplusplus
 }

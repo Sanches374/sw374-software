@@ -63,18 +63,13 @@ s32 rt_audio_render_set_attr(struct aic_audio_render *render,struct aic_audio_re
 {
     struct aic_rt_audio_render *rt_render = (struct aic_rt_audio_render*)render;
     struct rt_audio_caps caps = {0};
+
     caps.main_type               = AUDIO_TYPE_OUTPUT;
     caps.sub_type                = AUDIO_DSP_PARAM;
     caps.udata.config.samplerate = attr->sample_rate;
     caps.udata.config.channels   = attr->channels;
     caps.udata.config.samplebits = 16;
     rt_device_control(rt_render->snd_dev, AUDIO_CTL_CONFIGURE, &caps);
-
-    caps.main_type               = AUDIO_TYPE_MIXER;
-    caps.sub_type                = AUDIO_MIXER_VOLUME;
-    caps.udata.value = 65;
-    rt_device_control(rt_render->snd_dev, AUDIO_CTL_CONFIGURE, &caps);
-
     return 0;
 
 }

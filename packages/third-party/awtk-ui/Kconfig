@@ -177,7 +177,7 @@ endchoice
 menu "AWTK thread config"
     config TK_UI_THREAD_STACK_SIZE
         int "UI thread stack size"
-        default 40000
+        default 10000
 
     config TK_UI_THREAD_PRIORITY
         int "UI thread prority"
@@ -189,7 +189,7 @@ menu "AWTK thread config"
 
     config TK_TOUCH_THREAD_STACK_SIZE
         int "Touch thread stack size"
-        default 2048
+        default 1536
 
     config TK_TOUCH_THREAD_PRIORITY
         int "Touch thread prority"
@@ -202,15 +202,18 @@ menu "AWTK thread config"
 endmenu
 
 menu "AWTK input device config"
-    config AIC_TOUCH_PANEL_GT911
+    config AWTK_TOUCH_INPUT_DEV
+        depends on AIC_TOUCH_PANEL_GT911
         bool "Using the input device gt911"
         default y
+
     config AIC_TOUCH_PANEL_GT911_NAME
-        depends on AIC_TOUCH_PANEL_GT911
+        depends on AWTK_TOUCH_INPUT_DEV
         string "The name of the input device is gt911"
         default "gt911"
+
     config AIC_TOUCH_PANEL_GT911_DEBUG
-        depends on AIC_TOUCH_PANEL_GT911
+        depends on AWTK_TOUCH_INPUT_DEV
         bool "The input device gt911 debug"
         default n
 endmenu

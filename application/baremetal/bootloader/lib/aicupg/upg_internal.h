@@ -115,6 +115,7 @@ struct fwc_info {
     u32 calc_partition_crc;
     s32 burn_result;
     s32 run_result;
+    u32 start_us;
     void *priv;
 };
 

@@ -65,6 +65,67 @@ static const struct spinand_manufacturer *spinand_manufacturers[] = {
 #define SPINAND_LIST_NUM \
     (sizeof(spinand_manufacturers) / sizeof(struct spinand_manufacturer *))
 
+/**
+ * fls - find last (most-significant) bit set
+ * @x: the word to search
+ *
+ * This is defined the same way as ffs.
+ * Note fls(0) = 0, fls(1) = 1, fls(0x80000000) = 32.
+ */
+static inline int generic_fls(int x)
+{
+    int r = 32;
+
+    if (!x)
+        return 0;
+    if (!(x & 0xffff0000u)) {
+        x <<= 16;
+        r -= 16;
+    }
+    if (!(x & 0xff000000u)) {
+        x <<= 8;
+        r -= 8;
+    }
+    if (!(x & 0xf0000000u)) {
+        x <<= 4;
+        r -= 4;
+    }
+    if (!(x & 0xc0000000u)) {
+        x <<= 2;
+        r -= 2;
+    }
+    if (!(x & 0x80000000u)) {
+        x <<= 1;
+        r -= 1;
+    }
+    return r;
+}
+
+static void spinand_cache_op_adjust_colum(struct aic_spinand *flash, u16 blk,
+                                          u16 *column)
+{
+    u32 shift = 0;
+    u16 plane = 0;
+
+    if (flash->info->planes_per_lun < 2)
+        return;
+
+    /* The plane number is passed in MSB just above the column address */
+    shift = generic_fls(flash->info->page_size);
+    plane = blk % flash->info->planes_per_lun;
+    *column |= plane << shift;
+}
+
+struct spi_nand_cmd_cfg cmd_cfg_table[] = {
+    /*opcode    opcode_bits addr_bytes	addr_bits	dummy_bytes	data_nbits*/
+    { SPINAND_CMD_READ_FROM_CACHE, 1, 2, 1, 1, 1 },
+    { SPINAND_CMD_READ_FROM_CACHE_X2, 1, 2, 1, 1, 2 },
+    { SPINAND_CMD_READ_FROM_CACHE_X4, 1, 2, 1, 1, 4 },
+    { SPINAND_CMD_PROG_LOAD, 1, 2, 1, 0, 1 },
+    { SPINAND_CMD_PROG_LOAD_X4, 1, 2, 1, 0, 4 },
+    { SPINAND_CMD_END },
+};
+
 static struct spi_nand_cmd_cfg *
 spi_nand_lookup_cmd_cfg_table(u8 opcode, struct spi_nand_cmd_cfg *table)
 {
@@ -437,11 +498,6 @@ int spinand_flash_init(struct aic_spinand *flash)
                                      CFG_QUAD_ENABLE)) != SPINAND_SUCCESS)
         goto exit_spinand_init;
 
-    /* Enable BUF mode */
-    if ((result = spinand_config_set(flash, CFG_BUF_ENABLE, CFG_BUF_ENABLE)) !=
-        SPINAND_SUCCESS)
-        goto exit_spinand_init;
-
     /* Un-protect */
     if ((result = spinand_lock_block(flash, 0)) != SPINAND_SUCCESS)
         goto exit_spinand_init;
@@ -496,6 +552,7 @@ int spinand_read_page(struct aic_spinand *flash, u32 page, u8 *data,
     u32 cpos __attribute__((unused));
     u8 *buf = NULL;
     u32 nbytes = 0;
+    u16 blk = 0;
     u16 column = 0;
     u8 status;
 
@@ -548,6 +605,9 @@ int spinand_read_page(struct aic_spinand *flash, u32 page, u8 *data,
     drv_spienc_set_cfg(0, page * flash->info->page_size, cpos, data_len);
     drv_spienc_start();
 #endif
+    blk = page / flash->info->pages_per_eraseblock;
+    spinand_cache_op_adjust_colum(flash, blk, &column);
+
     result = spinand_read_from_cache_op(flash, column, buf, nbytes);
 #if defined(AIC_SPIENC_DRV)
     drv_spienc_stop();
@@ -714,6 +774,7 @@ int spinand_write_page(struct aic_spinand *flash, u32 page, const u8 *data,
     u8 *buf = NULL;
     u32 nbytes = 0;
     u16 column = 0;
+    u16 blk = 0;
     u8 status;
 
     if (!flash) {
@@ -762,6 +823,9 @@ int spinand_write_page(struct aic_spinand *flash, u32 page, const u8 *data,
     drv_spienc_set_cfg(0, page * flash->info->page_size, cpos, data_len);
     drv_spienc_start();
 #endif
+    blk = page / flash->info->pages_per_eraseblock;
+    spinand_cache_op_adjust_colum(flash, blk, &column);
+
     result = spinand_write_to_cache_op(flash, column, (u8 *)buf, nbytes);
     if (result != SPINAND_SUCCESS)
         goto exit_spinand_write_page;

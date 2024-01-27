@@ -57,64 +57,6 @@
 
 #define USART_NULL_PARAM_CHK(para) HANDLE_PARAM_CHK(para, ERR_USART(DRV_ERROR_PARAMETER))
 
-/* UART register bit definitions */
-
-#define USR_UART_BUSY           0x01
-#define USR_UART_TFE            0x04
-#define USR_UART_RFNE           0x08
-#define LSR_DATA_READY          0x01
-#define LSR_THR_EMPTY           0x20
-#define IER_RDA_INT_ENABLE      0x01
-#define IER_THRE_INT_ENABLE     0x02
-#define IIR_RECV_LINE_ENABLE    0x04
-#define IIR_NO_ISQ_PEND         0x01
-
-#define FCR_FIFO_EN             0x01
-#define FCR_RX_FIFO_RST         0x02
-#define FCR_TX_FIFO_RST         0x04
-#define FCR_DMA_MODE            0x08
-
-#define LCR_SET_DLAB            0x80    /* enable r/w DLR to set the baud rate */
-#define LCR_PARITY_ENABLE       0x08    /* parity enabled */
-#define LCR_PARITY_EVEN         0x10    /* Even parity enabled */
-#define LCR_PARITY_ODD          0xef    /* Odd parity enabled */
-#define LCR_WORD_SIZE_5         0xfc    /* the data length is 5 bits */
-#define LCR_WORD_SIZE_6         0x01    /* the data length is 6 bits */
-#define LCR_WORD_SIZE_7         0x02    /* the data length is 7 bits */
-#define LCR_WORD_SIZE_8         0x03    /* the data length is 8 bits */
-#define LCR_STOP_BIT1           0xfb    /* 1 stop bit */
-#define LCR_STOP_BIT2           0x04    /* 1.5 stop bit */
-
-#define HALT_CHCFG_AT_BUSY      0x02
-#define HALT_CHANGE_UPDATE      0x04
-
-#define AIC_LSR_PFE             0x80
-#define AIC_LSR_TEMT            0x40
-#define AIC_LSR_THRE            0x40
-#define AIC_LSR_BI              0x10
-#define AIC_LSR_FE              0x08
-#define AIC_LSR_PE              0x04
-#define AIC_LSR_OE              0x02
-#define AIC_LSR_DR              0x01
-#define AIC_LSR_TRANS_EMPTY     0x20
-
-#define AIC_IIR_THR_EMPTY       0x02    /* threshold empty */
-#define AIC_IIR_RECV_DATA       0x04    /* received data available */
-#define AIC_IIR_RECV_LINE       0x06    /* receiver line status */
-#define AIC_IIR_CHAR_TIMEOUT    0x0c    /* character timeout */
-
-/* ArtInChip specific register fields */
-#define AIC_UART_MCR_SIRE       0x40
-#define AIC_UART_MCR_RS485      0x80
-#define AIC_UART_MCR_RS485S     0xC0
-#define AIC_UART_MCR_UART       0x00
-#define AIC_UART_MCR_FUNC_MASK  0x3F
-
-#define AIC_UART_EXREG          0xB8    /* RS485 DE Time */
-#define AIC_UART_RS485_CTL_MODE 0x80;
-#define AIC_UART_RS485_RXBFA    0x08;
-#define AIC_UART_RS485_RXAFA    0x04;
-
 typedef struct
 {
     union
@@ -727,6 +669,16 @@ void hal_usart_irqhandler(int32_t idx)
     }
 }
 
+uint8_t hal_usart_get_irqstatus(int32_t idx)
+{
+    aic_usart_priv_t *usart_priv = &usart_instance[idx];
+    aic_usart_reg_t *addr = (aic_usart_reg_t *)(usart_priv->base);
+
+    uint8_t intr_state = addr->IIR & 0xf;
+
+    return intr_state;
+}
+
 /**
   \brief       Get driver capabilities.
   \param[in]   idx usart index
@@ -760,9 +712,7 @@ usart_handle_t hal_usart_initialize(int32_t idx, usart_event_cb_t cb_event, void
     aic_usart_reg_t *addr = (aic_usart_reg_t *)(usart_priv->base);
 
     if (handler != NULL) {
-        /* enable received data available */
-        addr->IER = IER_RDA_INT_ENABLE | IIR_RECV_LINE_ENABLE;
-
+        addr->IER = 0;
         aicos_request_irq(usart_priv->irq, handler, 0, "uart", NULL);
         aicos_irq_enable(usart_priv->irq);
     } else {

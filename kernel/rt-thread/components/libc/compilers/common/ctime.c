@@ -69,6 +69,8 @@ static const short __spm[13] =
 ALIGN(4) static const char *days = "Sun Mon Tue Wed Thu Fri Sat ";
 ALIGN(4) static const char *months = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec ";
 
+extern uint64_t aic_get_time_us(void);
+
 static int __isleap(int year)
 {
     /* every fourth year is a leap year except for century years that are
@@ -618,8 +620,15 @@ RTM_EXPORT(clock_getres);
 int clock_gettime(clockid_t clockid, struct timespec *tp)
 {
 #ifndef RT_USING_RTC
-    RTC_LOG_WARNING
-    return -1;
+    uint64_t us = 0;
+    rt_base_t level;
+
+    level = rt_hw_interrupt_disable();
+    us = aic_get_time_us();
+    tp->tv_sec  = us / (1000*1000);
+    tp->tv_nsec = (us % (1000*1000))*1000;
+    rt_hw_interrupt_enable(level);
+    return 0;
 #else
     int ret = 0;
 

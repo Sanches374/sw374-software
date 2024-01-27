@@ -198,7 +198,7 @@ e907_tcm_init:
 #endif /* QEMU_RUN */
 
     /* Load data section */
-#if (defined(AIC_XIP) || defined(QEMU_RUN))
+#if defined(QEMU_RUN)
     la      a0, __erodata
     la      a1, __data_start__
     la      a2, __data_end__

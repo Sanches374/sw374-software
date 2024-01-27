@@ -25,10 +25,11 @@ struct spinand_blk_device {
     struct nftl_api_handler_t *nftl_handler;
 #endif
     char name[32];
+    enum part_attr attr;
     u8 *pagebuf;
 };
 #ifdef AIC_NFTL_SUPPORT
-rt_size_t rt_spinand_read_ftl_debug(rt_device_t dev, rt_off_t pos, void *buffer,
+rt_size_t rt_spinand_read_nftl(rt_device_t dev, rt_off_t pos, void *buffer,
                                     rt_size_t size)
 {
     rt_size_t ret;
@@ -42,7 +43,7 @@ rt_size_t rt_spinand_read_ftl_debug(rt_device_t dev, rt_off_t pos, void *buffer,
     }
 }
 
-rt_size_t rt_spinand_write_ftl_debug(rt_device_t dev, rt_off_t pos,
+rt_size_t rt_spinand_write_nftl(rt_device_t dev, rt_off_t pos,
                                      const void *buffer, rt_size_t size)
 {
     rt_size_t ret;
@@ -56,7 +57,7 @@ rt_size_t rt_spinand_write_ftl_debug(rt_device_t dev, rt_off_t pos,
     }
 }
 
-rt_err_t rt_spinand_init_ftl_debug(rt_device_t dev)
+rt_err_t rt_spinand_init_nftl(rt_device_t dev)
 {
     struct spinand_blk_device *part = (struct spinand_blk_device *)dev;
     part->nftl_handler =
@@ -89,14 +90,14 @@ rt_err_t rt_spinand_init_ftl_debug(rt_device_t dev)
     return RT_EOK;
 }
 
-rt_err_t rt_spinand_ftl_close(rt_device_t dev)
+rt_err_t rt_spinand_nftl_close(rt_device_t dev)
 {
     struct spinand_blk_device *part = (struct spinand_blk_device *)dev;
     return nftl_api_write_cache(part->nftl_handler, 0xffff);
 }
 #endif
 
-rt_size_t rt_spinand_read_nonftl_debug(rt_device_t dev, rt_off_t pos,
+rt_size_t rt_spinand_read_nonftl(rt_device_t dev, rt_off_t pos,
                                        void *buffer, rt_size_t size)
 {
     int ret = 0;
@@ -227,13 +228,13 @@ exit_rt_spinand_read_malloc:
     return size;
 }
 
-rt_size_t rt_spinand_write_nonftl_debug(rt_device_t dev, rt_off_t pos,
+rt_size_t rt_spinand_write_nonftl(rt_device_t dev, rt_off_t pos,
                                         const void *buffer, rt_size_t size)
 {
     return size;
 }
 
-rt_err_t rt_spinand_init_nonftl_debug(rt_device_t dev)
+rt_err_t rt_spinand_init_nonftl(rt_device_t dev)
 {
     return 0;
 }
@@ -246,14 +247,15 @@ rt_err_t rt_spinand_nonftl_close(rt_device_t dev)
 static rt_err_t rt_spinand_init(rt_device_t dev)
 {
     struct spinand_blk_device *part = (struct spinand_blk_device *)dev;
-    if (strncmp(part->name, "blk_data", strlen("blk_data")) == 0) {
+    if (part->attr == PART_ATTR_NFTL) {
+
 #ifdef AIC_NFTL_SUPPORT
-        return rt_spinand_init_ftl_debug(dev);
+        return rt_spinand_init_nftl(dev);
 #else
-        return rt_spinand_init_nonftl_debug(dev);
+        return rt_spinand_init_nonftl(dev);
 #endif
     } else {
-        return rt_spinand_init_nonftl_debug(dev);
+        return rt_spinand_init_nonftl(dev);
     }
 }
 
@@ -274,7 +276,7 @@ static rt_err_t rt_spinand_control(rt_device_t dev, int cmd, void *args)
         memcpy(geometry, &part->geometry,
                sizeof(struct rt_device_blk_geometry));
     } else if (cmd == RT_DEVICE_CTRL_BLK_SYNC) {
-        if (strncmp(part->name, "blk_data", strlen("blk_data")) == 0) {
+        if (part->attr == PART_ATTR_NFTL) {
 #ifdef AIC_NFTL_SUPPORT
             nftl_api_write_cache(part->nftl_handler, 0xffff);
 #else
@@ -294,14 +296,15 @@ static rt_size_t rt_spinand_write(rt_device_t dev, rt_off_t pos,
                                   const void *buffer, rt_size_t size)
 {
     struct spinand_blk_device *part = (struct spinand_blk_device *)dev;
-    if (strncmp(part->name, "blk_data", strlen("blk_data")) == 0) {
+    if (part->attr == PART_ATTR_NFTL) {
+
 #ifdef AIC_NFTL_SUPPORT
-        return rt_spinand_write_ftl_debug(dev, pos, buffer, size);
+        return rt_spinand_write_nftl(dev, pos, buffer, size);
 #else
-        return rt_spinand_write_nonftl_debug(dev, pos, buffer, size);
+        return rt_spinand_write_nonftl(dev, pos, buffer, size);
 #endif
     } else {
-        return rt_spinand_write_nonftl_debug(dev, pos, buffer, size);
+        return rt_spinand_write_nonftl(dev, pos, buffer, size);
     }
 }
 
@@ -309,23 +312,25 @@ static rt_size_t rt_spinand_read(rt_device_t dev, rt_off_t pos, void *buffer,
                                  rt_size_t size)
 {
     struct spinand_blk_device *part = (struct spinand_blk_device *)dev;
-    if (strncmp(part->name, "blk_data", strlen("blk_data")) == 0) {
+    if (part->attr == PART_ATTR_NFTL) {
+
 #ifdef AIC_NFTL_SUPPORT
-        return rt_spinand_read_ftl_debug(dev, pos, buffer, size);
+        return rt_spinand_read_nftl(dev, pos, buffer, size);
 #else
-        return rt_spinand_read_nonftl_debug(dev, pos, buffer, size);
+        return rt_spinand_read_nonftl(dev, pos, buffer, size);
 #endif
     } else {
-        return rt_spinand_read_nonftl_debug(dev, pos, buffer, size);
+        return rt_spinand_read_nonftl(dev, pos, buffer, size);
     }
 }
 
 static rt_err_t rt_spinand_close(rt_device_t dev)
 {
     struct spinand_blk_device *part = (struct spinand_blk_device *)dev;
-    if (strncmp(part->name, "blk_data", strlen("blk_data")) == 0) {
+    if (part->attr == PART_ATTR_NFTL) {
+
 #ifdef AIC_NFTL_SUPPORT
-        return rt_spinand_ftl_close(dev);
+        return rt_spinand_nftl_close(dev);
 #else
         return rt_spinand_nonftl_close(dev);
 #endif
@@ -355,6 +360,7 @@ int rt_blk_nand_register_device(const char *name,
 
     blk_dev->mtd_device = device;
     blk_dev->parent.type = RT_Device_Class_Block;
+    blk_dev->attr = device->attr;
 
 #ifdef RT_USING_DEVICE_OPS
     blk_dev->parent.ops = &blk_dev_ops;

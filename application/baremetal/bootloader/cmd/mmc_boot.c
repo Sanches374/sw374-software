@@ -13,6 +13,7 @@
 #include <console.h>
 #include <aic_common.h>
 #include <aic_errno.h>
+#include <boot_param.h>
 #include <mmc.h>
 #include <image.h>
 #include <boot.h>
@@ -20,15 +21,22 @@
 #include "fitimage.h"
 
 #define APPLICATION_PART "os"
-#define MMC_BOOT_CONTROL_ID 0
 
 static int do_mmc_boot(int argc, char *argv[])
 {
-    int ret = 0, mmc_id = MMC_BOOT_CONTROL_ID;
+    int ret = 0, mmc_id = 0;
+    enum boot_device bd;
     struct aic_sdmc *host = NULL;
     struct aic_partition *part = NULL, *parts = NULL;
     struct spl_load_info info;
     ulong entry_point;
+
+    bd = aic_get_boot_device();
+    if (BD_SDMC0 == bd) {
+        mmc_id = 0;
+    } else if (BD_SDMC1 == bd) {
+        mmc_id = 1;
+    }
 
     ret = mmc_init(mmc_id);
     if (ret) {

@@ -38,17 +38,26 @@ struct aic_spinand;
 
 /* SPI NAND flash information */
 struct aic_spinand_info {
-    u32 devid;
+    u16 devid;
     u16 page_size;
     u16 oob_size;
-    u32 block_per_lun;
-    u32 pages_per_eraseblock;
+    u16 block_per_lun;
+    u16 pages_per_eraseblock;
+    u8 planes_per_lun;
     u8 is_die_select;
     const char *sz_description;
     struct spi_nand_cmd_cfg *cmd;
     int (*get_status)(struct aic_spinand *flash, u8 status);
 };
 typedef struct aic_spinand_info *aic_spinand_info_t;
+
+#define DEVID(x)    (u16)(x)
+#define PAGESIZE(x) (u16)(x)
+#define OOBSIZE(x)  (u16)(x)
+#define BPL(x) (u16)(x)
+#define PPB(x) (u16)(x)
+#define PLANENUM(x) (u8)(x)
+#define DIE(x) (u16)(x)
 
 #define SPINAND_MAX_ID_LEN 4
 
@@ -230,6 +239,8 @@ extern const struct spinand_manufacturer umtek_spinand_manufacturer;
 #ifdef SPI_NAND_QUANXING
 extern const struct spinand_manufacturer quanxing_spinand_manufacturer;
 #endif
+
+extern struct spi_nand_cmd_cfg cmd_cfg_table[];
 
 const struct aic_spinand_info *
 spinand_match_and_init(u8 devid, const struct aic_spinand_info *table,

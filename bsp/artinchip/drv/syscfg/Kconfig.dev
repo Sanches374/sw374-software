@@ -66,23 +66,4 @@ menu "Syscfg Parameter"
 					LDO1X_VAL_1_375V = 15
 
 		endif
-
-	menuconfig AIC_SYSCFG_LDO18_ENABLE
-		depends on AIC_SYSCFG_DRV_V11
-		bool "SYSCFG LDO18 enable"
-		default y
-		if AIC_SYSCFG_LDO18_ENABLE
-			config AIC_SYSCFG_LDO18_VOL_VAL
-				int "LDO18 voltage value level <0-7>"
-				default 7
-				help
-					LDO18_VAL_1_71V = 0,
-					LDO18_VAL_1_74V = 1,
-					LDO18_VAL_1_77V = 2,
-					LDO18_VAL_1_80V = 3,
-					LDO18_VAL_1_83V = 4,
-					LDO18_VAL_1_86V = 5,
-					LDO18_VAL_1_89V = 6,
-					LDO18_VAL_1_92V = 7
-		endif
 endmenu

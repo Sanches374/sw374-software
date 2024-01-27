@@ -24,8 +24,11 @@
 #define AIC_GPAI_NAME               "gpai"
 
 #ifdef AIC_ADCIM_DM_DRV
-#define ADC_CHAN_GPAI11             11
-#define ADC_CHAN_TSEN3              15
+#ifdef AIC_GPAI_DRV
+#define ADC_CHAN_GPAI             AIC_GPAI_CH_NUM
+#else
+#define ADC_CHAN_GPAI             0
+#endif
 #endif
 
 #define GPAI_AVG_SAMPLES_NUM        8
@@ -34,17 +37,16 @@
 #define ADC_TEST_DATA_COUNT         64
 
 static rt_adc_device_t gpai_dev;
-static const char sopts[] = "c:mhv";
+static const char sopts[] = "c:hv";
 static const struct option lopts[] = {
     {"channel", required_argument, NULL, 'c'},
-    {"mode", no_argument, NULL, 'm'},
     {"usage",   no_argument, NULL, 'h'},
     {"verbose", no_argument, NULL, 'v'},
     {0, 0, 0, 0}
 };
 
 static int g_verbose = 0;
-static int g_dma_mode = 0;
+static int g_obtain_data_mode = 0;
 static struct aic_dma_transfer_info dma_info;
 static int g_cur_data[ADC_DM_SRAM_SIZE] = {0};
 static int g_sram_data[ADC_DM_SRAM_SIZE] = {0};
@@ -59,7 +61,6 @@ static void cmd_adcim_usage(char *program)
     printf("Compile time: %s %s\n", __DATE__, __TIME__);
     printf("Usage: %s [options]\n", program);
     printf("\t -c, --channel\t\tSelect one channel in [0, 15]\n");
-    printf("\t -m, --dma_mode\t\tSelect the dma mode\n");
     printf("\t -h, --usage \n");
     printf("\n");
     printf("Example: %s -c 0\n", program);
@@ -112,13 +113,23 @@ int average(int *data, u32 size, int trim)
 static void gpai_check_adc_by_cpu(void)
 {
     int i;
+    int failed_count = 0;
 
     for(i = 0;i < ADC_TEST_DATA_COUNT;i++) {
-        if (g_cur_data[i] != g_expect_data[i])
+        if (g_cur_data[i] != g_expect_data[i]) {
             printf("[%d] Failed%d/%d\n", i, g_cur_data[i], g_expect_data[i]);
-        else
+            failed_count++;
+        } else {
             printf("[%d] OK! %d/%d\n",i, g_cur_data[i], g_expect_data[i]);
+        }
     }
+
+    if (!failed_count)
+        printf("All data is OK. Test Successfully!\n");
+    else
+        printf("%d data is incorrect. Test Failed!\n", failed_count);
+
+    aicos_msleep(10);
 }
 
 static int gpai_get_adc_by_cpu(int chan)
@@ -175,14 +186,24 @@ static void gpai_dma_callback(void *arg)
 static void gpai_check_adc_by_dma(void)
 {
     int i;
+    int failed_count = 0;
     int *dma_data = (int *)dma_info.buf;
 
     for(i = 0; i < ADC_TEST_DATA_COUNT; i++) {
-        if (dma_data[i] != g_expect_data[i])
+        if (dma_data[i] != g_expect_data[i]) {
             printf("[%d] Failed%d/%d\n", i, dma_data[i], g_expect_data[i]);
-        else
+            failed_count++;
+        } else {
             printf("[%d] OK! %d/%d\n",i, dma_data[i], g_expect_data[i]);
+        }
     }
+
+    if (!failed_count)
+        printf("All data is OK. Test Successfully!\n");
+    else
+        printf("%d data is incorrect. Test Failed!\n", failed_count);
+
+    aicos_msleep(10);
 }
 
 static int gpai_get_adc_by_dma(int chan)
@@ -209,13 +230,13 @@ static int gpai_get_adc_by_dma(int chan)
 
     ret = rt_adc_control(gpai_dev, RT_ADC_CMD_CONFIG_DMA, &dma_info);
     if (ret) {
-        rt_kprintf("Failed to config dma\n");
+        rt_kprintf("Failed to config DMA\n");
         return -RT_ERROR;
     }
 
     ret = rt_adc_control(gpai_dev, RT_ADC_CMD_GET_DMA_DATA, (void *)chan);
     if (ret) {
-        rt_kprintf("Failed to get dma data\n");
+        rt_kprintf("Failed to get DMA data\n");
         return -RT_ERROR;
     }
 
@@ -223,7 +244,7 @@ static int gpai_get_adc_by_dma(int chan)
         g_expect_data[i] = average(&g_sram_data[i * GPAI_AVG_SAMPLES_NUM],
                                    GPAI_AVG_SAMPLES_NUM, 0);
     }
-    g_dma_mode = 0;
+    g_obtain_data_mode = 0;
     aicos_msleep(100);
     gpai_check_adc_by_dma();
     rt_adc_disable(gpai_dev, chan);
@@ -232,23 +253,45 @@ static int gpai_get_adc_by_dma(int chan)
 }
 
 
-static void adc_dm_test(u32 chan)
+static int adc_dm_test(u32 chan)
 {
     u32 size = 0;
 
-    if (chan <= ADC_CHAN_GPAI11) {
+    if (chan <= ADC_CHAN_GPAI) {
         gen_adc_data(&size);
         hal_dm_chan_store(chan);
         hal_adcdm_sram_write(g_sram_data, 0, ADC_DM_SRAM_SIZE);
 
-        if (g_dma_mode) {
-            rt_kprintf("Starting dma mode\n");
-            gpai_get_adc_by_dma(chan);
-        } else {
-            rt_kprintf("Starting cpu interrupt mode\n");
+        gpai_dev = (rt_adc_device_t)rt_device_find(AIC_GPAI_NAME);
+        if (!gpai_dev) {
+            rt_kprintf("Failed to open %s device\n", AIC_GPAI_NAME);
+            return -RT_ERROR;
+        }
+
+        g_obtain_data_mode = rt_adc_control(gpai_dev,
+                                            RT_ADC_CMD_OBTAIN_DATA_MODE,
+                                            (void *)chan);
+        if (g_obtain_data_mode < 0) {
+            rt_kprintf("Failed to get obtain data mode\n");
+            return -RT_ERROR;
+        }
+
+        switch (g_obtain_data_mode) {
+        case 1:
+            rt_kprintf("Starting CPU interrupt mode\n");
             gpai_get_adc_by_cpu(chan);
+            break;
+        case 2:
+            rt_kprintf("Starting DMA mode\n");
+            gpai_get_adc_by_dma(chan);
+            break;
+        default:
+            rt_kprintf("The current mode%d is not supported\n",
+                       g_obtain_data_mode);
+            break;
         }
     }
+    return 0;
 }
 
 static void cmd_test_adc(int argc, char **argv)
@@ -269,9 +312,6 @@ static void cmd_test_adc(int argc, char **argv)
             if ((ch < 0) || (ch >= AIC_GPAI_CH_NUM))
                 pr_err("Invalid channel No.%s\n", optarg);
             adc_dm_test(ch);
-            continue;
-        case 'm':
-            g_dma_mode = 1;
             continue;
         case 'v':
             g_verbose = 1;

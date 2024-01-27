@@ -79,7 +79,6 @@ int hal_xspi_init(hal_xspi_handle *h, struct hal_xspi_config *cfg)
         xspi_hw_data_pin_override(base, cs1, cfg->cs1_port);
     }
 
-
     xspi_hw_set_clk_div(base, 0, 0);
     xspi_hw_set_cs_write_hold(base, 8);
     xspi_hw_set_cs_read_hold(base, 2);
@@ -109,6 +108,41 @@ int hal_xspi_init(hal_xspi_handle *h, struct hal_xspi_config *cfg)
     return 0;
 }
 
+int hal_xspi_reset_clk(hal_xspi_handle *h, u32 reset_clock)
+{
+    struct hal_xspi_state *xspi;
+    u32 base, sclk;
+    u32 ret = 0;
+    CHECK_PARAM(h, -EINVAL);
+    xspi = (struct hal_xspi_state *)h;
+    base = xspi_hw_index_to_base(xspi->idx);
+
+
+    /* CLK init */
+    sclk = reset_clock;
+    if (sclk > HAL_XSPI_MAX_FREQ_HZ)
+        sclk = HAL_XSPI_MAX_FREQ_HZ;
+    else if (sclk < HAL_XSPI_MIN_FREQ_HZ)
+        sclk = HAL_XSPI_MIN_FREQ_HZ;
+
+    hal_clk_disable(xspi->clk_id);
+    aic_udelay(10);
+
+    hal_clk_set_freq(xspi->clk_id, sclk);
+    ret = hal_clk_enable(xspi->clk_id);
+    if (ret < 0) {
+        hal_log_err("XSPI %d clk enable failed!\n", xspi->idx);
+        return -EFAULT;
+    }
+
+    ret = hal_clk_enable_deassertrst(xspi->clk_id);
+    if (ret < 0) {
+        hal_log_err("XSPI %d reset deassert failed!\n", xspi->idx);
+        return -EFAULT;
+    }
+    (void) base;
+    return 0;
+}
 int hal_xspi_set_cmd_width(hal_xspi_handle *h, u8 ddr_sdr_mode, u8 lines)
 {
     struct hal_xspi_state *xspi;
@@ -611,3 +645,17 @@ int hal_xspi_set_phase_sel(hal_xspi_handle *h, u8 sel, u8 phase_sel)
     xspi_hw_set_phase_sel(base, sel, phase_sel);
     return 0;
 }
+
+int hal_xspi_set_timeout(hal_xspi_handle *h, u32 timeout)
+{
+    struct hal_xspi_state *xspi;
+    u32 base;
+    CHECK_PARAM(h, -EINVAL);
+    xspi = (struct hal_xspi_state *)h;
+    base = xspi_hw_index_to_base(xspi->idx);
+
+    xspi_hw_set_timeout(base, timeout);
+    return 0;
+}
+
+

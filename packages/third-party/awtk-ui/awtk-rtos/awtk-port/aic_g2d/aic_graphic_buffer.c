@@ -149,7 +149,7 @@ static graphic_buffer_t* graphic_buffer_aic_create(uint32_t w, uint32_t h,
     memset(buffer->data_head, 0x00, size);
     buffer->w = w;
     buffer->h = h;
-    buffer->data = (unsigned int*)buffer->cma_buff.phy_addr;
+    buffer->data = (unsigned char*)buffer->cma_buff.phy_addr;
 
     buffer->graphic_buffer.vt = &s_graphic_buffer_aic_vtable;
     buffer->graphic_buffer.vt->get_line_length(&buffer->graphic_buffer);
@@ -175,9 +175,9 @@ graphic_buffer_t* graphic_buffer_aic_create_with_data(void* data) {
   return_value_if_fail(buffer != NULL, NULL);
 
   buffer->cma_buff.data = dec_asset;
-  buffer->cma_buff.size = dec_asset->frame.buf.size.height * dec_asset->frame.buf.stride[0];
+  buffer->cma_buff.size = dec_asset->frame_asset->cma_buf[0].size;
+  buffer->cma_buff.phy_addr = (unsigned int)dec_asset->frame_asset->cma_buf[0].phy_addr;
   buffer->cma_buff.type = CTX_ASSET_TYPE;
-  buffer->cma_buff.phy_addr = (unsigned int)dec_asset->frame.buf.phy_addr[0];
   buffer->cma_buff.buf = (void *)buffer->cma_buff.phy_addr;
   aic_cma_buf_add_ge(&buffer->cma_buff);
 

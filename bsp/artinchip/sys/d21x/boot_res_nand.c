@@ -138,7 +138,7 @@ void *aic_get_boot_resource_from_nand(void *dev, unsigned long pagesize,
     u32 pa, i, offset, cksum, sumval, rdofs, rdlen;
     struct nand_page_table *pt;
     struct aic_image_header head;
-    u8 *res = NULL;
+    u8 *res = NULL, *p;
     s32 ret;
 
     pt = malloc(sizeof(*pt));
@@ -187,19 +187,26 @@ void *aic_get_boot_resource_from_nand(void *dev, unsigned long pagesize,
             goto out;
         }
 
-        i = 1 + rdofs / pagesize;
-        if (pt->head.entry_cnt < PAGE_TABLE_MAX_ENTRY) {
-            pa = pt->entry[i].pageaddr[0];
-        } else {
-            pa = pt->entry[i % PAGE_TABLE_MAX_ENTRY].pageaddr[1];
-        }
-        offset = pa * pagesize;
-        ret = fn(dev, offset, res, rdlen);
-        if (ret) {
-            pr_err("Failed to read aic image head.");
-            free(res);
-            res = NULL;
-            goto out;
+        p = res;
+        while (rdlen) {
+            i = 1 + rdofs / pagesize;
+            if (i < PAGE_TABLE_MAX_ENTRY) {
+                pa = pt->entry[i].pageaddr[0];
+            } else {
+                pa = pt->entry[i % PAGE_TABLE_MAX_ENTRY].pageaddr[1];
+            }
+            offset = pa * pagesize;
+            ret = fn(dev, offset, p, pagesize);
+            if (ret) {
+                pr_err("Failed to read aic image head.");
+                free(res);
+                res = NULL;
+                goto out;
+            }
+
+            rdlen -= pagesize;
+            rdofs += pagesize;
+            p += pagesize;
         }
 
         rdofs = head.private_data_offset & (pagesize - 1);

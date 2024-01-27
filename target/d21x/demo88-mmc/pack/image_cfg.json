@@ -41,16 +41,16 @@
                 "attr": ["block", "required"],
                 "part": ["os"]
             },
-            //"res": {
-            //    "file": "app.fatfs",
-            //    "attr": ["block", "optional"],
-            //    "part": ["rodata"]
-            //},
-            //"app": {
-            //    "file": "user.ext4",
-            //    "attr": ["block", "optional"],
-            //    "part": ["data"]
-            //},
+            "res": {
+                "file": "rodata.fatfs",
+                "attr": ["block", "optional"],
+                "part": ["rodata"]
+            },
+            "app": {
+                "file": "data.fatfs",
+                "attr": ["block", "optional"],
+                "part": ["data"]
+            },
         },
     },
     "temporary": { // Pre-proccess to generate image components from raw data

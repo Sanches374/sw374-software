@@ -73,6 +73,7 @@
 	},
 	"system": {
 		"upgmode": { // Set PIN to enter BROM's upgrading mode
+			// If set upgmode_pin_cfg_reg to "0", disable bootpin detect in PBP
 			"upgmode_pin_cfg_reg": "0x18700080", // PINMUX REG, PA0
 			"upgmode_pin_cfg_val": "0x10321",    // PINMUX VAL
 			"upgmode_pin_input_reg": "0x18700000", // INPUT VAL REG

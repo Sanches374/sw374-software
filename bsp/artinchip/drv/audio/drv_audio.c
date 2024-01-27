@@ -70,7 +70,7 @@ rt_err_t drv_audio_start(struct rt_audio_device *audio, int stream)
 {
     struct aic_audio *p_snd_dev;
     aic_audio_ctrl *pcodec;
-    unsigned int group, pin, i;
+    unsigned int group, pin;
 
     p_snd_dev = (struct aic_audio *)audio;
     pcodec = &p_snd_dev->codec;
@@ -96,10 +96,11 @@ rt_err_t drv_audio_start(struct rt_audio_device *audio, int stream)
         #endif
         #endif
 
-        for (i = 0; i < TX_FIFO_PERIOD_COUNT; i++)
-            rt_audio_tx_complete(audio);
+        rt_audio_tx_complete(audio);
 
         hal_audio_playback_start(pcodec);
+        /* Delay 10ms and then enable the PA to prevent pop */
+        rt_thread_mdelay(10);
         /* Enable PA */
 #ifdef AIC_AUDIO_EN_PIN_HIGH
         hal_gpio_set_output(group, pin);
@@ -165,11 +166,10 @@ rt_err_t drv_audio_configure(struct rt_audio_device *audio,
         {
         case AUDIO_MIXER_VOLUME:
             volume = caps->udata.value;
-            /* The miximum value of volume in register is 255,
-             * but in rtt audio framework, the miximum volume
-             * is 100, so must convert user volume to register volume.
-             **/
-            reg_volume = volume * 255 / 100;
+            /*
+             * Set max user volume to 0db
+             */
+            reg_volume = volume * MAX_VOLUME_0DB / 100;
 
             hal_audio_set_playback_volume(pcodec, reg_volume);
             hal_audio_set_dmic_volume(pcodec, reg_volume);

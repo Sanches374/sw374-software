@@ -217,6 +217,11 @@ aic_i2c_get_transmit_fifo_num(unsigned long reg_base)
     return readl(reg_base + I2C_TXFLR);
 }
 
+static inline void aic_i2c_transfer_stop_bit(unsigned long reg_base)
+{
+    writel(I2C_DATA_CMD_STOP, reg_base + I2C_DATA_CMD);
+}
+
 static inline void aic_i2c_read_data_cmd(unsigned long reg_base)
 {
     writel(I2C_DATA_CMD_READ, reg_base + I2C_DATA_CMD);

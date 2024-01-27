@@ -290,6 +290,7 @@ struct aic_spinand *spinand_probe(u32 spi_bus)
     struct aic_spinand *flash = NULL;
     struct aic_qspi *qspi = NULL;
     char *partstr = NULL;
+    struct nftl_mtd *nftl_parts = NULL;
 
     qspi = get_qspi_by_index(spi_bus);
     if (!qspi) {
@@ -338,11 +339,22 @@ struct aic_spinand *spinand_probe(u32 spi_bus)
     mtd_add_device(mtd);
 
     partstr = aic_spinand_get_partition_string(mtd);
+
+#ifdef IMAGE_CFG_JSON_PARTS_NFTL
+    nftl_parts = build_nftl_list(IMAGE_CFG_JSON_PARTS_NFTL);
+#endif
+
     part = mtd_parts_parse(partstr);
     if (partstr)
         free(partstr);
     p = part;
     while (p) {
+        if (partition_nftl_is_exist(p->name, nftl_parts)) {
+            p->attr = PART_ATTR_NFTL;
+        } else {
+            p->attr = PART_ATTR_MTD;
+        }
+
         mtd = malloc(sizeof(*mtd));
         mtd->name = strdup(p->name);
         mtd->start = p->start;
@@ -364,6 +376,7 @@ struct aic_spinand *spinand_probe(u32 spi_bus)
         mtd->ops.write_oob = mtd_spinand_write_oob;
         mtd->ops.cont_read = mtd_spinand_continuous_read;
         mtd->priv = (void *)flash;
+        mtd->attr = p->attr;
         mtd_add_device(mtd);
         p = p->next;
     }

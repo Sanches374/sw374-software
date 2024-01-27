@@ -56,6 +56,14 @@ struct dma_slave_config {
     u32 slave_id;
 };
 
+struct dma_slave_table {
+    u32 id;
+    u32 burst_num;
+    u32 width_num;
+    const u32 *burst;
+    const u32 *width;
+};
+
 #if defined(AIC_DMA_DRV_V10) || defined(AIC_DMA_DRV_V11) \
     || defined(AIC_DMA_DRV_V12)
 struct aic_dma_task {
@@ -111,7 +119,7 @@ struct aic_dma_chan {
     volatile int lock;
     dma_async_callback callback;
     void *callback_param;
-    struct aic_dma_task * desc;
+    struct aic_dma_task *desc;
 };
 
 #define dma_reg(x)            (volatile void *)(x + DMA_BASE)

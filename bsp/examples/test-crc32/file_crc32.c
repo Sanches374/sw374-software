@@ -14,7 +14,7 @@
 #include <aic_common.h>
 #include <aic_core.h>
 #include <aic_drv.h>
-#include "crc32.h"
+#include <aic_crc32.h>
 #include "aic_time.h"
 
 #define BUFFER_SIZE 8192

@@ -26,7 +26,7 @@
     "      if use se_i2c please input bus_id write 5\n"
 
 #define I2C_BASE_OFFSET 0x1000
-#define SE_BUS_ID (CLK_I2C0 - CLK_SE_I2C)
+#define SE_BUS_ID (CLK_SE_I2C - CLK_I2C0)
 
 #ifdef SE_I2C_BASE
 #define I2C_REG_BASE(x) (SE_I2C_BASE)

@@ -78,6 +78,10 @@ static rt_err_t _adc_control(rt_device_t dev, int cmd, void *args)
     {
         return adc->ops->get_irq_count(adc, (rt_uint32_t)(long)args);
     }
+    else if (cmd == RT_ADC_CMD_OBTAIN_DATA_MODE && adc->ops->get_obtaining_data_mode)
+    {
+        return adc->ops->get_obtaining_data_mode(adc, (rt_uint32_t)(long)args);
+    }
 #endif
     else if (cmd == RT_ADC_CMD_GET_VREF && adc->ops->get_vref && args)
     {

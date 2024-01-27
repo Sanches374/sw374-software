@@ -213,6 +213,9 @@ static int clk_pll_set_rate(struct aic_clk_comm_cfg *comm_cfg,
             (factor_n << PLL_FACTORN_BIT) |
             (factor_m << PLL_FACTORM_BIT) |
             (factor_p << PLL_FACTORP_BIT);
+    /* If SDM enable, set PLL_ICP = 0 */
+    if (pll->type == AIC_PLL_SDM)
+        reg_val &= ~(0x1F << 24);
     writel(reg_val, cmu_reg(pll->offset_gen));
 
     if (pll->type == AIC_PLL_FRA) {
@@ -293,7 +296,11 @@ void hal_clk_pll_lowpower(void)
     *(volatile uint32_t *)(CMU_BASE+PLL_IN_REG) &= ~(0x7U << 29);
     #endif
 #elif defined(AIC_CMU_DRV_V11)
-    *(volatile uint32_t *)(CMU_BASE+PLL_IN_REG) &= ~((0x7U << 29) | (0x1U << 1));
+    int xtal_en = readl(SID_BASE + 0x1C) & (0x1 << 1);
+    if (xtal_en)
+        *(volatile uint32_t *)(CMU_BASE+PLL_IN_REG) &= ~((0x7U << 29) | (0x1U << 1));
+    else
+        *(volatile uint32_t *)(CMU_BASE+PLL_IN_REG) &= ~((0x7U << 29) | (0x1U << 28));
 #elif defined(AIC_CMU_DRV_V12)
     *(volatile uint32_t *)(CMU_BASE+PLL_IN_REG) &= ~((0x7U << 29) | (0x1U << 1));
 #endif

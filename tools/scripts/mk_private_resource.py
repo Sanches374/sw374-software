@@ -161,6 +161,14 @@ struct psram {
         u32 xspi_ldo;
         u32 psram_cfg0;
         u32 psram_cfg1;
+        u32 xspi_cs0_iocfg1;
+        u32 xspi_cs0_iocfg2;
+        u32 xspi_cs0_iocfg3;
+        u32 xspi_cs0_iocfg4;
+        u32 xspi_cs1_iocfg1;
+        u32 xspi_cs1_iocfg2;
+        u32 xspi_cs1_iocfg3;
+        u32 xspi_cs1_iocfg4;
     } common;
     struct {
         u32 proto;
@@ -224,6 +232,14 @@ def gen_psram_init_data(psram):
         data += get_bytes_by_str(common, "xspi_ldo")
         data += get_bytes_by_str(common, "psram_cfg0")
         data += get_bytes_by_str(common, "psram_cfg1")
+        data += get_bytes_by_str(common, "xspi_cs0_iocfg1")
+        data += get_bytes_by_str(common, "xspi_cs0_iocfg2")
+        data += get_bytes_by_str(common, "xspi_cs0_iocfg3")
+        data += get_bytes_by_str(common, "xspi_cs0_iocfg4")
+        data += get_bytes_by_str(common, "xspi_cs1_iocfg1")
+        data += get_bytes_by_str(common, "xspi_cs1_iocfg2")
+        data += get_bytes_by_str(common, "xspi_cs1_iocfg3")
+        data += get_bytes_by_str(common, "xspi_cs1_iocfg4")
         reset = entry["reset"]
         data += get_bytes_by_str(reset, "proto", "0xFFFFFFFF")
         data += get_bytes_by_str(reset, "buf",   "0xFFFFFFFF")

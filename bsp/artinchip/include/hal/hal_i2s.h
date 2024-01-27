@@ -356,6 +356,15 @@ static inline void hal_i2s_rxfifo_output_mode(struct aic_i2s_ctrl *i2s)
     writel(reg_val, i2s->reg_base + I2S_FCTL_REG);
 }
 
+static inline void hal_i2s_enable_loopback(struct aic_i2s_ctrl *i2s)
+{
+    uint32_t reg_val;
+
+    reg_val = readl(i2s->reg_base + I2S_CTL_REG);
+    reg_val |= I2S_CTL_LOOP;
+    writel(reg_val, i2s->reg_base + I2S_CTL_REG);
+}
+
 int hal_i2s_init(aic_i2s_ctrl *i2s, uint32_t i2s_idx);
 int hal_i2s_uninit(aic_i2s_ctrl *i2s);
 int hal_i2s_protocol_select(struct aic_i2s_ctrl *i2s, i2s_protocol_t protocol);

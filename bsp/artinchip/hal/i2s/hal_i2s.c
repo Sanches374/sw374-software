@@ -514,6 +514,7 @@ void hal_i2s_record_start(aic_i2s_ctrl *i2s, i2s_format_t *format)
     hal_i2s_mclk_out_enable(i2s);
     /* configure RXFIFO output mode */
     hal_i2s_rxfifo_output_mode(i2s);
+    hal_i2s_module_enable(i2s);
     /* Enable RX block */
     hal_i2s_enable_rx_block(i2s);
     /* Enable RX DRQ */

@@ -85,7 +85,7 @@ struct aic_pinmux aic_pinmux_config[] = {
     {2, PIN_PULL_UP, 3, "PC.5"},
     {2, PIN_PULL_UP, 3, "PC.6"},
 #endif
-#ifdef AIC_USING_RTL8733_WLAN0
+#ifdef AIC_WIRELESS_LAN
     {1, PIN_PULL_DIS, 3, "PD.7"},  // WIFI_PWR_ON
 #endif
 #ifdef AIC_USING_I2C0

@@ -37,7 +37,7 @@
                 "part": ["os"]
             },
             "rodata": {
-                "file": "data.fatfs",
+                "file": "rodata.fatfs",
                 "attr": ["mtd", "optional"],
                 "part": ["rodata"]
             },

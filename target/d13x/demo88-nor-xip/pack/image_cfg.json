@@ -32,12 +32,12 @@
                 "part": ["spl"]
             },
             "os": {
-                "file": "os.aic",
+                "file": "d13x_os.itb",
                 "attr": ["mtd", "required"],
                 "part": ["os"]
             },
             "rodata": {
-                "file": "data.fatfs",
+                "file": "rodata.fatfs",
                 "attr": ["mtd", "optional"],
                 "part": ["rodata"]
             },
@@ -62,14 +62,10 @@
                     "pbp": "d13x.pbp",
                 },
             },
-            "os.aic": {
-                "head_ver": "0x00010001",
-                "loader": {
-                    "file": "d13x.bin",
-                    "load address": "0x30040000",
-                    "entry point":  "0x30040100",
-                    "run in dram": "false",
-                }
+        },
+        "itb": {
+            "d13x_os.itb": {
+                "its": "d13x_os.its"
             },
         },
     },

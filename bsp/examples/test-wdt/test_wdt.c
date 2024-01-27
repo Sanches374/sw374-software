@@ -46,6 +46,7 @@ static void usage(char * program)
 void test_wdt(int argc, char **argv)
 {
     int opt;
+    __unused int status;
     int timeout = 0;
     rt_device_t wdt_dev = RT_NULL;
 
@@ -82,7 +83,7 @@ void test_wdt(int argc, char **argv)
                 break;
             case 'r':
             #ifdef AIC_WDT_DRV_V11
-                int  status = rt_device_control(wdt_dev, RT_DEVICE_CTRL_WDT_GET_RST_EN, RT_NULL);
+                status = rt_device_control(wdt_dev, RT_DEVICE_CTRL_WDT_GET_RST_EN, RT_NULL);
                 if (status)
                     rt_device_control(wdt_dev, RT_DEVICE_CTRL_WDT_SET_RST_SYS, RT_NULL);
                 else

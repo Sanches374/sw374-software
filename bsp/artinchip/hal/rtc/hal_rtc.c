@@ -331,13 +331,13 @@ s32 hal_rtc_init(void)
         hal_log_info("RTC is already inited.\n");
         return 0;
     }
-
+#ifdef CLK_RTC
     ret = hal_clk_enable(CLK_RTC);
     if (ret < 0) {
         hal_log_err("RTC clk enable failed!\n");
         return -1;
     }
-
+#endif
     /* Check & clean poweroff alarm status */
     ret = RTC_READB(RTC_REG_IRQ_STA);
     if (ret) {
@@ -359,9 +359,9 @@ s32 hal_rtc_deinit(void)
         hal_log_warn("RTC is not inited.\n");
         return -1;
     }
-
+#ifdef CLK_RTC
     hal_clk_disable(CLK_RTC);
-
+#endif
     aich_rtc.inited = 0;
     return 0;
 }

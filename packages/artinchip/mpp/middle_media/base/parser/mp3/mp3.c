@@ -335,7 +335,7 @@ static int mp3_parse_vbr_tags(struct aic_mp3_parser *s, int64_t base)
 
 	if (mp3->frames) {
 		s->duration = mp3->frames * spf / s->header.sample_rate * 1000 * 1000;
-		printf("[%s:%d]sample_rate:%d,spf:%d\n",__FUNCTION__,__LINE__,s->header.sample_rate,spf);
+		printf("[%s:%d]sample_rate:%d,spf:%"PRIu32"\n",__FUNCTION__,__LINE__,s->header.sample_rate,spf);
 	}
 	//calculate avg bit rate
 	if (mp3->header_filesize && mp3->frames && !mp3->is_cbr) {
@@ -499,7 +499,7 @@ int mp3_seek_packet(struct aic_mp3_parser *s, s64 seek_time)
 
 	s->frame_id = seek_time / s->header.frame_duration;
 
-	printf("[%s:%d]frame_id:%u\n",__FUNCTION__,__LINE__,s->frame_id);
+	printf("[%s:%d]frame_id:%"PRIu32"\n",__FUNCTION__,__LINE__,s->frame_id);
 
 	best_pos = mp3_sync(s, pos);
 	if (best_pos < 0)

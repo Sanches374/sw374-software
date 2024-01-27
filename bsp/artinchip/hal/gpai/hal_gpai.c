@@ -12,16 +12,16 @@
 #include "hal_dma.h"
 
 /* Register definition of GPAI Controller */
-#ifdef AIC_GPAI_DRV_V10
+#if defined(AIC_GPAI_DRV_V10) || defined(AIC_GPAI_DRV_V11)
 #define GPAI_MCR            0x000
 #define GPAI_INTR           0x004
 #endif
-#ifdef AIC_GPAI_DRV_V11
+#ifdef AIC_GPAI_DRV_V20
 #define GPAI_MCHS           0x000
 #define GPAI_MCHC           0x004
 #endif
 
-#ifdef AIC_GPAI_DRV_V11
+#ifdef AIC_GPAI_DRV_V20
 #define GPAI_INTS           0x008
 #define GPAI_INTC           0x00C
 #define GPAI_INTSAT         0x010
@@ -39,7 +39,7 @@
 #define GPAI_CHnDATA(n)     (0x100 + (((n) & 0x7) << 6) + 0x24)
 #define GPAI_VERSION        0xFFC
 
-#ifdef AIC_GPAI_DRV_V10
+#if defined(AIC_GPAI_DRV_V10) || defined(AIC_GPAI_DRV_V11)
 #define GPAI_MCR_CH0_EN                 BIT(8)
 #define GPAI_MCR_CH_EN(n)               (GPAI_MCR_CH0_EN << (n))
 #define GPAI_MCR_EN                     BIT(0)
@@ -50,7 +50,7 @@
 #define GPAI_INTR_CH_INT_EN(n)          (GPAI_INTR_CH0_INT_EN << (n))
 #endif
 
-#ifdef AIC_GPAI_DRV_V11
+#ifdef AIC_GPAI_DRV_V20
 #define GPAI_MCHS_CH0_SET               BIT(8)
 #define GPAI_MCHS_CH_SET(n)             (GPAI_MCHS_CH0_SET << (n))
 #define GPAI_MCHS_MDSET                 BIT(0)
@@ -155,7 +155,7 @@ static u32 gpai_ms2itv(u32 pclk_rate, u32 ms)
     return tmp;
 }
 
-#ifdef AIC_GPAI_DRV_V10
+#if defined(AIC_GPAI_DRV_V10) || defined(AIC_GPAI_DRV_V11)
 static void gpai_reg_enable(int offset, int bit, int enable)
 {
     int tmp = gpai_readl(offset);
@@ -179,7 +179,7 @@ void aich_gpai_ch_enable(u32 ch, int enable)
 }
 #endif
 
-#ifdef AIC_GPAI_DRV_V11
+#ifdef AIC_GPAI_DRV_V20
 static void gpai_reg_enable(int offset, int bit)
 {
     int tmp = gpai_readl(offset);
@@ -214,7 +214,7 @@ void hal_gpai_drq_enable(u32 ch, u32 enable)
 
 static void gpai_int_enable(u32 ch, u32 enable, u32 detail)
 {
-#ifdef AIC_GPAI_DRV_V10
+#if defined(AIC_GPAI_DRV_V10) || defined(AIC_GPAI_DRV_V11)
     u32 val = 0;
     val = gpai_readl(GPAI_INTR);
     if (enable) {
@@ -227,7 +227,7 @@ static void gpai_int_enable(u32 ch, u32 enable, u32 detail)
     gpai_writel(val, GPAI_INTR);
 #endif
 
-#ifdef AIC_GPAI_DRV_V11
+#ifdef AIC_GPAI_DRV_V20
     if (enable) {
         gpai_reg_enable(GPAI_INTS, GPAI_INTS_CH_INT_SET(ch));
         gpai_writel(detail, GPAI_CHnINT(ch));
@@ -358,7 +358,7 @@ void aich_gpai_status_show(struct aic_gpai_ch *chan)
 {
     int version = gpai_readl(GPAI_VERSION);
 
-#ifdef AIC_GPAI_DRV_V10
+#if defined(AIC_GPAI_DRV_V10) || defined(AIC_GPAI_DRV_V11)
     int mcr = gpai_readl(GPAI_MCR);
 
     printf("In GPAI V%d.%02d:\n"
@@ -370,7 +370,7 @@ void aich_gpai_status_show(struct aic_gpai_ch *chan)
                chan->latest_data, chan->lla_thd, chan->hla_thd);
 #endif
 
-#ifdef AIC_GPAI_DRV_V11
+#ifdef AIC_GPAI_DRV_V20
     int mcr = gpai_readl(GPAI_MCHS);
 
     printf("In GPAI V%d.%02d:\n"
@@ -433,19 +433,19 @@ irqreturn_t aich_gpai_isr(int irq, void *arg)
     int i;
     struct aic_gpai_ch *chan = NULL;
 
-#ifdef AIC_GPAI_DRV_V10
+#if defined(AIC_GPAI_DRV_V10) || defined(AIC_GPAI_DRV_V11)
     ch_flag = gpai_readl(GPAI_INTR);
 #endif
-#ifdef AIC_GPAI_DRV_V11
+#ifdef AIC_GPAI_DRV_V20
     ch_flag = gpai_readl(GPAI_INTSAT);
 #endif
 
     for (i = 0; i < AIC_GPAI_CH_NUM; i++) {
-#ifdef AIC_GPAI_DRV_V10
+#if defined(AIC_GPAI_DRV_V10) || defined(AIC_GPAI_DRV_V11)
         if (!(ch_flag & GPAI_INTR_CH_INT_FLAG(i)))
             continue;
 #endif
-#ifdef AIC_GPAI_DRV_V11
+#ifdef AIC_GPAI_DRV_V20
         if (!(ch_flag & GPAI_INTSAT_CH_INT_FLG(i)))
             continue;
 #endif
@@ -510,7 +510,7 @@ void hal_gpai_set_ch_num(u32 num)
     aic_gpai_ch_num = num;
 }
 
-#if defined(AIC_GPAI_DRV_V11) && defined(AIC_DMA_DRV)
+#if defined(AIC_GPAI_DRV_V20) && defined(AIC_DMA_DRV)
 
 static void hal_dma_transfer_callback(void *arg)
 {
@@ -547,7 +547,7 @@ void hal_gpai_config_dma(struct aic_gpai_ch *chan)
     config.src_maxburst = GPAI_SRC_RX_MAXBURST;
     config.dst_maxburst = GPAI_DST_RX_MAXBURST;
     config.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-    config.dst_addr_width = DMA_SLAVE_BUSWIDTH_16_BYTES;
+    config.dst_addr_width = DMA_SLAVE_BUSWIDTH_UNDEFINED;
 
     info = &chan->dma_rx_info;
 

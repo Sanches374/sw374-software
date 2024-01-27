@@ -196,8 +196,8 @@ s32 nand_fwc_uffs_write(struct fwc_info *fwc, u8 *buf, s32 len)
     struct aicupg_nand_priv *priv;
     struct mtd_dev *mtd;
     unsigned long offset, erase_offset;
-    int i, dolen = 0, ret = 0, pages = 0;
-    int total_len = 0, data_len = 0, remain_offset = 0;
+    int i, dolen = 0, ret = 0;
+    int total_len = 0, remain_offset = 0;
     u8 *wbuf = NULL, *pbuf = NULL;
 
     wbuf = malloc(ROUNDUP(len, fwc->block_size));
@@ -215,7 +215,6 @@ s32 nand_fwc_uffs_write(struct fwc_info *fwc, u8 *buf, s32 len)
     }
 
     total_len = (priv->remain_len + len);
-    pages = total_len / fwc->block_size;
     if (total_len % fwc->block_size) {
         priv->remain_len = total_len % fwc->block_size;
         remain_offset = total_len - priv->remain_len;
@@ -230,23 +229,23 @@ s32 nand_fwc_uffs_write(struct fwc_info *fwc, u8 *buf, s32 len)
         if (!mtd)
             continue;
 
-        data_len = pages * mtd->writesize;
         offset = priv->start_offset[i];
-        if ((offset + data_len) > (mtd->size)) {
+        if ((offset + len) > (mtd->size)) {
             pr_err("Not enough space to write mtd %s\n", mtd->name);
             goto out;
         }
 
         /* erase 1 sector when offset+len more than erased address */
         erase_offset = priv->erase_offset[i];
-        while ((offset + data_len) > erase_offset) {
+        while ((offset + len) > erase_offset) {
             if (mtd_block_isbad(mtd, erase_offset)) {
                 pr_err("Erase block is bad, skip it.\n");
                 priv->erase_offset[i] = erase_offset + mtd->erasesize;
                 erase_offset = priv->erase_offset[i];
+                continue;
             }
 
-            ret = mtd_erase(mtd, erase_offset, mtd->erasesize);
+            ret = mtd_erase(mtd, erase_offset, ROUNDUP(len, mtd->erasesize));
             if (ret) {
                 pr_err("Erase block is bad, mark it.\n");
                 ret = mtd_block_markbad(mtd, erase_offset);
@@ -255,12 +254,12 @@ s32 nand_fwc_uffs_write(struct fwc_info *fwc, u8 *buf, s32 len)
 
                 continue;
             }
-            priv->erase_offset[i] = erase_offset + mtd->erasesize;
+            priv->erase_offset[i] = erase_offset + ROUNDUP(len, mtd->erasesize);
             erase_offset = priv->erase_offset[i];
         }
 
         pbuf = wbuf;
-        while (dolen < data_len) {
+        while (dolen < len) {
             if (!data_is_blank(offset + dolen, pbuf + mtd->writesize, 64)) {
                 if (mtd_block_isbad(mtd, ALIGN_DOWN(offset, mtd->erasesize))) {
                     pr_err(" Write block is bad, skip it.\n");
@@ -283,7 +282,7 @@ s32 nand_fwc_uffs_write(struct fwc_info *fwc, u8 *buf, s32 len)
             pbuf += fwc->block_size;
             dolen += mtd->writesize;
         }
-        priv->start_offset[i] = offset + data_len;
+        priv->start_offset[i] = offset + len;
     }
 
     pr_debug("%s, data len %d, trans len %d\n", __func__, len, fwc->trans_size);
@@ -325,9 +324,10 @@ s32 nand_fwc_mtd_write(struct fwc_info *fwc, u8 *buf, s32 len)
                 pr_err("Erase block is bad, skip it.\n");
                 priv->erase_offset[i] = erase_offset + mtd->erasesize;
                 erase_offset = priv->erase_offset[i];
+                continue;
             }
 
-            ret = mtd_erase(mtd, erase_offset, mtd->erasesize);
+            ret = mtd_erase(mtd, erase_offset, ROUNDUP(len, mtd->erasesize));
             if (ret) {
                 pr_err("Erase block is bad, mark it.\n");
                 ret = mtd_block_markbad(mtd, erase_offset);
@@ -336,7 +336,7 @@ s32 nand_fwc_mtd_write(struct fwc_info *fwc, u8 *buf, s32 len)
 
                 continue;
             }
-            priv->erase_offset[i] = erase_offset + mtd->erasesize;
+            priv->erase_offset[i] = erase_offset + ROUNDUP(len, mtd->erasesize);
             erase_offset = priv->erase_offset[i];
         }
 

@@ -33,7 +33,7 @@ static struct aic_partition *aic_part_parse(char *parts, u32 start)
         part->size = 0;
         p++;
     } else {
-        part->size = strtoul(p, &p, 0);
+        part->size = strtoull(p, &p, 0);
         if ((*p == 'k') || (*p == 'K')) {
             part->size *= 1024;
             p++;
@@ -48,7 +48,7 @@ static struct aic_partition *aic_part_parse(char *parts, u32 start)
     if (*p == '@') {
         p++;
         /* Don't care offset here, just skip it */
-        part->start = strtoul(p, &p, 0);
+        part->start = strtoull(p, &p, 0);
     }
     if (*p != '(') {
         printf("%s: Partition name should be next of size.\n", __FUNCTION__);
@@ -103,14 +103,6 @@ struct aic_partition *aic_part_gpt_parse(char *parts)
     char *p;
 
     p = parts;
-
-    while ((*p != '\0') && (*p != ':'))
-        p++;
-    if (*p != ':') {
-        printf("%s: parts is invalid: %s\n", __FUNCTION__, parts);
-        return NULL;
-    }
-    p++;
 
     return aic_part_parse(p, 0x4400);
 }

@@ -27,6 +27,8 @@ if GetDepend('AIC_BOOTLOADER_CMD_PSRAM_TEST'):
 	src     += Glob('psram_test.c')
 if GetDepend('AIC_BOOTLOADER_CMD_XIP_BOOT'):
 	src     += Glob('xip_boot.c')
+if GetDepend('AIC_BOOTLOADER_CMD_PART'):
+	src     += Glob('part.c')
 
 CPPPATH = [cwd]
 ASFLAGS = ''

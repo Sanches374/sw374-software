@@ -29,8 +29,6 @@ static void awtk_start_ui_thread(void) {
                                TK_UI_THREAD_PRIORITY,
                                TK_UI_THREAD_TICK);
   rt_thread_startup(ui_thread);
-
-  return 0;
 }
 
 int awtk_init(int argc, char **argv) {

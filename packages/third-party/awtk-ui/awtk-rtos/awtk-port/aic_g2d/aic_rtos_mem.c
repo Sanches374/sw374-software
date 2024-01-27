@@ -146,34 +146,36 @@ static void cma_buf_hash_destroy(cma_buffer_hash_map *map) {
 int aic_cma_buf_malloc(cma_buffer *back, int size, int align_size) {
   void *cma_buf = NULL;
   int malloc_size = 0;
+  int cache_align_size = 0;
 
-  if (align_size <= 0)
-    malloc_size = size + CACHE_LINE_SIZE;
-  else
-    malloc_size = size + align_size;
+  if (align_size <= 0) {
+      malloc_size = size + CACHE_LINE_SIZE * 2;
+      cache_align_size = BYTE_ALIGN(size, CACHE_LINE_SIZE);
+  } else {
+      malloc_size = size + align_size * 2;
+      cache_align_size = BYTE_ALIGN(size, align_size);
+  }
 
   cma_buf = aicos_malloc(MEM_CMA, malloc_size);
   if (!cma_buf) {
-    log_error("aic_cma_buf_malloc fail, size = %d, malloc size = %d\n",
-               size, malloc_size);
+    log_error("aic_cma_buf_malloc fail, malloc size = %d\n", malloc_size);
     return -1;
   }
 
   back->type = PHY_TYPE;
-  back->phy_addr = (unsigned int)BYTE_ALIGN(((uintptr_t)cma_buf), CACHE_LINE_SIZE);
   back->buf_head = cma_buf;
-  back->size = size;
+  back->size = cache_align_size;
+
+  if (align_size <= 0) {
+    back->phy_addr = (unsigned int)BYTE_ALIGN(((uintptr_t)cma_buf), CACHE_LINE_SIZE);
+  } else {
+    back->phy_addr = (unsigned int)BYTE_ALIGN(((uintptr_t)cma_buf), align_size);
+  }
   back->buf = (void *)back->phy_addr;
 
-  if (align_size <= 0)
-    back->phy_addr = (unsigned int)BYTE_ALIGN(((uintptr_t)cma_buf), CACHE_LINE_SIZE);
-  else
-    back->phy_addr = (unsigned int)BYTE_ALIGN(((uintptr_t)cma_buf), align_size);
+  aicos_dcache_clean_invalid_range((unsigned long *)back->phy_addr, (long long)cache_align_size);
 
-  memset((void *)back->phy_addr, 0, size);
-  aicos_dcache_clean_invalid_range((unsigned long *)back->phy_addr, (long long)size);
-
-  g_hash_map->cma_size += size;
+  g_hash_map->cma_size += cache_align_size;
 
   return 0;
 }

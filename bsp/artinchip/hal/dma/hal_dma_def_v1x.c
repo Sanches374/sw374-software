@@ -9,13 +9,14 @@
 #include "aic_core.h"
 #include "aic_dma_id.h"
 
-#include "hal_dma_reg.h"
+#include "hal_dma_reg_v1x.h"
 #include "hal_dma.h"
 
-static struct aic_dma_dev aich_dma __ALIGNED(CACHE_LINE_SIZE) = {
+static struct aic_dma_dev aich_dma = {
     .base = DMA_BASE,
     .burst_length = BIT(1) | BIT(4) | BIT(8) | BIT(16),
     .addr_widths = AIC_DMA_BUS_WIDTH,
+    .slave_table = aic_dma_slave_table,
 };
 
 struct aic_dma_dev *get_aic_dma_dev(void)
@@ -117,14 +118,51 @@ static inline s8 convert_buswidth(enum dma_slave_buswidth addr_width)
     }
 }
 
+static int aic_set_param(struct dma_slave_config *sconfig,
+                    u32 *dev_maxburst, u32 *mem_maxburst,
+                    enum dma_slave_buswidth *dev_addr_width,
+                    enum dma_slave_buswidth *mem_addr_width)
+{
+    u8 j, temp_burst;
+    struct aic_dma_dev *aich_dma;
+    enum dma_slave_buswidth temp_addr_width;
+    const struct dma_slave_table *slave_table;
+
+    aich_dma = get_aic_dma_dev();
+    slave_table = aich_dma->slave_table[sconfig->slave_id];
+    CHECK_PARAM(slave_table->id == sconfig->slave_id, -EINVAL);
+
+    *mem_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+    *mem_maxburst = *mem_maxburst ? *mem_maxburst : 8;
+    temp_addr_width = slave_table->width[0];
+    for (j = 0; j < slave_table->width_num; j++) {
+        if (slave_table->width[j] == *dev_addr_width)
+            temp_addr_width = slave_table->width[j];
+    }
+    temp_burst = slave_table->burst[0];
+    for (j = 0; j < slave_table->burst_num; j++) {
+        if (slave_table->burst[j] == *dev_maxburst)
+            temp_burst = slave_table->burst[j];
+    }
+    *dev_maxburst = temp_burst;
+    *dev_addr_width = temp_addr_width;
+
+    return 0;
+}
+
 int aic_set_burst(struct dma_slave_config *sconfig,
                              enum dma_transfer_direction direction,
                              u32 *p_cfg)
 {
     enum dma_slave_buswidth src_addr_width, dst_addr_width;
+    struct aic_dma_dev *aich_dma;
     u32 src_maxburst, dst_maxburst;
     s8 src_width, dst_width, src_burst, dst_burst;
 
+    CHECK_PARAM(sconfig->slave_id < AIC_DMA_PORTS
+                && sconfig->slave_id > 0, -EINVAL);
+
+    aich_dma = get_aic_dma_dev();
     src_addr_width = sconfig->src_addr_width;
     dst_addr_width = sconfig->dst_addr_width;
     src_maxburst = sconfig->src_maxburst;
@@ -132,27 +170,34 @@ int aic_set_burst(struct dma_slave_config *sconfig,
 
     switch (direction) {
     case DMA_MEM_TO_DEV:
-        if (src_addr_width == DMA_SLAVE_BUSWIDTH_UNDEFINED)
-            src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-        src_maxburst = src_maxburst ? src_maxburst : 8;
+        aic_set_param(sconfig, &dst_maxburst, &src_maxburst,
+                    &dst_addr_width, &src_addr_width);
         break;
     case DMA_DEV_TO_MEM:
-        if (dst_addr_width == DMA_SLAVE_BUSWIDTH_UNDEFINED)
-            dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-        dst_maxburst = dst_maxburst ? dst_maxburst : 8;
+        aic_set_param(sconfig, &src_maxburst, &dst_maxburst,
+                    &src_addr_width, &dst_addr_width);
         break;
-
     default:
         return -EINVAL;
     }
 
-    if (!(BIT(src_addr_width) & aich_dma.addr_widths))
+#ifdef AIC_DMA_CFG_TEST
+    static u8 i = 0;
+    if (!i) {
+        i++;
+        printf("src_addr_width = %d dst_addr_width = %d "
+               "dst_maxburst = %d src_maxburst = %d\n",
+               src_addr_width, dst_addr_width, dst_maxburst, src_maxburst);
+    }
+#endif
+
+    if (!(BIT(src_addr_width) & aich_dma->addr_widths))
         return -EINVAL;
-    if (!(BIT(dst_addr_width) & aich_dma.addr_widths))
+    if (!(BIT(dst_addr_width) & aich_dma->addr_widths))
         return -EINVAL;
-    if (!(BIT(src_maxburst) & aich_dma.burst_length))
+    if (!(BIT(src_maxburst) & aich_dma->burst_length))
         return -EINVAL;
-    if (!(BIT(dst_maxburst) & aich_dma.burst_length))
+    if (!(BIT(dst_maxburst) & aich_dma->burst_length))
         return -EINVAL;
 
     src_width = convert_buswidth(src_addr_width);
@@ -447,7 +492,7 @@ int hal_dma_chan_prep_memset(struct aic_dma_chan *chan,
 {
     struct aic_dma_task *task;
 
-    CHECK_PARAM(chan != NULL && len != 0, -EINVAL);
+    CHECK_PARAM(chan != NULL && len != 0 && len < MAX_LEN, -EINVAL);
 
     CHECK_PARAM((p_dest % AIC_DMA_ALIGN_SIZE) == 0, -EINVAL);
 
@@ -485,7 +530,7 @@ int hal_dma_chan_prep_memcpy(struct aic_dma_chan *chan,
 {
     struct aic_dma_task *task;
 
-    CHECK_PARAM(chan != NULL && len != 0, -EINVAL);
+   CHECK_PARAM(chan != NULL && len != 0 && len < MAX_LEN, -EINVAL);
 
     CHECK_PARAM((p_dest % AIC_DMA_ALIGN_SIZE) == 0
             && (p_src % AIC_DMA_ALIGN_SIZE) == 0, -EINVAL);
@@ -524,7 +569,7 @@ int hal_dma_chan_prep_device(struct aic_dma_chan *chan,
     u32 task_cfg;
     int ret;
 
-    CHECK_PARAM(chan != NULL && len != 0, -EINVAL);
+   CHECK_PARAM(chan != NULL && len != 0 && len < MAX_LEN, -EINVAL);
 
     CHECK_PARAM((p_dest%AIC_DMA_ALIGN_SIZE) == 0 && (p_src%AIC_DMA_ALIGN_SIZE) == 0, -EINVAL);
 
@@ -548,7 +593,7 @@ int hal_dma_chan_prep_device(struct aic_dma_chan *chan,
                   (ADDR_LINEAR_MODE << SRC_ADDR_BITSHIFT) |
                   (ADDR_FIXED_MODE << DST_ADDR_BITSHIFT);
         task->mode = DMA_S_WAIT_D_HANDSHAKE | \
-                    (chan->cfg.src_maxburst != 1) << DMA_SRC_HANDSHAKE_ENABLE;
+                     (GET_DMA_DST_BURST(task_cfg) != 1) << DMA_DST_HANDSHAKE_ENABLE;
         aicos_dcache_clean_range((void *)(unsigned long)task->src, task->len);
     } else {
         task->cfg |= (DMA_ID_DRAM << DST_PORT_BITSHIFT) |
@@ -556,7 +601,7 @@ int hal_dma_chan_prep_device(struct aic_dma_chan *chan,
                   (ADDR_LINEAR_MODE << DST_ADDR_BITSHIFT) |
                   (ADDR_FIXED_MODE << SRC_ADDR_BITSHIFT);
         task->mode = DMA_S_HANDSHAKE_D_WAIT | \
-                    (chan->cfg.src_maxburst != 1) << DMA_SRC_HANDSHAKE_ENABLE;
+                     (GET_DMA_DST_BURST(task_cfg) != 1) << DMA_SRC_HANDSHAKE_ENABLE;
         aicos_dcache_clean_invalid_range((void *)(unsigned long)task->dst, task->len);
     }
 
@@ -600,6 +645,7 @@ int hal_dma_chan_prep_cyclic(struct aic_dma_chan *chan,
 
         task->len = period_len;
         if (dir == DMA_MEM_TO_DEV) {
+            chan->irq_type = DMA_IRQ_HALF_TASK;
             task->src = p_buf_addr + period_len * i;
             task->dst = chan->cfg.dst_addr;
             task->cfg = task_cfg;
@@ -611,6 +657,7 @@ int hal_dma_chan_prep_cyclic(struct aic_dma_chan *chan,
             task->mode = DMA_S_WAIT_D_HANDSHAKE;
             aicos_dcache_clean_range((void *)(unsigned long)task->src, task->len);
         } else {
+            chan->irq_type = DMA_IRQ_ONE_TASK;
             task->src = chan->cfg.src_addr;
             task->dst = p_buf_addr + period_len * i;
             task->cfg = task_cfg;
@@ -648,7 +695,8 @@ int hal_dma_chan_start(struct aic_dma_chan *chan)
     for (task = chan->desc; task != NULL; task = task->v_next)
         aicos_dcache_clean_range((void *)(unsigned long)task, sizeof(*task));
 
-    chan->irq_type = chan->cyclic ? DMA_IRQ_ONE_TASK : DMA_IRQ_ALL_TASK;
+    if (!chan->cyclic)
+        chan->irq_type = DMA_IRQ_ALL_TASK;
 
     value = readl(aich_dma->base + DMA_IRQ_EN_REG(0));
     value &= ~(DMA_IRQ_MASK(chan->ch_nr));

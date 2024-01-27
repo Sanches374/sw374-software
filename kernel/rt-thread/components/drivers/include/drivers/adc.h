@@ -25,6 +25,8 @@ struct rt_adc_ops
                              rt_uint32_t channel);
     rt_uint32_t (*get_irq_count)(struct rt_adc_device *device,
                                  rt_uint32_t channel);
+    rt_uint32_t (*get_obtaining_data_mode)(struct rt_adc_device *device,
+                                           rt_uint32_t channel);
 #endif
     rt_uint8_t (*get_resolution)(struct rt_adc_device *device);
     rt_int16_t (*get_vref) (struct rt_adc_device *device);
@@ -47,6 +49,7 @@ typedef enum
     RT_ADC_CMD_IRQ_COUNT = RT_DEVICE_CTRL_BASE(ADC) + 5,
     RT_ADC_CMD_GET_DMA_DATA = RT_DEVICE_CTRL_BASE(ADC) + 6,
     RT_ADC_CMD_CONFIG_DMA = RT_DEVICE_CTRL_BASE(ADC) + 7,
+    RT_ADC_CMD_OBTAIN_DATA_MODE = RT_DEVICE_CTRL_BASE(ADC) + 8,
 #endif
 } rt_adc_cmd_t;
 

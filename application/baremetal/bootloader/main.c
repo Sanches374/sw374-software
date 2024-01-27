@@ -64,11 +64,6 @@ static int board_init(enum boot_device bd)
     aic_board_pinmux_init();
     boot_time_trace("Clock and pinmux done");
 
-#ifdef AIC_BOOTLOADER_PSRAM_EN
-    /* psram init */
-    aic_xspi_psram_init();
-    boot_time_trace("PSRAM init done");
-#endif
 
 #ifdef AIC_BOOTLOADER_AXICFG_SUPPORT
     for (int i = 0; i < HAL_AXICFG_PORT_MAX; i++) {
@@ -106,6 +101,7 @@ int main(void)
     enum boot_device bd;
     int ctrlc = -1;
     s32 id = -1;
+    s32 __attribute__((unused)) ret = -1;
 
     boot_time_trace("Enter main");
 
@@ -133,10 +129,16 @@ int main(void)
 #if defined(AICUPG_UDISK_ENABLE)
         id = usbh_get_connect_id();
         boot_time_trace("UDISK checked");
-        if (id < 0)
+        if (id < 0) {
             pr_err("Not find udisk.\n");
-        else
-            bd = BD_UDISK;
+        } else {
+            if (id == 0)
+                ret = console_run_cmd("aicupg fat udisk 0");
+            else if (id == 1)
+                ret = console_run_cmd("aicupg fat udisk 1");
+            if (!ret)
+                console_loop();
+        }
 
 #endif
         /*

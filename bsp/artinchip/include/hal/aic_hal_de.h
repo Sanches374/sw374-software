@@ -22,10 +22,43 @@ enum de_qos_plane {
 
 #if defined(AIC_DE_DRV_V10) || defined(AIC_DE_V10)
 #define DE_FREQ             (200 * 1000 * 1000)
+
+#define UI_LAYER_NUM        1
+#define VI_LAYER_NUM        1
+
+#define UI_LAYER_WIDTH_MAX      4096
+#define UI_LAYER_HEIGHT_MAX     4096
+#define VI_LAYER_WIDTH_MAX      2048
+#define VI_LAYER_HEIGHT_MAX     4096
+
+#define DE_DITHER_WIDTH_MAX     2048
+
 #elif defined(AIC_DE_DRV_V11) || defined(AIC_DE_V11)
 #define DE_FREQ             (150 * 1000 * 1000)
+
+#define UI_LAYER_NUM        1
+#define VI_LAYER_NUM        1
+
+#define UI_LAYER_WIDTH_MAX      4096
+#define UI_LAYER_HEIGHT_MAX     4096
+#define VI_LAYER_WIDTH_MAX      1280
+#define VI_LAYER_HEIGHT_MAX     4096
+
+#define DE_DITHER_WIDTH_MAX     1366
+
 #elif defined(AIC_DE_DRV_V12) || defined(AIC_DE_V12)
-#define DE_FREQ             (150 * 1000 * 1000)
+#define DE_FREQ             (100 * 1000 * 1000)
+
+#define UI_LAYER_NUM        1
+#define VI_LAYER_NUM        0
+
+#define UI_LAYER_WIDTH_MAX      4096
+#define UI_LAYER_HEIGHT_MAX     4096
+#define VI_LAYER_WIDTH_MAX      0
+#define VI_LAYER_HEIGHT_MAX     0
+
+#define DE_DITHER_WIDTH_MAX     1024
+
 #endif
 
 #define DE_CTRL_DITHER_EN                     BIT(0)

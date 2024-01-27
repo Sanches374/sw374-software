@@ -309,6 +309,29 @@ rt_err_t rt_pwm_get(struct rt_device_pwm *device, struct rt_pwm_configuration *c
     return result;
 }
 
+#if defined(AIC_PWM_DRV) || defined(AIC_EPWM_DRV)
+rt_err_t rt_pwm_set_pul(struct rt_device_pwm *device, int channel, rt_uint32_t irq_mode, rt_uint32_t period, rt_uint32_t pulse, rt_uint32_t pul_cnt)
+{
+    rt_err_t result = RT_EOK;
+    struct rt_pwm_configuration configuration = {0};
+
+    if (!device)
+    {
+        return -RT_EIO;
+    }
+
+    configuration.channel = (channel > 0) ? (channel) : (-channel);
+    configuration.irq_mode = irq_mode;
+    configuration.period = period;
+    configuration.pulse = pulse;
+    configuration.pul_cnt = pul_cnt;
+    result = rt_device_control(&device->parent, PWM_CMD_SET_PUL, &configuration);
+
+    return result;
+
+}
+#endif
+
 #ifdef RT_USING_FINSH
 #include <stdlib.h>
 #include <string.h>
@@ -415,6 +438,21 @@ static int pwm(int argc, char **argv)
                     rt_kprintf("Get info of device: [%s] error.\n", pwm_device);
                 }
             }
+#if defined(AIC_PWM_DRV) || defined(AIC_EPWM_DRV)
+            else if (!strcmp(argv[1], "set_pul"))
+            {
+                if(argc == 7)
+                {
+                    result = rt_pwm_set_pul(pwm_device, atoi(argv[2]), atoi(argv[3]), atoi(argv[4]), atoi(argv[5]), atoi(argv[6]));
+                    rt_kprintf("pwm pul set on %s at channel %d\n",pwm_device,atoi(argv[2]));
+                }
+                else
+                {
+                    rt_kprintf("Set pul of device: [%s] error\n", pwm_device);
+                    rt_kprintf("Usage: pwm set_pul <channel> <irq_mode> <period> <pulse> <pulse cnt>\n");
+                }
+            }
+#endif
             else if (!strcmp(argv[1], "set"))
             {
 #ifdef AIC_XPWM_DRV
@@ -533,10 +571,13 @@ static int pwm(int argc, char **argv)
     else
     {
         rt_kprintf("Usage: \n");
-        rt_kprintf("pwm probe   <device name>                - probe pwm by name\n");
-        rt_kprintf("pwm enable  <channel>                    - enable pwm channel\n");
-        rt_kprintf("pwm disable <channel>                    - disable pwm channel\n");
-        rt_kprintf("pwm get     <channel>                    - get pwm channel info\n");
+        rt_kprintf("pwm probe   <device name>                                             - probe pwm by name\n");
+        rt_kprintf("pwm enable  <channel>                                                 - enable pwm channel\n");
+        rt_kprintf("pwm disable <channel>                                                 - disable pwm channel\n");
+        rt_kprintf("pwm get     <channel>                                                 - get pwm channel info\n");
+#if defined(AIC_PWM_DRV) || defined(AIC_EPWM_DRV)
+        rt_kprintf("pwm set_pul <channel> <irq_mode> <period> <pulse> <pulse cnt>         - set pwm pulse\n");
+#endif
 #ifdef AIC_XPWM_DRV
         rt_kprintf("pwm set          <channel> <period> <pulse> <pulse cnt>               - set pwm channel info\n");
         rt_kprintf("pwm set_fifo_num <channel> <fifo_num>                                 - set xpwm fifo count\n");
@@ -546,7 +587,7 @@ static int pwm(int argc, char **argv)
         rt_kprintf("pwm dma_test     <channel> <loop_times>                               - xpwm dma test\n");
 #endif
 #else
-        rt_kprintf("pwm set     <channel> <period> <pulse>   - set pwm channel info\n");
+        rt_kprintf("pwm set     <channel> <period> <pulse>                                - set pwm channel info\n");
 #endif
         result = - RT_ERROR;
     }

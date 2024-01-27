@@ -41,10 +41,9 @@ if GetDepend('AIC_NFTL_SUPPORT'):
                 src += ['nftl_port/rtos/src/nftl_port_hw.c']
                 src += ['nftl_api/src/nftl_test.c']
 
-        if GetDepend('ARCH_RISCV32'):
-            group = DefineGroup('nftl', src, depend = [''], CPPPATH = CPPPATH, LOCAL_CFLAGS = LOCAL_CFLAGS, LIBS = ['nftl_lib_gcc32'], LIBPATH = [cwd])
-        else:
-            group = DefineGroup('nftl', src, depend = [''], CPPPATH = CPPPATH, LOCAL_CFLAGS = LOCAL_CFLAGS, LIBS = ['nftl_lib_gcc64'], LIBPATH = [cwd])
+        prj_chip=GetDepend('PRJ_CHIP').strip('"')
+        LIBNAME="nftl_lib_" + prj_chip
+        group = DefineGroup('nftl', src, depend = [''], CPPPATH = CPPPATH, LOCAL_CFLAGS = LOCAL_CFLAGS, LIBS = [LIBNAME], LIBPATH = [cwd])
 
     else:
         print("nftl no no no use lib ....")

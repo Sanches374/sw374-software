@@ -91,11 +91,22 @@ int32_t drv_usart_target_init(int32_t idx, uint32_t *base, uint32_t *irq, void *
 void drv_usart_irqhandler(int irq, void * data)
 {
     int index = irq - UART0_IRQn;
+    uint8_t status= 0;
 
     if (index >= AIC_UART_DEV_NUM)
         return;
 
-    rt_hw_serial_isr(&serial[index],RT_SERIAL_EVENT_RX_IND);
+    status = hal_usart_get_irqstatus(index);
+
+    switch (status)
+    {
+    case AIC_IIR_RECV_DATA:
+        rt_hw_serial_isr(&serial[index],RT_SERIAL_EVENT_RX_IND);
+        break;
+
+    default:
+        break;
+    }
 }
 
 /*
@@ -171,14 +182,14 @@ static rt_err_t drv_uart_control(struct rt_serial_device *serial, int cmd, void 
     {
     case RT_DEVICE_CTRL_CLR_INT:
         /* Disable the UART Interrupt */
-        //hal_usart_clr_int_flag(uart, IER_RDA_INT_ENABLE);
-        hal_usart_set_interrupt(uart, USART_INTR_READ, 0);
+        if ((uintptr_t)arg == RT_DEVICE_FLAG_INT_RX)
+            hal_usart_set_interrupt(uart, USART_INTR_READ, 0);
         break;
 
     case RT_DEVICE_CTRL_SET_INT:
         /* Enable the UART Interrupt */
-        //hal_usart_set_int_flag(uart, IER_RDA_INT_ENABLE);
-        hal_usart_set_interrupt(uart, USART_INTR_READ, 1);
+        if ((uintptr_t)arg == RT_DEVICE_FLAG_INT_RX)
+            hal_usart_set_interrupt(uart, USART_INTR_READ, 1);
         break;
     }
 

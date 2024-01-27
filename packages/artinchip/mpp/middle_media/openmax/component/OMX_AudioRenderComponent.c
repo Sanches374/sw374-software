@@ -203,7 +203,7 @@ static OMX_ERRORTYPE OMX_AudioRenderSetParameter(
             }
             pAudioRenderDataType->nVolumeChange = 1;
 
-            logd("nVolume:%d,change:%d\n",pAudioRenderDataType->nVolume,pAudioRenderDataType->nVolumeChange);
+            logd("nVolume:%"PRId32",change:%"PRId32"\n",pAudioRenderDataType->nVolume,pAudioRenderDataType->nVolumeChange);
 
             break;
         }
@@ -311,7 +311,7 @@ static OMX_ERRORTYPE OMX_AudioRenderComponentTunnelRequest(
         pTunneledInfo = &pAudioRenderDataType->sInPortTunneledInfo[AUDIO_RENDER_PORT_IN_CLOCK_INDEX];
         pBufSupplier = &pAudioRenderDataType->sInBufSupplier[AUDIO_RENDER_PORT_IN_CLOCK_INDEX];
     } else {
-        loge("component can not find port:%d\n",nPort);
+        loge("component can not find port:%"PRId32"\n",nPort);
         return OMX_ErrorBadParameter;
     }
 
@@ -434,9 +434,15 @@ static OMX_ERRORTYPE OMX_AudioRenderEmptyThisBuffer(
         memcpy(&pFrame->sFrameInfo,pBuffer->pBuffer,sizeof(struct aic_audio_frame));
         mpp_list_del(&pFrame->sList);
         mpp_list_add_tail(&pFrame->sList, &pAudioRenderDataType->sInReadyFrame);
-        aic_pthread_mutex_unlock(&pAudioRenderDataType->sInFrameLock);
+        if (pAudioRenderDataType->nWaitReayFrameFlag) {
+            sMsg.message_id = OMX_CommandNops;
+            sMsg.data_size = 0;
+            aic_msg_put(&pAudioRenderDataType->sMsgQue, &sMsg);
+            pAudioRenderDataType->nWaitReayFrameFlag = 0;
+        }
         pAudioRenderDataType->nReceiveFrameNum++;
-        logd("nReceiveFrameNum:%d\n",pAudioRenderDataType->nReceiveFrameNum);
+        logd("nReceiveFrameNum:%"PRId32"\n",pAudioRenderDataType->nReceiveFrameNum);
+        aic_pthread_mutex_unlock(&pAudioRenderDataType->sInFrameLock);
 
         {
             static int nRenderFrameNum = 0;
@@ -458,19 +464,16 @@ static OMX_ERRORTYPE OMX_AudioRenderEmptyThisBuffer(
         memcpy(&pFrame->sFrameInfo,pBuffer->pBuffer,sizeof(struct aic_audio_frame));
         mpp_list_del(&pFrame->sList);
         mpp_list_add_tail(&pFrame->sList, &pAudioRenderDataType->sInReadyFrame);
-        aic_pthread_mutex_unlock(&pAudioRenderDataType->sInFrameLock);
+        if (pAudioRenderDataType->nWaitReayFrameFlag) {
+            sMsg.message_id = OMX_CommandNops;
+            sMsg.data_size = 0;
+            aic_msg_put(&pAudioRenderDataType->sMsgQue, &sMsg);
+            pAudioRenderDataType->nWaitReayFrameFlag = 0;
+        }
         pAudioRenderDataType->nReceiveFrameNum++;
-        logi("nReceiveFrameNum:%d\n",pAudioRenderDataType->nReceiveFrameNum);
+        logd("nReceiveFrameNum:%"PRId32"\n",pAudioRenderDataType->nReceiveFrameNum);
+        aic_pthread_mutex_unlock(&pAudioRenderDataType->sInFrameLock);
     }
-
-    aic_pthread_mutex_lock(&pAudioRenderDataType->sWaitReayFrameLock);
-    if (pAudioRenderDataType->nWaitReayFrameFlag) {
-        sMsg.message_id = OMX_CommandNops;
-        sMsg.data_size = 0;
-        aic_msg_put(&pAudioRenderDataType->sMsgQue, &sMsg);
-        pAudioRenderDataType->nWaitReayFrameFlag = 0;
-    }
-    aic_pthread_mutex_unlock(&pAudioRenderDataType->sWaitReayFrameLock);
     aic_pthread_mutex_unlock(&pAudioRenderDataType->stateLock);
     return eError;
 
@@ -573,7 +576,6 @@ OMX_ERRORTYPE OMX_AudioRenderComponentDeInit(
 
     pthread_mutex_destroy(&pAudioRenderDataType->sInFrameLock);
     pthread_mutex_destroy(&pAudioRenderDataType->stateLock);
-    pthread_mutex_destroy(&pAudioRenderDataType->sWaitReayFrameLock);
 
     aic_msg_destroy(&pAudioRenderDataType->sMsgQue);
 
@@ -691,7 +693,6 @@ OMX_ERRORTYPE OMX_AudioRenderComponentInit(
     pAudioRenderDataType->eClockState = OMX_TIME_ClockStateStopped;
 
     pthread_mutex_init(&pAudioRenderDataType->stateLock, NULL);
-    pthread_mutex_init(&pAudioRenderDataType->sWaitReayFrameLock, NULL);
     // Create the component thread
     err = pthread_create(&pAudioRenderDataType->threadId, &attr, OMX_AudioRenderComponentThread, pAudioRenderDataType);
     if (err || !pAudioRenderDataType->threadId)
@@ -713,7 +714,6 @@ OMX_ERRORTYPE OMX_AudioRenderComponentInit(
 _EXIT5:
     aic_msg_destroy(&pAudioRenderDataType->sMsgQue);
     pthread_mutex_destroy(&pAudioRenderDataType->stateLock);
-    pthread_mutex_destroy(&pAudioRenderDataType->sWaitReayFrameLock);
 
 _EXIT4:
     if (!mpp_list_empty(&pAudioRenderDataType->sInEmptyFrame)) {
@@ -780,9 +780,10 @@ static int  OMX_AudioRenderGiveBackAllFrames(AUDIO_RENDER_DATA_TYPE * pAudioRend
             } else {
                 loge("give back frame to vdec fail\n");
                 pAudioRenderDataType->nGiveBackFrameFailNum++;
+                usleep(5*1000);
                 continue;// must give back ok ,so retry to give back
             }
-            logi("nGiveBackFrameOkNum:%d,nGiveBackFrameFailNum:%d\n"
+            logi("nGiveBackFrameOkNum:%"PRId32",nGiveBackFrameFailNum:%"PRId32"\n"
                 ,pAudioRenderDataType->nGiveBackFrameOkNum
                 ,pAudioRenderDataType->nGiveBackFrameFailNum);
 
@@ -1027,7 +1028,7 @@ static int OMX_AudioGiveBackFrames(AUDIO_RENDER_DATA_TYPE* pAudioRenderDataType)
                 logw("give back frame to adec fail\n");
                 pAudioRenderDataType->nGiveBackFrameFailNum++;
             }
-            logi("nGiveBackFrameOkNum:%d,nGiveBackFrameFailNum:%d\n"
+            logi("nGiveBackFrameOkNum:%"PRId32",nGiveBackFrameFailNum:%"PRId32"\n"
                 ,pAudioRenderDataType->nGiveBackFrameOkNum
                 ,pAudioRenderDataType->nGiveBackFrameFailNum);
 
@@ -1037,9 +1038,8 @@ static int OMX_AudioGiveBackFrames(AUDIO_RENDER_DATA_TYPE* pAudioRenderDataType)
                 mpp_list_add_tail(&pFrameNode->sList, &pAudioRenderDataType->sInEmptyFrame);
                 aic_pthread_mutex_unlock(&pAudioRenderDataType->sInFrameLock);
             } else { // how to do ,do nothing or move to empty list,now move to  empty list
-                //mpp_list_del(&pFrameNode->sList);
-                //mpp_list_add_tail(&pFrameNode->sList, &pAudioRenderDataType->sInEmptyFrame);
-                break;
+                usleep(5*1000);
+                continue;
             }
         }
     } else {
@@ -1069,7 +1069,7 @@ _AIC_MSG_GET_:
         if (aic_msg_get(&pAudioRenderDataType->sMsgQue, &message) == 0) {
             nCmd = message.message_id;
             nCmdData = message.param;
-            logi("nCmd:%d, nCmdData:%d\n",nCmd,nCmdData);
+            logi("nCmd:%"PRId32", nCmdData:%"PRId32"\n",nCmd,nCmdData);
             if (OMX_CommandStateSet == nCmd) {
                 aic_pthread_mutex_lock(&pAudioRenderDataType->stateLock);
                 if (pAudioRenderDataType->state == (OMX_STATETYPE)(nCmdData)) {
@@ -1133,26 +1133,26 @@ _AIC_MSG_GET_:
         bNotifyFrameEnd = 0;
 
         OMX_AudioGiveBackFrames(pAudioRenderDataType);
-
-        if (OMX_AudioRenderListEmpty(&pAudioRenderDataType->sInReadyFrame,pAudioRenderDataType->sInFrameLock)) {
+        aic_pthread_mutex_lock(&pAudioRenderDataType->sInFrameLock);
+        if (mpp_list_empty(&pAudioRenderDataType->sInReadyFrame))  {
             struct timespec before = {0},after = {0};
             long diff;
-
-            aic_pthread_mutex_lock(&pAudioRenderDataType->sWaitReayFrameLock);
             pAudioRenderDataType->nWaitReayFrameFlag = 1;
-            aic_pthread_mutex_unlock(&pAudioRenderDataType->sWaitReayFrameLock);
+            aic_pthread_mutex_unlock(&pAudioRenderDataType->sInFrameLock);
 
             clock_gettime(CLOCK_REALTIME,&before);
-            aic_msg_wait_new_msg(&pAudioRenderDataType->sMsgQue, 0);
+            aic_msg_wait_new_msg(&pAudioRenderDataType->sMsgQue, AUDIO_RENDER_WAIT_FRAME_INTERVAL);
             clock_gettime(CLOCK_REALTIME,&after);
             diff = (after.tv_sec - before.tv_sec)*1000*1000 + (after.tv_nsec - before.tv_nsec)/1000;
 
-            if (diff > 100*1000) {
+            if (diff > AUDIO_RENDER_WAIT_FRAME_MAX_TIME) {
                 printf("[%s:%d]:%ld\n",__FUNCTION__,__LINE__,diff);
+                 pAudioRenderDataType->nFlags  |= AUDIO_RENDER_INPORT_SEND_ALL_FRAME_FLAG;
             }
             nEmptyNum++;
             goto _AIC_MSG_GET_;
         }
+        aic_pthread_mutex_unlock(&pAudioRenderDataType->sInFrameLock);
 
         while(!OMX_AudioRenderListEmpty(&pAudioRenderDataType->sInReadyFrame,pAudioRenderDataType->sInFrameLock)) {
             aic_pthread_mutex_lock(&pAudioRenderDataType->sInFrameLock);
@@ -1180,7 +1180,7 @@ _AIC_MSG_GET_:
                     }
                 } else {
                         pAudioRenderDataType->nVolume = pAudioRenderDataType->render->get_volume(pAudioRenderDataType->render);
-                        logd("nVolume :%d\n",pAudioRenderDataType->nVolume);
+                        logd("nVolume :%"PRId32"\n",pAudioRenderDataType->nVolume);
                 }
 
                 if (pTunneldClock->nTunneledFlag) { // set clock start time
@@ -1193,7 +1193,7 @@ _AIC_MSG_GET_:
                     pAudioRenderDataType->sPreCorrectMediaTime = pFrameNode->sFrameInfo.pts;
                     // whether need to wait????
                     if (pAudioRenderDataType->eClockState != OMX_TIME_ClockStateRunning) {
-                        aic_msg_wait_new_msg(&pAudioRenderDataType->sMsgQue, 1*1000);
+                        aic_msg_wait_new_msg(&pAudioRenderDataType->sMsgQue, 10*1000);
                         goto _AIC_MSG_GET_;
                     }
                     printf("[%s:%d]video start time arrive\n",__FUNCTION__,__LINE__);
@@ -1233,7 +1233,7 @@ _AIC_MSG_GET_:
                     //mpp_list_add_tail(&pFrameNode->sList, &pAudioRenderDataType->sInProcessedFrmae);
                     pAudioRenderDataType->nShowFrameFailNum++;
                 }
-                logd("nReceiveFrameNum:%d,nShowFrameOkNum:%d,nShowFrameFailNum:%d\n"
+                logd("nReceiveFrameNum:%"PRId32",nShowFrameOkNum:%"PRId32",nShowFrameFailNum:%"PRId32"\n"
                     ,pAudioRenderDataType->nReceiveFrameNum
                     ,pAudioRenderDataType->nShowFrameOkNum
                     ,pAudioRenderDataType->nShowFrameFailNum);
@@ -1302,7 +1302,7 @@ _AIC_MSG_GET_:
 
                     break;
                 }
-                logd("nReceiveFrameNum:%d,nShowFrameOkNum:%d,nShowFrameFailNum:%d\n"
+                logd("nReceiveFrameNum:%"PRId32",nShowFrameOkNum:%"PRId32",nShowFrameFailNum:%"PRId32"\n"
                     ,pAudioRenderDataType->nReceiveFrameNum
                     ,pAudioRenderDataType->nShowFrameOkNum
                     ,pAudioRenderDataType->nShowFrameFailNum);
@@ -1314,13 +1314,13 @@ _EXIT:
         aic_audio_render_destroy(pAudioRenderDataType->render);
         pAudioRenderDataType->render = NULL;
     }
-    printf("[%s:%d]nReceiveFrameNum:%d,"\
-            "nLeftReadyFrameWhenCompoentExitNum:%d,"\
-            "nShowFrameOkNum:%d,"\
-            "nShowFrameFailNum:%d,"\
-            "nGiveBackFrameOkNum:%d,"\
-            "nGiveBackFrameFailNum:%d,"\
-            "nEmptyNum:%d\n"
+    printf("[%s:%d]nReceiveFrameNum:%"PRId32","\
+            "nLeftReadyFrameWhenCompoentExitNum:%"PRId32","\
+            "nShowFrameOkNum:%"PRId32","\
+            "nShowFrameFailNum:%"PRId32","\
+            "nGiveBackFrameOkNum:%"PRId32","\
+            "nGiveBackFrameFailNum:%"PRId32","\
+            "nEmptyNum:%"PRId32"\n"
             ,__FUNCTION__,__LINE__
             ,pAudioRenderDataType->nReceiveFrameNum
             ,pAudioRenderDataType->nLeftReadyFrameWhenCompoentExitNum

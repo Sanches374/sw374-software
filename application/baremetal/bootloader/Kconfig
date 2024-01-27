@@ -97,6 +97,11 @@ menu "Upgrading"
         select AIC_BOOTLOADER_UDISK_SUPPORT
         select AIC_BOOTLOADER_FATFS_SUPPORT
 
+    config AICUPG_UDISK_VERSION3_SUPPORT
+        bool  "Support USB 3.0 Udisk"
+        default n
+        depends on AICUPG_UDISK_ENABLE
+
     config AICUPG_USB_CONTROLLER_MAX_NUM
         int  "USB Host controller count"
         default 1
@@ -156,6 +161,10 @@ menu "Commands"
 
     config AIC_BOOTLOADER_CMD_MEM
         bool "mem"
+        default y
+
+    config AIC_BOOTLOADER_CMD_PART
+        bool "part"
         default y
 
     config AIC_BOOTLOADER_CMD_PROGRESS_BAR

@@ -46,6 +46,19 @@ struct display_timing {
 };
 
 /**
+ * struct aicfb_pq_config - aipq tools config
+ * @timing: display timing
+ * @connector_type: type of display interface
+ * @data: display interface data
+ *
+ */
+struct aicfb_pq_config {
+    struct display_timing *timing;
+    unsigned int connector_type;
+    void *data;
+};
+
+/**
  * struct aicfb_layer_num - aicfb layer number
  * @vi_num: number of video layers
  * @ui_num: number of UI layers
@@ -208,7 +221,7 @@ enum gamma_lut {
 
 struct aicfb_gamma_config {
     unsigned int enable;
-    unsigned int gamma_lut[3][64];
+    unsigned int gamma_lut[3][16];
 };
 
 /*
@@ -294,6 +307,9 @@ struct aicfb_screeninfo {
 
 /* get screen register value */
 #define AICFB_GET_SCREENREG   _IOR(IOC_TYPE_FB, 0x69, unsigned int)
+
+#define AICFB_PQ_GET_CONFIG _IOR(IOC_TYPE_FB, 0x70, unsigned int)
+#define AICFB_PQ_SET_CONFIG _IOR(IOC_TYPE_FB, 0x71, unsigned int)
 
 /* get screen info */
 #define AICFB_GET_SCREENINFO _IOR(IOC_TYPE_FB, 0x62, struct aicfb_screeninfo)

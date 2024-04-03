@@ -147,7 +147,7 @@ FPCLK(CLK_PSADC, "psadc", CLK_OSC24M, PARENT("osc24m"), CLK_PSADC_REG, 12, 8, 0,
       0);
 FPCLK(CLK_RGB, "rgb", CLK_SCLK, PARENT("sclk"), CLK_RGB_REG, 12, 8, 0, 0);
 FPCLK(CLK_LVDS, "lvds", CLK_SCLK, PARENT("sclk"), CLK_LVDS_REG, 12, 8, 0, 0);
-FPCLK(CLK_MIPIDSI, "mipidsi", CLK_SCLK, PARENT("sclk"), CLK_MIPID_REG, 12, 8, 0,
+FPCLK(CLK_MIPIDSI, "mipidsi", CLK_PLL_FRA2, PARENT("pll_fra2"), CLK_MIPID_REG, 12, 8, 0,
       0);
 
 /* Multi parent clocks */

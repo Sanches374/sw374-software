@@ -48,9 +48,8 @@ src += Glob('src/truetype/truetype.c')
 src += Glob('src/type1/type1.c')
 src += Glob('src/type42/type42.c')
 src += Glob('src/winfonts/winfnt.c')
-src += Glob('src/winfonts/winfnt.c')
 src += Glob('src/base/ftdebug.c')
-src += Glob('builds/unix/ftsystem.c')
+src += Glob('src/base/ftsystem.c')
 
 LOCAL_CCFLAGS = ' -DHAVE_UNISTD_H -DHAVE_FCNTL_H'
 

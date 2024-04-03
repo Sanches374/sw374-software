@@ -86,9 +86,10 @@ struct nand_page_table {
     struct nand_page_table_entry entry[PAGE_TABLE_MAX_ENTRY];
 };
 
-s32 nand_fwc_spl_reserve_blocks(struct fwc_info *fwc);
-s32 nand_fwc_spl_prepare(struct fwc_info *fwc);
-s32 nand_fwc_spl_write(struct fwc_info *fwc, u8 *buf, s32 len);
+s32 nand_fwc_spl_reserve_blocks(struct aicupg_nand_priv *priv);
+s32 nand_fwc_spl_prepare(struct aicupg_nand_priv *priv, u32 datasiz,
+                         u32 blksiz);
+s32 nand_fwc_spl_write(u32 totalsiz, u8 *buf, s32 len);
 
 #ifdef __cplusplus
 }

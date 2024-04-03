@@ -50,7 +50,6 @@ extern "C" {
 #define CLK_UART2               38
 #define CLK_UART3               39
 #define CLK_RGB                 44
-#define CLK_MDI                 47
 #define CLK_DE                  48
 #define CLK_GE                  49
 #define CLK_VE                  50
@@ -131,7 +130,6 @@ extern "C" {
 #define CLK_UART2_REG           (0x0848)
 #define CLK_UART3_REG           (0x084C)
 #define CLK_RGB_REG             (0x0880)
-#define CLK_MDI_REG             (0x0894)
 #define CLK_DE_REG              (0x08C0)
 #define CLK_GE_REG              (0x08C4)
 #define CLK_VE_REG              (0x08C8)

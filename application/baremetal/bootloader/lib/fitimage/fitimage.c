@@ -14,7 +14,7 @@
 #include <mmc.h>
 #include <aic_core.h>
 #include <libfdt.h>
-#include <hexdump.h>
+#include <aic_utils.h>
 #include <aic_crc32.h>
 #include "fitimage.h"
 

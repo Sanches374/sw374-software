@@ -15,7 +15,7 @@
 #include "aic_osal.h"
 #include "sdmc_disk.h"
 #include "block_dev.h"
-#include "hexdump.h"
+#include "aic_utils.h"
 #include "mmc.h"
 
 DRESULT sdmc_disk_write(void *hdisk, const uint8_t *buf, uint32_t sector, uint8_t cnt)

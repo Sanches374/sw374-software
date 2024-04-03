@@ -16,7 +16,7 @@
 #include <rtthread.h>
 
 #ifdef __cplusplus
-extern "C"{
+extern "C" {
 #endif
 
 /**
@@ -99,6 +99,8 @@ struct rt_spi_ops
 {
     rt_err_t (*configure)(struct rt_spi_device *device, struct rt_spi_configuration *configuration);
     rt_uint32_t (*xfer)(struct rt_spi_device *device, struct rt_spi_message *message);
+    rt_err_t (*nonblock)(struct rt_spi_device *device, rt_uint32_t nonblock);
+    rt_uint32_t (*gstatus)(struct rt_spi_device *device);
 };
 
 /**
@@ -147,7 +149,7 @@ struct rt_qspi_configuration
     /* double data rate mode */
     rt_uint8_t ddr_mode;
     /* the data lines max width which QSPI bus supported, such as 1, 2, 4 */
-    rt_uint8_t qspi_dl_width ;
+    rt_uint8_t qspi_dl_width;
 };
 
 struct rt_qspi_device
@@ -213,6 +215,13 @@ rt_err_t rt_spi_release(struct rt_spi_device *device);
 /* set configuration on SPI device */
 rt_err_t rt_spi_configure(struct rt_spi_device        *device,
                           struct rt_spi_configuration *cfg);
+
+/* set async mode on SPI device */
+rt_err_t rt_spi_nonblock_set(struct rt_spi_device        *device,
+                          rt_uint32_t nonblock_en);
+
+/* get async transfer status */
+rt_uint32_t rt_spi_get_transfer_status(struct rt_spi_device        *device);
 
 /* send data then receive data from SPI device */
 rt_err_t rt_spi_send_then_recv(struct rt_spi_device *device,

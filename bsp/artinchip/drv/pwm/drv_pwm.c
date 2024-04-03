@@ -27,9 +27,9 @@ static void aic_pwm_default_action(void)
         PWM_ACT_LOW,  PWM_ACT_NONE, PWM_ACT_HIGH};
     struct aic_pwm_action action1 = {
         /*       CBD,          CBU,          CAD, */
-        PWM_ACT_NONE, PWM_ACT_NONE, PWM_ACT_NONE,
+        PWM_ACT_NONE, PWM_ACT_LOW, PWM_ACT_NONE,
         /*      CAU,           PRD,         ZRO  */
-        PWM_ACT_LOW, PWM_ACT_NONE,  PWM_ACT_HIGH};
+        PWM_ACT_NONE, PWM_ACT_NONE,  PWM_ACT_HIGH};
 
 #ifdef AIC_USING_PWM0
     hal_pwm_ch_init(0, PWM_MODE_UP_COUNT, 0, &action0, &action1);
@@ -73,7 +73,19 @@ static rt_err_t drv_pwm_set(struct rt_device_pwm *device,
     if (drv_pwm_ch_valid(cfg))
         return -RT_EINVAL;
 
-    if (hal_pwm_set(cfg->channel, cfg->pulse, cfg->period))
+    if (hal_pwm_set(cfg->channel, cfg->pulse, cfg->period, (rt_uint32_t)PWM_SET_CMPA_CMPB))
+        return -RT_ERROR;
+
+    return RT_EOK;
+}
+
+static rt_err_t drv_pwm_set_output(struct rt_device_pwm *device,
+                             struct rt_pwm_configuration *cfg)
+{
+    if (drv_pwm_ch_valid(cfg))
+        return -RT_EINVAL;
+
+    if (hal_pwm_set(cfg->channel, cfg->pulse, cfg->period, cfg->output))
         return -RT_ERROR;
 
     return RT_EOK;
@@ -89,9 +101,9 @@ static rt_err_t drv_pwm_set_pul(struct rt_device_pwm *device,
     g_pulse_para[cfg->channel].duty_ns = cfg->pulse;
     g_pulse_para[cfg->channel].prd_ns = cfg->period;
 
-    hal_pwm_int_config(cfg->channel, cfg->irq_mode, 1);
+    hal_pwm_int_config(cfg->channel, cfg->irq_mode + 4, 1);
 
-    if (hal_pwm_set(cfg->channel, cfg->pulse, cfg->period))
+    if (hal_pwm_set(cfg->channel, cfg->pulse, cfg->period, (rt_uint32_t)PWM_SET_CMPA_CMPB))
         return -RT_ERROR;
 
     hal_pwm_enable(cfg->channel);
@@ -123,6 +135,8 @@ static rt_err_t drv_pwm_control(struct rt_device_pwm *device,
         return drv_pwm_enable(device, cfg, RT_FALSE);
     case PWM_CMD_SET:
         return drv_pwm_set(device, cfg);
+    case PWM_CMD_SET_OUTPUT:
+        return drv_pwm_set_output(device, cfg);
     case PWM_CMD_GET:
         return drv_pwm_get(device, cfg);
     case PWM_CMD_SET_PUL:
@@ -193,7 +207,7 @@ irqreturn_t aic_pwm_irq(int irq, void *arg)
         if (stat & (1 << i)) {
             isr_cnt[i]++;
             if (isr_cnt[i] == g_pulse_para[i].pulse_cnt) {
-                hal_pwm_set(i, g_pulse_para[i].prd_ns, g_pulse_para[i].prd_ns);
+                hal_pwm_set(i, g_pulse_para[i].prd_ns, g_pulse_para[i].prd_ns, (rt_uint32_t)PWM_SET_CMPA_CMPB);
                 hal_pwm_int_config(i, 0, 0);
                 pr_info("\nisr cnt:%d,disabled the pwm%d interrupt now.\n", isr_cnt[i], i);
                 isr_cnt[i] = 0;
@@ -235,4 +249,14 @@ static void cmd_pwm_status(int argc, char **argv)
 
 MSH_CMD_EXPORT_ALIAS(cmd_pwm_status, pwm_status, Show the status of PWM);
 
+static int cmd_pwm_set_tb(int argc, char**argv)
+{
+    if(argc < 3) {
+        printf("usage:pwm_set_tb <channel> <time_base freq>\n");
+        return -RT_ERROR;
+    }
+
+    return hal_pwm_set_tb(atoi(argv[1]), atoi(argv[2]));
+}
+MSH_CMD_EXPORT_ALIAS(cmd_pwm_set_tb, pwm_set_tb, Set the time_base of PWM);
 #endif

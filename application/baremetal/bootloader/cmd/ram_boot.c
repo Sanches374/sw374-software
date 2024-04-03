@@ -28,7 +28,7 @@ static int do_ram_boot(int argc, char *argv[])
     void *la;
     unsigned long addr;
 
-    addr = strtol(argv[1], NULL, 0);
+    addr = strtoul(argv[1], NULL, 0);
     data = (uint8_t *)addr;
     memcpy(&head, data, sizeof(head));
     ret = image_verify_magic((void *)&head, AIC_IMAGE_MAGIC);

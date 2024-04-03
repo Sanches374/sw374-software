@@ -17,8 +17,11 @@ extern "C" {
 #define HAL_QSPI_BUS_WIDTH_SINGLE    1
 #define HAL_QSPI_BUS_WIDTH_DUAL      2
 #define HAL_QSPI_BUS_WIDTH_QUAD      4
-#define HAL_QSPI_MAX_FREQ_HZ         133000000
-#define HAL_QSPI_MIN_FREQ_HZ         3000
+#define HAL_QSPI_MAX_FREQ_HZ         100000000
+#define HAL_QSPI_FPGA_MAX_FREQ_HZ    24000000
+#define HAL_QSPI_INPUT_MIN_FREQ_HZ   32000000
+#define HAL_QSPI_MIN_FREQ_HZ         100000
+#define HAL_QSPI_HZ_PER_MHZ          1000000
 #define HAL_QSPI_CPOL_ACTIVE_HIGH    0
 #define HAL_QSPI_CPOL_ACTIVE_LOW     1
 #define HAL_QSPI_CPHA_FIRST_EDGE     0
@@ -28,6 +31,12 @@ extern "C" {
 
 #define HAL_QSPI_RX_FIFO             0
 #define HAL_QSPI_TX_FIFO             1
+
+#define HAL_QSPI_WAIT_30_US          30
+#define HAL_QSPI_WAIT_PER_CYCLE      HAL_QSPI_WAIT_30_US
+#define HAL_QSPI_DMA_DEV_MAXBURST    8
+#define HAL_QSPI_DMA_MEM_MAXBURST    16
+#define HAL_QSPI_DMA_4BYTES_LINE     4
 
 struct qspi_master_state;
 struct qspi_slave_state;
@@ -48,14 +57,16 @@ struct qspi_master_config {
     u8 cs_polarity;
     u8 cpol;
     u8 cpha;
+    u32 rx_dlymode;
+    u32 tx_dlymode;
 };
 
 struct qspi_master_dma_config {
     u32 port_id;
-    u32 tx_bus_width;
-    u32 tx_max_burst;
-    u32 rx_bus_width;
-    u32 rx_max_burst;
+    u32 mem_bus_width;
+    u32 mem_max_burst;
+    u32 dev_bus_width;
+    u32 dev_max_burst;
 };
 
 struct qspi_slave_config {

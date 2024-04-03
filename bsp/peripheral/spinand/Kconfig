@@ -87,4 +87,10 @@ config SPI_NAND_QUANXING
 	default n
 	help
 	  Enable this driver for QUANXING SPI NAND flash.
+
+config SPI_NAND_XINCUN
+	bool "Support XINCUN SPI NAND"
+	default n
+	help
+	  Enable this driver for XINCUN SPI NAND flash.
 endif

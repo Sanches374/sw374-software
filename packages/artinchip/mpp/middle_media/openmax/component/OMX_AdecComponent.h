@@ -13,7 +13,6 @@
 #include "OMX_CoreExt1.h"
 #include "OMX_Component.h"
 
-
 #include <pthread.h>
 #include <malloc.h>
 #include <string.h>
@@ -47,18 +46,18 @@ typedef struct ADEC_IN_PACKET {
     struct mpp_list  sList;
 }ADEC_IN_PACKET;
 
-#define ADEC_PACKET_ONE_TIME_CREATE_NUM  16
+#define ADEC_PACKET_ONE_TIME_CREATE_NUM  1
 #define ADEC_PACKET_NUM_MAX 128
-//#define ADEC_PACKET_NUM_MAX 64
 
-#define ADEC_FRAME_ONE_TIME_CREATE_NUM 8
-#define ADEC_FRAME_NUM_MAX 32
+#define ADEC_FRAME_ONE_TIME_CREATE_NUM 2
+#define ADEC_FRAME_NUM_MAX 16
 
 #define ADEC_INPORT_STREAM_END_FLAG 0x01 //inprot stream end
 #define ADEC_DECODER_CONSUME_ALL_INPORT_STREAM_FLAG 0x02 // decoder consume all inport stream
 #define ADEC_GET_ALL_FRAME_FREOM_DECODER_FLAG  0x04 // get all frame from decoder to readylist
 #define ADEC_OUTPORT_SEND_ALL_FRAME_FLAG  0x08 // consume all frame in readylist
 
+#define ADEC_BITSTREAM_BUFFER_SIZE (4*1024)
 
 typedef struct ADEC_DATA_TYPE {
     OMX_STATETYPE state;
@@ -95,8 +94,6 @@ typedef struct ADEC_DATA_TYPE {
     OMX_U32 nSendBackFrameOkNum;
     OMX_U32 nSendBackFrameErrorNum;
 
-
-
     OMX_S32 nStreamEndFlag;
     OMX_S32 nDecodeEndFlag;
     OMX_S32 nFrameEndFlag;
@@ -120,7 +117,9 @@ typedef struct ADEC_DATA_TYPE {
     OMX_S8 nWaitForReadyPkt;
     OMX_S8 nWaitForEmptyFrame;
 
+    ADEC_OUT_FRAME *pFrameNodeHead;
+    ADEC_IN_PACKET *pPktNodeHead;
+
 }ADEC_DATA_TYPE;
 
 #endif
-

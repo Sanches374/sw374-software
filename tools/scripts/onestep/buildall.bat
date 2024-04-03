@@ -23,10 +23,10 @@ for /f %%i in ('dir /b "%SDK_PRJ_TOP_DIR%\target\configs\*_defconfig"') do (
 	@echo --------------------------------------------------------------
 	call scons --apply-def=%%i -C %SDK_PRJ_TOP_DIR%
 
-	if "%NEED_CLEAN%" == "clean" call scons -c -C %SDK_PRJ_TOP_DIR%
+	if "%NEED_CLEAN%" == "clean" call scons -c -C %SDK_PRJ_TOP_DIR% -j 8
 
 	echo.
-	call scons -C %SDK_PRJ_TOP_DIR% 2>&1 | tee %LOG_DIR%\!SOLUTION!.log
+	call scons -C %SDK_PRJ_TOP_DIR% -j 8 2>&1 | tee %LOG_DIR%\!SOLUTION!.log
 )
 
 rem Second, parse the build log one by one and show the result

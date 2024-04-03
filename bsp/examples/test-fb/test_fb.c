@@ -311,8 +311,8 @@ int show_color_block(int fd)
     int i, j, color, step, blk_line, pixel_size, width, height, blk_height;
     int colors24[] = {0xFF0000, 0x00FF00, 0x0000FF, 0xFFFFFF};
     int steps24[]  = {0x010000, 0x000100, 0x000001, 0x010101};
-    int colors16[] = {0xF800, 0x07E0, 0x001F, 0xFFFF};
-    int steps16[]  = {0x0800, 0x0020, 0x0001, 0x0821};
+    int colors16[] = {0xF800, 0x07E0, 0x001F, 0xFFDF};
+    int steps16[]  = {0x0800, 0x0020, 0x0001, 0x0841};
     int *colors = colors24;
     int *steps  = steps24;
     char *fb_buf = NULL, *line1 = NULL, *line2 = NULL;
@@ -326,8 +326,6 @@ int show_color_block(int fd)
     if (pixel_size == 2) {
         colors = colors16;
         steps  = steps16;
-    } else {
-        pixel_size = 4;
     }
 
     fb_buf = (char *)s.framebuffer;
@@ -350,10 +348,20 @@ int show_color_block(int fd)
         step = steps[blk_line];
         for (j = 0; j < width; j++) {
             memcpy(&line1[j * pixel_size], &color, pixel_size);
-            color -= step;
+
+            if (pixel_size == 2) {
+                if (j && (j % 4 == 0)) /* Enlarge the step range for RGB564 */
+                    color -= step;
+            } else {
+                color -= step;
+            }
+
             if (color == 0) {
                 color = colors[blk_line];
-                j++;
+                if (pixel_size == 2)
+                    j += 4;
+                else
+                    j++;
             }
         }
         line1 += width * pixel_size;

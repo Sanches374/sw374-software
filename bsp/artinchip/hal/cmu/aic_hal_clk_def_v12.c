@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2022, Artinchip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
@@ -74,7 +74,7 @@ FPCLK(CLK_WDT, "wdt", CLK_OSC32K, PARENT("clk_32k"), CLK_WDT_REG, 12, 8, 0,
       0);
 FPCLK(CLK_SID, "sid", CLK_OSC24M, PARENT("osc24m"), CLK_SID_REG, 12, 8, 0, 0);
 FPCLK(CLK_GTC, "gtc", CLK_APB1, PARENT("apb1"), CLK_GTC_REG, 12, -1, 0, 0);
-FPCLK(CLK_GPIO, "gpio", CLK_APB0, PARENT("apb0"), CLK_GPIO_REG, 12, 8, 0, 5);
+FPCLK(CLK_GPIO, "gpio", CLK_APB0, PARENT("apb0"), CLK_GPIO_REG, 12, -1, 0, 0);
 FPCLK(CLK_UART0, "uart0", CLK_PLL_INT1, PARENT("pll_int1"), CLK_UART0_REG, 12,
       8, 0, 5);
 FPCLK(CLK_UART1, "uart1", CLK_PLL_INT1, PARENT("pll_int1"), CLK_UART1_REG, 12,
@@ -87,16 +87,14 @@ FPCLK(CLK_I2C0, "i2c0", CLK_APB1, PARENT("apb1"), CLK_I2C0_REG, 12, -1, 0, 0);
 FPCLK(CLK_I2C1, "i2c1", CLK_APB1, PARENT("apb1"), CLK_I2C1_REG, 12, -1, 0, 0);
 FPCLK(CLK_CAN0, "can0", CLK_APB1, PARENT("apb1"), CLK_CAN0_REG, 12, -1, 0, 0);
 FPCLK(CLK_CAN1, "can1", CLK_APB1, PARENT("apb1"), CLK_CAN1_REG, 12, -1, 0, 0);
-FPCLK(CLK_PWM, "pwm", CLK_PLL_INT1, PARENT("pll_int1"), CLK_PWM_REG, 12, 8, 0,
-      5);
-FPCLK(CLK_ADCIM, "adcim", CLK_PLL_INT1, PARENT("pll_int1"), CLK_ADCIM_REG, 12,
-      8, 0, 5);
+FPCLK(CLK_PWM, "pwm", CLK_APB1, PARENT("apb1"), CLK_PWM_REG, 12, 8, 0,
+      0);
+FPCLK(CLK_ADCIM, "adcim", CLK_APB1, PARENT("apb1"), CLK_ADCIM_REG, 12,
+      8, 0, 0);
 FPCLK(CLK_GPAI, "gpai", CLK_APB1, PARENT("apb1"), CLK_GPAI_REG, 12, -1, 0, 0);
 FPCLK(CLK_RTP, "rtp", CLK_APB1, PARENT("apb1"), CLK_RTP_REG, 12, -1, 0, 0);
 FPCLK(CLK_TSEN, "tsen", CLK_APB1, PARENT("apb1"), CLK_TSEN_REG, 12, -1, 0, 0);
 FPCLK(CLK_CIR, "cir", CLK_APB1, PARENT("apb1"), CLK_CIR_REG, 12, -1, 0, 0);
-FPCLK(CLK_MDI, "mdi", CLK_PLL_FRA2, PARENT("pll_fra2"), CLK_MDI_REG, 12, 8, 0,
-      5);
 FPCLK(CLK_MTOP, "mtop", CLK_APB0, PARENT("apb0"), CLK_MTOP_REG, 12, -1, 0, 0);
 FPCLK(CLK_SPIENC, "spienc", CLK_AHB0, PARENT("ahb0"), CLK_SPIENC_REG, 12, 8, 0,
       0);
@@ -199,7 +197,6 @@ const struct aic_clk_comm_cfg *aic_clk_cfgs[AIC_CLK_END] = {
     AIC_CLK_CFG(CLK_GPAI),
     AIC_CLK_CFG(CLK_RTP),
     AIC_CLK_CFG(CLK_TSEN),
-    AIC_CLK_CFG(CLK_MDI),
     AIC_CLK_CFG(CLK_CIR),
     AIC_CLK_CFG(CLK_MTOP),
     /* Display clock */

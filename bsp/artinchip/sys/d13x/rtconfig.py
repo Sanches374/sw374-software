@@ -59,7 +59,9 @@ if PLATFORM == 'gcc':
 
     if CPUNAME == 'e906fdp' or CPUNAME == 'e907fdp':
         DEVICE = ' -march=rv32imafdcpzpsfoperand_xtheade -mabi=ilp32d'
+        TOOLCHAIN_LIB = 'rv32imafdc_xtheade'
         M_DEVICE = ' -march=rv32imafdc -mabi=ilp32d'
+        M_TOOLCHAIN_LIB = 'rv32imafdc'
     if CPUNAME == 'e906fp' or CPUNAME == 'e907fp':
         DEVICE = ' -march=rv32imafcpzpsfoperand_xtheade -mabi=ilp32f'
     if CPUNAME == 'e906p' or CPUNAME == 'e907p':
@@ -71,7 +73,7 @@ if PLATFORM == 'gcc':
     if CPUNAME == 'e906' or CPUNAME == 'e907':
         DEVICE = ' -march=rv32imac_xtheade -mabi=ilp32'
 
-    B_CFLAGS  = ' -c -g -ffunction-sections -fdata-sections -Wall -mcmodel=medlow'
+    B_CFLAGS  = ' -c -g -ffunction-sections -fdata-sections -Wall -mcmodel=medany'
     B_AFLAGS  = ' -c' + ' -x assembler-with-cpp' + ' -D__ASSEMBLY__'
     CFLAGS  = DEVICE + B_CFLAGS + CFLAGS_DBG
     AFLAGS  = DEVICE + B_AFLAGS + AFLAGS_DBG

@@ -11,8 +11,8 @@
 #include <string.h>
 #include <config_parse.h>
 
-static u32 boot_cfg_get_key_val(char *cfgtxt, u32 len, const char *key,
-                                u32 klen, char *val, u32 vlen)
+u32 boot_cfg_get_key_val(char *cfgtxt, u32 len, const char *key, u32 klen,
+                         char *val, u32 vlen)
 {
     u32 idx = 0, cnt = 0;
 
@@ -51,7 +51,7 @@ static u32 boot_cfg_get_key_val(char *cfgtxt, u32 len, const char *key,
 
         /* Now it is clean, get value */
         cnt = 0;
-        while ((idx < len) && (cfgtxt[idx] != '\n')) {
+        while ((idx < len) && (cfgtxt[idx] != '\r') && (cfgtxt[idx] != '\n')) {
             val[cnt] = cfgtxt[idx];
             cnt++;
             idx++;
@@ -129,6 +129,13 @@ int boot_cfg_parse_file(char *cfgtxt, u32 clen, char *key, char *fname,
 
     printf("0x%x @ %s\n", (u32)(*offset), fname);
     return vlen;
+}
+
+int boot_cfg_get_boot0(char *cfgtxt, u32 clen, char *name, u32 nsiz,
+                       ulong *offset, ulong *boot1len)
+{
+    return boot_cfg_parse_file(cfgtxt, clen, "boot0", name, nsiz, offset,
+                               boot1len);
 }
 
 int boot_cfg_get_boot1(char *cfgtxt, u32 clen, char *name, u32 nsiz,

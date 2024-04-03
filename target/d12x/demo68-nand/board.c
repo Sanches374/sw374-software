@@ -45,7 +45,7 @@ struct aic_memheap aic_memheaps[] = {
     #endif
 #endif
 #ifdef AIC_PSRAM_CMA_EN
-    {MEM_PSRAM_CMA, "heap_cma", (void *)&__psram_cma_heap_start, (void *)&__psram_cma_heap_end},
+    {MEM_CMA, "heap_cma", (void *)&__cma_heap_start, (void *)&__cma_heap_end},
 #endif
 };
 

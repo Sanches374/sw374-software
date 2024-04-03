@@ -113,21 +113,20 @@ typedef struct {
 } SKE_CTX;
 
 //APIs
-s32 ske_init(void);
-u32 ske_get_version(void);
-void ske_reset(void);
-void ske_set_endian_uint32(void);
-void ske_set_crypto(SKE_CRYPTO crypto);
-void ske_set_alg(SKE_ALG ske_alg);
-void ske_set_mode(SKE_MODE mode);
-u32 ske_set_seed(void);
-u32 ske_check_runtime_alarm(void);
-u32 ske_check_config(void);
-void ske_start(void);
-u32 ske_wait_till_done(void);
-void ske_set_key_uint32(u32 *key, u32 idx, u32 key_words);
-void ske_set_iv_uint32(u32 mode, u32 *iv, u32 block_words);
-void ske_simple_set_input_block(u32 *in, u32 block_words);
-void ske_simple_get_output_block(u32 *out, u32 block_words);
+u32 ske_sec_get_version(void);
+void ske_sec_reset(void);
+void ske_sec_set_endian_uint32(void);
+void ske_sec_set_crypto(SKE_CRYPTO crypto);
+void ske_sec_set_alg(SKE_ALG ske_alg);
+void ske_sec_set_mode(SKE_MODE mode);
+u32 ske_sec_set_seed(void);
+u32 ske_sec_check_runtime_alarm(void);
+u32 ske_sec_check_config(void);
+void ske_sec_start(void);
+u32 ske_sec_wait_till_done(void);
+void ske_sec_set_key_uint32(u32 *key, u32 idx, u32 key_words);
+void ske_sec_set_iv_uint32(u32 mode, u32 *iv, u32 block_words);
+void ske_sec_simple_set_input_block(u32 *in, u32 block_words);
+void ske_sec_simple_get_output_block(u32 *out, u32 block_words);
 
 #endif

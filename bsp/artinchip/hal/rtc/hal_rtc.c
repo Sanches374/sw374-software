@@ -57,7 +57,34 @@
 
 #define RTC_CAL1_FAST_DIR               BIT(7)
 
+#define RTC_ANA0_RC1M_ISEL              BIT(7)
+#define RTC_ANA0_RC1M_EN                BIT(6)
+#define RTC_ANA0_LDO18_BYPASS           BIT(4)
+#define RTC_ANA0_LDO18_VOL_MASK         GENMASK(3, 1)
+#define RTC_ANA0_LDO18_VOL_SHIFT        (1)
+#define RTC_ANA0_LDO18_EN               BIT(0)
+
+#define RTC_ANA0_LDO18_VOL_120          7
+
+#define RTC_ANA1_PD_CUR_SEL_MASK        GENMASK(6, 5)
+#define RTC_ANA1_PD_CUR_SEL_SHIFT       (5)
+#define RTC_ANA1_PD_CUR_EN              BIT(4)
+#define RTC_ANA1_LDO11_VOL_MASK         GENMASK(3, 1)
+#define RTC_ANA1_LDO11_VOL_SHIFT        (1)
+#define RTC_ANA1_LDO11_LPEN             BIT(0)
+
+#define RTC_ANA1_PD_CUR_SEL_025         0
+#define RTC_ANA1_PD_CUR_SEL_050         1
+#define RTC_ANA1_PD_CUR_SEL_075         2
+#define RTC_ANA1_PD_CUR_SEL_100         3
+
+#define RTC_ANA1_LDO11_VOL_090          4
+#define RTC_ANA1_LDO11_VOL_080          6
+
 #define RTC_ANA2_XTAL32K_DRV_MASK       GENMASK(3, 0)
+
+#define RTC_ANA3_LDO12_XTAL32K_SW       BIT(1)
+#define RTC_ANA3_XTAL32K_EN             BIT(0)
 
 #define RTC_32K_DET_EN                  BIT(0)
 
@@ -290,8 +317,25 @@ void hal_rtc_set_alarm(u32 sec)
 
 static void hal_rtc_low_power(void)
 {
-    RTC_WRITEB(0x4f, RTC_REG_ANALOG0);
-    RTC_WRITEB(0x4d, RTC_REG_ANALOG1);
+    u8 val = 0;
+
+    val |= RTC_ANA0_RC1M_EN | RTC_ANA0_LDO18_EN;
+    val |= RTC_ANA0_LDO18_VOL_120 << RTC_ANA0_LDO18_VOL_SHIFT;
+    RTC_WRITEB(val, RTC_REG_ANALOG0);
+
+    val = RTC_ANA1_PD_CUR_SEL_075 << RTC_ANA1_PD_CUR_SEL_SHIFT;
+    val |= RTC_ANA1_LDO11_VOL_090 << RTC_ANA1_LDO11_VOL_SHIFT;
+    val |= RTC_ANA1_LDO11_LPEN;
+    RTC_WRITEB(val, RTC_REG_ANALOG1);
+
+#ifdef AIC_RTC_DRV_V11
+    val = RTC_ANA3_LDO12_XTAL32K_SW | RTC_ANA3_XTAL32K_EN;
+    RTC_WRITEB(val, RTC_REG_ANALOG3);
+
+    val = RTC_ANA0_RC1M_EN;
+    val |= RTC_ANA0_LDO18_VOL_120 << RTC_ANA0_LDO18_VOL_SHIFT;
+    RTC_WRITEB(val, RTC_REG_ANALOG0);
+#endif
 }
 
 s32 hal_rtc_register_callback(rtc_callback_t callback)

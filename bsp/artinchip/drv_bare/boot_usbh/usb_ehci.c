@@ -837,7 +837,7 @@ int usbh_portchange_wait(int id)
     volatile struct ehci_hcor_s *hcor;
 
 #ifdef AICUPG_UDISK_VERSION3_SUPPORT
-    timeout = 150000; // Some Udisk need to wait for more than 1s
+    timeout = 1000000; // Some Udisk need to wait for more than 1s
 #else
     timeout = 1000;
 #endif

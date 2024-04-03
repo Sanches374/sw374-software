@@ -252,6 +252,11 @@ aic_i2c_read_data_cmd_with_restart_stop_bit(unsigned long reg_base)
 static inline void
 aic_i2c_read_data_cmd_with_restart_bit(unsigned long reg_base)
 {
+    uint32_t reg_val;
+
+    reg_val = readl(reg_base + I2C_CTL);
+    reg_val |= I2C_CTL_RESTART_ENABLE;
+    writel(reg_val, reg_base + I2C_CTL);
     writel(I2C_DATA_CMD_READ | I2C_DATA_CMD_RESTART, reg_base + I2C_DATA_CMD);
 }
 
@@ -273,6 +278,11 @@ static inline unsigned long aic_i2c_set_restart_bit(unsigned long reg_val)
 static inline void aic_i2c_set_restart_bit_with_data(unsigned long reg_base,
                                                      uint8_t data)
 {
+    uint32_t reg_val;
+
+    reg_val = readl(reg_base + I2C_CTL);
+    reg_val |= I2C_CTL_RESTART_ENABLE;
+    writel(reg_val, reg_base + I2C_CTL);
     writel(data | I2C_DATA_CMD_RESTART, reg_base + I2C_DATA_CMD);
 }
 
@@ -405,9 +415,10 @@ void aic_i2c_target_addr(unsigned long reg_base, uint32_t addr);
 */
 int aic_i2c_slave_own_addr(unsigned long reg_base, uint32_t addr);
 
-int32_t aic_i2c_master_send_msg(unsigned long reg_base, struct aic_i2c_msg *msg);
+int32_t aic_i2c_master_send_msg(unsigned long reg_base,
+                                struct aic_i2c_msg *msg, uint8_t is_last_message);
 int32_t aic_i2c_master_receive_msg(unsigned long reg_base,
-                                   struct aic_i2c_msg *msg);
+                                   struct aic_i2c_msg *msg, uint8_t is_last_message);
 
 #ifdef __cplusplus
 }

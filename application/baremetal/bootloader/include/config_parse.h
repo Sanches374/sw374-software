@@ -20,10 +20,14 @@ extern "C" {
 
 int boot_cfg_parse_file(char *cfgtxt, u32 clen, char *key, char *fname,
                         u32 nsiz, ulong *offset, ulong *flen);
+int boot_cfg_get_boot0(char *cfgtxt, u32 clen, char *name, u32 nsiz,
+                       ulong *offset, ulong *boot1len);
 int boot_cfg_get_boot1(char *cfgtxt, u32 clen, char *name, u32 nsiz,
                        ulong *offset, ulong *boot1len);
 int boot_cfg_get_image(char *cfgtxt, u32 clen, char *name, u32 nsiz);
 int boot_cfg_get_protection(char *cfgtxt, u32 clen, char *name, u32 nsiz);
+u32 boot_cfg_get_key_val(char *cfgtxt, u32 len, const char *key, u32 klen,
+                         char *val, u32 vlen);
 
 #ifdef __cplusplus
 }

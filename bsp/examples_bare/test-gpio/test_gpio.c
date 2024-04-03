@@ -15,8 +15,10 @@
 #include <aic_core.h>
 #include "aic_common.h"
 
-#define TEST_GPIO_INPUT_PIN     ("PD.15")
-#define GPIO_PINS_NUM_PER_GROUP 32
+#define TEST_GPIO_INPUT_PIN         ("PD.15")
+#define GPIO_PINS_NUM_PER_GROUP     32
+#define GPIO_NO_SET_MODE_FLAG       1
+#define GPIO_SET_MODE_FLAG          0
 
 u32 rising_time_point = 0;
 u32 falling_time_point = 0;
@@ -30,6 +32,7 @@ static void cmd_gpio_usage(void)
     printf("Usage: test_gpio [options]\n");
     printf("test_gpio input <PIN>      : Configure PIN as input-pin, and print pressed count. Default as PD.15\n");
     printf("test_gpio output <PIN>     : Configure PIN as output-pin\n");
+    printf("test_gpio check <PIN>      : Check PIN configuration status\n");
     printf("test_gpio help             : Get this help\n");
     printf("\n");
     printf("Example: test_gpio input PD.4\n");
@@ -70,14 +73,15 @@ irqreturn_t gpio_input_irq_handler(int irq, void *args)
     return IRQ_HANDLED;
 }
 
-static u32 test_gpio_pin_check(char *arg_pin)
+static u32 test_gpio_pin_check(char *arg_pin, int set_mode_flag)
 {
     u32 pin;
     if (arg_pin == NULL || strlen(arg_pin) == 0) {
         printf("pin set default PD.15\n");
         pin = hal_gpio_name2pin(TEST_GPIO_INPUT_PIN);
     } else {
-        printf("pin set: [%s]\n", arg_pin);
+        if (set_mode_flag)
+            printf("pin set      : [%s]\n", arg_pin);
         pin = hal_gpio_name2pin(arg_pin);
     }
 
@@ -85,10 +89,78 @@ static u32 test_gpio_pin_check(char *arg_pin)
 }
 
 
+static int cmd_gpio_get_pin_cfg_status(int argc, char **argv)
+{
+    int ret;
+    u32 pin;
+    pin = test_gpio_pin_check(argv[1], GPIO_NO_SET_MODE_FLAG);
+    g = GPIO_GROUP(pin);
+    p = GPIO_GROUP_PIN(pin);
+
+    ret = hal_gpio_get_pincfg(g, p, GPIO_CHECK_PIN_FUN);
+    printf("pin funtion  : [%d]\n", ret);
+
+    ret = hal_gpio_get_pincfg(g, p, GPIO_CHECK_GEN_IRQ_MODE);
+    switch(ret) {
+    case PIN_IRQ_MODE_EDGE_FALLING:
+        printf("irq mode     : edge falling\n");
+        break;
+    case PIN_IRQ_MODE_EDGE_RISING:
+        printf("irq mode     : edge rising\n");
+        break;
+    case PIN_IRQ_MODE_LEVEL_LOW:
+        printf("irq mode     : level low\n");
+        break;
+    case PIN_IRQ_MODE_LEVEL_HIGH:
+        printf("irq mode     : level high\n");
+        break;
+    case PIN_IRQ_MODE_EDGE_BOTH:
+        printf("irq mode     : edge both\n");
+        break;
+    default:
+        printf("irq mode     : Unknown(%d)\n", ret);
+        break;
+    }
+
+    ret = hal_gpio_get_pincfg(g, p, GPIO_CHECK_PIN_GEN_PIN_DRV);
+    switch(ret) {
+    case PIN_PULL_DIS:
+        printf("pull mode    : disabled\n");
+        break;
+    case PIN_PULL_DOWN:
+        printf("pull mode    : down\n");
+        break;
+    case PIN_PULL_UP:
+        printf("pull mode    : up\n");
+        break;
+    default:
+        printf("pull mode    : Unknown(%d)\n", ret);
+        break;
+    }
+
+    ret = hal_gpio_get_pincfg(g, p, GPIO_CHECK_PIN_GEN_IE);
+    if (ret < 0) {
+        printf("input enable : disabled\n");
+    } else {
+        printf("input enable : enabled\n");
+    }
+
+    ret = hal_gpio_get_pincfg(g, p, GPIO_CHECK_PIN_GEN_OE);
+    if (ret < 0) {
+        printf("output enable: disabled\n");
+    } else {
+        printf("output enable: enabled\n");
+    }
+
+    return 0;
+}
+
+
 static int cmd_gpio_input_pin_cfg(int argc, char **argv)
 {
+    int ret;
     u32 pin;
-    pin = test_gpio_pin_check(argv[1]);
+    pin = test_gpio_pin_check(argv[1], GPIO_SET_MODE_FLAG);
     g = GPIO_GROUP(pin);
     p = GPIO_GROUP_PIN(pin);
 
@@ -99,13 +171,22 @@ static int cmd_gpio_input_pin_cfg(int argc, char **argv)
     aicos_request_irq(GPIO_IRQn + g, gpio_input_irq_handler, 0, "pin_group", NULL);
     aicos_irq_enable(GPIO_IRQn + g);
     hal_gpio_enable_irq(g, p);
+    cmd_gpio_get_pin_cfg_status(argc, argv);
+    ret = hal_gpio_get_pincfg(g, p, GPIO_CHECK_PIN_GEN_IE);
+    if (ret < 0) {
+        printf("Set the input pin failed\n");
+    } else {
+        printf("Set the input pin successfully\n");
+    }
+
     return 0;
 }
 
 static int cmd_gpio_output_pin_cfg(int argc, char **argv)
 {
+    int ret;
     u32 pin;
-    pin = test_gpio_pin_check(argv[1]);
+    pin = test_gpio_pin_check(argv[1], GPIO_SET_MODE_FLAG);
     g = GPIO_GROUP(pin);
     p = GPIO_GROUP_PIN(pin);
 
@@ -117,6 +198,13 @@ static int cmd_gpio_output_pin_cfg(int argc, char **argv)
         hal_gpio_clr_output(g, p);
         aicos_mdelay(50);
         hal_gpio_set_output(g, p);
+        cmd_gpio_get_pin_cfg_status(argc, argv);
+        ret = hal_gpio_get_pincfg(g, p, GPIO_CHECK_PIN_GEN_OE);
+        if (ret < 0) {
+            printf("Set the output pin failed\n");
+        } else {
+            printf("Set the output pin successfully\n");
+        }
         aicos_mdelay(50);
     }
     return 0;
@@ -136,6 +224,11 @@ static int cmd_test_gpio(int argc, char *argv[])
 
     if (!strcmp(argv[1], "output")) {
         cmd_gpio_output_pin_cfg(argc - 1, &argv[1]);
+        return 0;
+    }
+
+    if (!strcmp(argv[1], "check")) {
+        cmd_gpio_get_pin_cfg_status(argc - 1, &argv[1]);
         return 0;
     }
 

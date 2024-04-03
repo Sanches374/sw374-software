@@ -64,9 +64,32 @@ static void aic_rgb_swap(void)
     struct aic_rgb_comp *comp = aic_rgb_request_drvdata();
     struct panel_rgb *rgb = comp->panel->rgb;
 
+#if defined (AIC_DISP_RGB_DRV_V10) || defined (AIC_DISP_RGB_DRV_V11)
     if (rgb->data_mirror)
         reg_set_bits(comp->regs + RGB_DATA_SEQ_SEL,
             RGB_DATA_OUT_SEL_MASK, RGB_DATA_OUT_SEL(7));
+#endif
+
+#ifdef AIC_DISP_RGB_DRV_V12
+    if (rgb->data_mirror) {
+        reg_set_bits(comp->regs + RGB_DATA_SEQ_SEL,
+            RGB_DATA_OUT_SEL_MASK, RGB_DATA_OUT_SEL(7));
+        switch(rgb->format) {
+        case SRGB_6BIT:
+            reg_set_bits(comp->regs + RGB_DATA_SEQ_SEL,
+                RGB_DATA_OUT_SEL_VALID_MASK, RGB_DATA_OUT_SEL_VALID_6BITS);
+            break;
+        case SRGB_8BIT:
+            reg_set_bits(comp->regs + RGB_DATA_SEQ_SEL,
+                RGB_DATA_OUT_SEL_VALID_MASK, RGB_DATA_OUT_SEL_VALID_8BITS);
+            break;
+        default:
+            pr_err("Invalid mode\n");
+            break;
+        }
+    }
+
+#endif
 
     if (rgb->data_order)
         reg_write(comp->regs + RGB_DATA_SEL, rgb->data_order);

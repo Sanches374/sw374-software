@@ -12,26 +12,27 @@
 #include "mpp_dec_type.h"
 
 enum aic_audio_codec_type {
-	MPP_CODEC_AUDIO_DECODER_UNKOWN = -1,
-	MPP_CODEC_AUDIO_DECODER_MP3,         // decoder
-	MPP_CODEC_AUDIO_DECODER_AAC,
+    MPP_CODEC_AUDIO_DECODER_UNKOWN = -1,
+    MPP_CODEC_AUDIO_DECODER_MP3,         // decoder
+    MPP_CODEC_AUDIO_DECODER_AAC,
+    MPP_CODEC_AUDIO_DECODER_PCM,
 };
 
 struct aic_audio_frame {
-	s32  sample_rate;
-	s32  bits_per_sample;
-	s32  channels;
-	s64  pts;
-	s32  id;
-	void  *data;
-	u32  size;
-	u32  flag;
+    s32  sample_rate;
+    s32  bits_per_sample;
+    s32  channels;
+    s64  pts;
+    s32  id;
+    void  *data;
+    u32  size;
+    u32  flag;
 };
 
 struct aic_audio_decode_config {
-	s32 packet_buffer_size;				// video bytestream size
-	s32 packet_count;				// packet buffer count
-	s32 frame_count;				// packet buffer count
+    s32 packet_buffer_size;				// video bytestream size
+    s32 packet_count;				// packet buffer count
+    s32 frame_count;				// packet buffer count
 };
 
 struct aic_audio_decoder;

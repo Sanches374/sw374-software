@@ -73,6 +73,8 @@ typedef unsigned long ptr_t;
 #define aic_isspace(c)  ((c) == ' ' || (c) == '\f' || (c) == '\n' \
                         || (c) == '\r' || (c) == '\t' || (c) == '\v')
 
+#define aic_convert_tx_dlymode(c, d)  (((c > 4) ? 0 : c) | (d ? 1UL << 14 : 0))
+
 #ifndef CHECK_PARAM
 #define CHECK_PARAM(x, ret) \
     do { \
@@ -218,6 +220,7 @@ typedef unsigned long ptr_t;
 #define DIV_ROUND_UP(n, d) (((n) + (d)-1) / (d))
 #define ROUNDUP(a, b)      ((((a)-1) / (b) + 1) * (b))
 #define ROUND(a, b)        (((a) + (b)-1) & ~((b)-1))
+#define ROUNDDOWN(a, b)    ((a) & ~((b) - 1))
 
 #define roundup(x, y) (                 \
 {                           \

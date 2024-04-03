@@ -82,9 +82,12 @@
 #define RTP_FCR_OF_IE                   BIT(1)
 #define RTP_FCR_FLUSH                   BIT(0)
 
+#define RTP_DATA_UP_FLAG                BIT(20)
 #define RTP_DATA_CH_NUM_SHIFT           12
 #define RTP_DATA_CH_NUM_MASK            GENMASK(13, 12)
 #define RTP_DATA_DATA_MASK              GENMASK(11, 0)
+
+#define RTP_DOWN_PRESS_FLAG             1
 
 enum aic_rtp_vref_minus_sel {
     RTP_VREF_MINUS_2_GND = 0,
@@ -183,10 +186,12 @@ static u32 rtp_ms2itv(u32 pclk_rate, u32 ms)
     return tmp;
 }
 
+#if 0
 static s32 rtp_is_rise(void)
 {
     return readl(RTP_MCR) & RTP_MCR_RISE_STS ? 1 : 0;
 }
+#endif
 
 static void rtp_reg_enable(int offset, int bit, int enable)
 {
@@ -205,9 +210,9 @@ static void rtp_fifo_flush(void)
     u32 sta = readl(RTP_FCR);
 
     if (sta & RTP_FCR_UF_FLAG)
-        pr_err("FIFO is Underflow!%#x\n", sta);
+        pr_debug("FIFO is Underflow!%#x\n", sta);
     if (sta & RTP_FCR_OF_FLAG)
-        pr_err("FIFO is Overflow!%#x\n", sta);
+        pr_debug("FIFO is Overflow!%#x\n", sta);
 
     writel(sta | RTP_FCR_FLUSH, RTP_FCR);
 }
@@ -226,7 +231,8 @@ void hal_rtp_enable(struct aic_rtp_dev *rtp, int en)
 #if defined(CONFIG_ARTINCHIP_ADCIM_DM)
     writel(0, RTP_PDEB);
 #else
-    writel(rtp->pdeb, RTP_PDEB);
+    writel(0xffffffff , RTP_PCTL);
+    writel(0xff0fff0f, RTP_PDEB);
 #endif
 
     if (rtp->mode != RTP_MODE_MANUAL) {
@@ -262,7 +268,7 @@ static void rtp_fifo_init(enum aic_rtp_mode mode, u32 smp_period)
         break;
     case RTP_MODE_AUTO2:
         if (smp_period)
-            thd = 12;
+            thd = 4;
         else
             thd = 4;
         break;
@@ -287,7 +293,7 @@ static u32 rtp_press_calc(struct aic_rtp_dev *rtp)
     struct aic_rtp_dat *dat = &rtp->latest;
     u32 pressure = rtp->x_plate * dat->x_minus / AIC_RTP_VAL_RANGE;
 
-    if (rtp->y_plate) {
+    if (rtp->y_plate && rtp->mode != RTP_MODE_AUTO2) {
         pressure = pressure * (AIC_RTP_VAL_RANGE - dat->z_a) / dat->z_a;
         pressure -= rtp->y_plate * (AIC_RTP_VAL_RANGE - dat->y_minus)
                 / AIC_RTP_VAL_RANGE;
@@ -296,7 +302,7 @@ static u32 rtp_press_calc(struct aic_rtp_dev *rtp)
     }
     pr_debug("Current pressure: %d\n", pressure);
 
-    if (pressure > rtp->max_press) {
+    if (pressure > rtp->max_press || pressure < AIC_RTP_INVALID_MIN_VAL) {
         pr_debug("Invalid pressure %d\n", pressure);
         pressure = AIC_RTP_INVALID_VAL;
     }
@@ -307,27 +313,38 @@ static u32 rtp_press_calc(struct aic_rtp_dev *rtp)
 #endif
 }
 
-static void rtp_report_abs(struct aic_rtp_dev *rtp, u16 down)
+static void rtp_report_abs(struct aic_rtp_dev *rtp, u16 down_event)
 {
     struct aic_rtp_dat *dat = &rtp->latest;
     struct aic_rtp_event e = {0};
+    int down = 0;
 
     if (dat->x_minus == AIC_RTP_INVALID_VAL || dat->y_minus == AIC_RTP_INVALID_VAL)
-        e.down = 0;
+        return;
 
     if (rtp->pressure_det) {
         int pressure = rtp_press_calc(rtp);
 
-        if (pressure == AIC_RTP_INVALID_VAL)
-            e.down = 0;
+    pr_debug("[original] down %d, pressure %d\n", down_event, pressure);
 
-        e.pressure = pressure;
+        if (down_event == 0)
+            down =  0;
+        else if (pressure != AIC_RTP_INVALID_VAL)
+            down = 1;
+        else if (pressure == AIC_RTP_INVALID_VAL)
+            return;
+
+        if (down_event == 0)
+            e.pressure = 0;
+        else
+            e.pressure = pressure;
     }
 
     e.x = dat->x_minus;
     e.y = dat->y_minus;
     e.down = down;
     e.timestamp = dat->timestamp;
+    pr_debug("[now] down %d, pressure %d\n", e.down, e.pressure);
 
     hal_rtp_ebuf_write(&rtp->ebuf, &e);
 
@@ -375,20 +392,15 @@ static void rtp_report_abs_auto1(struct aic_rtp_dev *rtp, u16 *ori, u32 cnt)
 /* Data format: XN, YN, ZA, ZB */
 static void rtp_report_abs_auto2(struct aic_rtp_dev *rtp, u16 *ori, u32 cnt)
 {
-    u32 i = 0;
     struct aic_rtp_dat *latest = &rtp->latest;
 
-    for (i = 0; i < cnt; ) {
-        latest->x_minus = ori[i];
-        latest->y_minus = ori[i + 1];
-        latest->z_a = ori[i + 2];
-        latest->z_b = ori[i + 3];
-        rtp_report_abs(rtp, 1);
-
-        i += 4;
-        pr_debug("X %d, Y %d, ZA %d ZB %d\n", latest->x_minus, latest->y_minus,
+    latest->x_minus = ori[0];
+    latest->y_minus = ori[1];
+    latest->z_a = ori[2];
+    latest->z_b = ori[3];
+    rtp_report_abs(rtp, 1);
+    pr_debug("X %d, Y %d, ZA %d ZB %d\n", latest->x_minus, latest->y_minus,
                  latest->z_a, latest->z_b);
-    }
 }
 
 static s32 rtp_distance_is_far(struct aic_rtp_dat *latest)
@@ -576,10 +588,7 @@ irqreturn_t hal_rtp_isr(int irq, void *arg)
     pr_debug("INTS %#x, FCR %#x, Pressed %d\n", intr, fcr, !rtp_is_rise());
     if ((intr & RTP_INTR_PRES_DET_FLG) && (intr & RTP_INTR_RISE_DET_FLG)) {
         pr_debug("Press&rise happened at the same time!\n");
-        if (rtp_is_rise())
-            intr &= ~RTP_INTR_PRES_DET_FLG;
-        else
-            intr &= ~RTP_INTR_RISE_DET_FLG;
+        goto irq_clean_fifo;
     }
 
     if (intr & RTP_INTR_SCI_FLG) {
@@ -595,17 +604,17 @@ irqreturn_t hal_rtp_isr(int irq, void *arg)
     if (intr & RTP_INTR_FIFO_FLG) {
         /* When FIFO is overflow, the FIFO data is valid, so read it */
         if (!(fcr & RTP_FCR_OF_FLAG) || !(intr & RTP_INTR_RISE_DET_FLG)) {
-            pr_err("FIFO error, flush the FIFO ...\n");
+            pr_debug("FIFO error, flush the FIFO ...\n");
             goto irq_clean_fifo;
         }
     }
 
-    if (intr & RTP_INTR_RISE_DET_FLG)
-        rtp_report_abs(rtp, 0);
-
     if (intr & RTP_INTR_DRDY_FLG)
         aic_rtp_read_fifo(rtp, (fcr & RTP_FCR_DAT_CNT_MASK)
-                          >> RTP_FCR_DAT_CNT_SHIFT);
+                              >> RTP_FCR_DAT_CNT_SHIFT);
+
+    if (intr & RTP_INTR_RISE_DET_FLG)
+        rtp_report_abs(rtp, 0);
 
     goto irq_done;
 
@@ -638,6 +647,9 @@ s32 hal_rtp_ebuf_write(struct aic_rtp_ebuf *ebuf, struct aic_rtp_event *e)
     }
 
     memcpy(&ebuf->event[ebuf->wr_pos], e, sizeof(struct aic_rtp_event));
+    pr_debug("[wr_pos %d] x %d y %d\n", ebuf->wr_pos,
+             ebuf->event[ebuf->wr_pos].x, ebuf->event[ebuf->wr_pos].y);
+
     ebuf->wr_pos++;
 
     if (ebuf->wr_pos >= AIC_RTP_EVT_BUF_SIZE)
@@ -653,6 +665,9 @@ s32 hal_rtp_ebuf_read(struct aic_rtp_ebuf *ebuf, struct aic_rtp_event *e)
         return -1;
     }
 
+    pr_debug("[rd_pos %d] x %d y %d\n",ebuf->rd_pos,
+             ebuf->event[ebuf->rd_pos].x, ebuf->event[ebuf->rd_pos].y);
+
     memcpy(e, &ebuf->event[ebuf->rd_pos], sizeof(struct aic_rtp_event));
     ebuf->rd_pos++;
     if (ebuf->rd_pos >= AIC_RTP_EVT_BUF_SIZE)
@@ -667,6 +682,14 @@ s32 hal_rtp_ebuf_sync(struct aic_rtp_ebuf *ebuf)
         ebuf->rd_pos = ebuf->wr_pos - 1;
     else
         ebuf->rd_pos = AIC_RTP_EVT_BUF_SIZE - 1;
+    return 0;
+}
+
+s32 hal_rtp_ebuf_init(struct aic_rtp_ebuf *ebuf)
+{
+    ebuf->rd_pos = 0;
+    ebuf->wr_pos = 0;
+
     return 0;
 }
 
@@ -688,6 +711,7 @@ s32 hal_rtp_clk_init(void)
     return ret;
 }
 
+#if 0
 u32 hal_rtp_pdeb_valid_check(struct aic_rtp_dev *rtp)
 {
     int psi, debdc, debdc_max;
@@ -707,3 +731,4 @@ u32 hal_rtp_pdeb_valid_check(struct aic_rtp_dev *rtp)
         debdc = psi;
     return debdc;
 }
+#endif

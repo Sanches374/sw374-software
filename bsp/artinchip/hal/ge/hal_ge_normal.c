@@ -1592,7 +1592,7 @@ int hal_ge_init(void)
 {
     struct aic_ge_data *data;
 
-    hal_log_info("%s()\n", __func__);
+    hal_log_debug("%s()\n", __func__);
 
     data = aicos_malloc(GE_DEFAULT, sizeof(struct aic_ge_data));
     if (!data)
@@ -1617,14 +1617,14 @@ int hal_ge_init(void)
     int dither_line_size_align = ALIGN_UP((MAX_WIDTH * 4), CACHE_LINE_SIZE);
     aicos_dcache_clean_invalid_range((unsigned long *)(data->dither_line_phys), dither_line_size_align);
 
-    hal_log_info("dither line phys :0X0%08x\n", (u32)data->dither_line_phys);
+    hal_log_info("dither line phys: 0x%08X\n", (u32)data->dither_line_phys);
 #endif
     g_data = data;
 
 #ifndef CTRL_GE_CLK_IN_FRAME
     ge_clk_enable(data);
 #endif
-    hal_log_info("%s() end\n", __func__);
+    hal_log_debug("%s() end\n", __func__);
 
     return 0;
 }

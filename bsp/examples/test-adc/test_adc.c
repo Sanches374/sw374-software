@@ -117,17 +117,17 @@ static void gpai_check_adc_by_cpu(void)
 
     for(i = 0;i < ADC_TEST_DATA_COUNT;i++) {
         if (g_cur_data[i] != g_expect_data[i]) {
-            printf("[%d] Failed%d/%d\n", i, g_cur_data[i], g_expect_data[i]);
+            rt_kprintf("[%d] Failed%d/%d\n", i, g_cur_data[i], g_expect_data[i]);
             failed_count++;
         } else {
-            printf("[%d] OK! %d/%d\n",i, g_cur_data[i], g_expect_data[i]);
+            rt_kprintf("[%d] OK! %d/%d\n",i, g_cur_data[i], g_expect_data[i]);
         }
     }
 
     if (!failed_count)
-        printf("All data is OK. Test Successfully!\n");
+        rt_kprintf("All data is OK. Test Successfully!\n");
     else
-        printf("%d data is incorrect. Test Failed!\n", failed_count);
+        rt_kprintf("%d data is incorrect. Test Failed!\n", failed_count);
 
     aicos_msleep(10);
 }
@@ -191,17 +191,17 @@ static void gpai_check_adc_by_dma(void)
 
     for(i = 0; i < ADC_TEST_DATA_COUNT; i++) {
         if (dma_data[i] != g_expect_data[i]) {
-            printf("[%d] Failed%d/%d\n", i, dma_data[i], g_expect_data[i]);
+            rt_kprintf("[%d] Failed%d/%d\n", i, dma_data[i], g_expect_data[i]);
             failed_count++;
         } else {
-            printf("[%d] OK! %d/%d\n",i, dma_data[i], g_expect_data[i]);
+            rt_kprintf("[%d] OK! %d/%d\n",i, dma_data[i], g_expect_data[i]);
         }
     }
 
     if (!failed_count)
-        printf("All data is OK. Test Successfully!\n");
+        rt_kprintf("All data is OK. Test Successfully!\n");
     else
-        printf("%d data is incorrect. Test Failed!\n", failed_count);
+        rt_kprintf("%d data is incorrect. Test Failed!\n", failed_count);
 
     aicos_msleep(10);
 }

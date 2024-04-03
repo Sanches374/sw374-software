@@ -62,6 +62,7 @@ doskey list=scons --list-def -C %SDK_PRJ_TOP_DIR%
 doskey m=scons -C %SDK_PRJ_TOP_DIR% -j 8
 doskey c=scons -c -C %SDK_PRJ_TOP_DIR%
 doskey i=scons --info -C %SDK_PRJ_TOP_DIR%
+doskey aicupg=scons --aicupg -C %SDK_PRJ_TOP_DIR%
 doskey croot=cd /d %SDK_PRJ_TOP_DIR%
 doskey cr=cd /d %SDK_PRJ_TOP_DIR%
 doskey cb=cbuild

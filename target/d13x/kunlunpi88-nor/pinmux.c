@@ -193,6 +193,78 @@ struct aic_pinmux aic_pinmux_config[] = {
     {2, PIN_PULL_DIS, 3, "PA.10"},
     {2, PIN_PULL_DIS, 3, "PA.11"},
 #endif
+#ifdef AIC_USING_PSADC0
+    {7, PIN_PULL_DIS, 3, "PA.0"},
+#endif
+#ifdef AIC_USING_PSADC1
+    {7, PIN_PULL_DIS, 3, "PA.1"},
+#endif
+#ifdef AIC_USING_PSADC2
+    {7, PIN_PULL_DIS, 3, "PA.2"},
+#endif
+#ifdef AIC_USING_PSADC3
+    {7, PIN_PULL_DIS, 3, "PA.3"},
+#endif
+#ifdef AIC_USING_PSADC4
+    {7, PIN_PULL_DIS, 3, "PA.4"},
+#endif
+#ifdef AIC_USING_PSADC5
+    {7, PIN_PULL_DIS, 3, "PA.5"},
+#endif
+#ifdef AIC_USING_PSADC6
+    {7, PIN_PULL_DIS, 3, "PA.6"},
+#endif
+#ifdef AIC_USING_PSADC7
+    {7, PIN_PULL_DIS, 3, "PA.7"},
+#endif
+#ifdef AIC_USING_PSADC8
+    {7, PIN_PULL_DIS, 3, "PA.8"},
+#endif
+#ifdef AIC_USING_PSADC9
+    {7, PIN_PULL_DIS, 3, "PA.9"},
+#endif
+#ifdef AIC_USING_PSADC10
+    {7, PIN_PULL_DIS, 3, "PA.10"},
+#endif
+#ifdef AIC_USING_PSADC11
+    {7, PIN_PULL_DIS, 3, "PA.11"},
+#endif
+#ifdef AIC_USING_PSADC12
+    {7, PIN_PULL_DIS, 3, "PA.12"},
+#endif
+#ifdef AIC_USING_PSADC13
+    {7, PIN_PULL_DIS, 3, "PA.13"},
+#endif
+#ifdef AIC_USING_PSADC14
+    {7, PIN_PULL_DIS, 3, "PA.14"},
+#endif
+#ifdef AIC_USING_PSADC15
+    {7, PIN_PULL_DIS, 3, "PA.15"},
+#endif
+#ifdef AIC_USING_GPAI0
+    {2, PIN_PULL_DIS, 3, "PA.0"},
+#endif
+#ifdef AIC_USING_GPAI1
+    {2, PIN_PULL_DIS, 3, "PA.1"},
+#endif
+#ifdef AIC_USING_GPAI2
+    {2, PIN_PULL_DIS, 3, "PA.2"},
+#endif
+#ifdef AIC_USING_GPAI3
+    {2, PIN_PULL_DIS, 3, "PA.3"},
+#endif
+#ifdef AIC_USING_GPAI4
+    {2, PIN_PULL_DIS, 3, "PA.4"},
+#endif
+#ifdef AIC_USING_GPAI5
+    {2, PIN_PULL_DIS, 3, "PA.5"},
+#endif
+#ifdef AIC_USING_GPAI6
+    {2, PIN_PULL_DIS, 3, "PA.6"},
+#endif
+#ifdef AIC_USING_GPAI7
+    {2, PIN_PULL_DIS, 3, "PA.7"},
+#endif
 };
 
 void aic_board_pinmux_init(void)

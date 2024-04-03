@@ -26,6 +26,7 @@
  * Created on: 2016-04-23
  */
 
+#include <spienc.h>
 #include "../inc/sfud.h"
 #include "sfud_qe.h"
 #include <string.h>
@@ -98,6 +99,20 @@ sfud_err sfud_device_init(sfud_flash *flash) {
         flash->init_ok = false;
         SFUD_INFO("Error: %s flash device is initialize fail.", flash->name);
     }
+
+#if defined(AIC_SPIENC_DRV)
+    /* Enable SPIENC */
+    uint32_t bus_id;
+
+    result = flash->spi.get_bus_id(&flash->spi, &bus_id);
+    if (result)
+        return result;
+    pr_info("init %ld spienc...\n", bus_id);
+    if (spienc_init() != 0) {
+        pr_err("spienc init failed.\n");
+        return -1;
+    }
+#endif
 
     return result;
 }
@@ -409,6 +424,11 @@ static sfud_err sfud_read_data(const sfud_flash *flash, uint32_t addr, size_t si
     sfud_err result = SFUD_SUCCESS;
     const sfud_spi *spi = &flash->spi;
     uint8_t cmd_data[5], cmd_size;
+    uint32_t bus_id;
+
+    result = spi->get_bus_id(spi, &bus_id);
+    if (result)
+        return result;
 
 #ifdef SFUD_USING_QSPI
     if (flash->read_cmd_format.instruction != SFUD_CMD_READ_DATA) {
@@ -421,7 +441,16 @@ static sfud_err sfud_read_data(const sfud_flash *flash, uint32_t addr, size_t si
         cmd_data[0] = SFUD_CMD_READ_DATA;
         make_adress_byte_array(flash, addr, &cmd_data[1]);
         cmd_size = flash->addr_in_4_byte ? 5 : 4;
+#if defined(AIC_SPIENC_DRV)
+        spienc_set_cfg(bus_id, addr, cmd_size, size);
+        spienc_start();
+#endif
         result = spi->wr(spi, cmd_data, cmd_size, data, size);
+#if defined(AIC_SPIENC_DRV)
+        spienc_stop();
+        if (spienc_check_empty())
+            memset(data, 0xFF, size);
+#endif
     }
 
     return result;
@@ -689,6 +718,11 @@ static sfud_err page256_or_1_byte_write(const sfud_flash *flash, uint32_t addr, 
     static uint8_t cmd_data[5 + SFUD_WRITE_MAX_PAGE_SIZE] __attribute__((aligned(CACHE_LINE_SIZE)));
     uint8_t cmd_size;
     size_t data_size;
+    uint32_t bus_id;
+
+    result = spi->get_bus_id(spi, &bus_id);
+    if (result)
+        return result;
 
     SFUD_ASSERT(flash);
     /* only support 1 or 256 */
@@ -735,7 +769,14 @@ static sfud_err page256_or_1_byte_write(const sfud_flash *flash, uint32_t addr, 
 
         memcpy(&cmd_data[cmd_size], data, data_size);
 
+#if defined(AIC_SPIENC_DRV)
+        spienc_set_cfg(bus_id, (addr - data_size), cmd_size, data_size);
+        spienc_start();
+#endif
         result = spi->wr(spi, cmd_data, cmd_size + data_size, NULL, 0);
+#if defined(AIC_SPIENC_DRV)
+        spienc_stop();
+#endif
         if (result != SFUD_SUCCESS) {
             SFUD_INFO("Error: Flash write SPI communicate error.");
             goto __exit;
@@ -776,6 +817,11 @@ static sfud_err aai_write(const sfud_flash *flash, uint32_t addr, size_t size, c
     const sfud_spi *spi = &flash->spi;
     uint8_t cmd_data[8], cmd_size;
     bool first_write = true;
+    uint32_t bus_id;
+
+    result = spi->get_bus_id(spi, &bus_id);
+    if (result)
+        return result;
 
     SFUD_ASSERT(flash);
     SFUD_ASSERT(flash->init_ok);
@@ -816,7 +862,14 @@ static sfud_err aai_write(const sfud_flash *flash, uint32_t addr, size_t size, c
             cmd_data[2] = *(data + 1);
         }
 
+#if defined(AIC_SPIENC_DRV)
+        spienc_set_cfg(bus_id, addr, cmd_size, size);
+        spienc_start();
+#endif
         result = spi->wr(spi, cmd_data, cmd_size + 2, NULL, 0);
+#if defined(AIC_SPIENC_DRV)
+        spienc_stop();
+#endif
         if (result != SFUD_SUCCESS) {
             SFUD_INFO("Error: Flash write SPI communicate error.");
             goto __exit;

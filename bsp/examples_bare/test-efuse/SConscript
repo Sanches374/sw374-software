@@ -7,7 +7,7 @@ CPPPATH = []
 src = []
 
 if GetDepend('KERNEL_BAREMETAL') and GetDepend('AIC_SID_BARE_TEST'):
-    src += Glob('efuse_cmds.c')
+    src += Glob('*.c')
 
 group = DefineGroup('test-efuse', src, depend = [''], CPPPATH = CPPPATH)
 

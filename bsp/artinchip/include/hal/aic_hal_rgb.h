@@ -80,6 +80,11 @@ enum aic_rgb_cko_phase_sel {
 
 #define RGB_DATA_OUT_SEL_MASK           GENMASK(2, 0)
 #define RGB_DATA_OUT_SEL(x)             (((x) & 0x7) << 0)
+#define RGB_DATA_OUT_SEL_MASK           GENMASK(2, 0)
+#define RGB_DATA_OUT_SEL(x)             (((x) & 0x7) << 0)
+#define RGB_DATA_OUT_SEL_VALID_MASK     GENMASK(14,4)
+#define RGB_DATA_OUT_SEL_VALID_8BITS    0x7770
+#define RGB_DATA_OUT_SEL_VALID_6BITS    0x5550
 
 #define CKO_PHASE_SEL_MASK              GENMASK(1, 0)
 #define CKO_PHASE_SEL(x)                (((x) & 0x3) << 0)

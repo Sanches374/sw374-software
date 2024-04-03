@@ -49,6 +49,15 @@ extern "C" {
 #define PIN_IRQ_MODE_LEVEL_HIGH   3
 #define PIN_IRQ_MODE_EDGE_BOTH    4
 
+enum gpio_check_pincfg_type {
+    GPIO_CHECK_PIN_FUN = 0,
+    GPIO_CHECK_PIN_GEN_OE = 1,
+    GPIO_CHECK_PIN_GEN_IE = 2,
+    GPIO_CHECK_GEN_IRQ_MODE = 3,
+    GPIO_CHECK_PIN_GEN_PIN_DRV = 4,
+    GPIO_CHECK_PIN_GEN_PULL = 5
+};
+
 #define GPIO_GROUP_SIZE               32
 #define GPIO_GROUP(pin_name)     ((pin_name) / GPIO_GROUP_SIZE)
 #define GPIO_GROUP_PIN(pin_name) ((pin_name) % GPIO_GROUP_SIZE)
@@ -101,6 +110,7 @@ int hal_gpio_set_debounce(unsigned int group, unsigned int pin,
                           unsigned int debounce);
 
 int hal_gpio_cfg(struct gpio_cfg *cfg, u32 cnt);
+int hal_gpio_get_pincfg(unsigned int group, unsigned int pin, int check_type);
 
 #ifdef __cplusplus
 }

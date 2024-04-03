@@ -38,9 +38,9 @@
 #define AIC_CALI_ACCURACY               65536.0
 #define AIC_DRAW_POINT_NUM              1000
 #define AIC_CALI_MIN_INTERVAL           150
-#define AIC_PDED_INVAILD_THRESHOLD      30
 #define AIC_CALI_POINT_NUM              7
-
+#define AIC_CONFIG_FOLDER_PERMISSION    0755
+#define AIC_CONFIG_PATH                 "/data/config"
 #define AIC_POINTERCAL_PATH             "/data/config/rtp_pointercal"
 
 static rt_device_t g_rtp_dev = RT_NULL;
@@ -52,7 +52,8 @@ static struct mpp_fb *g_fb = NULL;
 static int g_xres;
 static int g_yres;
 static int g_opened = 0;
-static int g_draw_count=0;
+static int g_draw_count = 0;
+static int g_last_up_flag = 1;
 
 static const char sopts[] = "cp:dh";
 static const struct option lopts[] = {
@@ -145,8 +146,8 @@ static void test_draw_a_point(u32 cnt, struct rt_touch_data *data,
             panel_y = (panel_x * a[4] + panel_y * a[5] + a[3]) / a[6];
     }
 
-    rt_kprintf("%d: X %d/%d, Y %d/%d, press %d\n\n", cnt, panel_x,
-               data->x_coordinate, panel_y, data->y_coordinate, data->width);
+    rt_kprintf("%d: X %d/%d, Y %d/%d \n", cnt, panel_x,
+               data->x_coordinate, panel_y, data->y_coordinate);
 
     pos = panel_y * g_fb_info.stride + panel_x * rate;
     if (pos < g_fb_info.smem_len) {
@@ -185,10 +186,36 @@ static void rtp_draw_cross(calibration *cal, int index, char *name, int y,
     return;
 }
 
+static void rtp_check_event_type(int event_type, int pressure)
+{
+    int up_flag = 0;
+
+    switch(event_type) {
+    case RT_TOUCH_EVENT_DOWN:
+        up_flag = 0;
+        rt_kprintf("Event type : down, ");
+        break;
+    case RT_TOUCH_EVENT_UP:
+        up_flag = 1;
+        rt_kprintf("Event type : up, ");
+        break;
+    default:
+        break;
+    }
+
+    if (g_last_up_flag && !pressure)
+        rt_kprintf("Press: too light\n");
+    else
+        rt_kprintf("Press : %d\n", pressure);
+
+    g_last_up_flag = up_flag;
+
+    return;
+}
+
 static void rtp_entry(void *parameter)
 {
     int cnt = 0;
-    int invalid_pressure_cnt = 0;
     struct rt_touch_data *data;
     int max = (int)(long)parameter;
     data = (struct rt_touch_data *)rt_malloc(sizeof(struct rt_touch_data));
@@ -206,30 +233,28 @@ static void rtp_entry(void *parameter)
     }
 
     rt_kprintf("Try to read %d points from RTP ...\n", max);
-    rt_device_control(g_rtp_dev, RT_TOUCH_CTRL_PDEB_VALID_CHECK, RT_NULL);
+    rt_device_control(g_rtp_dev, RT_TOUCH_CTRL_ENABLE_INT, RT_NULL);
+
     while (cnt < max){
         if (rt_sem_take(g_rtp_sem, RT_WAITING_FOREVER)!=RT_EOK)
             break;
 
         if (rt_device_read(g_rtp_dev, 0, data, g_draw_count) != g_draw_count)
             continue;
-        if (data->width == 0) {
-            invalid_pressure_cnt++;
-            if (invalid_pressure_cnt == AIC_PDED_INVAILD_THRESHOLD)
-                rt_kprintf("The RTP parameter (press detect enable debounce) is inaccurate \n");
-            continue;
-        }
 
-        rt_kprintf("Event type%d\n",data->event);
-        if (data->event != RT_TOUCH_EVENT_DOWN && data->event != RT_TOUCH_EVENT_MOVE)
+        rtp_check_event_type(data->event, data->pressure);
+        if (data->event != RT_TOUCH_EVENT_DOWN)
             continue;
         if (data->x_coordinate <= 0 && data->y_coordinate <= 0)
             continue;
+        rt_device_control(g_rtp_dev, RT_TOUCH_CTRL_SET_X_TO_Y, (void *)data);
         test_draw_a_point(cnt, data, &g_cal);
         cnt++;
     };
 
     rt_free(data);
+    g_last_up_flag = 1;
+    rt_device_control(g_rtp_dev, RT_TOUCH_CTRL_DISABLE_INT, RT_NULL);
     return;
 }
 
@@ -241,9 +266,13 @@ static rt_err_t rtp_rx_callback(rt_device_t g_rtp_dev, rt_size_t size)
 
 static int rtp_save_cali_param(calibration *cal)
 {
+    int fd;
     int cali_cnt;
     char cal_buf[sizeof(float) * AIC_CALI_POINT_NUM];
-    int fd = open(AIC_POINTERCAL_PATH, O_WRONLY | O_CREAT);
+
+    if (open(AIC_CONFIG_PATH, O_RDONLY) < 0)
+        mkdir(AIC_CONFIG_PATH, AIC_CONFIG_FOLDER_PERMISSION);
+    fd = open(AIC_POINTERCAL_PATH, O_WRONLY | O_CREAT);
 
     if (fd > 0) {
         for (cali_cnt = 0; cali_cnt < AIC_CALI_POINT_NUM; cali_cnt++) {
@@ -338,30 +367,31 @@ static void rtp_get_valid_point(calibration *cal, int index,
     u32 tp_x = 0, tp_y = 0;
     int sum_x = 0;
     int sum_y = 0;
-    int invalid_pressure_cnt = 0;
+    int pressed_flag = 0;
 
     g_rtp_sem = rt_sem_create("dsem", 0, RT_IPC_FLAG_FIFO);
-    rt_device_control(g_rtp_dev, RT_TOUCH_CTRL_PDEB_VALID_CHECK, RT_NULL);
+    rt_device_control(g_rtp_dev, RT_TOUCH_CTRL_ENABLE_INT, RT_NULL);
+
     do {
         if (rt_sem_take(g_rtp_sem, RT_WAITING_FOREVER)!=RT_EOK)
             break;
 
         if (rt_device_read(g_rtp_dev, 0, data, 1) != 1)
             continue;
-        if (data->width == 0) {
-            invalid_pressure_cnt++;
-            if (invalid_pressure_cnt == AIC_PDED_INVAILD_THRESHOLD)
-                rt_kprintf("The RTP parameter (press detect enable debounce) is inaccurate \n");
+
+        rtp_check_event_type(data->event, data->pressure);
+
+        if (data->event == RT_TOUCH_EVENT_UP) {
+            if (pressed_flag)
+                break;
+
             continue;
         }
 
-        // rt_kprintf("X = %d, Y = %d, data->event%d\n", data->x_coordinate,
-        //            data->y_coordinate, data->event);
-
-        if (data->event != RT_TOUCH_EVENT_DOWN && data->event != RT_TOUCH_EVENT_MOVE)
-            break;
-
         if (data->x_coordinate > 0 || data->y_coordinate > 0) {
+            pressed_flag = 1;
+            rt_device_control(g_rtp_dev, RT_TOUCH_CTRL_SET_X_TO_Y,
+                              (void *)data);
             x = data->x_coordinate;
             y = data->y_coordinate;
             sum_x += x;
@@ -383,6 +413,8 @@ static void rtp_get_valid_point(calibration *cal, int index,
     cal->y[index] = tp_y;
 
     rt_kprintf("Calibration: X = %d, Y = %d\n", tp_x, tp_y);
+    g_last_up_flag = 1;
+    rt_device_control(g_rtp_dev, RT_TOUCH_CTRL_DISABLE_INT, RT_NULL);
 
     return;
 }
@@ -424,7 +456,7 @@ static void rtp_calibrate(calibration *cal)
 
 static void rtp_draw(long cnt)
 {
-    g_rtp_sem = rt_sem_create("dsem", 0,RT_IPC_FLAG_PRIO);
+    g_rtp_sem = rt_sem_create("dsem", 0, RT_IPC_FLAG_PRIO);
     if (g_rtp_sem == RT_NULL) {
         rt_kprintf("create dynamic semaphore failed.\n");
         return;
@@ -495,13 +527,15 @@ static void cmd_test_rtp_draw(int argc, char **argv)
         }
     }
 
-    if (calibrate_enable)
+    if (calibrate_enable) {
         rtp_calibrate(&g_cal);
-
-    if (draw_point_num > 0) {
-        rtp_draw(draw_point_num);
+        calibrate_enable = 0;
     } else {
-        rt_kprintf("Invalid number of drawing points\n");
+        if (draw_point_num > 0) {
+            rtp_draw(draw_point_num);
+        } else {
+            rt_kprintf("Invalid number of drawing points\n");
+        }
     }
 
     return;

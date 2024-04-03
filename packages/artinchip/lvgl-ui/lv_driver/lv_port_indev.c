@@ -40,6 +40,13 @@ void aic_touch_inputevent_cb(rt_int16_t x, rt_int16_t y, rt_uint8_t state)
         last_y = y;
         last_state = LV_INDEV_STATE_PRESSED;
         break;
+#ifdef AIC_MONKEY_TEST
+    case RT_TOUCH_MONKEY_TEST:
+        last_x = x;
+        last_y = y;
+        last_state = LV_INDEV_STATE_PRESSED;
+        break;
+#endif
     }
 }
 

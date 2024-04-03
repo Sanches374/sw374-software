@@ -485,6 +485,27 @@ config AIC_PWM_CH_NUM
     default 4 if AIC_PWM_DRV_V10
 
 #--------------------------------------------
+# QEP driver global option
+#--------------------------------------------
+
+config AIC_QEP_DRV
+    bool
+    default n
+    select RT_USING_PULSE_ENCODER if DRIVER_DRV_EN
+
+config AIC_QEP_DRV_V10
+    bool
+    default y if AIC_QEP_DRV
+
+config AIC_QEP_DRV_VER
+    string
+    default "10" if AIC_QEP_DRV_V10
+
+config AIC_QEP_CH_NUM
+    int
+    default 2 if AIC_QEP_DRV_V10
+
+#--------------------------------------------
 # EPWM driver global option
 #--------------------------------------------
 
@@ -525,6 +546,27 @@ config AIC_HRTIMER_DRV_VER
 config AIC_HRTIMER_CH_NUM
     int
     default 3 if AIC_HRTIMER_DRV_V10
+
+#--------------------------------------------
+# CAP driver global option
+#--------------------------------------------
+
+config AIC_CAP_DRV
+    bool
+    default n
+    select RT_USING_INPUT_CAPTURE if DRIVER_DRV_EN
+
+config AIC_CAP_DRV_V10
+    bool
+    default y if AIC_CAP_DRV
+
+config AIC_CAP_DRV_VER
+    string
+    default "10" if AIC_CAP_DRV_V10
+
+config AIC_CAPS_CH_NUM
+    int
+    default 3 if AIC_CAP_DRV_V10
 
 #--------------------------------------------
 # sid driver global option

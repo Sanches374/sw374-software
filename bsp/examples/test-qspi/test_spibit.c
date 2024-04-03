@@ -18,10 +18,10 @@ static struct rt_spi_device *g_spi;
     "test_spibit help : Get this information.\n"                                \
     "test_spibit attach <bus name> <dev name> : Attach device to SPI bus.\n"    \
     "test_spibit init <name> <bit_mode>: Initialize SPI for bit mode device.\n" \
-    "test_spibit send_recv <addr> : Write the addr first, then read the data\n" \
+    "test_spibit send_recv <send_val> <send_len> <recv_len>: Write the addr first, then read the data\n" \
     "test_spibit attach qspi0 qtestdev\n"                                       \
     "test_spibit init qtestdev 1\n"                                             \
-    "test_spibit send_recv 6\n"
+    "test_spibit send_recv 0x0f 10 20\n"
 
 static void spibit_usage(void)
 {
@@ -87,24 +87,28 @@ static int test_spibit_init(int argc, char **argv)
 
 static int test_spibit_send_recv(int argc, char **argv)
 {
-    uint16_t addr = 0;
+    uint32_t send_val = 0;
+    uint32_t send_len = 0;
+    uint32_t recv_len = 0;
     uint32_t data = 0;
 
-    if (argc != 2) {
+    if (argc != 4) {
         spibit_usage();
         return -1;
     }
 
-    addr = strtol(argv[1], NULL, 16);
+    send_val = strtoul(argv[1], NULL, 0);
+    send_len = strtol(argv[2], NULL, 0);
+    recv_len = strtol(argv[3], NULL, 0);
 
-    pr_info("addr = %x\n", addr);
+    pr_info("send_val = %d, send_len = %d, recv_len = %d\n", send_val, send_len, recv_len);
 
     rt_spi_take_bus((struct rt_spi_device *)g_spi);
     /*note: the length units of the following parameters are bits,
       not bytes*/
-    rt_spi_send_then_recv(g_spi, &addr, 10, &data, 20);
+    rt_spi_send_then_recv(g_spi, &send_val, send_len, &data, recv_len);
     rt_spi_release_bus((struct rt_spi_device *)g_spi);
-    pr_info("data = %x\n", data);
+    pr_info("data = 0x%x\n", data);
 
     return 0;
 }

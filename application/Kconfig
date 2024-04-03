@@ -44,10 +44,6 @@ config AIC_FATFS_SECTOR_COUNT_FOR_0
     depends on !AIC_FATFS_AUTO_SIZE_FOR_0
     default 2048
 
-config AIC_FATFS_ENABLE_WRITE_IN_SPINOR
-    bool "FATFS enable write func in spinor"
-    depends on AIC_SPINOR_DRV
-    default n
 endif
 
 # Parameters for LittleFS
@@ -117,6 +113,11 @@ if AIC_USING_FS_IMAGE_TYPE_FATFS_FOR_0 || AIC_USING_FS_IMAGE_TYPE_FATFS_FOR_1
     config AIC_USING_FS_IMAGE_TYPE_FATFS_CLUSTER_SIZE
         int "size of cluster in fatfs image"
         default 8
+
+    config AIC_FATFS_ENABLE_WRITE_IN_SPINOR
+        bool "FATFS enable write func in spinor"
+        depends on AIC_SPINOR_DRV
+        default n
 endif
 
 config GENERATE_BURNER_IMAGE
@@ -181,6 +182,9 @@ config AIC_LVGL_METER_DEMO
 
 config AIC_LVGL_LAUNCHER_DEMO
     bool "LVGL launcher demo"
+
+config AIC_LVGL_DASHBOARD_DEMO
+    bool "LVGL dashboard demo"
 
 if KERNEL_BAREMETAL
     config AIC_LVGL_GIF_DEMO

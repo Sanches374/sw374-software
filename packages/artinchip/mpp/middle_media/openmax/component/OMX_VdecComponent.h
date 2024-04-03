@@ -29,30 +29,23 @@
 #include "mpp_decoder.h"
 #include "mpp_dec_type.h"
 
-
 OMX_ERRORTYPE OMX_VdecComponentDeInit(
         OMX_IN    OMX_HANDLETYPE hComponent);
 
 OMX_ERRORTYPE OMX_VdecComponentInit(
         OMX_IN    OMX_HANDLETYPE hComponent);
 
-
-
 typedef struct VDEC_OUT_FRAME {
     struct mpp_frame   sFrameInfo;
     struct mpp_list  sList;
 }VDEC_OUT_FRAME;
-
 
 typedef struct VDEC_IN_PACKET {
     struct OMX_BUFFERHEADERTYPE   sBuff;
     struct mpp_list  sList;
 }VDEC_IN_PACKET;
 
-
-
-
-#define VDEC_PACKET_ONE_TIME_CREATE_NUM  16
+#define VDEC_PACKET_ONE_TIME_CREATE_NUM  1
 #define VDEC_PACKET_NUM_MAX 64
 
 #define VDEC_FRAME_ONE_TIME_CREATE_NUM 8
@@ -63,6 +56,7 @@ typedef struct VDEC_IN_PACKET {
 #define VDEC_GET_ALL_FRAME_FREOM_DECODER_FLAG  0x04 // get all frame from decoder to readylist
 #define VDEC_OUTPORT_SEND_ALL_FRAME_FLAG  0x08 // consume all frame in readylist
 
+#define VDEC_BITSTREAM_BUFFER_SIZE (500*1024)
 
 typedef struct VDEC_DATA_TYPE {
     OMX_STATETYPE state;
@@ -104,7 +98,6 @@ typedef struct VDEC_DATA_TYPE {
 
     OMX_S32 nFlags;
 
-
     struct mpp_decoder *pDecoder;
     struct decode_config sDecoderConfig;
     enum mpp_codec_type eCodeType;
@@ -123,8 +116,9 @@ typedef struct VDEC_DATA_TYPE {
     OMX_S8 nWaitForReadyPkt;
     OMX_S8 nWaitForEmptyFrame;
 
+    VDEC_OUT_FRAME *pFrameNodeHead;
+    VDEC_IN_PACKET *pPktNodeHead;
+
 }VDEC_DATA_TYPE;
 
 #endif
-
-

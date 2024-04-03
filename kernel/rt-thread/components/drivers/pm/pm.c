@@ -16,6 +16,7 @@
 #include <rtthread.h>
 #include <drivers/pm.h>
 #include <stdlib.h>
+#include <aic_io.h>
 
 #ifdef RT_USING_PM
 
@@ -308,6 +309,18 @@ static rt_bool_t _pm_device_check_idle(void)
             return RT_FALSE;
         }
     }
+
+#ifdef AIC_CHIP_AIC1606SP
+    //check CSYS/SCSS/SESS is idle
+    volatile uint32_t cpu_status = 0;
+    #define PRCM_CPU_STATUS     0x8800010C
+
+    cpu_status = readl((void *)PRCM_CPU_STATUS);
+    if (cpu_status == 0x7)
+        return RT_TRUE;
+    else
+        return RT_FALSE;
+#endif
 
     return RT_TRUE;
 }

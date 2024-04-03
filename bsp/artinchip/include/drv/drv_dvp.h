@@ -37,11 +37,8 @@ struct aic_dvp {
     /* Videobuf */
     struct vb_queue         queue;
     struct list_head        active_list;
-    aicos_mutex_t           active_lock; /* lock of active buf list */
     unsigned int            sequence;
     unsigned int            streaming;
-
-    aicos_mutex_t           lock;
 };
 
 int aic_dvp_set_in_fmt(struct mpp_video_fmt *fmt);

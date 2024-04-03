@@ -80,6 +80,8 @@
 
 #define GPAI_CHnCR_SBC_SHIFT            24
 #define GPAI_CHnCR_SBC_MASK             GENMASK(25, 24)
+#define GPAI_CHnCR_ADC_ACQ_SHIFT        8
+#define GPAI_CHnCR_ADC_ACQ_MASK         GENMASK(15, 8)
 #define GPAI_CHnCR_HIGH_ADC_PRIORITY    BIT(4)
 #define GPAI_CHnCR_PERIOD_SAMPLE_EN     BIT(1)
 #define GPAI_CHnCR_SINGLE_SAMPLE_EN     BIT(0)
@@ -146,12 +148,12 @@ static u16 gpai_vol2data(s32 vol)
     return vol;
 }
 
-static u32 gpai_ms2itv(u32 pclk_rate, u32 ms)
+static u32 gpai_ms2itv(u32 pclk_rate, u32 us)
 {
     u32 tmp = 0;
 
-    tmp = pclk_rate / 1000;
-    tmp *= ms;
+    tmp = pclk_rate / 1000000;
+    tmp *= us;
     return tmp;
 }
 
@@ -261,12 +263,18 @@ static void gpai_fifo_flush(u32 ch)
 static void gpai_single_mode(u32 ch)
 {
     u32 val = 0;
+    struct aic_gpai_ch *chan;
+    chan = hal_gpai_ch_is_valid(ch);
 
     val = gpai_readl(GPAI_CHnCR(ch));
-    val |= GPAI_CHnCR_SBC_8_POINTS << GPAI_CHnCR_SBC_SHIFT
-        | GPAI_CHnCR_SINGLE_SAMPLE_EN;
+    val |= GPAI_CHnCR_SBC_8_POINTS << GPAI_CHnCR_SBC_SHIFT;
+    val &= ~GPAI_CHnCR_ADC_ACQ_MASK;
+    val |= chan->adc_acq << GPAI_CHnCR_ADC_ACQ_SHIFT;
     gpai_writel(val, GPAI_CHnCR(ch));
 
+    val = gpai_readl(GPAI_CHnCR(ch));
+    val |= GPAI_CHnCR_PERIOD_SAMPLE_EN;
+    gpai_writel(val, GPAI_CHnCR(ch));
     gpai_int_enable(ch, 1,
             GPAI_CHnINT_DAT_RDY_IE | GPAI_CHnINT_FIFO_ERR_IE);
 }
@@ -304,8 +312,13 @@ static void gpai_period_mode(struct aic_gpai_ch *chan, u32 pclk)
     gpai_writel(val, GPAI_CHnPSI(ch));
 
     val = gpai_readl(GPAI_CHnCR(ch));
-    val |= GPAI_CHnCR_SBC_8_POINTS << GPAI_CHnCR_SBC_SHIFT
-        | GPAI_CHnCR_PERIOD_SAMPLE_EN;
+    val |= GPAI_CHnCR_SBC_8_POINTS << GPAI_CHnCR_SBC_SHIFT;
+    val &= ~GPAI_CHnCR_ADC_ACQ_MASK;
+    val |= chan->adc_acq << GPAI_CHnCR_ADC_ACQ_SHIFT;
+    gpai_writel(val, GPAI_CHnCR(ch));
+
+    val = gpai_readl(GPAI_CHnCR(ch));
+    val |= GPAI_CHnCR_PERIOD_SAMPLE_EN;
     gpai_writel(val, GPAI_CHnCR(ch));
 }
 
@@ -521,9 +534,9 @@ static void hal_dma_transfer_callback(void *arg)
     dma_callback dma_cb = NULL;
     chan = (struct aic_gpai_ch *)arg;
 
-    val = gpai_readl(GPAI_CHnCR(0));
+    val = gpai_readl(GPAI_CHnCR(chan->id));
     val &= ~GPAI_CHnCR_PERIOD_SAMPLE_EN;
-    gpai_writel(val, GPAI_CHnCR(0));
+    gpai_writel(val, GPAI_CHnCR(chan->id));
     aich_gpai_enable(0);
 
     dma_cb = chan->dma_rx_info.callback;
@@ -531,6 +544,7 @@ static void hal_dma_transfer_callback(void *arg)
     if (dma_cb)
         dma_cb(dma_cb_data);
 
+    hal_dma_chan_stop(chan->dma_rx_info.dma_chan);
     hal_release_dma_chan(chan->dma_rx_info.dma_chan);
 }
 

@@ -244,9 +244,11 @@ typedef struct {
 #define DIEPCTL0_NEXT_EP_BIT            (11)
 
 /* INEPINT/OUTEPINT device IN/OUT endpoint interrupt register */
+#define CTRL_OUT_EP_SETUP_RCVD          (0x1 << 15)
 #define TXFIFO_EMP_INT                  (0x1 << 7)
 #define INEP_NAKEFF                     (0x1 << 6)
 #define BACK2BACK_SETUP_RECEIVED        (0x1 << 6)
+#define CTRL_OUT_EP_STATUS_PHASE_RCVD   (0x1 << 5)
 #define INTKNEPMIS                      (0x1 << 5)
 #define INTKN_TXFEMP                    (0x1 << 4)
 #define NON_ISO_IN_EP_TIMEOUT           (0x1 << 3)

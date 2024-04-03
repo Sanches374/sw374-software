@@ -168,11 +168,17 @@ static void rtt_free_sema(aicos_sem_t *sema)
 
 static void rtt_up_sema(aicos_sem_t *sema)
 {
+    if (*sema == NULL)
+        return;
+
     aicos_sem_give(*sema);
 }
 
 static void rtt_up_sema_from_isr(aicos_sem_t *sema)
 {
+    if (*sema == NULL)
+        return;
+
     aicos_sem_give(*sema);
 }
 
@@ -204,12 +210,18 @@ static void rtt_mutex_free(aicos_mutex_t *pmutex)
 
 static void rtt_mutex_get(aicos_mutex_t *plock)
 {
+    if (*plock == 0)
+        return;
+
     while(aicos_mutex_take(*plock, 60 * 1000) != RT_EOK)
         pr_info("%s(%p) failed, retry\n", __FUNCTION__, plock);
 }
 
 static int rtt_mutex_get_timeout(aicos_mutex_t *plock, u32 timeout_ms)
 {
+    if (*plock == 0)
+        return;
+
     if (aicos_mutex_take(*plock, timeout_ms) != RT_EOK) {
         pr_info("%s(%p) failed, retry\n", __FUNCTION__, plock);
         return -1;
@@ -219,6 +231,9 @@ static int rtt_mutex_get_timeout(aicos_mutex_t *plock, u32 timeout_ms)
 
 static void rtt_mutex_put(aicos_mutex_t *plock)
 {
+    if (*plock == 0)
+        return;
+
     aicos_mutex_give(*plock);
 }
 

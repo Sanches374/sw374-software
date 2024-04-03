@@ -88,12 +88,31 @@ enum lvds_link_mode {
 struct panel_lvds {
     enum lvds_mode mode;
     enum lvds_link_mode link_mode;
+    unsigned int link_swap;
+    unsigned int pols;
+    unsigned int line;
+};
+
+struct dsi_command
+{
+    unsigned char buf[1024];
+    size_t len;
+    unsigned int command_on;
 };
 
 struct panel_dsi {
     enum dsi_mode mode;
     enum dsi_format format;
     unsigned int lane_num;
+
+    /**
+     * just for panel dsi simple
+     */
+    unsigned int vc_num;
+    unsigned int dc_inv;
+    unsigned int ln_polrs;
+    unsigned int ln_assign;
+    struct dsi_command command;
 };
 
 struct aic_panel;
@@ -166,7 +185,7 @@ struct aic_panel {
     const char *name;
     struct aic_panel_funcs *funcs;
     struct aic_panel_callbacks callbacks;
-    const struct display_timing *timings;
+    struct display_timing *timings;
 
     union {
         struct panel_rgb  *rgb;

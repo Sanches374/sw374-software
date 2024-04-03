@@ -35,6 +35,10 @@
     "             dummy_cycles: hex string, e.g. 02, dummy clock cycles\n" \
     "                    If dummy cycles is not present, use \"-\" intead\n" \
     "             data hex string: hex string, e.g. 41 42 43 44 45\n" \
+    "qspidev sendlen <lines> <data len>: Send data.\n" \
+    "             lines: 111, 112, 114, 122, 144 (lines for cmd,addr,data)\n" \
+    "             data len : hex string, e.g. 0x800\n" \
+    "             !!!attention : use in spi controller which connet nothing\n" \
     "qspidev recv <lines> <cmd> <addr> <dummy_cnt> <data addr> <data len>: Send cmd and recieve data\n" \
     "             lines: 111, 112, 114, 122, 144 (lines for cmd,addr,data)\n" \
     "             cmd  : hex string, e.g. 01\n" \
@@ -57,6 +61,7 @@
     "qspidev init qtestdev 3 50000000\n" \
     "qspidev recvhex 111 9f - 8 3\n" \
     "qspidev sendhex 111 ff\n" \
+    "qspidev sendlen 111 0x100\n" \
     "qspidev sendhex 111 13 000000\n" \
     "qspidev recvhex 111 03 000000 0 0x800\n"
 
@@ -66,6 +71,19 @@ static void qspi_usage(void)
 }
 
 static struct rt_qspi_device *g_qspi;
+
+static void show_speed(char *msg, u32 len, u32 us)
+{
+    u32 tmp, speed;
+
+    /* Split to serval step to avoid overflow */
+    tmp = 1000 * len;
+    tmp = tmp / us;
+    tmp = 1000 * tmp;
+    speed = tmp / 1024;
+
+    printf("%s: %d byte, %d us -> %d KB/s\n", msg, len, us, speed);
+}
 
 static int test_qspi_attach(int argc, char **argv)
 {
@@ -158,18 +176,18 @@ static void test_qspi_sendhex(int argc, char **argv)
         return;
     }
     pl = argv[1];
-    line = strtol(pl, NULL, 10);
+    line = strtoul(pl, NULL, 10);
     if (qspi_lines_check(line) == false) {
         qspi_usage();
         return;
     }
-    cmd = (uint8_t)strtol(argv[2], NULL, 16);
+    cmd = (uint8_t)strtoul(argv[2], NULL, 16);
     addrsiz = 0;
     addr = 0;
     if (argc >= 4) {
         if (rt_memcmp(argv[3], "-", 1)) {
             addrsiz = (strlen(argv[3]) + 1) >> 1;
-            addr = strtol(argv[3], NULL, 16);
+            addr = strtoul(argv[3], NULL, 16);
         } else {
             addrsiz = 0;
             addr = 0;
@@ -179,7 +197,7 @@ static void test_qspi_sendhex(int argc, char **argv)
     data_len = 0;
     if (argc >= 5) {
         if (rt_memcmp(argv[4], "-", 1))
-            dmycyc = strtol(argv[4], NULL, 10);
+            dmycyc = strtoul(argv[4], NULL, 10);
         data_len = argc - 5;
     }
     data = RT_NULL;
@@ -188,7 +206,7 @@ static void test_qspi_sendhex(int argc, char **argv)
         align_len = roundup(data_len, CACHE_LINE_SIZE);
         data = aicos_malloc_align(0, align_len, CACHE_LINE_SIZE);
         for (i = 5; i < argc; i++) {
-            data[i - 5] = (uint8_t)strtol(argv[i], NULL, 16);
+            data[i - 5] = (uint8_t)strtoul(argv[i], NULL, 16);
             printf("%s -> %02x\n", argv[i], data[i - 5]);
         }
     }
@@ -218,6 +236,65 @@ static void test_qspi_sendhex(int argc, char **argv)
         aicos_free_align(0, data);
 }
 
+static void test_qspi_sendlen(int argc, char **argv)
+{
+    char *pl;
+    uint32_t line = 0,  dmycyc = 0;
+    unsigned long  data_len, align_len, start_us;
+    uint8_t cmd, *data;
+    struct rt_qspi_message msg;
+    rt_size_t ret;
+
+    if (!g_qspi) {
+        printf("QSPI device is not init yet.\n");
+        return;
+    }
+    if (argc < 3) {
+        printf("Argument is not correct, please see help for more information.\n");
+        return;
+    }
+    pl = argv[1];
+    line = strtoul(pl, NULL, 10);
+    if (qspi_lines_check(line) == false) {
+        qspi_usage();
+        return;
+    }
+
+    cmd = 0;
+    dmycyc = 0;
+    data_len = 0;
+    data_len = strtoul(argv[2], NULL, 0);
+    data = RT_NULL;
+    printf("data len %ld\n", data_len);
+    if (data_len) {
+        align_len = roundup(data_len, CACHE_LINE_SIZE);
+        data = aicos_malloc_align(0, align_len, CACHE_LINE_SIZE);
+    }
+    rt_memset(&msg, 0, sizeof(msg));
+    msg.instruction.content = cmd;
+    msg.instruction.qspi_lines = 0;
+
+    msg.dummy_cycles = dmycyc;
+    if (data) {
+        msg.qspi_data_lines = pl[2] - '0';
+        msg.parent.send_buf = (void *)data;
+        msg.parent.length = data_len;
+    }
+    msg.parent.cs_take = 1;
+    msg.parent.cs_release = 1;
+    rt_spi_take_bus((struct rt_spi_device *)g_qspi);
+
+    start_us = aic_get_time_us();
+    ret = rt_qspi_transfer_message(g_qspi, &msg);
+    show_speed("mtd_read speed", data_len, aic_get_time_us() - start_us);
+    if (ret != data_len) {
+        printf("Send data failed. ret 0x%x\n", (int)ret);
+    }
+    rt_spi_release_bus((struct rt_spi_device *)g_qspi);
+    if (data)
+        aicos_free_align(0, data);
+}
+
 static void test_qspi_recvhex(int argc, char **argv)
 {
     char *pl;
@@ -235,17 +312,17 @@ static void test_qspi_recvhex(int argc, char **argv)
         return;
     }
     pl = argv[1];
-    line = strtol(pl, NULL, 10);
+    line = strtoul(pl, NULL, 10);
     if (qspi_lines_check(line) == false) {
         qspi_usage();
         return;
     }
-    cmd = (uint8_t)strtol(argv[2], NULL, 16);
+    cmd = (uint8_t)strtoul(argv[2], NULL, 16);
     addrsiz = 0;
     if (argc >= 4) {
         if (rt_memcmp(argv[3], "-", 1)) {
             addrsiz = (strlen(argv[3]) + 1) >> 1;
-            addr = strtol(argv[3], NULL, 16);
+            addr = strtoul(argv[3], NULL, 16);
         } else {
             addrsiz = 0;
             addr = 0;
@@ -254,16 +331,21 @@ static void test_qspi_recvhex(int argc, char **argv)
     dmycyc = 0;
     if (argc >= 5) {
         if (rt_memcmp(argv[4], "-", 1))
-            dmycyc = strtol(argv[4], NULL, 16);
+            dmycyc = strtoul(argv[4], NULL, 16);
     }
     data_len = 0;
     if (argc >= 6) {
-        data_len = strtol(argv[5], NULL, 16);
+        data_len = strtoul(argv[5], NULL, 16);
     }
     data = RT_NULL;
     if (data_len > 0) {
         align_len = roundup(data_len, CACHE_LINE_SIZE);
         data = aicos_malloc_align(0, align_len, CACHE_LINE_SIZE);
+        if (data == NULL) {
+            printf("Failed to malloc memorey for rx_data. size = %lu\n", align_len);
+            return;
+        }
+        rt_memset(data, 0, align_len);
     }
     rt_memset(&msg, 0, sizeof(msg));
     msg.instruction.content = cmd;
@@ -313,18 +395,18 @@ static void test_qspi_send(int argc, char **argv)
         return;
     }
     pl = argv[1];
-    line = strtol(pl, NULL, 10);
+    line = strtoul(pl, NULL, 10);
     if (qspi_lines_check(line) == false) {
         qspi_usage();
         return;
     }
-    cmd = (uint8_t)strtol(argv[2], NULL, 16);
+    cmd = (uint8_t)strtoul(argv[2], NULL, 16);
     addrsiz = 0;
     addr = 0;
     if (argc >= 4) {
         if (rt_memcmp(argv[3], "-", 1)) {
             addrsiz = (strlen(argv[3]) + 1) >> 1;
-            addr = strtol(argv[3], NULL, 16);
+            addr = strtoul(argv[3], NULL, 16);
         } else {
             addrsiz = 0;
             addr = 0;
@@ -332,15 +414,15 @@ static void test_qspi_send(int argc, char **argv)
     }
     dmycyc = 0;
     if (argc >= 5) {
-        dmycyc = strtol(argv[4], NULL, 16);
+        dmycyc = strtoul(argv[4], NULL, 16);
     }
     data = 0;
     if (argc >= 6) {
-        data = strtol(argv[5], NULL, 16);
+        data = strtoul(argv[5], NULL, 16);
     }
     data_len = 0;
     if (argc >= 7) {
-        data_len = strtol(argv[6], NULL, 16);
+        data_len = strtoul(argv[6], NULL, 16);
     }
     rt_memset(&msg, 0, sizeof(msg));
     msg.instruction.content = cmd;
@@ -384,17 +466,17 @@ static void test_qspi_recv(int argc, char **argv)
         return;
     }
     pl = argv[1];
-    line = strtol(pl, NULL, 10);
+    line = strtoul(pl, NULL, 10);
     if (qspi_lines_check(line) == false) {
         qspi_usage();
         return;
     }
-    cmd = (uint8_t)strtol(argv[2], NULL, 16);
+    cmd = (uint8_t)strtoul(argv[2], NULL, 16);
     addrsiz = 0;
     if (argc >= 4) {
         if (rt_memcmp(argv[3], "-", 1)) {
             addrsiz = (strlen(argv[3]) + 1) >> 1;
-            addr = strtol(argv[3], NULL, 16);
+            addr = strtoul(argv[3], NULL, 16);
         } else {
             addrsiz = 0;
             addr = 0;
@@ -402,15 +484,15 @@ static void test_qspi_recv(int argc, char **argv)
     }
     dmycyc = 0;
     if (argc >= 5) {
-        dmycyc = strtol(argv[4], NULL, 16);
+        dmycyc = strtoul(argv[4], NULL, 16);
     }
     data = 0;
     if (argc >= 6) {
-        data = strtol(argv[5], NULL, 16);
+        data = strtoul(argv[5], NULL, 16);
     }
     data_len = 0;
     if (argc >= 7) {
-        data_len = strtol(argv[6], NULL, 16);
+        data_len = strtoul(argv[6], NULL, 16);
     }
     rt_memset(&msg, 0, sizeof(msg));
     msg.instruction.content = cmd;
@@ -452,18 +534,21 @@ static void cmd_test_qspi(int argc, char **argv)
         test_qspi_init(argc - 1, &argv[1]);
         return;
     } else if (!rt_strcmp(argv[1], "alloc")) {
-        size = strtol(argv[2], NULL, 0);
+        size = strtoul(argv[2], NULL, 0);
         align_len = roundup(size, CACHE_LINE_SIZE);
         printf("0x%08lx\n", (unsigned long)aicos_malloc_align(0, align_len, CACHE_LINE_SIZE));
         printf("size %lu\n", align_len);
         return;
     } else if (!rt_strcmp(argv[1], "free")) {
-        addr = strtol(argv[2], NULL, 0);
+        addr = strtoul(argv[2], NULL, 0);
         aicos_free_align(0, (void *)addr);
         printf("free 0x%lx\n", addr);
         return;
     } else if (!rt_strcmp(argv[1], "sendhex")) {
         test_qspi_sendhex(argc - 1, &argv[1]);
+        return;
+    } else if (!rt_strcmp(argv[1], "sendlen")) {
+        test_qspi_sendlen(argc - 1, &argv[1]);
         return;
     } else if (!rt_strcmp(argv[1], "recvhex")) {
         test_qspi_recvhex(argc - 1, &argv[1]);

@@ -20,20 +20,6 @@
 #include <aic_clk_id.h>
 #include "spinand_port.h"
 
-//#define AIC_BOOT_QSPI_DRV_DEBUG
-
-#if defined(AIC_QSPI_DRV_V10)
-#if defined(AIC_BOOTLOADER)
-#define DMA_SLAVE_MAXBURST_DEFAULT 8
-#else
-#define DMA_SLAVE_MAXBURST_DEFAULT 1
-#endif
-#elif defined(AIC_QSPI_DRV_V20)
-#define DMA_SLAVE_MAXBURST_DEFAULT 1
-#else
-#define DMA_SLAVE_MAXBURST_DEFAULT 8
-#endif
-
 static struct aic_qspi qspi_controller[] = {
 #if defined(AIC_USING_QSPI0)
     {
@@ -44,6 +30,15 @@ static struct aic_qspi qspi_controller[] = {
         .bus_hz = AIC_QSPI0_DEVICE_SPINAND_FREQ,
         .dma_port_id = DMA_ID_SPI0,
         .irq_num = QSPI0_IRQn,
+        .dl_width = AIC_QSPI0_BUS_WIDTH,
+#if defined(AIC_QSPI_MULTIPLE_CS_NUM)
+        .cs_num = AIC_QSPI0_CS_NUM,
+#endif
+        .rxd_dylmode = AIC_DEV_QSPI0_DELAY_MODE,
+#if defined(AIC_QSPI_DRV_V20)
+        .txd_dylmode = AIC_DEV_QSPI0_TXD_DELAY_MODE,
+        .txc_dylmode = AIC_DEV_QSPI0_TX_CLK_DELAY_MODE,
+#endif
     },
 #endif
 #if defined(AIC_USING_QSPI1)
@@ -55,6 +50,15 @@ static struct aic_qspi qspi_controller[] = {
         .bus_hz = AIC_QSPI1_DEVICE_SPINAND_FREQ,
         .dma_port_id = DMA_ID_SPI1,
         .irq_num = QSPI1_IRQn,
+        .dl_width = AIC_QSPI1_BUS_WIDTH,
+#if defined(AIC_QSPI_MULTIPLE_CS_NUM)
+        .cs_num = AIC_QSPI1_CS_NUM,
+#endif
+        .rxd_dylmode = AIC_DEV_QSPI1_DELAY_MODE,
+#if defined(AIC_QSPI_DRV_V20)
+        .txd_dylmode = AIC_DEV_QSPI1_TXD_DELAY_MODE,
+        .txc_dylmode = AIC_DEV_QSPI1_TX_CLK_DELAY_MODE,
+#endif
     },
 #endif
 #if defined(AIC_USING_QSPI2)
@@ -66,6 +70,15 @@ static struct aic_qspi qspi_controller[] = {
         .bus_hz = AIC_QSPI2_DEVICE_SPINAND_FREQ,
         .dma_port_id = DMA_ID_SPI2,
         .irq_num = QSPI2_IRQn,
+        .dl_width = AIC_QSPI2_BUS_WIDTH,
+#if defined(AIC_QSPI_MULTIPLE_CS_NUM)
+        .cs_num = AIC_QSPI2_CS_NUM,
+#endif
+        .rxd_dylmode = AIC_DEV_QSPI2_DELAY_MODE,
+#if defined(AIC_QSPI_DRV_V20)
+        .txd_dylmode = AIC_DEV_QSPI2_TXD_DELAY_MODE,
+        .txc_dylmode = AIC_DEV_QSPI2_TX_CLK_DELAY_MODE,
+#endif
     },
 #endif
 #if defined(AIC_USING_QSPI3)
@@ -77,6 +90,35 @@ static struct aic_qspi qspi_controller[] = {
         .bus_hz = AIC_QSPI3_DEVICE_SPINAND_FREQ,
         .dma_port_id = DMA_ID_SPI3,
         .irq_num = QSPI3_IRQn,
+        .dl_width = AIC_QSPI3_BUS_WIDTH,
+#if defined(AIC_QSPI_MULTIPLE_CS_NUM)
+        .cs_num = AIC_QSPI3_CS_NUM,
+#endif
+        .rxd_dylmode = AIC_DEV_QSPI3_DELAY_MODE,
+#if defined(AIC_QSPI_DRV_V20)
+        .txd_dylmode = AIC_DEV_QSPI3_TXD_DELAY_MODE,
+        .txc_dylmode = AIC_DEV_QSPI3_TX_CLK_DELAY_MODE,
+#endif
+    },
+#endif
+#if defined(AIC_USING_QSPI4)
+    {
+        .name = "qspi4",
+        .idx = 3,
+        .clk_id = CLK_QSPI4,
+        .clk_in_hz = AIC_DEV_QSPI4_MAX_SRC_FREQ_HZ,
+        .bus_hz = AIC_QSPI4_DEVICE_SPINAND_FREQ,
+        .dma_port_id = DMA_ID_SP4,
+        .irq_num = QSPI4_IRQn,
+        .dl_width = AIC_QSPI4_BUS_WIDTH,
+#if defined(AIC_QSPI_MULTIPLE_CS_NUM)
+        .cs_num = AIC_QSPI4_CS_NUM,
+#endif
+        .rxd_dylmode = AIC_DEV_QSPI4_DELAY_MODE,
+#if defined(AIC_QSPI_DRV_V20)
+        .txd_dylmode = AIC_DEV_QSPI4_TXD_DELAY_MODE,
+        .txc_dylmode = AIC_DEV_QSPI4_TX_CLK_DELAY_MODE,
+#endif
     },
 #endif
 };
@@ -302,9 +344,14 @@ u32 qspi_xfer(struct aic_qspi *qspi, struct aic_qspi_message *qspi_message)
     const u8 *sndb = qspi_message->parent.send_buf;
     u8 *rcvb = qspi_message->parent.recv_buf;
     u32 ret = 0;
+    u32 cs_num = 0;
 
-    if (qspi_message->parent.cs_take)
-        hal_qspi_master_set_cs(&qspi->handle, 0, true);
+    if (qspi_message->parent.cs_take) {
+#if defined(AIC_QSPI_MULTIPLE_CS_NUM)
+        cs_num = qspi->cs_num;
+#endif
+        hal_qspi_master_set_cs(&qspi->handle, cs_num, true);
+    }
 
     if (rcvb)
         ret = aic_qspi_receive(qspi, qspi_message, rcvb,
@@ -313,8 +360,12 @@ u32 qspi_xfer(struct aic_qspi *qspi, struct aic_qspi_message *qspi_message)
         ret = aic_qspi_send(qspi, qspi_message, sndb,
                             qspi_message->parent.length);
 
-    if (qspi_message->parent.cs_release)
-        hal_qspi_master_set_cs(&qspi->handle, 0, false);
+    if (qspi_message->parent.cs_release) {
+#if defined(AIC_QSPI_MULTIPLE_CS_NUM)
+        cs_num = qspi->cs_num;
+#endif
+        hal_qspi_master_set_cs(&qspi->handle, cs_num, false);
+    }
 
     return ret;
 }
@@ -335,6 +386,8 @@ u32 qspi_configure(struct aic_qspi *qspi,
     cfg.cpol = HAL_QSPI_CPOL_ACTIVE_HIGH;
     cfg.cpha = HAL_QSPI_CPHA_FIRST_EDGE;
     cfg.cs_polarity = HAL_QSPI_CS_POL_VALID_LOW;
+    cfg.rx_dlymode = qspi->rxd_dylmode;
+    cfg.tx_dlymode = aic_convert_tx_dlymode(qspi->txc_dylmode, qspi->txd_dylmode);
 
     ret = hal_qspi_master_init(&qspi->handle, &cfg);
     if (ret) {
@@ -345,11 +398,6 @@ u32 qspi_configure(struct aic_qspi *qspi,
     struct qspi_master_dma_config dmacfg;
     memset(&dmacfg, 0, sizeof(dmacfg));
     dmacfg.port_id = qspi->dma_port_id;
-
-    dmacfg.tx_bus_width = DMA_SLAVE_BUSWIDTH_UNDEFINED;
-    dmacfg.rx_bus_width = DMA_SLAVE_BUSWIDTH_UNDEFINED;
-    dmacfg.tx_max_burst = DMA_SLAVE_MAXBURST_DEFAULT;
-    dmacfg.rx_max_burst = DMA_SLAVE_MAXBURST_DEFAULT;
 
     ret = hal_qspi_master_dma_config(&qspi->handle, &dmacfg);
     if (ret) {

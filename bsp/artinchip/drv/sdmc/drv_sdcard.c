@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  *
- * Authors: zrq ruqi.zheng<duanmt@artinchip.com>
+ * Authors: zrq <ruiqi.zheng@artinchip.com>
  */
 
 #include "aic_core.h"

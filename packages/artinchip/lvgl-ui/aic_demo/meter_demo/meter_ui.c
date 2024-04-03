@@ -120,7 +120,7 @@ static void point_callback(lv_timer_t *tmr)
         lv_img_set_pivot(img_point, 210, 210);
 #endif
 
-#if defined(AIC_CHIP_D13X) && !defined(LV_METER_SIMPLE_POINT)
+#if (defined(AIC_CHIP_D13X) || defined(AIC_CHIP_G73X)) && !defined(LV_METER_SIMPLE_POINT)
         lv_timer_set_period(speed_timer, 150);
 #endif
 
@@ -138,7 +138,7 @@ static void point_callback(lv_timer_t *tmr)
         lv_img_set_pivot(img_point, 210, 210);
 #endif
         lv_img_set_angle(img_point, (int16_t)rot_angle);
-#if defined(AIC_CHIP_D13X) && !defined(LV_METER_SIMPLE_POINT)
+#if (defined(AIC_CHIP_D13X) || defined(AIC_CHIP_G73X)) && !defined(LV_METER_SIMPLE_POINT)
         lv_timer_set_period(speed_timer, 300);
 #endif
     }

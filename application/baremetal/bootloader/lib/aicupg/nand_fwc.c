@@ -13,6 +13,7 @@
 #include <aic_common.h>
 #include "upg_internal.h"
 #include "nand_fwc_spl.h"
+#include <spienc.h>
 
 #ifdef AIC_NFTL_SUPPORT
 #include <nftl_api.h>
@@ -117,6 +118,9 @@ s32 nand_fwc_prepare(struct fwc_info *fwc, u32 id)
         return -1;
     }
 
+#ifdef AIC_SPIENC_BYPASS_IN_UPGMODE
+        spienc_set_bypass(1);
+#endif
     return 0;
 }
 
@@ -151,13 +155,13 @@ void nand_fwc_start(struct fwc_info *fwc)
         fwc->block_size = priv->mtd[0]->writesize;
     }
     if (strstr(fwc->meta.name, "target.spl")) {
-        ret = nand_fwc_spl_reserve_blocks(fwc);
+        ret = nand_fwc_spl_reserve_blocks(fwc->priv);
         if (ret) {
             pr_err("Reserve blocks for SPL failed.\n");
             goto out;
         }
 
-        ret = nand_fwc_spl_prepare(fwc);
+        ret = nand_fwc_spl_prepare(fwc->priv, fwc->meta.size, fwc->block_size);
         if (ret) {
             pr_err("Prepare to write SPL failed.\n");
             goto out;
@@ -429,7 +433,7 @@ s32 nand_fwc_data_write(struct fwc_info *fwc, u8 *buf, s32 len)
     } else if (aicupg_get_fwc_attr(fwc) & FWC_ATTR_DEV_MTD) {
         priv = (struct aicupg_nand_priv *)fwc->priv;
         if (priv->spl_flag)
-            len = nand_fwc_spl_write(fwc, buf, len);
+            len = nand_fwc_spl_write(fwc->meta.size, buf, len);
         else
             len = nand_fwc_mtd_write(fwc, buf, len);
     } else {

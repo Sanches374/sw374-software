@@ -41,6 +41,16 @@
 #define PIN_DEBOUNCE_SHIFT 20
 #define PIN_DEBOUNCE_MASK  0xFFF
 
+#define PIN_GEN_OE                  BIT(17)
+#define PIN_GEN_IE                  BIT(16)
+#define PIN_GEN_IRQ_MODE_MASK       GENMASK(14, 12)
+#define PIN_GEN_IRQ_MODE_SHIFT      12
+#define PIN_GEN_PIN_PULL_MASK       GENMASK(9, 8)
+#define PIN_GEN_PIN_PULL_SHIFT      8
+#define PIN_GEN_PIN_DRV_MASK        GENMASK(6, 4)
+#define PIN_GEN_PIN_DRV_SHIFT       4
+#define PIN_GEN_PIN_FUN             GENMASK(3, 0)
+
 #define gen_reg(_g, _offset) \
     (volatile void *)((_g * GROUP_FACTOR) + _offset + GPIO_BASE)
 #define cfg_reg(_g, _p) \
@@ -401,4 +411,40 @@ int hal_gpio_cfg(struct gpio_cfg *cfg, u32 cnt)
         hal_gpio_set_bias_pull(cfg->port, cfg->pin, cfg->pull);
     }
     return 0;
+}
+
+int hal_gpio_get_pincfg(unsigned int group, unsigned int pin, int check_type)
+{
+    unsigned int val = 0;
+    unsigned int pincfg_val = 0;
+
+    pincfg_val = readl(cfg_reg(group, pin));
+
+    switch (check_type) {
+    case GPIO_CHECK_PIN_GEN_OE:
+        if (!(pincfg_val & PIN_GEN_OE))
+            return -1;
+        break;
+    case GPIO_CHECK_PIN_GEN_IE:
+        if (!(pincfg_val & PIN_GEN_IE))
+            return -1;
+        break;
+    case GPIO_CHECK_PIN_FUN:
+        val = PIN_GEN_PIN_FUN & pincfg_val;
+        break;
+    case GPIO_CHECK_GEN_IRQ_MODE:
+        val = (PIN_GEN_IRQ_MODE_MASK & pincfg_val) >> PIN_GEN_IRQ_MODE_SHIFT;
+        break;
+    case GPIO_CHECK_PIN_GEN_PIN_DRV:
+        val = (PIN_GEN_PIN_DRV_MASK & pincfg_val) >> PIN_GEN_PIN_DRV_SHIFT;
+        break;
+    case GPIO_CHECK_PIN_GEN_PULL:
+        val = (PIN_GEN_PIN_PULL_MASK & pincfg_val) >> PIN_GEN_PIN_PULL_SHIFT;
+        break;
+    default:
+        pr_info("CHECK TYPE: Unknown(%d)\n", check_type);
+        break;
+    }
+
+    return val;
 }

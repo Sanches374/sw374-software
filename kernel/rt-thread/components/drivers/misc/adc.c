@@ -63,6 +63,20 @@ static rt_err_t _adc_control(rt_device_t dev, int cmd, void *args)
             result = RT_EOK;
         }
     }
+#ifdef AIC_PSADC_DRV
+    else if (cmd == RT_ADC_CMD_GET_VALUES_POLL && adc->ops->get_adc_values_poll)
+    {
+        return adc->ops->get_adc_values_poll(adc, args);
+    }
+    else if (cmd == RT_ADC_CMD_GET_VALUES && adc->ops->get_adc_values)
+    {
+        return adc->ops->get_adc_values(adc, args);
+    }
+    else if (cmd == RT_ADC_CMD_GET_CHAN_COUNT && adc->ops->get_chan_count)
+    {
+        return adc->ops->get_chan_count(adc);
+    }
+#endif
 #ifdef AIC_GPAI_DRV
     else if (cmd == RT_ADC_CMD_CONFIG_DMA && adc->ops->config_dma)
     {
@@ -146,7 +160,7 @@ rt_uint32_t rt_adc_read(rt_adc_device_t dev, rt_uint32_t channel)
     return value;
 }
 
-#ifdef AIC_GPAI_DRV
+#if defined(AIC_GPAI_DRV) || defined(AIC_PSADC_DRV)
 rt_err_t rt_adc_control(rt_adc_device_t dev, int cmd, void *args)
 {
     RT_ASSERT(dev);

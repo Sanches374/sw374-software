@@ -9,6 +9,7 @@ menu "Display Panels"
         bool "ArtInChip simple panel"
         depends on AIC_DISP_RGB || AIC_DISP_LVDS
 
+if !AIC_DISP_PQ_TOOL
     config AIC_PANEL_DSI_XM91080
         bool "ArtInChip MIPI DSI xm91080 panel"
         depends on AIC_DISP_MIPI_DSI
@@ -41,9 +42,10 @@ menu "Display Panels"
     config AIC_PANEL_SRGB_HX8238
         bool "ArtInChip srgb hx8238 panel"
         depends on AIC_DISP_RGB
+endif
     endchoice
 
-if AIC_SIMPLE_PANEL
+if AIC_SIMPLE_PANEL && !AIC_DISP_PQ_TOOL
 source "bsp/artinchip/drv/display/panel/Kconfig.timing"
 endif
 

@@ -8,7 +8,6 @@ path += [cwd + '/base/include']
 path += [cwd + '/ge/include']
 
 path += [cwd + '/ve/include']
-path += [cwd + '../../../bsp/artinchip/include/uapi']
 path += [cwd + '/mpp_test']
 
 if GetDepend(['AIC_MPP_PLAYER_INTERFACE']):
@@ -22,6 +21,7 @@ if GetDepend(['AIC_MPP_PLAYER_INTERFACE']):
     path += [cwd + '/middle_media/base/parser/rawdata']
     path += [cwd + '/middle_media/base/stream/file']
     path += [cwd + '/middle_media/base/parser/mp3']
+    path += [cwd + '/middle_media/base/parser/wav']
 
     #openmax
     path += [cwd + '/middle_media/openmax/component']
@@ -29,6 +29,7 @@ if GetDepend(['AIC_MPP_PLAYER_INTERFACE']):
 
     #player
     path += [cwd + '/middle_media/player/include']
+    path += [cwd + '/middle_media/mini_audio_player']
 
 src = []
 
@@ -77,6 +78,8 @@ if GetDepend(['AIC_MPP_PLAYER_INTERFACE']):
     src += Glob('middle_media/base/stream/file/aic_file_stream.c')
     src += Glob('middle_media/base/parser/mp3/aic_mp3_parser.c')
     src += Glob('middle_media/base/parser/mp3/mp3.c')
+    src += Glob('middle_media/base/parser/wav/aic_wav_parser.c')
+    src += Glob('middle_media/base/parser/wav/wav.c')
 
     #openmax
     src += Glob('middle_media/openmax/component/*.c')
@@ -85,14 +88,12 @@ if GetDepend(['AIC_MPP_PLAYER_INTERFACE']):
     #player
     src += Glob('middle_media/player/aic_player.c')
     src += Glob('middle_media/player/player_demo.c')
+    src += Glob('middle_media/mini_audio_player/mini_audio_player.c')
+    src += Glob('middle_media/mini_audio_player/mini_audio_player_demo.c')
 
 if GetDepend(['AIC_MPP_VIN']):
     src += Glob('vin/mpp_vin_vb.c')
     src += Glob('vin/mpp_vin.c')
-
-if GetDepend(['AIC_MPP_VIN_DEV']):
-    src += Glob('vin/mpp_vin_vb.c')
-    src += Glob('vin/mpp_vin_dev.c')
 
 LOCAL_CCFLAGS = ''
 # LOCAL_CCFLAGS += ' -O0'

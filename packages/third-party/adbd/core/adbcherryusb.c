@@ -435,7 +435,6 @@ void usbd_event_handler(uint8_t event)
 
     switch (event) {
         case USBD_EVENT_RESET:
-            usbd_interface_disable(wd);
             break;
         case USBD_EVENT_CONNECTED:
             break;
@@ -444,6 +443,7 @@ void usbd_event_handler(uint8_t event)
         case USBD_EVENT_RESUME:
             break;
         case USBD_EVENT_SUSPEND:
+            usbd_interface_disable(wd);
             break;
         case USBD_EVENT_CONFIGURED:
             usbd_interface_enable(wd);
@@ -466,6 +466,8 @@ void usbd_winusb_out(uint8_t ep, uint32_t size)
     if (size == 0)
     {
         usbd_ep_start_read(WINUSB_OUT_EP, read_buffer, WINUSB_EP_MPS);
+        rt_wqueue_wakeup(&(wd->rq), (void *)POLLIN);
+        return;
     }
 
     if (wd->rdcnt != 0)
@@ -514,6 +516,7 @@ static int _file_read(struct dfs_fd *fd, void *buf, size_t size)
 {
     struct winusb_device *wd;
     size_t rsize, tsize;
+    rt_base_t level;
 
     wd = (struct winusb_device *)fd->data;
 
@@ -530,6 +533,7 @@ static int _file_read(struct dfs_fd *fd, void *buf, size_t size)
             return -ENODEV;
     }
 
+    level = rt_hw_interrupt_disable();
     rsize = rt_ringbuffer_data_len(wd->rrb);
     if (rsize)
     {
@@ -537,6 +541,7 @@ static int _file_read(struct dfs_fd *fd, void *buf, size_t size)
             rsize = size;
         rsize = rt_ringbuffer_get(wd->rrb, buf, rsize);
     }
+    rt_hw_interrupt_enable(level);
 
     if (wd->rdcnt)
     {
@@ -575,7 +580,7 @@ static int _file_write(struct dfs_fd *fd, const void *buf, size_t size)
     wlen = size > WINUSB_EP_MPS ? WINUSB_EP_MPS : size;
     wd->wrcnt = wlen;
 
-    usbd_ep_start_write(WINUSB_IN_EP, buf, size);
+    usbd_ep_start_write(WINUSB_IN_EP, buf, wlen);
 
     return wlen;
 }

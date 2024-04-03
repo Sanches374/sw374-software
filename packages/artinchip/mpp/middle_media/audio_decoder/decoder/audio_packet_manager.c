@@ -5,7 +5,6 @@
 *  Desc: aic_audio_decoder interface
 */
 
-
 #define LOG_TAG "audio_packet_manager"
 
 #include <string.h>
@@ -42,7 +41,6 @@ struct audio_packet_manager {
 	size_t read_offset;
 	size_t available_size;
 };
-
 
 struct audio_packet_manager *audio_pm_create(struct aic_audio_decode_config *cfg)
 {
@@ -160,7 +158,6 @@ int audio_pm_dequeue_empty_packet(struct audio_packet_manager *pm, struct mpp_pa
 		return -1;
 	}
 
-
 	pkt_impl->pkt.size = size;
 	pkt_impl->pkt.data = pm->buffer_start + pm->write_offset;
 	pkt_impl->pos_offset = 0;
@@ -208,7 +205,6 @@ int audio_pm_enqueue_ready_packet(struct audio_packet_manager *pm, struct mpp_pa
 {
 	struct audio_packet_impl *pkt_impl;
 	size_t left_offset;
-
 
 	if (!pm || !packet) {
 		loge("param error!!!\n");

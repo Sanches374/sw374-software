@@ -14,7 +14,7 @@
 #include <aic_common.h>
 #include <aic_errno.h>
 #include <spinand_port.h>
-#include <hexdump.h>
+#include <aic_utils.h>
 
 #define SPINAND_HELP                       \
     "spinand read write command:\n"        \

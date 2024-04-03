@@ -40,11 +40,11 @@ typedef struct DEMUXER_OUT_PACKET {
     struct mpp_list  sList;
 }DEMUXER_OUT_PACKET;
 
-//later,modify accord to real test
-//#define DEMUX_AUDIO_PACKET_NUM_MAX  128
-//#define DEMUX_AUDIO_PACKET_NUM_MAX  64
-#define DEMUX_AUDIO_PACKET_NUM_MAX   16
-#define DEMUX_VIDEO_PACKET_NUM_MAX   8
+#define DEMUX_AUDIO_PACKET_NUM_MAX   1
+#define DEMUX_VIDEO_PACKET_NUM_MAX   1
+
+#define DEMUX_AUDIO_PACKET_BUFFER_SIZE   4*1024
+#define DEMUX_VIDEO_PACKET_BUFFER_SIZE   200*1024
 
 #define DEMUX_SKIP_AUDIO_TRACK 0x01
 #define DEMUX_SKIP_VIDEO_TRACK 0x02
@@ -101,7 +101,12 @@ typedef struct DEMUXER_DATA_TYPE {
     OMX_S32 nSeekFlag;
     OMX_S32 nNeedPeek;
     OMX_S32 nSkipTrack;
-} DEMUXER_DATA_TYPE;
 
+    DEMUXER_OUT_PACKET *pVideoPktNodeHead;
+    DEMUXER_OUT_PACKET *pAudioPktNodeHead;
+    OMX_S32         nVideoPktNodeNum;
+    OMX_S32         nAudioPktNodeNum;
+
+} DEMUXER_DATA_TYPE;
 
 #endif

@@ -38,11 +38,14 @@
 #define AIC_ADC_MAX_VAL                 0xFFF
 #define AIC_VOLTAGE_ACCURACY            10000
 
-#ifdef AIC_ADCIM_DRV_V11
-#define ADCIM_CAL_ADC_OFFSET_MISMATCH   0x32
-#endif
-#ifdef AIC_ADCIM_DRV_V10
+#ifdef AIC_CHIP_D12X
+#define ADCIM_CAL_ADC_OFFSET_MISMATCH   0x8
+#elif defined(AIC_CHIP_D13X)
 #define ADCIM_CAL_ADC_OFFSET_MISMATCH   0x28
+#elif defined(AIC_CHIP_D21X)
+#define ADCIM_CAL_ADC_OFFSET_MISMATCH   0x32
+#else
+#define ADCIM_CAL_ADC_OFFSET_MISMATCH   0x0
 #endif
 
 #ifdef AIC_ADCIM_DM_DRV
@@ -116,11 +119,24 @@ int hal_adcim_calibration_set(unsigned int val)
     return 0;
 }
 
-int hal_adcim_auto_calibration(int adc_val, float def_voltage, int scale)
+u32 hal_adcim_auto_calibration(void)
 {
     u32 flag = 1;
     u32 data = 0;
-    int new_voltage = 0;
+
+    adcim_writel(0x08002f03, ADCIM_CALCSR);//auto cal
+    do {
+        flag = adcim_readl(ADCIM_CALCSR) & 0x00000001;
+    } while (flag);
+
+    data = (adcim_readl(ADCIM_CALCSR) >> 16) & 0xfff;
+
+    return data;
+}
+
+int hal_adcim_adc2voltage(int val, u32 cal_data, int scale, float def_voltage)
+{
+    int new_voltage;
     int st_voltage = 0;
 
 #ifdef AIC_SYSCFG_DRV
@@ -131,16 +147,7 @@ int hal_adcim_auto_calibration(int adc_val, float def_voltage, int scale)
         st_voltage = (int)(def_voltage * AIC_VOLTAGE_ACCURACY);
     }
 
-    adcim_writel(0x083F2f03, ADCIM_CALCSR);//auto cal
-    do {
-        flag = adcim_readl(ADCIM_CALCSR) & 0x00000001;
-    } while (flag);
-
-    data = (adcim_readl(ADCIM_CALCSR) >> 16) & 0xfff;
-    if (adc_val) {
-        new_voltage = (adc_val + ADCIM_CAL_ADC_STANDARD_VAL - data + ADCIM_CAL_ADC_OFFSET_MISMATCH) * st_voltage / AIC_ADC_MAX_VAL;
-    }
-
+    new_voltage = (val + ADCIM_CAL_ADC_STANDARD_VAL - cal_data + ADCIM_CAL_ADC_OFFSET_MISMATCH) * st_voltage / AIC_ADC_MAX_VAL;
     return new_voltage;
 }
 
@@ -303,6 +310,15 @@ ssize_t hal_adcdm_sram_write(int *buf, u32 offset, size_t count)
 
 #endif
 
+void hal_adcim_set_dcalmask(void)
+{
+    int val;
+
+    val = adcim_readl(ADCIM_CALCSR);
+    val |= ADCIM_CALCSR_DCAL_MASK;
+    adcim_writel(val, ADCIM_CALCSR);
+}
+
 s32 hal_adcim_probe(void)
 {
     s32 ret = 0;
@@ -332,6 +348,8 @@ s32 hal_adcim_probe(void)
         hal_log_err("ADCIM reset deassert failed!\n");
         return -1;
     }
+
+    hal_adcim_set_dcalmask();
 
     inited = 1;
     return 0;

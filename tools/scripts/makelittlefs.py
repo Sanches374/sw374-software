@@ -12,12 +12,27 @@ import platform
 import argparse
 import subprocess
 
+
 def run_cmd(cmdstr):
+
     # print(cmdstr)
     cmd = cmdstr.split(' ')
     ret = subprocess.run(cmd, stdout=subprocess.PIPE)
     if ret.returncode != 0:
         sys.exit(1)
+
+
+def mkimage_get_resource_size(srcdir, block_siz):
+    total_size = 0
+    root_path = srcdir
+    for root, dirs, files in os.walk(srcdir):
+        for fn in files:
+            fpath = os.path.join(root, fn)
+            size = os.path.getsize(fpath)
+            size = block_siz * int(round((size + block_siz - 1) / block_siz))
+            total_size += size
+    return total_size
+
 
 def mkimage_get_mtdpart_size(outfile):
     imgname = os.path.basename(outfile)
@@ -33,8 +48,9 @@ def mkimage_get_mtdpart_size(outfile):
                 size = int(ln.split(',')[2])
                 return size
     print('Image {} is not used in any partition'.format(imgname))
-    print('please check your project\'s image_cfg.json');
+    print('please check your project\'s image_cfg.json')
     return size
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -51,6 +67,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     imgsize = mkimage_get_mtdpart_size(args.outfile)
+    if imgsize == 0:
+        imgsize = mkimage_get_resource_size(args.inputdir, int(args.blocksize))
+        # Add some free space
+        imgsize += (4 * int(args.blocksize))
     cmdstr = args.tooldir
     if platform.system() == 'Linux':
         cmdstr += 'mklittlefs '

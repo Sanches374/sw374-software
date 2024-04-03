@@ -46,6 +46,9 @@ if LPKG_USING_LWIP
         bool "LwIP Examples"
         default n
 
+    config LPKG_USING_NETTOOLS
+        bool "Using net tools"
+        default n
 #    if LPKG_LWIP_EXAMPLES
 #        config LPKG_LWIP_EXAMPLES_TEST
 #            bool "example test"
@@ -214,6 +217,27 @@ if LPKG_USING_LWIP
         bool "Using MQTT protocol"
         default n
         select LPKG_LWIP_TCP
+
+    config LPKG_LWIP_USING_DHCPD
+        bool "Using dhcp server"
+        default n
+        select LPKG_LWIP_UDP
+
+    if LPKG_LWIP_USING_DHCPD
+
+        config LPKG_LWIP_DHCPD_IP
+            string "dhcp server ip addresss"
+            default "192.168.1.1"
+
+        config LPKG_LWIP_DHCPD_IP_START
+            int "Start address of DHCP allocation(Last byte)"
+            default 2
+
+        config LPKG_LWIP_DHCPD_IP_END
+            int "End address of DHCP allocation(Last byte)"
+            default 254
+
+    endif
 
     menuconfig LPKG_LWIP_DEBUG
         bool "Enable lwIP Debugging Options"

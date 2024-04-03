@@ -1,5 +1,13 @@
+/*
+ * Copyright (c) 2024, ArtInChip Technology Co., Ltd
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Authors: xindong.hu@artinchip.com
+ */
+
 #include "usbd_core.h"
-#include "usb_midi.h"
+#include "../class/midi/usbd_midi.h"
 
 #define MIDI_OUT_EP 0x02
 #define MIDI_IN_EP  0x81
@@ -16,6 +24,10 @@
 #else
 #define MIDI_EP_MPS 64
 #endif
+
+#define MIDI_OUT_PACKET   4
+USB_NOCACHE_RAM_SECTION USB_MEM_ALIGNX uint8_t read_buffer[MIDI_OUT_PACKET];
+USB_NOCACHE_RAM_SECTION USB_MEM_ALIGNX uint8_t write_buffer[MIDI_OUT_PACKET];
 
 const uint8_t midi_descriptor[] = {
     USB_DEVICE_DESCRIPTOR_INIT(USB_2_0, 0x00, 0x00, 0x00, USBD_VID, USBD_PID, 0x0100, 0x01),
@@ -58,10 +70,6 @@ const uint8_t midi_descriptor[] = {
     0x01,
     WBVAL(65),
 
-    // MIDI_IN_JACK_DESCRIPTOR_INIT(MIDI_JACK_TYPE_EMBEDDED, 0x01),
-    // MIDI_IN_JACK_DESCRIPTOR_INIT(MIDI_JACK_TYPE_EXTERNAL, 0x02),
-    // MIDI_OUT_JACK_DESCRIPTOR_INIT(MIDI_JACK_TYPE_EMBEDDED, 0x03, 0x02),
-    // MIDI_OUT_JACK_DESCRIPTOR_INIT(MIDI_JACK_TYPE_EXTERNAL, 0x04, 0x01),
     MIDI_JACK_DESCRIPTOR_INIT(0x01),
     // OUT endpoint descriptor
     0x09, 0x05, MIDI_OUT_EP, 0x02, WBVAL(MIDI_EP_MPS), 0x00, 0x00, 0x00,
@@ -143,13 +151,103 @@ const uint8_t midi_descriptor[] = {
     0x01,
     0x00,
 #endif
+    ///////////////////////////////////////
+    /// Other Speed Configuration Descriptor
+    ///////////////////////////////////////
+    0x09,
+    USB_DESCRIPTOR_TYPE_OTHER_SPEED,
+    WBVAL(USB_CONFIG_SIZE),
+    0x02,
+    0x01,
+    0x00,
+    0x80,
+    USB_CONFIG_POWER_MA(100),
+
+    // Standard AC Interface Descriptor
+    0x09,
+    0x04,
+    0x00,
+    0x00,
+    0x00,
+    0x01,
+    0x01,
+    0x00,
+    0x00,
+    // Class-specific AC Interface Descriptor
+    0x09,
+    0x24,
+    0x01,
+    0x00,
+    0x01,
+    0x09,
+    0x00,
+    0x01,
+    0x01,
+    // MIDIStreaming Interface Descriptors
+    0x09,
+    0x04,
+    0x01,
+    0x00,
+    0x02,
+    0x01,
+    0x03,
+    0x00,
+    0x00,
+    // Class-Specific MS Interface Header Descriptor
+    0x07,
+    0x24,
+    0x01,
+    0x00,
+    0x01,
+    WBVAL(65),
+    MIDI_JACK_DESCRIPTOR_INIT(0x01),
+    // OUT endpoint descriptor
+    0x09, 0x05, MIDI_OUT_EP, 0x02, WBVAL(MIDI_EP_MPS), 0x00, 0x00, 0x00,
+    0x05, 0x25, 0x01, 0x01, 0x01,
+
+    // IN endpoint descriptor
+    0x09, 0x05, MIDI_IN_EP, 0x02, WBVAL(MIDI_EP_MPS), 0x00, 0x00, 0x00,
+    0x05, 0x25, 0x01, 0x01, 0x03,
     0x00
 };
+
+/********************************************************************************
+* @function   :  usbd_midi_input_buffer
+* @parameters ： data: This data is the midi streaming input to the master device
+* @return:       if run success,return 0
+* @Description:  This function is a customer-defined function
+********************************************************************************/
+int usbd_midi_input_buffer(uint8_t *data)
+{
+    return 0;
+}
+
+/********************************************************************************
+* @function   :  usbd_ms_decoder
+* @parameters ： data: This data is undecoderd,need decoder
+* @return:       if run success,return 0
+* @Description:  This function is a customer-defined function
+********************************************************************************/
+int usbd_ms_decoder(uint8_t *data)
+{
+    return 0;
+}
+
+void usbd_clear_buffer(void)
+{
+    static uint8_t reset_num = 1;
+    if (reset_num++>2) {
+        USB_LOG_INFO("usbd_clear_buffer\r\n");
+        memset(read_buffer, 0, MIDI_OUT_PACKET);
+        memset(write_buffer, 0, MIDI_OUT_PACKET);
+    }
+}
 
 void usbd_event_handler(uint8_t event)
 {
     switch (event) {
         case USBD_EVENT_RESET:
+            usbd_clear_buffer();
             break;
         case USBD_EVENT_CONNECTED:
             break;
@@ -173,10 +271,25 @@ void usbd_event_handler(uint8_t event)
 
 void usbd_midi_bulk_out(uint8_t ep, uint32_t nbytes)
 {
+    if (usbd_ms_decoder(read_buffer)) {
+        USB_LOG_ERR("midi streaming decoder fail!\r\n");
+        return;
+    }
+    usbd_ep_start_read(MIDI_OUT_EP, read_buffer, MIDI_OUT_PACKET);
 }
 
 void usbd_midi_bulk_in(uint8_t ep, uint32_t nbytes)
 {
+    if (usbd_midi_input_buffer(write_buffer)) {
+        USB_LOG_ERR("midi input buffer fail!\r\n");
+        return;
+    }
+    usbd_ep_start_write(MIDI_IN_EP, write_buffer, MIDI_OUT_PACKET);
+}
+
+void usbd_midi_open(void)
+{
+    usbd_ep_start_read(MIDI_OUT_EP, read_buffer, MIDI_OUT_PACKET);
 }
 
 struct usbd_interface intf0;
@@ -195,10 +308,23 @@ struct usbd_endpoint midi_in_ep = {
 void midi_init(void)
 {
     usbd_desc_register(midi_descriptor);
-    usbd_add_interface(&intf0);
-    usbd_add_interface(&intf1);
+    usbd_add_interface(usbd_midi_init_intf(&intf0));
+    usbd_add_interface(usbd_midi_init_intf(&intf1));
     usbd_add_endpoint(&midi_out_ep);
     usbd_add_endpoint(&midi_in_ep);
 
     usbd_initialize();
 }
+
+#if defined(KERNEL_RTTHREAD)
+#include <rtthread.h>
+#include <rtdevice.h>
+
+int usbd_midi_init(void)
+{
+    midi_init();
+    return 0;
+}
+
+INIT_DEVICE_EXPORT(usbd_midi_init);
+#endif

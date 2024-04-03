@@ -10,6 +10,7 @@
 #include "aic_mov_parser.h"
 #include "aic_raw_parser.h"
 #include "aic_mp3_parser.h"
+#include "aic_wav_parser.h"
 
 s32 aic_parser_create(unsigned char *uri, struct aic_parser **parser)
 {
@@ -30,6 +31,8 @@ s32 aic_parser_create(unsigned char *uri, struct aic_parser **parser)
 		return aic_raw_parser_create(uri, parser);
 	} else if (!strncmp(ptr+1, "mp3", 3)) {
 		return aic_mp3_parser_create(uri, parser);
+	} else if (!strncmp(ptr+1, "wav", 3)) {
+		return aic_wav_parser_create(uri, parser);
 	}
 
 	logw("unkown parser for (%s)", uri);

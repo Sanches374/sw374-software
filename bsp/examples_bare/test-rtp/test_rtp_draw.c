@@ -33,39 +33,35 @@
 #define AIC_CALI_POINT_NUM      7
 #define AIC_INVAILD_POINT_VAL   0xfff
 #define AIC_RTP_PRESSURE_DET    1
+#define AIC_RTP_TOUCH_EVENT_DOWN    1
+#define AIC_RTP_TOUCH_EVENT_UP      0
 
-#define AIC_POINTERCAL_PATH     "/data/config/rtp_pointercal"
+#define AIC_CONFIG_FOLDER_PERMISSION    0755
+#define AIC_CONFIG_PATH                 "/data/config"
+#define AIC_POINTERCAL_PATH             "/data/config/rtp_pointercal"
 
 static struct mpp_fb *g_fb = NULL;
 static struct aicfb_screeninfo g_fb_info = {0};
 static struct aic_rtp_dev g_rtp_dev = {0};
+static int g_last_up_flag = 1;
 static int g_xres;
 static int g_yres;
-static bool g_draw_buf_sync = true;
 
 static calibration g_cal = {
         .x = { 0 },
         .y = { 0 },
     };
 
-static const char sopts[] = "cp:dh";
-static const struct option lopts[] = {
-    {"calibrate", no_argument, NULL, 'c'},
-    {"points", required_argument, NULL, 'p'},
-    {"draw", no_argument, NULL, 'd'},
-    {"help",          no_argument, NULL, 'h'},
-    {0, 0, 0, 0}
-    };
-
-static void cmd_rtp_usage(char *program)
+static void cmd_rtp_usage(void)
 {
-    printf("Usage: %s [options]\n", program);
-    printf("\t -c, --calibrate\tPlatform the screen calibration\n");
-    printf("\t -p, --points\t\tSet the points for drawing, defalut is 1000\n");
-    printf("\t -d, --draw\t\tDraw the shape\n");
-    printf("\t -h, --help \n");
+    printf("Compile time: %s %s\n", __DATE__, __TIME__);
+    printf("Usage: test_rtp_draw [options]\n");
+    printf("test_rtp_draw calibrate            : Platform the screen calibration\n");
+    printf("test_rtp_draw set <points_number>  : Set the points for drawing, defalut is 1000\n");
+    printf("test_rtp_draw draw                 : Draw the shape\n");
+    printf("test_rtp_draw help                 : Get this help\n");
     printf("\n");
-    printf("Example: %s -c\n", program);
+    printf("Example: test_rtp_draw set 100\n");
 }
 
 static int test_get_fb_info(void)
@@ -95,9 +91,13 @@ static int test_get_fb_info(void)
 
 static int rtp_save_cali_param(calibration *cal)
 {
+    int fd;
     int cali_cnt;
     char cal_buf[sizeof(float) * AIC_CALI_POINT_NUM];
-    int fd = open(AIC_POINTERCAL_PATH, O_WRONLY | O_CREAT);
+
+    if (open(AIC_CONFIG_PATH, O_RDONLY) < 0)
+        mkdir(AIC_CONFIG_PATH, AIC_CONFIG_FOLDER_PERMISSION);
+    fd = open(AIC_POINTERCAL_PATH, O_WRONLY | O_CREAT);
 
     if (fd > 0) {
         for (cali_cnt = 0; cali_cnt < AIC_CALI_POINT_NUM; cali_cnt++) {
@@ -191,6 +191,33 @@ static void rtp_draw_cross(calibration *cal, int index, char *name, int y,
     return;
 }
 
+static void rtp_check_event_type(int event_type, int press_value)
+{
+    int up_flag = 0;
+
+    switch(event_type) {
+    case AIC_RTP_TOUCH_EVENT_DOWN:
+        up_flag = 0;
+        printf("Event type : down, ");
+        break;
+    case AIC_RTP_TOUCH_EVENT_UP:
+        up_flag = 1;
+        printf("Event type : up, ");
+        break;
+    default:
+        break;
+    }
+
+    if (g_last_up_flag && !press_value)
+        printf("Press: too light\n");
+    else
+        printf("Press : %d\n", press_value);
+
+    g_last_up_flag = up_flag;
+
+    return;
+}
+
 static int rtp_perform_calibration(calibration *cal)
 {
     int j;
@@ -262,7 +289,7 @@ static int rtp_perform_calibration(calibration *cal)
  * the calibration point. Among them, the calibration point is the touch
  * screen coordinate system */
 static void rtp_get_valid_point(calibration *cal, int index,
-                                      struct aic_rtp_event *e)
+                                struct aic_rtp_event *e)
 {
     int x=0, y=0;
     int cnt = 0;
@@ -270,33 +297,30 @@ static void rtp_get_valid_point(calibration *cal, int index,
     int sum_x =0;
     int sum_y = 0;
     int ret = 0;
-    u64 start_us, end_us;
+    int pressed_flag = 0;
 
-    start_us = aic_get_time_us();
     do {
-redocalibration:
         memset(e, 0, sizeof(struct aic_rtp_event));
         ret = hal_rtp_ebuf_read(&g_rtp_dev.ebuf, e);
-        end_us = aic_get_time_us();
 
         if (ret < 0)
             continue;
-        if (e->x == AIC_INVAILD_POINT_VAL && e->y == AIC_INVAILD_POINT_VAL)
+        if (e->x <= 0 && e->y <= 0)
             continue;
-        if (e->x > 0 || e->y > 0) {
-            start_us = aic_get_time_us();
+
+        if (e->down == AIC_RTP_TOUCH_EVENT_UP) {
+            if (pressed_flag)
+                break;
+            continue;
+        } else {
+            pressed_flag = 1;
             x = e->x;
             y = e->y;
             sum_x += x;
             sum_y += y;
             cnt++;
         }
-    } while (abs(end_us - start_us) < 600000);
-
-    if (x == 0) {
-        start_us = aic_get_time_us();
-        goto redocalibration;
-    }
+    } while (1);
 
     x = sum_x /cnt;
     y = sum_y /cnt;
@@ -354,12 +378,11 @@ static int test_rtp_init(void)
         return -1;
 
     g_rtp_dev.x_plate = AIC_RTP_X_PLATE;
-    g_rtp_dev.y_plate = AIC_RTP_Y_PLATE;
+    g_rtp_dev.y_plate = AIC_RTP_DEFAULT_Y_PLATE;
     g_rtp_dev.mode = RTP_MODE_AUTO2;
     g_rtp_dev.max_press = AIC_RTP_MAX_PRESSURE;
     g_rtp_dev.smp_period = AIC_RTP_PERIOD_MS;
     g_rtp_dev.pressure_det = AIC_RTP_PRESSURE_DET;
-    g_rtp_dev.pdeb = AIC_RTP_PDEB;
     g_rtp_dev.delay = AIC_RTP_DELAY;
 
     aicos_request_irq(RTP_IRQn, hal_rtp_isr, 0, NULL, NULL);
@@ -378,7 +401,6 @@ static void ts_rtp_deinit(void)
 static void rtp_draw(int max, struct aic_rtp_event *e, calibration *cal)
 {
     u32 ret, cnt = 0;
-    static u32 last_time = 0;
 
     rtp_draw_grid();
 
@@ -401,14 +423,12 @@ static void rtp_draw(int max, struct aic_rtp_event *e, calibration *cal)
         ret = hal_rtp_ebuf_read(&g_rtp_dev.ebuf, e);
         if (ret < 0)
             continue;
-        if (e->x == AIC_INVAILD_POINT_VAL && e->y == AIC_INVAILD_POINT_VAL)
-            continue;
+
         if (e->x > 0 || e->y > 0) {
-            if (e->timestamp == last_time) {
-                continue;
-            }
-            last_time = e->timestamp;
-            test_draw_a_point(cnt, e, cal);
+            rtp_check_event_type(e->down, e->pressure);
+            // printf("down: %d\n", e->down);
+            if (e->down)
+                test_draw_a_point(cnt, e, cal);
             cnt++;
         }
     } while (cnt < max);
@@ -416,12 +436,11 @@ static void rtp_draw(int max, struct aic_rtp_event *e, calibration *cal)
 
 static int cmd_test_rtp_draw(int argc, char *argv[])
 {
-    int c;
     struct aic_rtp_event e = {0};
     static int draw_point_num = AIC_DRAW_POINT_NUM;
 
     if (argc < 2) {
-        cmd_rtp_usage(argv[0]);
+        cmd_rtp_usage();
         return 0;
     }
 
@@ -431,30 +450,20 @@ static int cmd_test_rtp_draw(int argc, char *argv[])
     if (test_rtp_init())
         return -1;
 
-    optind = 0;
-    while ((c = getopt_long(argc, argv, sopts, lopts, NULL)) != -1) {
-        switch (c) {
-        case 'c':
-            rtp_calibrate(&g_cal, &e);
-            break;
-        case 'p':
-            draw_point_num = atoi(optarg);
-            break;
-        case 'd':
-            g_draw_buf_sync = true;
-            rtp_draw(draw_point_num, &e, &g_cal);
-            break;
-        case 'h':
-        default:
-            cmd_rtp_usage(argv[0]);
-            return 0;
-        }
-    }
+    if (!strcmp(argv[1], "calibrate"))
+        rtp_calibrate(&g_cal, &e);
+
+    if (!strcmp(argv[1], "set"))
+        draw_point_num = atoi(argv[2]);
+
+    if (!strcmp(argv[1], "draw"))
+        rtp_draw(draw_point_num, &e, &g_cal);
 
     if (g_fb)
         mpp_fb_close(g_fb);
 
     ts_rtp_deinit();
+
     return 0;
 }
 

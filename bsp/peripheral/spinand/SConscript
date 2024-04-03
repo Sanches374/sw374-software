@@ -49,6 +49,9 @@ if GetDepend('SPI_NAND_UMTEK'):
 if GetDepend('SPI_NAND_QUANXING'):
     src += ['quanxing.c']
 
+if GetDepend('SPI_NAND_XINCUN'):
+    src += ['xincun.c']
+
 if GetDepend('LPKG_USING_SPINAND'):
     src += ['spinand.c']
     src += ['bbt.c']

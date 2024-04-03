@@ -12,7 +12,7 @@
 
 #include <rthw.h>
 #include <rtthread.h>
-
+#include <aic_core.h>
 #include "cpuport.h"
 
 #ifndef RT_USING_SMP
@@ -134,6 +134,11 @@ rt_uint8_t *rt_hw_stack_init(void       *tentry,
     return stk;
 }
 
+/** reset CPU */
+RT_WEAK void rt_hw_cpu_reset()
+{
+}
+
 /** shutdown CPU */
 RT_WEAK void rt_hw_cpu_shutdown()
 {
@@ -146,3 +151,19 @@ RT_WEAK void rt_hw_cpu_shutdown()
         RT_ASSERT(0);
     }
 }
+
+#ifdef GLOBAL_INT_SW_THRESHOLD_EN
+rt_base_t rt_hw_interrupt_disable(void)
+{
+    unsigned int prio = aicos_irq_get_threshold();
+    if (prio < GLOBAL_INT_SW_THRESHOLD) {
+        aicos_irq_set_threshold(GLOBAL_INT_SW_THRESHOLD);
+    }
+    return prio;
+}
+
+void rt_hw_interrupt_enable(rt_base_t level)
+{
+    aicos_irq_set_threshold(level);
+}
+#endif

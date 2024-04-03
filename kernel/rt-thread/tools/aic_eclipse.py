@@ -15,9 +15,39 @@ import shutil
 import glob
 import rtconfig
 
-def TargetEclipse(env, sdk=False, prj_name=None):
-    print('Update eclipse setting...')
 
+def is_subpath(parent, child):
+    parent = os.path.normpath(parent)
+    child = os.path.normpath(child)
+    common_prefix = os.path.commonprefix([parent, child])
+    return common_prefix == parent and child != parent
+
+
+def remove_sdk_path(l_path, l_opt, root_path, aic_root, prj_out_dir):
+    value = l_opt.attrib['value']
+    value = value.replace('"', '')
+    value = value.replace(root_path, '')
+    # Remove old sdk path (luban-lite/*)
+    # and don't remove custom's path (luban-lite/output/* or out of luban-lite/)
+    d_path = os.path.normpath(os.path.join(aic_root, value))
+    if d_path == aic_root:
+        l_path.remove(l_opt)
+    if os.path.exists(d_path) and is_subpath(aic_root, d_path) and \
+       not is_subpath(prj_out_dir, d_path):
+        l_path.remove(l_opt)
+
+
+# Eclipse Project Type:
+#
+# sdk    update
+# ---------------
+# Fasle  Fasle      // (1) Create eclipse link, point to origin file.
+# Fasle  True       // (2) Update eclipse link, when rerun menuconfig.
+# True   Fasle      // (3) Copy file to eclipse project folder.
+# True   True       // Not support.
+
+
+def TargetEclipse(env, sdk=False, update=False):
     aic_root = os.path.normpath(os.environ["AIC_ROOT"])
     prj_out_dir = os.environ["PRJ_OUT_DIR"]
     if sdk:
@@ -28,15 +58,55 @@ def TargetEclipse(env, sdk=False, prj_name=None):
     template_dir = os.path.join(aic_root, "tools/scripts/template/eclipse")
     template_dir = os.path.normpath(template_dir)
     proj = ProjectInfo(env)
+    rel_path = os.path.relpath(prj_eclipse_dir, aic_root)
+    rel_path_list = rel_path.split(os.sep)
+    parent_lvl = len(rel_path_list)
+
+    # (0) select and check template file
+    if update:
+        print('Update eclipse setting...')
+        template_project = os.path.join(prj_eclipse_dir, '.project')
+        template_cproject = os.path.join(prj_eclipse_dir, '.cproject')
+        template_language_settings = os.path.join(prj_eclipse_dir, '.settings',
+                                                  'language.settings.xml')
+        template_core_prefs = os.path.join(prj_eclipse_dir, '.settings',
+                                           'org.eclipse.cdt.core.prefs')
+    else:
+        print('Generate eclipse setting...')
+        template_project = os.path.join(template_dir, 'template.project')
+        template_cproject = os.path.join(template_dir, 'template.cproject')
+        template_language_settings = os.path.join(template_dir, 'template.language.settings.xml')
+        template_core_prefs = os.path.join(template_dir, 'template.org.eclipse.cdt.core.prefs')
+
+    files = [template_project, template_cproject, template_language_settings, template_core_prefs]
+    for f in files:
+        if not os.path.exists(f):
+            print('{} file not found!'.format(f))
+            exit(100)
 
     # (1) generate '.project'
     # (1.1) read xml from template
-    project = etree.parse(os.path.join(template_dir, 'template.project'))
+    project = etree.parse(template_project)
     l_root = project.getroot()
     l_linkedResources = l_root.find('linkedResources')
-    if l_linkedResources != None:
-        l_root.remove(l_linkedResources)
-    if not sdk:
+    if update:
+        if (l_linkedResources != None):
+            # Remove old sdk file link (luban-lite/*)
+            # and don't remove custom's file link (luban-lite/output/* or out of luban-lite/)
+            for link in l_linkedResources.findall('link'):
+                l_name = link.find('name').text
+                l_type = link.find('type').text
+                l_url = link.find('locationURI').text
+                l_path = os.path.join(prj_eclipse_dir, l_name)
+                l_des_path = os.path.join(aic_root, l_name)
+                if os.path.exists(l_des_path) and is_subpath(aic_root, l_des_path) and \
+                   not is_subpath(prj_out_dir, l_des_path):
+                    l_linkedResources.remove(link)
+        else:
+            l_linkedResources = SubElement(l_root, 'linkedResources')
+    else:
+        if l_linkedResources != None:
+            l_root.remove(l_linkedResources)
         l_linkedResources = SubElement(l_root, 'linkedResources')
 
     # (1.2) modify project name
@@ -105,7 +175,7 @@ def TargetEclipse(env, sdk=False, prj_name=None):
             l_type = SubElement(l_link, 'type')
             l_type.text = '1'
             l_location = SubElement(l_link, 'locationURI')
-            l_location.text = 'PARENT-3-PROJECT_LOC/' + f
+            l_location.text = 'PARENT-{}-PROJECT_LOC/'.format(parent_lvl) + f
 
         # (1.5) create '.h file' link
         for f in proj['HEADERS']:
@@ -117,7 +187,7 @@ def TargetEclipse(env, sdk=False, prj_name=None):
             l_type = SubElement(l_link, 'type')
             l_type.text = '1'
             l_location = SubElement(l_link, 'locationURI')
-            l_location.text = 'PARENT-3-PROJECT_LOC/' + f
+            l_location.text = 'PARENT-{}-PROJECT_LOC/'.format(parent_lvl) + f
 
     # (1.6) write to '.project'
     if not os.path.exists(prj_eclipse_dir):
@@ -127,11 +197,10 @@ def TargetEclipse(env, sdk=False, prj_name=None):
     xml_indent(l_root)
     out.write(etree.tostring(l_root, encoding='utf-8').decode('utf-8'))
     out.close()
-    #print(etree.tostring(l_root, encoding='utf-8').decode('utf-8'))
 
     # (2) generate '.cproject'
     # (2.1) read xml from template
-    cproject = etree.parse(os.path.join(template_dir, 'template.cproject'))
+    cproject = etree.parse(template_cproject)
     l_root = cproject.getroot()
 
     # (2.2) 'debug' configuration
@@ -151,19 +220,24 @@ def TargetEclipse(env, sdk=False, prj_name=None):
     flags = env['ASFLAGS'].split()
     for flg in flags:
         if flg.startswith('-D'):
-            SubElement(l_defs, 'listOptionValue', builtIn="false", value=flg.replace('-D',''))
+            SubElement(l_defs, 'listOptionValue', builtIn="false", value=flg.replace('-D', ''))
 
     # (2.2.3) 'assembler.include.paths' configuration
-    l_path = l_configuration.find(".//option[@superClass='ilg.gnumcueclipse.managedbuild.cross.riscv.option.assembler.include.paths']")
+    l_path = l_configuration.find(".//option[@superClass='ilg.gnumcueclipse.managedbuild." +
+                                  "cross.riscv.option.assembler.include.paths']")
     # remove old Option
+    if sdk:
+        root_path = "${ProjDirPath}\\"
+    else:
+        root_path = "${ProjDirPath}" + "\.." * parent_lvl + "\\"
     for l_opt in l_path.findall('listOptionValue'):
-        l_path.remove(l_opt)
+        if update:
+            remove_sdk_path(l_path, l_opt, root_path, aic_root, prj_out_dir)
+        else:
+            l_path.remove(l_opt)
     for d in proj['CPPPATH']:
         d = os.path.relpath(d, aic_root)
-        if sdk:
-            d = '"' + "${ProjDirPath}\\" + d + '"'
-        else:
-            d = '"' + "${ProjDirPath}\..\..\..\\" + d + '"'
+        d = '"' + root_path + d + '"'
         SubElement(l_path, 'listOptionValue', builtIn="false", value=d)
 
     # (2.2.4) 'c.compiler.defs' configuration
@@ -175,16 +249,17 @@ def TargetEclipse(env, sdk=False, prj_name=None):
         SubElement(l_defs, 'listOptionValue', builtIn="false", value=d)
 
     # (2.2.5) 'c.compiler.include.paths' configuration
-    l_path = l_configuration.find(".//option[@superClass='ilg.gnumcueclipse.managedbuild.cross.riscv.option.c.compiler.include.paths']")
+    l_path = l_configuration.find(".//option[@superClass='ilg.gnumcueclipse.managedbuild" +
+                                  ".cross.riscv.option.c.compiler.include.paths']")
     # remove old Option
     for l_opt in l_path.findall('listOptionValue'):
-        l_path.remove(l_opt)
+        if update:
+            remove_sdk_path(l_path, l_opt, root_path, aic_root, prj_out_dir)
+        else:
+            l_path.remove(l_opt)
     for d in proj['CPPPATH']:
         d = os.path.relpath(d, aic_root)
-        if sdk:
-            d = '"' + "${ProjDirPath}\\" + d + '"'
-        else:
-            d = '"' + "${ProjDirPath}\..\..\..\\" + d + '"'
+        d = '"' + root_path + d + '"'
         SubElement(l_path, 'listOptionValue', builtIn="false", value=d)
 
     # (2.2.6) 'c.linker.scriptfile' configuration
@@ -197,9 +272,9 @@ def TargetEclipse(env, sdk=False, prj_name=None):
         index = flags.index('-T')
         src_f = flags[index + 1]
         rel_f = os.path.relpath(src_f, aic_root)
+        f = '"' + root_path + rel_f + '"'
         if sdk:
             print('Copy .ld file...')
-            f = '"' + "${ProjDirPath}\\" + rel_f + '"'
             # copy .ld file
             des_f = os.path.join(prj_eclipse_dir, rel_f)
             des_d = os.path.dirname(des_f)
@@ -208,8 +283,6 @@ def TargetEclipse(env, sdk=False, prj_name=None):
             except:
                 pass
             shutil.copy(src_f, des_f)
-        else:
-            f = '"' + "${ProjDirPath}\..\..\..\\" + rel_f + '"'
         SubElement(l_path, 'listOptionValue', builtIn="false", value=f)
 
     # (2.2.7) 'c.linker.libs' configuration
@@ -241,7 +314,7 @@ def TargetEclipse(env, sdk=False, prj_name=None):
             if sdk:
                 print('Copy lib file...')
                 base_d = 'libs'
-                d = '"' + "${ProjDirPath}\\" + base_d  + '"'
+                d = '"' + root_path + base_d + '"'
                 # copy lib file
                 des_d = os.path.join(prj_eclipse_dir, base_d)
                 try:
@@ -254,7 +327,7 @@ def TargetEclipse(env, sdk=False, prj_name=None):
                         des_f = os.path.join(des_d, des_f)
                         shutil.copy(f, des_f)
             else:
-                d = '"' + "${ProjDirPath}\..\..\..\\" + rel_d + '"'
+                d = '"' + root_path + rel_d + '"'
             SubElement(l_path, 'listOptionValue', builtIn="false", value=d)
 
     # (2.2.9) post-build command 'make image'
@@ -407,7 +480,8 @@ def TargetEclipse(env, sdk=False, prj_name=None):
         l_entry = l_path.find("entry")
         l_entry.attrib['excluding'] = "toolchain|tools"
     else:
-        l_configuration.remove(l_path)
+        if l_path != None:
+            l_configuration.remove(l_path)
 
     # (2.3) write to '.cproject'
     out = open(os.path.join(prj_eclipse_dir, '.cproject'), 'w')
@@ -423,14 +497,15 @@ def TargetEclipse(env, sdk=False, prj_name=None):
     if not os.path.exists(d):
         os.makedirs(d)
     des = os.path.join(d, "language.settings.xml")
-    src = os.path.join(template_dir, 'template.language.settings.xml')
-    shutil.copy(src, des)
+    src = template_language_settings
+    if not update:
+        shutil.copy(src, des)
 
     # (4) generate '.settings/org.eclipse.cdt.core.prefs'
     d = os.path.join(prj_eclipse_dir, ".settings")
     if not os.path.exists(d):
         os.makedirs(d)
-    src_f = os.path.join(template_dir, 'template.org.eclipse.cdt.core.prefs')
+    src_f = template_core_prefs
     des_f = os.path.join(d, "org.eclipse.cdt.core.prefs")
     with open(src_f, 'r') as f:
         template_prefs_str = f.read()

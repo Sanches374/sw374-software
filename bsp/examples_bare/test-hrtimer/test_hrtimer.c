@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  *
- * Authors: zrq <ruqi.zheng@artinchip.com>
+ * Authors: zrq <ruiqi.zheng@artinchip.com>
  */
 
 #include <stdlib.h>
@@ -31,7 +31,7 @@ static void cmd_hrtimer_usage(void)
     printf("Example: test_hrtimer 0 20\n");
 }
 
-irqreturn_t hrtiemr_irq_handler(int irq, void *args)
+irqreturn_t hrtimer_irq_handler(int irq, void *args)
 {
     u32 i;
 
@@ -69,7 +69,7 @@ void test_hrtimer_init(u32 ch)
 {
     hal_cap_init();
     hal_cap_set_freq(ch, CAP_MAX_FREQ);
-    aicos_request_irq(PWMCS_CAP_IRQn, hrtiemr_irq_handler, 0, NULL, NULL);
+    aicos_request_irq(PWMCS_CAP_IRQn, hrtimer_irq_handler, 0, NULL, NULL);
 }
 
 void test_hrtimer_start(u32 ch, u32 cnt)

@@ -14,6 +14,10 @@
 #include <aic_core.h>
 #include <aicupg.h>
 #include <fatfs.h>
+#include <progress_bar.h>
+
+static u32 image_size = 0;
+static u64 write_size = 0;
 
 #define FRAME_LIST_SIZE 4096
 static s32 media_device_write(char *image_name, struct fwc_meta *pmeta)
@@ -24,6 +28,7 @@ static s32 media_device_write(char *image_name, struct fwc_meta *pmeta)
     s32 ret;
     ulong actread, total_len = 0;
     u64 start_us;
+    u32 percent;
 
     fwc = NULL;
     buf = NULL;
@@ -78,6 +83,10 @@ static s32 media_device_write(char *image_name, struct fwc_meta *pmeta)
         }
         total_len += ret;
         offset += len;
+
+        write_size += ret;
+        percent = write_size * 100 / image_size;
+        aicfb_draw_bar(percent);
     }
 
     /*write data end*/
@@ -138,6 +147,9 @@ s32 aicupg_fat_write(char *image_name, char *protection,
         goto err;
     }
 
+    aicfb_draw_bar(0);
+    image_size = header->file_size;
+
     p = pmeta;
     cnt = header->meta_size / sizeof(struct fwc_meta);
     for (i = 0; i < cnt; i++) {
@@ -155,6 +167,7 @@ s32 aicupg_fat_write(char *image_name, char *protection,
         p++;
         write_len += ret;
     }
+    aicfb_draw_bar(100);
 
     total_len = write_len;
     start_us = aic_get_time_us() - start_us;

@@ -13,16 +13,22 @@ choice
 config PRGB_MODE
     bool "PRGB"
 
+config SRGB_MODE
+    bool "SRGB"
+
 endchoice
 
 config AIC_RGB_MODE
     int
     default 0 if PRGB_MODE
+    default 1 if SRGB_MODE
 
 choice
     prompt "interface format"
+    default AIC_PRGB_16BIT_LD
     default AIC_PRGB_16BIT_LD if AIC_DISP_RGB_DRV_V10
     default AIC_PRGB_24BIT if AIC_DISP_RGB_DRV_V11
+    default AIC_PRGB_16BIT_LD if AIC_DISP_RGB_DRV_V12
     depends on AIC_DISP_RGB
 
 config AIC_PRGB_24BIT
@@ -40,6 +46,12 @@ config AIC_PRGB_16BIT_LD
 config AIC_PRGB_16BIT_HD
     bool "PRGB 16 BIT HD"
 
+config AIC_SRGB_8BIT
+    bool "SRGB_8BIT"
+
+config AIC_SRGB_6BIT
+    bool "SRGB_6BIT"
+
 endchoice
 
 config AIC_RGB_FORMAT
@@ -49,6 +61,8 @@ config AIC_RGB_FORMAT
     default 2 if AIC_PRGB_18BIT_HD
     default 3 if AIC_PRGB_16BIT_LD
     default 4 if AIC_PRGB_16BIT_HD
+    default 5 if AIC_SRGB_8BIT
+    default 6 if AIC_SRGB_6BIT
 
 choice
     prompt "data order"

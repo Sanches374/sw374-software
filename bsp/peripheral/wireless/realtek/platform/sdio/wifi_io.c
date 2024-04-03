@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (C) 2021 ArtInChip Technology Co., Ltd.
+ */
 #include <stdio.h>
 #include <drivers/pin.h>
 #include <drivers/sdio.h>
@@ -104,11 +108,9 @@ int wifi_sdio_probe(struct rt_mmcsd_card *card)
     sdio_enable_func(rtt_sdio_func);
     sdio_set_block_size(rtt_sdio_func, 512);
 
-	if(wifi_on(1)<0){
-		pr_err("ERROR: Wifi on failed!\n");
-	}
-
-    cmd_wifi_scan(0, NULL);
+    if(wifi_on(1)<0) {
+        pr_err("ERROR: Wifi on failed!\n");
+    }
 
     return 0;
 }
@@ -212,13 +214,21 @@ static unsigned int rtt_sdio_readl(struct sdio_func *func,
 static void rtt_sdio_writeb(struct sdio_func *func, unsigned char b,
                                 unsigned int addr, int *err_ret)
 {
-    *err_ret = sdio_io_writeb(rtt_sdio_func, addr, b);
+    if (err_ret == NULL)
+        sdio_io_writeb(rtt_sdio_func, addr, b);
+    else
+        *err_ret = sdio_io_writeb(rtt_sdio_func, addr, b);
 }
 
 static void rtt_sdio_writew(struct sdio_func *func, unsigned short b,
                                 unsigned int addr, int *err_ret)
 {
-    *err_ret = sdio_io_rw_extended_block(rtt_sdio_func, 1, addr, 1,
+    if (err_ret == NULL)
+        sdio_io_rw_extended_block(rtt_sdio_func, 1, addr, 1,
+                                         (rt_uint8_t *)&b,
+                                         sizeof(unsigned short));
+    else
+        *err_ret = sdio_io_rw_extended_block(rtt_sdio_func, 1, addr, 1,
                                          (rt_uint8_t *)&b,
                                          sizeof(unsigned short));
 }
@@ -226,7 +236,12 @@ static void rtt_sdio_writew(struct sdio_func *func, unsigned short b,
 static void rtt_sdio_writel(struct sdio_func *func, unsigned int b,
                                 unsigned int addr, int *err_ret)
 {
-    *err_ret = sdio_io_rw_extended_block(rtt_sdio_func, 1, addr, 1,
+    if (err_ret == NULL)
+        sdio_io_rw_extended_block(rtt_sdio_func, 1, addr, 1,
+                                         (rt_uint8_t *)&b,
+                                         sizeof(unsigned int));
+    else
+        *err_ret = sdio_io_rw_extended_block(rtt_sdio_func, 1, addr, 1,
                                          (rt_uint8_t *)&b,
                                          sizeof(unsigned int));
 }

@@ -110,8 +110,16 @@ void hal_can_set_mode(can_handle *phandle, u32 mode)
     u32 reg_val;
 
     reg_val = readl(phandle->can_base + CAN_MODE_REG);
-    reg_val &= ~CAN_MODE_MASK;
     reg_val |= mode;
+    writel(reg_val, phandle->can_base + CAN_MODE_REG);
+}
+
+void hal_can_mode_release(can_handle *phandle, u32 mode)
+{
+    u32 reg_val;
+
+    reg_val = readl(phandle->can_base + CAN_MODE_REG);
+    reg_val &= ~mode;
     writel(reg_val, phandle->can_base + CAN_MODE_REG);
 }
 
@@ -151,7 +159,7 @@ int hal_can_init(can_handle *phandle, u32 can_idx)
     writel(0xFF, phandle->can_base + CAN_RXMASK1_REG);
     writel(0xFF, phandle->can_base + CAN_RXMASK2_REG);
     writel(0xFF, phandle->can_base + CAN_RXMASK3_REG);
-    hal_can_set_mode(phandle, CAN_NORMAL_MODE);
+    hal_can_mode_release(phandle, CAN_RESET_MODE);
 
     return ret;
 }
@@ -279,7 +287,7 @@ void hal_can_set_baudrate(can_handle *phandle, unsigned long baudrate)
     reg_val = (sample_time << 7) | ((tseg2 - 1) << 4) | (tseg1 - 1);
     hal_log_debug("BTR1: %02x\n", reg_val);
     writel(reg_val, phandle->can_base + CAN_BTR1_REG);
-    hal_can_set_mode(phandle, CAN_MODE_NORMAL);
+    hal_can_mode_release(phandle, CAN_MODE_RST);
 }
 
 static void hal_can_bus_error_msg(can_handle *phandle)
@@ -377,7 +385,7 @@ static void hal_can_error_handle(can_handle *phandle, u32 err_status)
         phandle->status.othererrcnt++;
         phandle->status.recverrcnt++;
         hal_can_set_mode(phandle, CAN_MODE_RST);
-        hal_can_set_mode(phandle, CAN_MODE_NORMAL);
+        hal_can_mode_release(phandle, CAN_MODE_RST);
         if (phandle->callback)
             phandle->callback(phandle, (void *)CAN_EVENT_RXOF_IND);
         /* clear bit */
@@ -394,14 +402,14 @@ static void hal_can_error_handle(can_handle *phandle, u32 err_status)
     }
 
     if (phandle->status.current_state == BUS_OFF)
-        hal_can_set_mode(phandle, CAN_MODE_NORMAL);
+        hal_can_mode_release(phandle, CAN_MODE_RST);
 
     if (phandle->status.txerr > CAN_ERRP_THRESHOLD &&
         errcode == CAN_ERRCODE_ACK_SLOT)
     {
         writel(CAN_MCR_ABORTREQ, phandle->can_base + CAN_MCR_REG);
         hal_can_set_mode(phandle, CAN_MODE_RST);
-        hal_can_set_mode(phandle, CAN_MODE_NORMAL);
+        hal_can_mode_release(phandle, CAN_MODE_RST);
     }
 }
 
@@ -654,9 +662,9 @@ static int hal_can_set_filter(can_handle *phandle, can_filter_mode_t mode, can_f
     writel(rxmask2, phandle->can_base + CAN_RXMASK2_REG);
     writel(rxmask3, phandle->can_base + CAN_RXMASK3_REG);
 
+    hal_can_mode_release(phandle, CAN_RESET_MODE);
     writel(reg_val, phandle->can_base + CAN_MODE_REG);
 
-    hal_can_set_mode(phandle, CAN_NORMAL_MODE);
     return 0;
 }
 
@@ -680,6 +688,9 @@ int hal_can_ioctl(can_handle *phandle, int cmd, void *arg)
 
         ret = hal_can_set_filter(phandle, cfg->filter_mode, &cfg->rxcode,
                                  &cfg->rxmask, cfg->is_eff);
+        break;
+    case CAN_IOCTL_RELEASE_MODE:
+        hal_can_mode_release(phandle, (can_mode_t)arg);
         break;
     default:
         return -EOPNOTSUPP;

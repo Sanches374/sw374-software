@@ -77,6 +77,7 @@ int bounce_buffer_start(struct bounce_buffer *state, void *data,
 int bounce_buffer_stop(struct bounce_buffer *state)
 {
     if (state->flags & GEN_BB_WRITE) {
+        aicos_dma_sync();
         /* Invalidate cache so that CPU can see any newly DMA'd data */
         aicos_dcache_invalid_range((unsigned long *)state->bounce_buffer,
                                    state->len_aligned);

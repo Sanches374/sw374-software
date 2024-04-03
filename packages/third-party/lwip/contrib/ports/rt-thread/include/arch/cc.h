@@ -49,6 +49,7 @@
 #include <rthw.h>
 #include <rtthread.h>
 #include <sys/types.h>
+#include <sys/time.h>
 
 #ifndef BYTE_ORDER
 #ifdef ARCH_CPU_BIG_ENDIAN

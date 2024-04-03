@@ -10,6 +10,11 @@
 
 #include "disp_com.h"
 
+#ifndef AIC_DE_DRV_V10
+#include "disp_ccm.h"
+#include "disp_gamma.h"
+#endif
+
 #define MAX_LAYER_NUM 2
 #define MAX_RECT_NUM 4
 #define RECT_NUM_SHIFT 2
@@ -1398,8 +1403,16 @@ static int aic_de_probe(void)
     comp->disp_prop.saturation = 50;
     comp->disp_prop.hue = 50;
 
+#if defined(AIC_DE_DRV_V10) || defined(AIC_DE_V10)
     memset(&comp->ccm, 0x0, sizeof(struct aicfb_ccm_config));
     memset(&comp->gamma, 0x0, sizeof(struct aicfb_gamma_config));
+#else
+    comp->ccm.enable = 1;
+    memcpy(&comp->ccm.ccm_table, ccm_lut, sizeof(ccm_lut));
+
+    comp->gamma.enable = 1;
+    memcpy(&comp->gamma.gamma_lut, gam_lut, sizeof(gam_lut));
+#endif
 
     g_aic_de_comp = comp;
 

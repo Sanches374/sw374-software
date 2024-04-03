@@ -20,72 +20,103 @@
 
 #if DEBUG_MEM
 #include <pthread.h>
-#define MAX_NUM  20
+#define MPP_MEMINFO_MAX_NUM  1024
 struct memory_node {
-	void* addr;
-	int size;
-	int used;
+    void* addr;
+    int size;
+    int used;
+    int line;
+    const char *file_name;
 };
 
-static pthread_mutex_t 	g_mem_mutex = PTHREAD_MUTEX_INITIALIZER;
-int 			g_mem_count = 0;
-int 			g_mem_total_size = 0;
-struct memory_node	g_mem_info[MAX_NUM] = {{0,0,0}};
+static pthread_mutex_t  g_mem_mutex = PTHREAD_MUTEX_INITIALIZER;
+int                     g_mem_count = 0;
+int                     g_mem_total_size = 0;
+struct memory_node	g_mem_info[MPP_MEMINFO_MAX_NUM] = {0};
 
 #endif
 
-void *mpp_alloc(size_t size)
+void *_mpp_alloc_(size_t len,const char *file,int line)
 {
-	void *ptr = NULL;
+    void *ptr = NULL;
 
-	ptr = aicos_malloc(MEM_DEFAULT, size);
+    ptr = aicos_malloc(MEM_DEFAULT, len);
 
 #if DEBUG_MEM
-	int i = 0;
-	pthread_mutex_lock(&g_mem_mutex);
-	g_mem_count ++;
-	g_mem_total_size += size;
+    int i;
+    pthread_mutex_lock(&g_mem_mutex);
+    g_mem_count ++;
+    g_mem_total_size += len;
+    for(i=0; i< MPP_MEMINFO_MAX_NUM; i++) {
+        if(g_mem_info[i].used == 0) {
+            g_mem_info[i].addr = ptr;
+            g_mem_info[i].size = len;
+            g_mem_info[i].used = 1;
+            g_mem_info[i].file_name= file;
+            g_mem_info[i].line = line;
 
-	for(i=0; i<MAX_NUM; i++) {
-		if(g_mem_info[i].used == 0) {
-			g_mem_info[i].addr = ptr;
-			g_mem_info[i].size = size;
-			g_mem_info[i].used = 1;
-			logi("alloc memory, addr: %p, %d", ptr, size);
-			break;
-		}
-	}
-	if(i == MAX_NUM) {
-		loge("exceed max number");
-	}
-	pthread_mutex_unlock(&g_mem_mutex);
+            printf("alloc[%s:%d]ptr:%p,len:%d\n"
+                ,g_mem_info[i].file_name
+                ,g_mem_info[i].line
+                ,g_mem_info[i].addr
+                ,g_mem_info[i].size);
+
+
+            break;
+        }
+    }
+    if(i == MPP_MEMINFO_MAX_NUM) {
+        loge("exceed max number");
+    }
+    pthread_mutex_unlock(&g_mem_mutex);
 #endif
 	return ptr;
 }
 
 void mpp_free(void *ptr)
 {
-	if(ptr == NULL)
-		return;
+    if(ptr == NULL)
+        return;
 
-	aicos_free(MEM_DEFAULT, ptr);
+    aicos_free(MEM_DEFAULT, ptr);
 
 #if DEBUG_MEM
-	int i;
-	pthread_mutex_lock(&g_mem_mutex);
-	for(i=0; i<MAX_NUM; i++) {
-		if(g_mem_info[i].used && g_mem_info[i].addr == ptr) {
-			g_mem_count--;
-			g_mem_total_size -= g_mem_info[i].size;
-			logi("free memory, addr: %p, %d", ptr, g_mem_info[i].size);
-			break;
-		}
-	}
-	if(i == MAX_NUM) {
-		loge("cannot find this memory");
-	}
-	logi("total memory size: %d", g_mem_total_size);
-	pthread_mutex_unlock(&g_mem_mutex);
+    int i;
+    pthread_mutex_lock(&g_mem_mutex);
+    for(i=0; i<MPP_MEMINFO_MAX_NUM; i++) {
+        if(g_mem_info[i].used && g_mem_info[i].addr == ptr) {
+            g_mem_count--;
+            g_mem_total_size -= g_mem_info[i].size;
+            g_mem_info[i].used = 0;
+            printf("free[%s:%d]ptr:%p,len:%d\n"
+            ,g_mem_info[i].file_name
+            ,g_mem_info[i].line
+            ,g_mem_info[i].addr
+            ,g_mem_info[i].size);
+            break;
+        }
+    }
+    if(i == MPP_MEMINFO_MAX_NUM) {
+        loge("cannot find this memory");
+    }
+    pthread_mutex_unlock(&g_mem_mutex);
+#endif
+}
+
+void show_mem_info_debug()
+{
+#if DEBUG_MEM
+    int i;
+    loge("total memory size: %d,g_mem_count:%d\n", g_mem_total_size,g_mem_count);
+    for(i=0; i<MPP_MEMINFO_MAX_NUM; i++) {
+        if(g_mem_info[i].used) {
+            printf("memleak :file:%s,line:%d, addr: %p, %d\n"
+            ,g_mem_info[i].file_name
+            ,g_mem_info[i].line
+            ,g_mem_info[i].addr
+            ,g_mem_info[i].size);
+        }
+    }
 #endif
 }
 

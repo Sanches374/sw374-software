@@ -13,7 +13,7 @@ extern "C" {
 #include "lvgl.h"
 #include "aic_ui.h"
 
-void gif_ui_init();
+void gif_ui_init(int *end_flag);
 
 #ifdef __cplusplus
 } /*extern "C"*/

@@ -6,7 +6,7 @@ group = []
 src = []
 CPPPATH = [cwd]
 
-if GetDepend(['AIC_CHIP_D13X']):
+if GetDepend(['AIC_CHIP_D13X']) or GetDepend(['AIC_CHIP_G73X']):
     src += Glob('./base_simple_ui.c')
 else:
     src += Glob('./base_ui.c')

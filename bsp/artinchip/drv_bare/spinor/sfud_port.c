@@ -18,12 +18,14 @@
 #include <aic_log.h>
 #include <aic_hal.h>
 #include <hal_qspi.h>
+#include <spinor_port.h>
 #include <hal_dma.h>
 #include <aic_dma_id.h>
 #include <aic_clk_id.h>
 #include <mtd.h>
 #include <aic_osal.h>
 #include <partition_table.h>
+#include <spienc.h>
 
 #ifdef IMAGE_CFG_JSON_PARTS_MTD
 #define NOR_MTD_PARTS IMAGE_CFG_JSON_PARTS_MTD
@@ -33,32 +35,7 @@
 
 #define SFUD_READ_SFDP_FREQ 50000000
 
-#if defined(AIC_QSPI_DRV_V10)
-#if defined(AIC_BOOTLOADER)
-#define DMA_SLAVE_MAXBURST_DEFAULT 8
-#else
-#define DMA_SLAVE_MAXBURST_DEFAULT 1
-#endif
-#elif defined(AIC_QSPI_DRV_V20)
-#define DMA_SLAVE_MAXBURST_DEFAULT 1
-#else
-#define DMA_SLAVE_MAXBURST_DEFAULT 8
-#endif
-
 #define QSPI_MAX_CNT 4
-struct aic_qspi_bus
-{
-    char *name;
-    u32 idx;
-    u32 clk_id;
-    u32 clk_in_hz;
-    u32 bus_hz;
-    u32 dma_port_id;
-    u32 irq_num;
-    qspi_master_handle handle;
-    int probe_flag;
-    sfud_flash attached_flash;
-};
 
 static struct aic_qspi_bus qspi_bus_arr[] = {
 #if defined(AIC_USING_QSPI0)
@@ -70,6 +47,15 @@ static struct aic_qspi_bus qspi_bus_arr[] = {
         .bus_hz = AIC_QSPI0_DEVICE_SPINOR_FREQ,
         .dma_port_id = DMA_ID_SPI0,
         .irq_num = QSPI0_IRQn,
+        .dl_width = AIC_QSPI0_BUS_WIDTH,
+#if defined(AIC_QSPI_MULTIPLE_CS_NUM)
+        .cs_num = AIC_QSPI0_CS_NUM,
+#endif
+        .rxd_dylmode = AIC_DEV_QSPI0_DELAY_MODE,
+#if defined(AIC_QSPI_DRV_V20)
+        .txd_dylmode = AIC_DEV_QSPI0_TXD_DELAY_MODE,
+        .txc_dylmode = AIC_DEV_QSPI0_TX_CLK_DELAY_MODE,
+#endif
     },
 #endif
 #if defined(AIC_USING_QSPI1)
@@ -81,6 +67,15 @@ static struct aic_qspi_bus qspi_bus_arr[] = {
         .bus_hz = AIC_QSPI1_DEVICE_SPINOR_FREQ,
         .dma_port_id = DMA_ID_SPI1,
         .irq_num = QSPI1_IRQn,
+        .dl_width = AIC_QSPI1_BUS_WIDTH,
+#if defined(AIC_QSPI_MULTIPLE_CS_NUM)
+        .cs_num = AIC_QSPI1_CS_NUM,
+#endif
+        .rxd_dylmode = AIC_DEV_QSPI1_DELAY_MODE,
+#if defined(AIC_QSPI_DRV_V20)
+        .txd_dylmode = AIC_DEV_QSPI1_TXD_DELAY_MODE,
+        .txc_dylmode = AIC_DEV_QSPI1_TX_CLK_DELAY_MODE,
+#endif
     },
 #endif
 #if defined(AIC_USING_QSPI2)
@@ -92,6 +87,15 @@ static struct aic_qspi_bus qspi_bus_arr[] = {
         .bus_hz = AIC_QSPI2_DEVICE_SPINOR_FREQ,
         .dma_port_id = DMA_ID_SPI2,
         .irq_num = QSPI2_IRQn,
+        .dl_width = AIC_QSPI2_BUS_WIDTH,
+#if defined(AIC_QSPI_MULTIPLE_CS_NUM)
+        .cs_num = AIC_QSPI2_CS_NUM,
+#endif
+        .rxd_dylmode = AIC_DEV_QSPI2_DELAY_MODE,
+#if defined(AIC_QSPI_DRV_V20)
+        .txd_dylmode = AIC_DEV_QSPI2_TXD_DELAY_MODE,
+        .txc_dylmode = AIC_DEV_QSPI2_TX_CLK_DELAY_MODE,
+#endif
     },
 #endif
 #if defined(AIC_USING_QSPI3)
@@ -103,6 +107,35 @@ static struct aic_qspi_bus qspi_bus_arr[] = {
         .bus_hz = AIC_QSPI3_DEVICE_SPINOR_FREQ,
         .dma_port_id = DMA_ID_SPI3,
         .irq_num = QSPI3_IRQn,
+        .dl_width = AIC_QSPI3_BUS_WIDTH,
+#if defined(AIC_QSPI_MULTIPLE_CS_NUM)
+        .cs_num = AIC_QSPI3_CS_NUM,
+#endif
+        .rxd_dylmode = AIC_DEV_QSPI3_DELAY_MODE,
+#if defined(AIC_QSPI_DRV_V20)
+        .txd_dylmode = AIC_DEV_QSPI3_TXD_DELAY_MODE,
+        .txc_dylmode = AIC_DEV_QSPI3_TX_CLK_DELAY_MODE,
+#endif
+    },
+#endif
+#if defined(AIC_USING_QSPI4)
+    {
+        .name = "qspi4",
+        .idx = 4,
+        .clk_id = CLK_QSPI4,
+        .clk_in_hz = AIC_DEV_QSPI4_MAX_SRC_FREQ_HZ,
+        .bus_hz = AIC_QSPI4_DEVICE_SPINOR_FREQ,
+        .dma_port_id = DMA_ID_SPI4,
+        .irq_num = QSPI4_IRQn,
+        .dl_width = AIC_QSPI4_BUS_WIDTH,
+#if defined(AIC_QSPI_MULTIPLE_CS_NUM)
+        .cs_num = AIC_QSPI4_CS_NUM,
+#endif
+        .rxd_dylmode = AIC_DEV_QSPI4_DELAY_MODE,
+#if defined(AIC_QSPI_DRV_V20)
+        .txd_dylmode = AIC_DEV_QSPI4_TXD_DELAY_MODE,
+        .txc_dylmode = AIC_DEV_QSPI4_TX_CLK_DELAY_MODE,
+#endif
     },
 #endif
 #if defined(AIC_USING_SE_SPI)
@@ -114,6 +147,13 @@ static struct aic_qspi_bus qspi_bus_arr[] = {
         .bus_hz = AIC_SE_SPI_DEVICE_SPINOR_FREQ,
         .dma_port_id = DMA_ID_SE_SPI,
         .irq_num = SE_SPI_IRQn,
+        .dl_width = AIC_SE_SPI_BUS_WIDTH,
+#if defined(AIC_QSPI_MULTIPLE_CS_NUM)
+        .cs_num = AIC_SE_SPI_CS_NUM,
+#endif
+        .rxd_dylmode = AIC_DEV_SE_SPI_DELAY_MODE,
+        .txd_dylmode = AIC_DEV_SE_SPI_TXD_DELAY_MODE,
+        .txc_dylmode = AIC_DEV_SE_SPI_TX_CLK_DELAY_MODE,
     },
 #endif
 };
@@ -162,7 +202,7 @@ static sfud_err qspi_read(const struct __sfud_spi *spi, u32 addr,
     struct qspi_transfer t;
     uint8_t cmdbuf1[16];
     uint8_t cmdbuf2[16];
-    u32 addrsiz;
+    u32 addrsiz, cs_num = 0;
     int ret, single_cnt, rest_cnt, dummy_cnt, rest_buswidth;
 
     qspi = (struct aic_qspi_bus *)spi->user_data;
@@ -194,7 +234,10 @@ static sfud_err qspi_read(const struct __sfud_spi *spi, u32 addr,
             rest_buswidth = rd_fmt->address_lines;
     }
 
-    hal_qspi_master_set_cs(&qspi->handle, 0, true);
+#if defined(AIC_QSPI_MULTIPLE_CS_NUM)
+    cs_num = qspi->cs_num;
+#endif
+    hal_qspi_master_set_cs(&qspi->handle, cs_num, true);
 
     /* Command phase */
     if (single_cnt) {
@@ -222,9 +265,21 @@ static sfud_err qspi_read(const struct __sfud_spi *spi, u32 addr,
     t.rx_data = read_buf;
     t.tx_data = NULL;
     t.data_len = read_size;
+#if defined(AIC_SPIENC_DRV)
+    spienc_set_cfg(qspi->idx, addr, 0, read_size);
+    spienc_start();
+#endif
     ret = hal_qspi_master_transfer_sync(&qspi->handle, &t);
+#if defined(AIC_SPIENC_DRV)
+    spienc_stop();
+    if (spienc_check_empty())
+        memset(read_buf, 0xFF, read_size);
+#endif
 out:
-    hal_qspi_master_set_cs(&qspi->handle, 0, false);
+#if defined(AIC_QSPI_MULTIPLE_CS_NUM)
+    cs_num = qspi->cs_num;
+#endif
+    hal_qspi_master_set_cs(&qspi->handle, cs_num, false);
     return ret;
 }
 #endif
@@ -242,6 +297,20 @@ static sfud_err spi_set_speed(const struct __sfud_spi *spi, uint32_t bus_hz)
     return SFUD_SUCCESS;
 }
 
+static sfud_err spi_get_bus_id(const struct __sfud_spi *spi, uint32_t *bus_id)
+{
+    struct aic_qspi_bus *qspi;
+
+    qspi = (struct aic_qspi_bus *)spi->user_data;
+
+    if (qspi == NULL)
+        return SFUD_ERR_NOT_FOUND;
+
+    *bus_id = qspi->idx;
+
+    return SFUD_SUCCESS;
+}
+
 static sfud_err spi_write_read(const struct __sfud_spi *spi,
                                const uint8_t *write_buf, size_t write_size,
                                uint8_t *read_buf, size_t read_size)
@@ -249,11 +318,15 @@ static sfud_err spi_write_read(const struct __sfud_spi *spi,
     struct aic_qspi_bus *qspi;
     struct qspi_transfer t;
     int ret = 0;
+    u32 cs_num = 0;
 
     qspi = (struct aic_qspi_bus *)spi->user_data;
 
     hal_qspi_master_set_bus_width(&qspi->handle, HAL_QSPI_BUS_WIDTH_SINGLE);
-    hal_qspi_master_set_cs(&qspi->handle, 0, true);
+#if defined(AIC_QSPI_MULTIPLE_CS_NUM)
+    cs_num = qspi->cs_num;
+#endif
+    hal_qspi_master_set_cs(&qspi->handle, cs_num, true);
     if (write_size) {
         t.rx_data = NULL;
         t.tx_data = (uint8_t *)write_buf;
@@ -269,7 +342,10 @@ static sfud_err spi_write_read(const struct __sfud_spi *spi,
         ret = hal_qspi_master_transfer_sync(&qspi->handle, &t);
     }
 out:
-    hal_qspi_master_set_cs(&qspi->handle, 0, false);
+#if defined(AIC_QSPI_MULTIPLE_CS_NUM)
+    cs_num = qspi->cs_num;
+#endif
+    hal_qspi_master_set_cs(&qspi->handle, cs_num, false);
     return ret;
 }
 
@@ -280,6 +356,7 @@ sfud_err sfud_spi_port_init(sfud_flash *flash)
     /* port SPI device interface */
     flash->spi.wr = spi_write_read;
     flash->spi.set_speed = spi_set_speed;
+    flash->spi.get_bus_id = spi_get_bus_id;
 #ifdef SFUD_USING_QSPI
     flash->spi.qspi_read = (void *)qspi_read;
 #endif
@@ -367,6 +444,8 @@ sfud_flash *sfud_probe(u32 spi_bus)
     cfg.cpol = HAL_QSPI_CPOL_ACTIVE_HIGH;
     cfg.cpha = HAL_QSPI_CPHA_FIRST_EDGE;
     cfg.cs_polarity = HAL_QSPI_CS_POL_VALID_LOW;
+    cfg.rx_dlymode = qspi->rxd_dylmode;
+    cfg.tx_dlymode = aic_convert_tx_dlymode(qspi->txc_dylmode, qspi->txd_dylmode);
 
     ret = hal_qspi_master_init(&qspi->handle, &cfg);
     if (ret) {
@@ -378,11 +457,6 @@ sfud_flash *sfud_probe(u32 spi_bus)
     struct qspi_master_dma_config dmacfg;
     memset(&dmacfg, 0, sizeof(dmacfg));
     dmacfg.port_id = qspi->dma_port_id;
-
-    dmacfg.tx_bus_width = DMA_SLAVE_BUSWIDTH_UNDEFINED;
-    dmacfg.rx_bus_width = DMA_SLAVE_BUSWIDTH_UNDEFINED;
-    dmacfg.tx_max_burst = DMA_SLAVE_MAXBURST_DEFAULT;
-    dmacfg.rx_max_burst = DMA_SLAVE_MAXBURST_DEFAULT;
 
     ret = hal_qspi_master_dma_config(&qspi->handle, &dmacfg);
     if (ret) {
@@ -403,7 +477,7 @@ sfud_flash *sfud_probe(u32 spi_bus)
     }
 
 #ifdef SFUD_USING_QSPI
-    sfud_qspi_fast_read_enable(&qspi->attached_flash, 4);
+    sfud_qspi_fast_read_enable(&qspi->attached_flash, qspi->dl_width);
 #endif
 
     mtd = malloc(sizeof(*mtd));

@@ -46,7 +46,7 @@ struct aic_pinmux aic_pinmux_config[] = {
     {1, PIN_PULL_DIS, 3, "PA.10"}, // RST
     {1, PIN_PULL_DIS, 3, "PA.11"}, // INT
 #endif
-#ifdef AIC_USING_QSPI0
+#if defined(AIC_USING_QSPI0) && !defined(AIC_SYSCFG_SIP_FLASH_ENABLE)
     /* qspi0 */
     {2, PIN_PULL_DIS, 3, "PB.0"},
     {2, PIN_PULL_DIS, 3, "PB.1"},
@@ -147,6 +147,32 @@ struct aic_pinmux aic_pinmux_config[] = {
     {2, PIN_PULL_DIS, 3, "PD.13"},
     {2, PIN_PULL_DIS, 3, "PD.14"},
     {2, PIN_PULL_DIS, 3, "PD.15"},
+    {2, PIN_PULL_DIS, 3, "PD.24"},
+    {2, PIN_PULL_DIS, 3, "PD.25"},
+    {2, PIN_PULL_DIS, 3, "PD.26"},
+    {2, PIN_PULL_DIS, 3, "PD.27"},
+#endif
+#ifdef AIC_SRGB_8BIT
+    {2, PIN_PULL_DIS, 3, "PD.16"},
+    {2, PIN_PULL_DIS, 3, "PD.17"},
+    {2, PIN_PULL_DIS, 3, "PD.18"},
+    {2, PIN_PULL_DIS, 3, "PD.19"},
+    {2, PIN_PULL_DIS, 3, "PD.20"},
+    {2, PIN_PULL_DIS, 3, "PD.21"},
+    {2, PIN_PULL_DIS, 3, "PD.22"},
+    {2, PIN_PULL_DIS, 3, "PD.23"},
+    {2, PIN_PULL_DIS, 3, "PD.24"},
+    {2, PIN_PULL_DIS, 3, "PD.25"},
+    {2, PIN_PULL_DIS, 3, "PD.26"},
+    {2, PIN_PULL_DIS, 3, "PD.27"},
+#endif
+#ifdef AIC_SRGB_6BIT
+    {2, PIN_PULL_DIS, 3, "PD.16"},
+    {2, PIN_PULL_DIS, 3, "PD.17"},
+    {2, PIN_PULL_DIS, 3, "PD.18"},
+    {2, PIN_PULL_DIS, 3, "PD.19"},
+    {2, PIN_PULL_DIS, 3, "PD.20"},
+    {2, PIN_PULL_DIS, 3, "PD.21"},
     {2, PIN_PULL_DIS, 3, "PD.24"},
     {2, PIN_PULL_DIS, 3, "PD.25"},
     {2, PIN_PULL_DIS, 3, "PD.26"},

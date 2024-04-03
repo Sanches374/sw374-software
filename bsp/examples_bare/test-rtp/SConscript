@@ -5,7 +5,7 @@ from building import *
 cwd = GetCurrentDir()
 CPPPATH = []
 src = []
-if GetDepend('KERNEL_BAREMETAL') and GetDepend('AIC_RTP_TEST') and GetDepend('AIC_DISP_DE_DRV'):
+if GetDepend('KERNEL_BAREMETAL') and GetDepend('AIC_RTP_TEST'):
     src += Glob('test_rtp_calibrate.c')
     src += Glob('test_rtp_draw.c')
 

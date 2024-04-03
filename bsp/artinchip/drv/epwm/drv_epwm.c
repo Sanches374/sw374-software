@@ -24,48 +24,48 @@ static void aic_epwm_default_action(void)
         /*       CBD,          CBU,          CAD, */
         EPWM_ACT_NONE, EPWM_ACT_NONE, EPWM_ACT_NONE,
         /*      CAU,           PRD,         ZRO  */
-        EPWM_ACT_LOW, EPWM_ACT_HIGH, EPWM_ACT_NONE};
+        EPWM_ACT_LOW, EPWM_ACT_NONE, EPWM_ACT_HIGH};
     struct aic_epwm_action action1 = {
         /*       CBD,          CBU,          CAD, */
-        EPWM_ACT_NONE, EPWM_ACT_NONE, EPWM_ACT_NONE,
+        EPWM_ACT_NONE, EPWM_ACT_LOW, EPWM_ACT_NONE,
         /*      CAU,           PRD,         ZRO  */
-        EPWM_ACT_LOW, EPWM_ACT_HIGH,  EPWM_ACT_NONE};
+        EPWM_ACT_NONE, EPWM_ACT_NONE,  EPWM_ACT_HIGH};
 
 #ifdef AIC_USING_EPWM0
-    hal_epwm_ch_init(0, EPWM_MODE_UP_COUNT, 0, &action0, &action1);
+    hal_epwm_ch_init(0, AIC_EPWM0_SYNC, EPWM_MODE_UP_COUNT, 0, &action0, &action1);
 #endif
 #ifdef AIC_USING_EPWM1
-    hal_epwm_ch_init(1, EPWM_MODE_UP_COUNT, 0, &action0, &action1);
+    hal_epwm_ch_init(1, AIC_EPWM1_SYNC, EPWM_MODE_UP_COUNT, 0, &action0, &action1);
 #endif
 #ifdef AIC_USING_EPWM2
-    hal_epwm_ch_init(2, EPWM_MODE_UP_COUNT, 0, &action0, &action1);
+    hal_epwm_ch_init(2, AIC_EPWM2_SYNC, EPWM_MODE_UP_COUNT, 0, &action0, &action1);
 #endif
 #ifdef AIC_USING_EPWM3
-    hal_epwm_ch_init(3, EPWM_MODE_UP_COUNT, 0, &action0, &action1);
+    hal_epwm_ch_init(3, AIC_EPWM3_SYNC, EPWM_MODE_UP_COUNT, 0, &action0, &action1);
 #endif
 #ifdef AIC_USING_EPWM4
-    hal_epwm_ch_init(4, EPWM_MODE_UP_COUNT, 0, &action0, &action1);
+    hal_epwm_ch_init(4, AIC_EPWM4_SYNC, EPWM_MODE_UP_COUNT, 0, &action0, &action1);
 #endif
 #ifdef AIC_USING_EPWM5
-    hal_epwm_ch_init(5, EPWM_MODE_UP_COUNT, 0, &action0, &action1);
+    hal_epwm_ch_init(5, AIC_EPWM5_SYNC, EPWM_MODE_UP_COUNT, 0, &action0, &action1);
 #endif
 #ifdef AIC_USING_EPWM6
-    hal_epwm_ch_init(6, EPWM_MODE_UP_COUNT, 0, &action0, &action1);
+    hal_epwm_ch_init(6, AIC_EPWM6_SYNC, EPWM_MODE_UP_COUNT, 0, &action0, &action1);
 #endif
 #ifdef AIC_USING_EPWM7
-    hal_epwm_ch_init(7, EPWM_MODE_UP_COUNT, 0, &action0, &action1);
+    hal_epwm_ch_init(7, AIC_EPWM7_SYNC, EPWM_MODE_UP_COUNT, 0, &action0, &action1);
 #endif
 #ifdef AIC_USING_EPWM8
-    hal_epwm_ch_init(8, EPWM_MODE_UP_COUNT, 0, &action0, &action1);
+    hal_epwm_ch_init(8, AIC_EPWM8_SYNC, EPWM_MODE_UP_COUNT, 0, &action0, &action1);
 #endif
 #ifdef AIC_USING_EPWM9
-    hal_epwm_ch_init(9, EPWM_MODE_UP_COUNT, 0, &action0, &action1);
+    hal_epwm_ch_init(9, AIC_EPWM9_SYNC, EPWM_MODE_UP_COUNT, 0, &action0, &action1);
 #endif
 #ifdef AIC_USING_EPWM10
-    hal_epwm_ch_init(10, EPWM_MODE_UP_COUNT, 0, &action0, &action1);
+    hal_epwm_ch_init(10, AIC_EPWM10_SYNC, EPWM_MODE_UP_COUNT, 0, &action0, &action1);
 #endif
 #ifdef AIC_USING_EPWM11
-    hal_epwm_ch_init(11, EPWM_MODE_UP_COUNT, 0, &action0, &action1);
+    hal_epwm_ch_init(11, AIC_EPWM11_SYNC, EPWM_MODE_UP_COUNT, 0, &action0, &action1);
 #endif
 }
 
@@ -98,7 +98,19 @@ static rt_err_t drv_epwm_set(struct rt_device_pwm *device,
     if (drv_epwm_ch_valid(cfg))
         return -RT_EINVAL;
 
-    if (hal_epwm_set(cfg->channel, cfg->pulse, cfg->period))
+    if (hal_epwm_set(cfg->channel, cfg->pulse, cfg->period, (rt_uint32_t)EPWM_SET_CMPA_CMPB))
+        return -RT_ERROR;
+
+    return RT_EOK;
+}
+
+static rt_err_t drv_epwm_set_output(struct rt_device_pwm *device,
+                             struct rt_pwm_configuration *cfg)
+{
+    if (drv_epwm_ch_valid(cfg))
+        return -RT_EINVAL;
+
+    if (hal_epwm_set(cfg->channel, cfg->pulse, cfg->period, cfg->output))
         return -RT_ERROR;
 
     return RT_EOK;
@@ -114,7 +126,7 @@ static rt_err_t drv_epwm_set_pul(struct rt_device_pwm *device,
     g_pulse_para[cfg->channel].duty_ns = cfg->pulse;
     g_pulse_para[cfg->channel].prd_ns = cfg->period;
 
-    if (hal_epwm_set(cfg->channel, cfg->pulse, cfg->period))
+    if (hal_epwm_set(cfg->channel, cfg->pulse, cfg->period, (rt_uint32_t)EPWM_SET_CMPA_CMPB))
         return -RT_ERROR;
 
     hal_epwm_int_config(cfg->channel, cfg->irq_mode, 1);
@@ -147,6 +159,8 @@ static rt_err_t drv_epwm_control(struct rt_device_pwm *device,
         return drv_epwm_enable(device, cfg, RT_FALSE);
     case PWM_CMD_SET:
         return drv_epwm_set(device, cfg);
+    case PWM_CMD_SET_OUTPUT:
+        return drv_epwm_set_output(device, cfg);
     case PWM_CMD_GET:
         return drv_epwm_get(device, cfg);
     case PWM_CMD_SET_PUL:
@@ -217,7 +231,7 @@ irqreturn_t aic_epwm_irq(int irq, void *arg)
         if (stat & EPWM_INT_FLG) {
             isr_cnt[i]++;
             if (isr_cnt[i] == g_pulse_para[i].pulse_cnt) {
-                hal_epwm_set(i, g_pulse_para[i].prd_ns, g_pulse_para[i].prd_ns);
+                hal_epwm_set(i, g_pulse_para[i].prd_ns, g_pulse_para[i].prd_ns, (rt_uint32_t)EPWM_SET_CMPA_CMPB);
                 hal_epwm_int_config(i, 0, 0);
                 pr_info("\nisr cnt:%d,disabled the epwm%d interrupt now.\n", isr_cnt[i], i);
                 isr_cnt[i] = 0;

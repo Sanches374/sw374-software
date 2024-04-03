@@ -13,6 +13,13 @@
 extern irqreturn_t USBD_IRQHandler(int irq, void * data);
 
 uint32_t usbd_clk;
+static unsigned char dma_sync_buffer[CACHE_LINE_SIZE] __attribute__((aligned(CACHE_LINE_SIZE)));
+
+void usb_dc_sync_dma(void)
+{
+    asm volatile("sw t0, (%0)" : : "r"(dma_sync_buffer));
+    csi_dcache_clean_range((phy_addr_t)(ptr_t)dma_sync_buffer, CACHE_LINE_SIZE);
+}
 
 void usb_dc_low_level_init(void)
 {

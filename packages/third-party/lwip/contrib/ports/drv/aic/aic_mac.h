@@ -18,6 +18,8 @@ extern "C" {
 #define MAX_ETH_MAC_PORT            AIC_GMAC_DEV_NUM
 #define MAC(port, member)           ((unsigned long)&(((aicmac_reg_t *)mac_base[port])->member))
 
+extern unsigned long mac_base[MAX_ETH_MAC_PORT];
+
 #define ENABLE                      true
 #define DISABLE                     false
 #define SET                         true
@@ -209,6 +211,15 @@ typedef struct {
 } aicmac_dma_desc_ctl_t;
 
 /*----------------------------------------------------------------------------*/
+/* timestamp descripion                                                       */
+/*----------------------------------------------------------------------------*/
+
+typedef struct {
+    uint32_t second;
+    uint32_t nanosecond;
+}aicmac_timestamp_t;
+
+/*----------------------------------------------------------------------------*/
 /* Description of common PHY registers                                        */
 /*----------------------------------------------------------------------------*/
 
@@ -252,6 +263,8 @@ uint32_t aicmac_check_rx_frame_poll(uint32_t port);
 int aicmac_init(uint32_t port);
 void aicmac_en_dma_int(uint32_t port, uint32_t interrupt);
 void aicmac_dis_dma_int(uint32_t port, uint32_t interrupt);
+
+void aicmac_gdma_sync(void);
 void aicmac_dcache_clean(uintptr_t addr, uint32_t len);
 void aicmac_dcache_invalid(uintptr_t addr, uint32_t len);
 void aicmac_dcache_clean_invalid(uintptr_t addr, uint32_t len);
@@ -260,6 +273,12 @@ void aicmac_set_mac_addr(uint32_t port, uint32_t index, uint8_t *addr);
 void aicmac_get_mac_addr(uint32_t port, uint32_t index, uint8_t *addr);
 void aicmac_set_mac_addr_mode(uint32_t port, uint32_t index, bool en, bool sa,
                               uint32_t mask);
+
+aicmac_timestamp_t aicmac_get_tx_timestamp(uint32_t port, aicmac_dma_desc_t *pdesc);
+aicmac_timestamp_t aicmac_get_rx_timestamp(uint32_t port, aicmac_frame_t *frame);
+
+u32_t nanosecond2subsecond(u32_t nanosecond);
+u32_t subsecond2nanosecond(u32_t subsecond);
 
 #ifdef __cplusplus
 }

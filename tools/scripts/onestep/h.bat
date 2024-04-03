@@ -9,6 +9,8 @@ echo   h             : Get this help.
 echo   lunch [No.]   : Start with selected defconfig, .e.g. lunch 3
 echo   me            : Config SDK with menuconfig
 echo   m             : Build all and generate final image
+echo   mc            : Clean ^& Build all and generate final image
+echo   mb            : Build bootloader ^& app and generate final image
 echo   c             : Clean all
 echo   croot/cr      : cd to SDK root directory.
 echo   cout/co       : cd to build output directory.
@@ -18,4 +20,5 @@ echo   list          : List all SDK defconfig.
 echo   i             : Get current project's information.
 echo   buildall      : Build all the *defconfig in target/configs
 echo   rebuildall    : Clean and build all the *defconfig in target/configs
+echo   aicupg        : Burn image file to target board
 echo.

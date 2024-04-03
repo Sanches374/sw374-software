@@ -92,17 +92,14 @@ static int aic_lvds_enable(void)
     struct aic_lvds_comp *comp = aic_lvds_request_drvdata();
     struct panel_lvds *lvds = comp->panel->lvds;
 
-    if (AIC_LVDS_LINES)
+    if (lvds->pols)
     {
-        lvds_0_lines(comp, AIC_LVDS_LINES);
-        lvds_1_lines(comp, AIC_LVDS_LINES);
+        lvds_0_pol(comp, lvds->pols);
+        lvds_1_pol(comp, lvds->pols);
     }
 
-    if (AIC_LVDS_POL)
-    {
-        lvds_0_pol(comp, AIC_LVDS_POL);
-        lvds_1_pol(comp, AIC_LVDS_POL);
-    }
+    lvds_0_lines(comp, lvds->line);
+    lvds_1_lines(comp, lvds->line);
 
     lvds_phy_0_init(comp, AIC_LVDS_PHY);
     lvds_phy_1_init(comp, AIC_LVDS_PHY);
@@ -114,7 +111,7 @@ static int aic_lvds_enable(void)
              | LVDS_CTL_SYNC_MODE_MASK,
              LVDS_CTL_MODE(lvds->mode)
              | LVDS_CTL_LINK(lvds->link_mode)
-             | LVDS_CTL_SWAP_EN(AIC_LVDS_LINK_SWAP_EN)
+             | LVDS_CTL_SWAP_EN(lvds->link_swap)
              | LVDS_CTL_SYNC_MODE_EN(AIC_LVDS_SYNC_MODE_EN));
 
     reg_set_bit(comp->regs + LVDS_CTL, LVDS_CTL_EN);

@@ -376,6 +376,7 @@ PendSV_Handler:
 #endif
     mret
 
+#ifndef GLOBAL_INT_SW_THRESHOLD_EN
 /*
  * rt_base_t rt_hw_interrupt_disable(void);
  */
@@ -394,4 +395,4 @@ rt_hw_interrupt_disable:
 rt_hw_interrupt_enable:
     csrw mstatus, a0
     ret
-
+#endif

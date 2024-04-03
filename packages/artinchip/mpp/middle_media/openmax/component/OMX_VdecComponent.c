@@ -257,7 +257,7 @@ static OMX_ERRORTYPE OMX_VdecSetParameter(
                 ,pVdecDataType->eCodeType
                 ,pVdecDataType->sDecoderConfig.pix_fmt);
                 /*need to define extened OMX_Index or decide by inner*/
-                pVdecDataType->sDecoderConfig.bitstream_buffer_size = 1024*1024;
+                pVdecDataType->sDecoderConfig.bitstream_buffer_size = VDEC_BITSTREAM_BUFFER_SIZE;
                 pVdecDataType->sDecoderConfig.extra_frame_num = 1;
                 pVdecDataType->sDecoderConfig.packet_count = 10;
             } else if (index == VDEC_PORT_OUT_INDEX) {
@@ -296,7 +296,7 @@ static OMX_ERRORTYPE OMX_VdecSetParameter(
                 ,pVdecDataType->eCodeType
                 ,pVdecDataType->sDecoderConfig.pix_fmt);
                 /*need to define extened OMX_Index or decide by inner*/
-                pVdecDataType->sDecoderConfig.bitstream_buffer_size = 1024*1024;
+                pVdecDataType->sDecoderConfig.bitstream_buffer_size = VDEC_BITSTREAM_BUFFER_SIZE;
                 pVdecDataType->sDecoderConfig.extra_frame_num = 1;
                 pVdecDataType->sDecoderConfig.packet_count = 10;
             } else if (index == VDEC_PORT_OUT_INDEX) {
@@ -491,33 +491,9 @@ static OMX_ERRORTYPE OMX_VdecEmptyThisBuffer(
     if (pVdecDataType->sInPortTunneledInfo.nTunneledFlag) {
         if (pVdecDataType->sInBufSupplier.eBufferSupplier == OMX_BufferSupplyOutput) {
             if (OMX_VdecListEmpty(&pVdecDataType->sInEmptyPkt,pVdecDataType->sInPktLock)) {
-                if (pVdecDataType->nInPktNodeNum + 1> VDEC_PACKET_NUM_MAX) {
-                    loge("empty node has aready increase to max [%"PRId32"]!!!\n",pVdecDataType->nInPktNodeNum);
                     eError = OMX_ErrorInsufficientResources;
                     pVdecDataType->nReceivePacktFailNum++;
                     goto _EXIT;
-                } else {
-                    int i;
-                    logw("no empty node,need to extend!!!\n");
-                    for(i =0 ; i < VDEC_PACKET_ONE_TIME_CREATE_NUM; i++) {
-                        VDEC_IN_PACKET *pPktNode = (VDEC_IN_PACKET*)mpp_alloc(sizeof(VDEC_IN_PACKET));
-                        if (NULL == pPktNode) {
-                            break;
-                        }
-                        memset(pPktNode,0x00,sizeof(VDEC_IN_PACKET));
-                        aic_pthread_mutex_lock(&pVdecDataType->sInPktLock);
-                        mpp_list_add_tail(&pPktNode->sList, &pVdecDataType->sInEmptyPkt);
-                        aic_pthread_mutex_unlock(&pVdecDataType->sInPktLock);
-                        pVdecDataType->nInPktNodeNum++;
-                        printf("[%s:%d]nInPktNodeNum:%"PRId32"\n",__FUNCTION__,__LINE__,pVdecDataType->nInPktNodeNum);
-                    }
-                    if (i == 0) {
-                        loge("mpp_alloc empty video node fail\n");
-                        eError = OMX_ErrorInsufficientResources;
-                        pVdecDataType->nReceivePacktFailNum++;
-                        goto _EXIT;
-                    }
-                }
             }
 
             struct mpp_packet pkt;
@@ -708,8 +684,8 @@ OMX_ERRORTYPE OMX_VdecComponentDeInit(
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     OMX_COMPONENTTYPE *pComp;
     VDEC_DATA_TYPE *pVdecDataType;
-    VDEC_IN_PACKET *pPktNode = NULL,*pPktNode1 = NULL;
-    VDEC_OUT_FRAME *pFrameNode = NULL,*pFrameNode1 = NULL;
+    // VDEC_IN_PACKET *pPktNode = NULL,*pPktNode1 = NULL;
+    // VDEC_OUT_FRAME *pFrameNode = NULL,*pFrameNode1 = NULL;
     pComp = (OMX_COMPONENTTYPE *)hComponent;
     struct aic_message sMsg;
     pVdecDataType = (VDEC_DATA_TYPE *)pComp->pComponentPrivate;
@@ -728,44 +704,14 @@ OMX_ERRORTYPE OMX_VdecComponentDeInit(
     pthread_join(pVdecDataType->threadId, (void*)&eError);
 
     aic_pthread_mutex_lock(&pVdecDataType->sInPktLock);
-    if (!mpp_list_empty(&pVdecDataType->sInEmptyPkt)) {
-            mpp_list_for_each_entry_safe(pPktNode, pPktNode1, &pVdecDataType->sInEmptyPkt, sList) {
-                mpp_list_del(&pPktNode->sList);
-                mpp_free(pPktNode);
-        }
-    }
-
-    if (!mpp_list_empty(&pVdecDataType->sInReadyPkt)) {
-            mpp_list_for_each_entry_safe(pPktNode, pPktNode1, &pVdecDataType->sInReadyPkt, sList) {
-                mpp_list_del(&pPktNode->sList);
-                mpp_free(pPktNode);
-        }
-    }
-
-
+    mpp_free(pVdecDataType->pPktNodeHead);
+    pVdecDataType->pPktNodeHead = NULL;
     aic_pthread_mutex_unlock(&pVdecDataType->sInPktLock);
 
 
     aic_pthread_mutex_lock(&pVdecDataType->sOutFrameLock);
-    if (!mpp_list_empty(&pVdecDataType->sOutEmptyFrame)) {
-            mpp_list_for_each_entry_safe(pFrameNode, pFrameNode1, &pVdecDataType->sOutEmptyFrame, sList) {
-                mpp_list_del(&pFrameNode->sList);
-                mpp_free(pFrameNode);
-        }
-    }
-    if (!mpp_list_empty(&pVdecDataType->sOutReadyFrame)) {
-            mpp_list_for_each_entry_safe(pFrameNode, pFrameNode1, &pVdecDataType->sOutReadyFrame, sList) {
-                mpp_list_del(&pFrameNode->sList);
-                mpp_free(pFrameNode);
-        }
-    }
-
-    if (!mpp_list_empty(&pVdecDataType->sOutProcessingFrame)) {
-            mpp_list_for_each_entry_safe(pFrameNode, pFrameNode1, &pVdecDataType->sOutProcessingFrame, sList) {
-                mpp_list_del(&pFrameNode->sList);
-                mpp_free(pFrameNode);
-        }
-    }
+    mpp_free(pVdecDataType->pFrameNodeHead);
+    pVdecDataType->pFrameNodeHead = NULL;
     aic_pthread_mutex_unlock(&pVdecDataType->sOutFrameLock);
 
     pthread_mutex_destroy(&pVdecDataType->sInPktLock);
@@ -811,8 +757,16 @@ OMX_ERRORTYPE OMX_VdecComponentInit(
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     OMX_U32 err;
     OMX_U32 i;
+    VDEC_IN_PACKET *pPktNode = NULL;
+    VDEC_OUT_FRAME *pFrameNode = NULL;
+    VDEC_IN_PACKET *pPktNodeHead = NULL;
+    VDEC_OUT_FRAME *pFrameNodeHead = NULL;
     //OMX_U32 cnt;
 
+    OMX_S8 nMsgCreateOk = 0;
+    OMX_S8 nInPktLockInitOk = 0;
+    OMX_S8 nOutFrameLockInitOk = 0;
+    OMX_S8 nSateLockInitOk = 0;
 
     pthread_attr_t attr;
     dec_thread_attr_init(&attr);
@@ -825,8 +779,7 @@ OMX_ERRORTYPE OMX_VdecComponentInit(
 
     if (NULL == pVdecDataType) {
         loge("mpp_alloc(sizeof(VDEC_DATA_TYPE) fail!");
-        eError = OMX_ErrorInsufficientResources;
-        goto _EXIT1;
+        return OMX_ErrorInsufficientResources;
     }
 
     memset(pVdecDataType, 0x0, sizeof(VDEC_DATA_TYPE));
@@ -875,22 +828,29 @@ OMX_ERRORTYPE OMX_VdecComponentInit(
     mpp_list_init(&pVdecDataType->sInEmptyPkt);
     mpp_list_init(&pVdecDataType->sInReadyPkt);
     mpp_list_init(&pVdecDataType->sInProcessedPkt);
-    pthread_mutex_init(&pVdecDataType->sInPktLock, NULL);
-    for(i =0 ; i < VDEC_PACKET_ONE_TIME_CREATE_NUM; i++) {
-        VDEC_IN_PACKET *pPktNode = (VDEC_IN_PACKET*)mpp_alloc(sizeof(VDEC_IN_PACKET));
-        if (NULL == pPktNode) {
-            break;
-        }
-        memset(pPktNode,0x00,sizeof(VDEC_IN_PACKET));
-        mpp_list_add_tail(&pPktNode->sList, &pVdecDataType->sInEmptyPkt);
-        pVdecDataType->nInPktNodeNum++;
-    }
-    if (pVdecDataType->nInPktNodeNum == 0) {
-        loge("mpp_alloc empty video node fail\n");
-        eError = OMX_ErrorInsufficientResources;
-        goto _EXIT2;
-    }
 
+    if (pthread_mutex_init(&pVdecDataType->sInPktLock, NULL)) {
+        loge("pthread_mutex_init fail!\n");
+        eError = OMX_ErrorInsufficientResources;
+        goto _EXIT;
+    }
+    nInPktLockInitOk = 1;
+
+    pPktNodeHead = (VDEC_IN_PACKET*)mpp_alloc(sizeof(VDEC_IN_PACKET) * VDEC_PACKET_ONE_TIME_CREATE_NUM);
+    if (pPktNodeHead == NULL) {
+        loge("mpp_alloc empty VDEC_IN_PACKET node fail\n");
+        eError = OMX_ErrorInsufficientResources;
+        goto _EXIT;
+    }
+    memset(pPktNodeHead,0x00,sizeof(VDEC_IN_PACKET) * VDEC_PACKET_ONE_TIME_CREATE_NUM);
+    pVdecDataType->nInPktNodeNum = VDEC_PACKET_ONE_TIME_CREATE_NUM;
+    pPktNode = pPktNodeHead;
+    for(i = 0; i < VDEC_PACKET_ONE_TIME_CREATE_NUM; i++) {
+        mpp_list_init(&pPktNode->sList);
+        mpp_list_add_tail(&pPktNode->sList, &pVdecDataType->sInEmptyPkt);
+        pPktNode++;
+    }
+    pVdecDataType->pPktNodeHead = pPktNodeHead;
 
     // vdec support out pot buffer
     pVdecDataType->sOutBufSupplier.nPortIndex = 0x1;
@@ -899,72 +859,84 @@ OMX_ERRORTYPE OMX_VdecComponentInit(
     mpp_list_init(&pVdecDataType->sOutEmptyFrame);
     mpp_list_init(&pVdecDataType->sOutReadyFrame);
     mpp_list_init(&pVdecDataType->sOutProcessingFrame);
-    pthread_mutex_init(&pVdecDataType->sOutFrameLock, NULL);
-    for(i =0 ; i < VDEC_FRAME_ONE_TIME_CREATE_NUM; i++) {
-        VDEC_OUT_FRAME *pFrameNode = (VDEC_OUT_FRAME*)mpp_alloc(sizeof(VDEC_OUT_FRAME));
-        if (NULL == pFrameNode) {
-            break;
-        }
-        memset(pFrameNode,0x00,sizeof(VDEC_OUT_FRAME));
-        mpp_list_add_tail(&pFrameNode->sList, &pVdecDataType->sOutEmptyFrame);
-        pVdecDataType->nOutFrameNodeNum++;
-    }
-    if (pVdecDataType->nOutFrameNodeNum == 0) {
-        loge("mpp_alloc empty video node fail\n");
+
+    if (pthread_mutex_init(&pVdecDataType->sOutFrameLock, NULL)) {
+        loge("pthread_mutex_init fail!\n");
         eError = OMX_ErrorInsufficientResources;
-        goto _EXIT3;
+        goto _EXIT;
+    }
+    nOutFrameLockInitOk = 1;
+
+    pFrameNodeHead = (VDEC_OUT_FRAME*)mpp_alloc(sizeof(VDEC_OUT_FRAME) * VDEC_FRAME_ONE_TIME_CREATE_NUM);
+    if (pFrameNodeHead == NULL) {
+        loge("mpp_alloc empty VDEC_OUT_FRAME node fail\n");
+        eError = OMX_ErrorInsufficientResources;
+        goto _EXIT;
+    }
+    memset(pFrameNodeHead,0x00,sizeof(VDEC_OUT_FRAME) * VDEC_FRAME_ONE_TIME_CREATE_NUM);
+    pVdecDataType->nOutFrameNodeNum = VDEC_FRAME_ONE_TIME_CREATE_NUM;
+    pFrameNode = pFrameNodeHead;
+    for(i = 0; i < VDEC_FRAME_ONE_TIME_CREATE_NUM; i++) {
+        mpp_list_init(&pFrameNode->sList);
+        mpp_list_add_tail(&pFrameNode->sList, &pVdecDataType->sOutEmptyFrame);
+        pFrameNode++;
     }
 
+    pVdecDataType->pFrameNodeHead = pFrameNodeHead;
 
-    if (aic_msg_create(&pVdecDataType->sMsgQue)<0)
-    {
+    if (aic_msg_create(&pVdecDataType->sMsgQue) < 0) {
         loge("aic_msg_create fail!");
         eError = OMX_ErrorInsufficientResources;
-        goto _EXIT4;
+        goto _EXIT;
     }
+    nMsgCreateOk = 1;
 
-    pthread_mutex_init(&pVdecDataType->stateLock, NULL);
+    if (pthread_mutex_init(&pVdecDataType->stateLock, NULL)) {
+        loge("pthread_mutex_init fail!\n");
+        eError = OMX_ErrorInsufficientResources;
+        goto _EXIT;
+    }
+    nSateLockInitOk = 1;
+
     // Create the component thread
     err = pthread_create(&pVdecDataType->threadId, &attr, OMX_VdecComponentThread, pVdecDataType);
-    //if (err || !pVdecDataType->threadId)
-    if (err)
-    {
+    if (err) {
         loge("pthread_create fail!");
         eError = OMX_ErrorInsufficientResources;
-        goto _EXIT5;
+        goto _EXIT;
     }
 
     return eError;
 
-_EXIT5:
-    aic_msg_destroy(&pVdecDataType->sMsgQue);
-    pthread_mutex_destroy(&pVdecDataType->stateLock);
-
-_EXIT4:
-    if (!mpp_list_empty(&pVdecDataType->sInEmptyPkt)) {
-        VDEC_IN_PACKET *pPktNode = NULL,*pPktNode1 = NULL;
-        mpp_list_for_each_entry_safe(pPktNode, pPktNode1, &pVdecDataType->sInEmptyPkt, sList) {
-            mpp_list_del(&pPktNode->sList);
-            mpp_free(pPktNode);
-        }
+_EXIT:
+    if (nInPktLockInitOk) {
+        pthread_mutex_destroy(&pVdecDataType->sInPktLock);
+    }
+    if (nOutFrameLockInitOk) {
+        pthread_mutex_destroy(&pVdecDataType->sOutFrameLock);
+    }
+    if (nSateLockInitOk) {
+        pthread_mutex_destroy(&pVdecDataType->stateLock);
+    }
+    if (nMsgCreateOk) {
+       aic_msg_destroy(&pVdecDataType->sMsgQue);
     }
 
-_EXIT3:
-    if (!mpp_list_empty(&pVdecDataType->sOutEmptyFrame)) {
-        VDEC_OUT_FRAME *pFrameNode = NULL,*pFrameNode1 = NULL;
-        mpp_list_for_each_entry_safe(pFrameNode, pFrameNode1, &pVdecDataType->sOutEmptyFrame, sList) {
-            mpp_list_del(&pFrameNode->sList);
-            mpp_free(pFrameNode);
-        }
+    if (pVdecDataType->pPktNodeHead) {
+        mpp_free(pVdecDataType->pPktNodeHead);
+        pVdecDataType->pPktNodeHead = NULL;
     }
 
-_EXIT2:
+    if (pVdecDataType->pFrameNodeHead) {
+        mpp_free(pVdecDataType->pFrameNodeHead);
+        pVdecDataType->pFrameNodeHead = NULL;
+    }
+
     if (pVdecDataType) {
         mpp_free(pVdecDataType);
         pVdecDataType = NULL;
     }
 
-_EXIT1:
     return eError;
 }
 
@@ -1337,18 +1309,28 @@ _AIC_MSG_GET_:
         }
 
         //decode
+        aic_pthread_mutex_lock(&pVdecDataType->sInPktLock);
+        aic_pthread_mutex_lock(&pVdecDataType->sOutFrameLock);
         dec_ret = mpp_decoder_decode(pVdecDataType->pDecoder);
         if (dec_ret == DEC_OK) {
             logd("mpp_decoder_decode ok!!!\n");
-        } else if (dec_ret == DEC_NO_READY_PACKET || dec_ret == DEC_NO_EMPTY_FRAME || dec_ret == DEC_NO_RENDER_FRAME) {
-            logd("mpp_decoder_decode:%"PRId32" !!!\n",dec_ret);
+        } else if (dec_ret == DEC_NO_READY_PACKET) {
+            pVdecDataType->nWaitForReadyPkt = 1;
+        } else if (dec_ret == DEC_NO_EMPTY_FRAME) {
+            pVdecDataType->nWaitForEmptyFrame = 1;
+        } else if (dec_ret == DEC_NO_RENDER_FRAME) {
+            loge("mpp_decoder_decode ret:%"PRId32" !!!\n",dec_ret);
         } else {
             //ASSERT();
             loge("mpp_decoder_decode error serious,do not keep decoding ret:%"PRId32" !!!\n",dec_ret);
             OMX_VdecEventNotify(pVdecDataType,OMX_EventError,OMX_ErrorMbErrorsInFrame,0,NULL);
             pVdecDataType->nFlags |= VDEC_OUTPORT_SEND_ALL_FRAME_FLAG;
+            aic_pthread_mutex_unlock(&pVdecDataType->sOutFrameLock);
+            aic_pthread_mutex_unlock(&pVdecDataType->sInPktLock);
             goto _AIC_MSG_GET_;
         }
+        aic_pthread_mutex_unlock(&pVdecDataType->sOutFrameLock);
+        aic_pthread_mutex_unlock(&pVdecDataType->sInPktLock);
 
         // get frame from decoder
         do {
@@ -1362,17 +1344,9 @@ _AIC_MSG_GET_:
             }
             pVdecDataType->nGetFrameFromDecoderNum++;
             if (OMX_VdecListEmpty(&pVdecDataType->sOutEmptyFrame,pVdecDataType->sOutFrameLock)) {
-                VDEC_OUT_FRAME *pFrameNode = (VDEC_OUT_FRAME*)mpp_alloc(sizeof(VDEC_OUT_FRAME));
-                if (NULL == pFrameNode) {
-                    loge("mpp_alloc error \n");
-                    mpp_decoder_put_frame(pVdecDataType->pDecoder, &sFrame);
-                    goto _AIC_MSG_GET_;
-                }
-                memset(pFrameNode,0x00,sizeof(VDEC_OUT_FRAME));
-                aic_pthread_mutex_lock(&pVdecDataType->sOutFrameLock);
-                mpp_list_add_tail(&pFrameNode->sList, &pVdecDataType->sOutEmptyFrame);
-                aic_pthread_mutex_unlock(&pVdecDataType->sOutFrameLock);
-                pVdecDataType->nOutFrameNodeNum++;
+                loge("nOutFrameNodeNum:%"PRId32",maybe it is too short",pVdecDataType->nOutFrameNodeNum);
+                mpp_decoder_put_frame(pVdecDataType->pDecoder, &sFrame);
+                goto _AIC_MSG_GET_;
             }
             sBuffHead.nOutputPortIndex = VDEC_PORT_OUT_INDEX;
             sBuffHead.pBuffer = (OMX_U8 *)&sFrame;
@@ -1431,18 +1405,14 @@ _AIC_MSG_GET_:
         if (dec_ret == DEC_NO_READY_PACKET) {
             aic_pthread_mutex_lock(&pVdecDataType->sInPktLock);
             if (!(pVdecDataType->nFlags & VDEC_INPORT_STREAM_END_FLAG)) {
-                pVdecDataType->nWaitForReadyPkt = 1;
                 aic_pthread_mutex_unlock(&pVdecDataType->sInPktLock);
-                aic_msg_wait_new_msg(&pVdecDataType->sMsgQue, 0);
+                aic_msg_wait_new_msg(&pVdecDataType->sMsgQue,0);
             } else {
                 aic_pthread_mutex_unlock(&pVdecDataType->sInPktLock);
                 aic_msg_wait_new_msg(&pVdecDataType->sMsgQue, 5*1000);
             }
         } else if (dec_ret == DEC_NO_EMPTY_FRAME) {
             if (!(pVdecDataType->nFlags & VDEC_OUTPORT_SEND_ALL_FRAME_FLAG)) {
-                aic_pthread_mutex_lock(&pVdecDataType->sOutFrameLock);
-                pVdecDataType->nWaitForEmptyFrame = 1;
-                aic_pthread_mutex_unlock(&pVdecDataType->sOutFrameLock);
                 aic_msg_wait_new_msg(&pVdecDataType->sMsgQue, 0);
             }
         }

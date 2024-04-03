@@ -22,6 +22,8 @@ static rt_err_t cmd_test_rtc(int argc, char **argv)
         rt_kprintf("set RTC date failed");
         return ret;
     }
+    // delay 1 ms for rtc sync
+    rt_thread_mdelay(1);
 
     // set time with local timezone
     ret = set_time(20, 22, 33);
@@ -31,7 +33,7 @@ static rt_err_t cmd_test_rtc(int argc, char **argv)
         return ret;
     }
 
-    // must delay 1 ms at least for rtc sync
+    // delay 1 ms for rtc sync
     rt_thread_mdelay(1);
 
     now = time(RT_NULL);

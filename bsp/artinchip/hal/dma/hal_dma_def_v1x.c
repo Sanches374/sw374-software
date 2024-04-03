@@ -299,6 +299,9 @@ int hal_dma_chan_stop(struct aic_dma_chan *chan)
     u32 irq_reg, irq_offset;
 
     CHECK_PARAM(chan != NULL, -EINVAL);
+    if (chan->cfg.direction == DMA_DEV_TO_MEM)
+        aicos_dma_sync();
+
     irq_reg = chan->ch_nr / DMA_IRQ_CHAN_NR;
     irq_offset = chan->ch_nr % DMA_IRQ_CHAN_NR;
 

@@ -31,7 +31,7 @@ static void nftl_show_speed(char *msg, u32 len, u32 us)
     rt_kprintf("%s: %d byte, %d us -> %d KB/s\n", msg, len, us, speed);
 }
 
-#define BUF_SIZE 1024 * 1024 // buf size 1024
+#define BUF_1MB_SIZE 1024 * 1024
 static void write_speed(int argc, char **argv)
 {
     uint32_t start_us;
@@ -69,15 +69,15 @@ static void write_speed(int argc, char **argv)
 
     start_us = aic_get_time_us();
     for (int i = 0; i < size_m; ++i) {
-        size_t bytes_written = fwrite(buf, 1, BUF_SIZE, file);
-        if (bytes_written != BUF_SIZE) {
+        size_t bytes_written = fwrite(buf, 1, BUF_1MB_SIZE, file);
+        if (bytes_written != BUF_1MB_SIZE) {
             rt_kprintf("Failed to write data to file.\n");
             fclose(file);
             return;
         }
         fflush(file);
     }
-    nftl_show_speed("Write speed:", size_m * BUF_SIZE,
+    nftl_show_speed("Write speed:", size_m * BUF_1MB_SIZE,
                     aic_get_time_us() - start_us);
     fclose(file);
 }
@@ -89,18 +89,23 @@ static void read_speed(int argc, char **argv)
     FILE *fd;
     char file_path[128] = { 0 };
     int bytes_size = NFTL_SECTOR_SIZE;
+    int size_m = 1;
+    int read_size = 0;
+    int remain_size = 0;
     void *addr = NULL;
 
     rt_sprintf(file_path, "%s\n", "/ndata/temp.txt");
 
     switch (argc) {
+        case 4:
+            size_m = atoi(argv[3]);
         case 3:
             rt_sprintf(file_path, "%s\n", argv[2]);
         case 2:
             addr = (void *)strtoul(argv[1], NULL, 0);
             break;
         default:
-            rt_kprintf("read_speed <addr> <file_path>\r\n");
+            rt_kprintf("read_speed <addr> <file_path> <read_size>\r\n");
             rt_kprintf("addr  : read to addr\r\n");
             rt_kprintf("file_path  : write files (default is %s)\r\n",
                        file_path);
@@ -119,9 +124,24 @@ static void read_speed(int argc, char **argv)
     rt_kprintf(
         "%s:%d file_path=%s, addr=0x%x, bytes_size=%d, sector_counts=%d...\n",
         __FUNCTION__, __LINE__, file_path, addr, bytes_size, sector_counts);
+
+    read_size = size_m * BUF_1MB_SIZE;
+    read_size =
+        (read_size > 0) && (read_size < bytes_size) ? read_size : bytes_size;
+    remain_size = read_size;
+
     start_us = aic_get_time_us();
-    fread((uint32_t *)addr, sizeof(uint8_t), bytes_size, fd);
-    nftl_show_speed("fatfs read speed", bytes_size,
+
+    while (remain_size > 0) {
+        if (remain_size > BUF_1MB_SIZE) {
+            fread((uint32_t *)addr, sizeof(uint8_t), BUF_1MB_SIZE, fd);
+        } else {
+            fread((uint32_t *)addr, sizeof(uint8_t), remain_size, fd);
+        }
+        remain_size -= BUF_1MB_SIZE;
+    }
+
+    nftl_show_speed("fatfs read speed", read_size,
                     aic_get_time_us() - start_us);
 
     fclose(fd);

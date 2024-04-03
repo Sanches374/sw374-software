@@ -816,6 +816,8 @@ static void ehci_qh_scan_qtds(struct usbh_bus *bus, struct ehci_qh_hw *qhead, st
         qtd->urb->actual_length += (qtd->total_len - ((qtd->hw.token & QTD_TOKEN_NBYTES_MASK) >> QTD_TOKEN_NBYTES_SHIFT));
 
         #ifdef CONFIG_USB_DCACHE_ENABLE
+        if (qtd->dir_in == 1)
+            aicos_dma_sync();
         if ((qtd->align_buffer) && (qtd->dir_in == 1)) {
             memcpy(qtd->buffer, qtd->align_buffer, qtd->buffer_len);
         }

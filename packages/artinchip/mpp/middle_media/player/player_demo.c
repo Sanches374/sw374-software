@@ -104,7 +104,7 @@ static int read_dir(char* path, struct file_list *files)
         if (ptr == NULL)
             continue;
 
-        if (strcmp(ptr, ".h264") && strcmp(ptr, ".264") && strcmp(ptr, ".mp4"))
+        if (strcmp(ptr, ".h264") && strcmp(ptr, ".264") && strcmp(ptr, ".mp4") && strcmp(ptr, ".mp3"))
             continue;
 
         logd("name: %s", dir_file->d_name);
@@ -128,6 +128,7 @@ static int read_dir(char* path, struct file_list *files)
         if (files->file_num >= PLAYER_DEMO_FILE_MAX_NUM)
             break;
     }
+    closedir(dir);
     return 0;
 }
 
@@ -351,6 +352,29 @@ static int start_play(struct aic_player *player,int volume)
     }
     printf("[%s:%d]aic_player_play ok\n",__FUNCTION__,__LINE__);
     return 0;
+}
+
+static void show_cpu_usage()
+{
+#ifdef LPKG_USING_CPU_USAGE
+    static int index = 0;
+    char data_str[64];
+    float value = 0.0;
+
+    if (index++ % 30 == 0) {
+        value = cpu_load_average();
+        #ifdef AIC_PRINT_FLOAT_CUSTOM
+            int cpu_i;
+            int cpu_frac;
+            cpu_i = (int)value;
+            cpu_frac = (value - cpu_i) * 100;
+            snprintf(data_str, sizeof(data_str), "%d.%02d\n", cpu_i, cpu_frac);
+        #else
+            snprintf(data_str, sizeof(data_str), "%.2f\n", value);
+        #endif
+        printf("cpu_loading:%s\n",data_str);
+    }
+#endif
 }
 
 //#define _THREAD_TRACE_INFO_
@@ -641,20 +665,8 @@ static void player_demo_test(int argc, char **argv)
                         goto _EXIT0_;
                     }
                 } else {
-                #ifdef LPKG_USING_CPU_USAGE
-                {
-                    static int index = 0;
-                    char data_str[64];
-                    float value = 0.0;
-                    if (index++ % 10 == 0 && strcmp(PRJ_CHIP,"d21x") == 0) {
-                        value = cpu_load_average();
-                        snprintf(data_str,sizeof(data_str),"%.2f%%\n", value);
-                        printf("cpu_loading:%s\n",data_str);
-                    }
-
-                }
-                #endif
-                    usleep(1000*1000);
+                    show_cpu_usage();
+                    usleep(100*1000);
                 }
             }
         }

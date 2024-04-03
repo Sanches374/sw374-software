@@ -480,7 +480,7 @@ typedef struct ipv6_mreq {
 
 typedef struct fd_set
 {
-  unsigned char fd_bits [(FD_SETSIZE+7)/8];
+  unsigned char fd_bits[(FD_SETSIZE+7)/8];
 } fd_set;
 
 #elif FD_SETSIZE < (LWIP_SOCKET_OFFSET + MEMP_NUM_NETCONN)
@@ -515,7 +515,7 @@ struct pollfd
 /** LWIP_TIMEVAL_PRIVATE: if you want to use the struct timeval provided
  * by your system, set this to 0 and include <sys/time.h> in cc.h */
 #ifndef LWIP_TIMEVAL_PRIVATE
-#define LWIP_TIMEVAL_PRIVATE 1
+#define LWIP_TIMEVAL_PRIVATE 0
 #endif
 
 #if LWIP_TIMEVAL_PRIVATE

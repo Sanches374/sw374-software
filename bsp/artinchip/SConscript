@@ -84,10 +84,13 @@ if GetDepend('AIC_I2C_DRV'):
 
 # QSPI driver
 if GetDepend('AIC_QSPI_DRV'):
+    ver = GetConfigValue('AIC_QSPI_DRV_VER')
+    ver = ver.replace('"','')
     if GetDepend('DRIVER_DRV_EN'):
         src += Glob('drv/qspi/*.c')
     if GetDepend('DRIVER_HAL_EN'):
-        src += Glob('hal/qspi/*.c')
+        src += Glob('hal/qspi/*.c', exclude=['hal/qspi/*_v*.c'])
+        src += Glob('hal/qspi/*_v%sx.c' % (ver[0]))
 
 # XSPI driver
 if GetDepend('AIC_XSPI_DRV'):
@@ -184,6 +187,11 @@ if GetDepend('AIC_AUDIO_DRV'):
     if GetDepend('DRIVER_BARE_DRV_EN'):
         src += Glob('drv_bare/ringbuffer/*.c')
 
+if GetDepend('AIC_PM_DRV'):
+    if GetDepend('DRIVER_BARE_DRV_EN'):
+        src += Glob('drv_bare/pm/*.c')
+        src += Glob('drv_bare/pm/se_save_context.S')
+
 # Display driver
 if GetDepend('AIC_DISPLAY_DRV'):
     src += Glob('drv/display/drv_fb.c')
@@ -223,6 +231,9 @@ if GetDepend('AIC_DISP_MIPI_DBI'):
 
 if GetDepend('AIC_SIMPLE_PANEL'):
     src += Glob('drv/display/panel/panel_simple.c')
+
+if GetDepend('AIC_DSI_SIMPLE_PANEL'):
+    src += Glob('drv/display/panel/panel_dsi_simple.c')
 
 if GetDepend('AIC_PANEL_DSI_XM91080'):
     src += Glob('drv/display/panel/panel_dsi_xm91080.c')
@@ -307,9 +318,15 @@ if GetDepend('AIC_PWM_DRV'):
     if GetDepend('DRIVER_HAL_EN'):
         src += Glob('hal/pwm/*.c')
 
-if GetDepend('AIC_HRTIMER_DRV'):
+if GetDepend('AIC_HRTIMER_DRV_V12'):
     if GetDepend('DRIVER_DRV_EN'):
-        src += Glob('drv/hrtimer/*.c')
+        src += Glob('drv/hrtimer/drv_hrtimer_pwm.c')
+    if GetDepend('DRIVER_HAL_EN'):
+        src += Glob('hal/pwm/*.c')
+
+if GetDepend('AIC_HRTIMER_DRV_V10') or GetDepend('AIC_HRTIMER_DRV_V11'):
+    if GetDepend('DRIVER_DRV_EN'):
+        src += Glob('drv/hrtimer/drv_hrtimer.c')
     if GetDepend('DRIVER_HAL_EN'):
         src += Glob('hal/pwmcs/hal_cap.c')
 
@@ -325,6 +342,12 @@ if GetDepend('AIC_EPWM_DRV'):
     if GetDepend('DRIVER_HAL_EN'):
         src += Glob('hal/pwmcs/hal_epwm.c')
 
+if GetDepend('AIC_QEP_DRV'):
+    if GetDepend('DRIVER_DRV_EN'):
+        src += Glob('drv/qep/*.c')
+    if GetDepend('DRIVER_HAL_EN'):
+        src += Glob('hal/pwmcs/hal_qep.c')
+
 # CAN driver
 if GetDepend('AIC_CAN_DRV'):
     if GetDepend('DRIVER_DRV_EN'):
@@ -338,7 +361,7 @@ if GetDepend('AIC_SID_DRV'):
     if GetDepend('DRIVER_HAL_EN'):
         src += Glob('hal/efuse/*.c')
     if GetDepend('DRIVER_BARE_DRV_EN'):
-            src += Glob('drv_bare/efuse/*.c')
+        src += Glob('drv_bare/efuse/*.c')
 
 if GetDepend('AIC_CIR_DRV'):
     if GetDepend('DRIVER_DRV_EN'):
@@ -350,6 +373,7 @@ if GetDepend('AIC_CIR_DRV'):
             src += Glob('drv/cir/rc5_decoder.c')
     if GetDepend('DRIVER_HAL_EN'):
         src += Glob('hal/cir/*.c')
+
 # CE driver
 if GetDepend('AIC_CE_DRV'):
     if GetDepend('DRIVER_DRV_EN'):
@@ -376,13 +400,16 @@ if GetDepend('AIC_AUDIO_DRV'):
         src += Glob('hal/audio/*.c')
 
 if GetDepend('AIC_PM_DRV'):
-    ver = GetConfigValue('AIC_PM_DRV_VER')
-    ver = ver.replace('"', '')
-    src += Glob('drv/pm/drv_pm_v%s.c' % ver)
-    if GetDepend('AIC_PM_POWER_KEY'):
-        src += Glob('drv/pm/pm_key.c')
-    if GetDepend('AIC_PM_POWER_TOUCH_WAKEUP'):
-        src += Glob('drv/pm/pm_touch_timer.c')
+    if GetDepend('DRIVER_DRV_EN'):
+        ver = GetConfigValue('AIC_PM_DRV_VER')
+        ver = ver.replace('"', '')
+        src += Glob('drv/pm/drv_pm_v%s.c' % ver)
+        src += Glob('drv/pm/sp_suspend_resume.S')
+        src += Glob('drv/pm/sc_save_context.S')
+        if GetDepend('AIC_PM_POWER_KEY'):
+            src += Glob('drv/pm/pm_key.c')
+        if GetDepend('AIC_PM_POWER_TOUCH_WAKEUP'):
+            src += Glob('drv/pm/pm_touch_timer.c')
 
 if GetDepend('AIC_PSADC_DRV'):
     if GetDepend('DRIVER_DRV_EN'):

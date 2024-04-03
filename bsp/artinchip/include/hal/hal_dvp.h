@@ -55,7 +55,11 @@
 #define DVP_IRQ_STA_UPDATE_DONE     BIT(7)
 #define DVP_IRQ_STA_XY_CODE_ERR     BIT(6)
 #define DVP_IRQ_STA_FIFO_FULL       BIT(3)
+#define DVP_IRQ_STA_HNUM            BIT(2)
 #define DVP_IRQ_STA_FRAME_DONE      BIT(1)
+
+#define DVP_IRQ_CFG_HNUM_MASK       GENMASK(30, 16)
+#define DVP_IRQ_CFG_HNUM_SHIFT      16
 
 #define DVP_IN_CFG_FILED_POL_NORMAL             BIT(3)
 #define DVP_IN_CFG_VSYNC_POL_ACTIVE_HIGH        BIT(2)

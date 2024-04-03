@@ -18,7 +18,7 @@
 #include <mtd.h>
 #include <image.h>
 #include <boot.h>
-#include <hexdump.h>
+#include <aic_utils.h>
 #include "aic_time.h"
 
 #define APPLICATION_PART "os"

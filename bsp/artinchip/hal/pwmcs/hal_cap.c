@@ -34,7 +34,7 @@
 #define CAP_IN_SRC(n)           (CAP_BASE(n) + 0x34)
 #define CAP_VER(n)              (CAP_BASE(n) + 0xfc)
 
-#ifdef AIC_HRTIMER_DRV_V10
+#if defined (AIC_HRTIMER_DRV_V10) || defined (AIC_CAP_DRV_V10)
 #define GLB_CLK_CTL             (GLB_BASE + 0x00)
 #define GLB_CLK_CTL_CAP_EN(n)   (BIT(16) << (n))
 #endif
@@ -303,7 +303,7 @@ int hal_cap_init(void)
         return 0;
     }
 
-#ifdef AIC_HRTIMER_DRV_V10
+#if defined (AIC_HRTIMER_DRV_V10) || defined (AIC_CAP_DRV_V10)
     clk_id = CLK_PWMCS;
 #endif
 #if defined (AIC_HRTIMER_DRV_V11) || defined (AIC_CAP_DRV_V11)

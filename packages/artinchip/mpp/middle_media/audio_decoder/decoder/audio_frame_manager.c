@@ -5,12 +5,10 @@
 *  Desc: aic_audio_decoder interface
 */
 
-
 #define LOG_TAG "audio_frame_manager"
 
 #include <string.h>
 #include <pthread.h>
-
 
 #include "audio_frame_manager.h"
 #include "mpp_list.h"
@@ -46,7 +44,6 @@ struct audio_frame_manager {
 };
 
 #define MAX_FRAME_COUNT 128
-
 
 struct audio_frame_manager *audio_fm_create(struct audio_frame_manager_cfg *cfg)
 {
@@ -246,8 +243,6 @@ int audio_fm_decoder_put_frame(struct audio_frame_manager *fm, struct aic_audio_
     return 0;
 }
 
-
-
 int audio_fm_render_get_frame(struct audio_frame_manager *fm,struct aic_audio_frame *frame)
 {
     struct audio_frame_impl *frm_impl = NULL;
@@ -309,11 +304,9 @@ int audio_fm_render_put_frame(struct audio_frame_manager *fm, struct aic_audio_f
     logd("empty_num: %d,ready_num:%d,decoding_num:%d,rending_num:%d\n"
             ,fm->empty_num,fm->ready_num,fm->using_num,fm->used_num);
 
-
     pthread_mutex_unlock(&fm->lock);
     return 0;
 }
-
 
 int audio_fm_get_empty_frame_num(struct audio_frame_manager *fm)
 {
@@ -324,6 +317,7 @@ int audio_fm_get_render_frame_num(struct audio_frame_manager *fm)
 {
     return fm->ready_num;
 }
+
 int audio_fm_reset(struct audio_frame_manager *fm)
 {
     struct audio_frame_impl *frame = NULL,*frame1 = NULL;

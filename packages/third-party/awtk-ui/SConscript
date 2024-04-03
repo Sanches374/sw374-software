@@ -55,7 +55,8 @@ awtk_port_cwd = awtk_cwd + 'awtk-rtos/awtk-port/'
 cc_flages += ' -DWITH_VGCANVAS -DHAS_STDIO -DSTBTT_STATIC '
 cc_flages += ' -DWITH_ASSET_LOADER -DHAS_GET_TIME_US64 '
 cc_flages += ' -DWITH_NANOVG_AGGE '
-cc_flages += ' -DUSE_GUI_MAIN -DHAS_STD_MALLOC'
+cc_flages += ' -DUSE_GUI_MAIN '
+# cc_flages += ' -DUSE_GUI_MAIN -DHAS_STD_MALLOC'
 
 # add port g2d
 awtk_port_g2d_cwd = awtk_port_cwd + 'aic_g2d/'

@@ -163,7 +163,7 @@ int es8388_start(struct codec *codec, i2s_stream_t stream)
         reg_write(ES8388_ADCCONTROL13, 0x06);
         reg_write(ES8388_ADCCONTROL14, 0xC3);
         /* startup FSM and DLL */
-        reg_write(ES8388_CHIPPOWER, 0x55);
+        reg_write(ES8388_CHIPPOWER, 0x00);
         reg_write(ES8388_ADCPOWER, 0x09);
     }
 
@@ -260,7 +260,7 @@ int es8388_set_sample_width(struct codec *codec, i2s_format_t *format)
     if (!format->stream)    //Playback
     {
         reg_val = reg_read(ES8388_DACCONTROL1);
-        reg_val |= (sample_width[i].val << 2);
+        reg_val |= (sample_width[i].val << 3);
         reg_write(ES8388_DACCONTROL1, reg_val);
     }
     else    //Record

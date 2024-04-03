@@ -400,6 +400,13 @@ static inline u32 qspi_hw_base_to_index(u32 base)
     return QSPI_INVALID_BASE;
 }
 
+enum RX_SAMP_DLY_MODE {
+    RX_SAMP_DLY_AUTO,
+    RX_SAMP_DLY_NONE,
+    RX_SAMP_DLY_HALF_CYCLE,
+    RX_SAMP_DLY_ONE_CYCLE,
+};
+
 static inline void qspi_hw_init_default(u32 base)
 {
     u32 val;
@@ -459,7 +466,14 @@ static inline void qspi_hw_set_rx_delay_mode(u32 base, u32 mode)
 {
     u32 val = readl(QSPI_REG_TCFG(base));
     val &= ~(TCFG_RX_SAMP_DLY_MSK);
-    val |= mode;
+
+    if (mode == RX_SAMP_DLY_NONE) {
+        val |= TCFG_RX_SAMP_DLY_NONE;
+    } else if (mode == RX_SAMP_DLY_HALF_CYCLE) {
+        val |= TCFG_RX_SAMP_DLY_HALF;
+    } else {
+        val |= TCFG_BIT_RXINDLY_EN_MSK;
+    }
     writel(val, QSPI_REG_TCFG(base));
 }
 
@@ -1316,6 +1330,60 @@ static inline int qspi_hw_bit_mode_write(u32 base, const u8 *tx_buf, u32 tx_bits
         continue;
 
     return tx_bits_len;
+}
+
+static inline int qspi_hw_bit_mode_send_then_recv(u32 base, const u8 *tx_buf,
+                                                  u32 tx_bits_len, u8 *rx_buf,
+                                                  u32 rx_bits_len)
+{
+    int dolen, i;
+    u32 val, txbits, rxbits;
+    const u8 *tx_p;
+    u8 *rx_p;
+
+    val = readl(QSPI_REG_BMTC(base));
+    val |= BMTC_BIT_XFER_COMP_MSK;
+    writel(val, QSPI_REG_BMTC(base));
+
+    tx_p = tx_buf;
+    dolen = (tx_bits_len + 7) / 8;
+    txbits = 0;
+    if (dolen > 4) {
+        dolen = 4;
+        tx_bits_len = 32;
+    }
+
+    /* Prepare and write tx bits */
+    for (i = 0; i < dolen; i++)
+        txbits |= tx_p[i] << (i * 8);
+    writel(txbits, QSPI_REG_BMTXD(base));
+
+    /* Configure tx/rx length and start transfer */
+    val = readl(QSPI_REG_BMTC(base));
+    val |= tx_bits_len << BMTC_BIT_TX_BIT_LEN_OFS; //send bits length
+    val |= rx_bits_len << BMTC_BIT_RX_BIT_LEN_OFS; //receive bits length
+    val |= BMTC_BIT_XFER_EN_MSK;
+    writel(val, QSPI_REG_BMTC(base));
+
+    rx_p = rx_buf;
+    dolen = (rx_bits_len + 7) / 8;
+    rxbits = 0;
+    if (dolen > 4) {
+        dolen = 4;
+        rx_bits_len = 32;
+    }
+
+    while (!qspi_hw_bit_mode_xfer_done(base))
+        continue;
+    while (!qspi_hw_bit_mode_rxsts_clear(base))
+        continue;
+
+    /* Read rx bits */
+    rxbits = readl(QSPI_REG_BMRXD(base));
+    for (i = 0; i < dolen; i++)
+        rx_p[i] = (rxbits >> (i * 8)) & 0xFF;
+
+    return rx_bits_len;
 }
 
 #ifdef __cplusplus

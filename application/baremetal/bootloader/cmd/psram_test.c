@@ -15,7 +15,7 @@
 #include <aic_common.h>
 #include <aic_errno.h>
 #include <xspi_psram.h>
-#include <hexdump.h>
+#include <aic_utils.h>
 #include <aic_time.h>
 
 #define BASE_DRAM     (0x40000000)

@@ -658,7 +658,11 @@ MEM_SIZE and MEMP_NUM_XXX will be invalid */
 #define LWIP_TESTMODE                   0
 #define LWIP_PERF                       0
 
-
+/* artinchip added for PTP */
+#ifdef LPKG_USING_PTPD
+#define LWIP_PTP    1
+#define LWIP_PBUF_CUSTOM_DATA u32_t second; u32_t nanosecond;
+#endif
 
 #if 0
 

@@ -23,9 +23,16 @@ struct aic_qspi {
     u32 bus_hz;
     u32 dma_port_id;
     u32 irq_num;
+    u32 dl_width;  //data line width
+#if defined(AIC_QSPI_MULTIPLE_CS_NUM)
+    u32 cs_num;
+#endif
     qspi_master_handle handle;
     struct aic_spinand *attached_flash;
     bool inited;
+    u32 rxd_dylmode;
+    u32 txd_dylmode;
+    u32 txc_dylmode;
 };
 
 /**

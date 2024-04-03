@@ -16,12 +16,12 @@
 #include "ethernetif_wlan.h"
 #endif
 
-void ifconfig(void)
+static void list_ifconfig(void)
 {
     struct netif *netif;
 
     for (netif = netif_list; netif != NULL; netif = netif->next) {
-        printf("%s:\n",netif->name);
+        printf("%s%d:\n",netif->name, netif->num);
         printf("    IPv4 Address   : %s\n", ip4addr_ntoa(&netif->ip_addr));
         printf("    Default Gateway: %s\n", ip4addr_ntoa(&netif->gw));
         printf("    Subnet mask    : %s\n", ip4addr_ntoa(&netif->netmask));
@@ -34,10 +34,6 @@ void ifconfig(void)
                 netif->hwaddr[5]);
     }
 }
-
-#ifdef RT_USING_FINSH
-MSH_CMD_EXPORT(ifconfig, list all net information);
-#endif
 
 #if defined(AIC_USING_GMAC0) | defined(AIC_USING_GMAC1)
 #include "ethernetif.h"
@@ -124,7 +120,7 @@ void netif_startup(void)
 
     }
 
-    ifconfig();
+    list_ifconfig();
 
 #if LWIP_IGMP
     ip4_set_default_multicast_netif(netif);

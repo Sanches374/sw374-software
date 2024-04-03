@@ -48,8 +48,11 @@ struct aic_panel aic_panel_rgb = {
 
 #ifdef AIC_DISP_LVDS
 static struct panel_lvds lvds = {
-    .mode = AIC_LVDS_MODE,
+    .mode      = AIC_LVDS_MODE,
     .link_mode = AIC_LVDS_LINK_MODE,
+    .link_swap = AIC_LVDS_LINK_SWAP_EN,
+    .line      = AIC_LVDS_LINES,
+    .pols      = AIC_LVDS_POL,
 };
 
 struct aic_panel aic_panel_lvds = {

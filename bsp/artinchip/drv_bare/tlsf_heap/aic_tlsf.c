@@ -106,6 +106,23 @@ static heap_def_t heap_def[MAX_MEM_REGION] = {
         .end = (size_t)(&__psram_sw_heap_end),
     },
     #endif
+#elif defined(AIC_CHIP_G73X)
+    #ifdef AIC_SRAM_CMA_EN
+    {
+        .name = "scma",
+        .type = MEM_SRAM_CMA,
+        .start = (size_t)(&__sram_cma_heap_start),
+        .end = (size_t)(&__sram_cma_heap_end),
+    },
+        #endif
+    #ifdef AIC_SRAM_SW_EN
+    {
+        .name = "ssw",
+        .type = MEM_SRAM_SW,
+        .start = (size_t)(&__sram_sw_heap_start),
+        .end = (size_t)(&__sram_sw_heap_end),
+    },
+    #endif
 #elif defined(AIC_CHIP_D12X)
     #ifdef AIC_SRAM_CMA_EN
     {

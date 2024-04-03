@@ -11,6 +11,13 @@
 #include "../../hal/lv_hal_disp.h"
 #include "../../core/lv_refr.h"
 
+#if LV_AIC_COLOR_SCREEN_TRANSP == 1
+#if LV_COLOR_SCREEN_TRANSP == 0 && LV_COLOR_DEPTH == 32
+#undef LV_COLOR_SCREEN_TRANSP
+#define LV_COLOR_SCREEN_TRANSP 1
+#endif
+#endif //LV_AIC_COLOR_SCREEN_TRANSP
+
 /*********************
  *      DEFINES
  *********************/
@@ -43,23 +50,23 @@ static void fill_blended(lv_color_t * dest_buf, const lv_area_t * dest_area, lv_
 #endif  /*LV_DRAW_COMPLEX*/
 
 static void map_set_px(lv_color_t * dest_buf, const lv_area_t * dest_area, lv_coord_t dest_stride,
-                       const lv_color_t * src_buf, lv_coord_t src_stride, lv_opa_t opa, const lv_opa_t * mask, lv_coord_t mask_stride);
+                       const uint8_t * src_buf, lv_coord_t src_stride, lv_opa_t opa, const lv_opa_t * mask, lv_coord_t mask_stride);
 
 #if LV_COLOR_SCREEN_TRANSP == 0
 LV_ATTRIBUTE_FAST_MEM static void map_normal(lv_color_t * dest_buf, const lv_area_t * dest_area, lv_coord_t dest_stride,
-                                             const lv_color_t * src_buf, lv_coord_t src_stride, lv_opa_t opa, const lv_opa_t * mask, lv_coord_t mask_stride);
+                                             const uint8_t * src_buf, lv_coord_t src_stride, lv_opa_t opa, const lv_opa_t * mask, lv_coord_t mask_stride);
 #endif
 
 #if LV_COLOR_SCREEN_TRANSP
 LV_ATTRIBUTE_FAST_MEM static void map_argb(lv_color_t * dest_buf, const lv_area_t * dest_area, lv_coord_t dest_stride,
-                                           const lv_color_t * src_buf, lv_coord_t src_stride, lv_opa_t opa,
+                                           const uint8_t * src_buf, lv_coord_t src_stride, lv_opa_t opa,
                                            const lv_opa_t * mask, lv_coord_t mask_stride, lv_blend_mode_t blend_mode);
 
 #endif /*LV_COLOR_SCREEN_TRANSP*/
 
 #if LV_DRAW_COMPLEX
 static void map_blended(lv_color_t * dest_buf, const lv_area_t * dest_area, lv_coord_t dest_stride,
-                        const lv_color_t * src_buf, lv_coord_t src_stride, lv_opa_t opa,
+                        const uint8_t * src_buf, lv_coord_t src_stride, lv_opa_t opa,
                         const lv_opa_t * mask, lv_coord_t mask_stride, lv_blend_mode_t blend_mode);
 
 static inline lv_color_t color_blend_true_color_additive(lv_color_t fg, lv_color_t bg, lv_opa_t opa);
@@ -82,8 +89,8 @@ static inline lv_color_t color_blend_true_color_multiply(lv_color_t fg, lv_color
 
 #define MAP_NORMAL_MASK_PX(x)                                                          \
     if(*mask_tmp_x) {          \
-        if(*mask_tmp_x == LV_OPA_COVER) dest_buf[x] = src_buf[x];                                 \
-        else dest_buf[x] = lv_color_mix(src_buf[x], dest_buf[x], *mask_tmp_x);            \
+        if(*mask_tmp_x == LV_OPA_COVER) dest_buf[x] = ((lv_color_t *)src_buf)[x];        \
+        else dest_buf[x] = lv_color_mix(((lv_color_t *)src_buf)[x], dest_buf[x], *mask_tmp_x);      \
     }                                                                                               \
     mask_tmp_x++;
 
@@ -134,10 +141,17 @@ LV_ATTRIBUTE_FAST_MEM void lv_draw_sw_blend_basic(lv_draw_ctx_t * draw_ctx, cons
     }
 
 
-    const lv_color_t * src_buf = dsc->src_buf;
+    const uint8_t * src_buf = (uint8_t *)dsc->src_buf;
     lv_coord_t src_stride;
     if(src_buf) {
-        src_stride = lv_area_get_width(dsc->blend_area);
+#if LV_SUPPORT_SET_IMAGE_STRIDE
+        if (draw_ctx->src_stride)
+            src_stride = draw_ctx->src_stride;
+        else
+            src_stride = lv_area_get_width(dsc->blend_area) * sizeof(lv_color_t);
+#else
+            src_stride = lv_area_get_width(dsc->blend_area) * sizeof(lv_color_t);
+#endif
         src_buf += src_stride * (blend_area.y1 - dsc->blend_area->y1) + (blend_area.x1 - dsc->blend_area->x1);
     }
     else {
@@ -605,7 +619,7 @@ static void fill_blended(lv_color_t * dest_buf, const lv_area_t * dest_area,
 #endif
 
 static void map_set_px(lv_color_t * dest_buf, const lv_area_t * dest_area, lv_coord_t dest_stride,
-                       const lv_color_t * src_buf, lv_coord_t src_stride, lv_opa_t opa, const lv_opa_t * mask, lv_coord_t mask_stride)
+                       const uint8_t * src_buf, lv_coord_t src_stride, lv_opa_t opa, const lv_opa_t * mask, lv_coord_t mask_stride)
 
 {
     lv_disp_t * disp = _lv_refr_get_disp_refreshing();
@@ -619,7 +633,7 @@ static void map_set_px(lv_color_t * dest_buf, const lv_area_t * dest_area, lv_co
     if(mask == NULL) {
         for(y = 0; y < h; y++) {
             for(x = 0; x < w; x++) {
-                disp->driver->set_px_cb(disp->driver, (void *)dest_buf, dest_stride, dest_area->x1 + x, dest_area->y1 + y, src_buf[x],
+                disp->driver->set_px_cb(disp->driver, (void *)dest_buf, dest_stride, dest_area->x1 + x, dest_area->y1 + y, ((lv_color_t *)src_buf)[x],
                                         opa);
             }
             src_buf += src_stride;
@@ -629,7 +643,7 @@ static void map_set_px(lv_color_t * dest_buf, const lv_area_t * dest_area, lv_co
         for(y = 0; y < h; y++) {
             for(x = 0; x < w; x++) {
                 if(mask[x]) {
-                    disp->driver->set_px_cb(disp->driver, (void *)dest_buf, dest_stride, dest_area->x1 + x, dest_area->y1 + y, src_buf[x],
+                    disp->driver->set_px_cb(disp->driver, (void *)dest_buf, dest_stride, dest_area->x1 + x, dest_area->y1 + y, ((lv_color_t *)src_buf)[x],
                                             (uint32_t)((uint32_t)opa * mask[x]) >> 8);
                 }
             }
@@ -641,7 +655,7 @@ static void map_set_px(lv_color_t * dest_buf, const lv_area_t * dest_area, lv_co
 
 #if LV_COLOR_SCREEN_TRANSP == 0
 LV_ATTRIBUTE_FAST_MEM static void map_normal(lv_color_t * dest_buf, const lv_area_t * dest_area, lv_coord_t dest_stride,
-                                             const lv_color_t * src_buf, lv_coord_t src_stride, lv_opa_t opa, const lv_opa_t * mask, lv_coord_t mask_stride)
+                                             const uint8_t * src_buf, lv_coord_t src_stride, lv_opa_t opa, const lv_opa_t * mask, lv_coord_t mask_stride)
 
 {
     int32_t w = lv_area_get_width(dest_area);
@@ -654,7 +668,7 @@ LV_ATTRIBUTE_FAST_MEM static void map_normal(lv_color_t * dest_buf, const lv_are
     if(mask == NULL) {
         if(opa >= LV_OPA_MAX) {
             for(y = 0; y < h; y++) {
-                lv_memcpy(dest_buf, src_buf, w * sizeof(lv_color_t));
+                lv_memcpy(dest_buf, src_buf, src_stride);
                 dest_buf += dest_stride;
                 src_buf += src_stride;
             }
@@ -662,7 +676,7 @@ LV_ATTRIBUTE_FAST_MEM static void map_normal(lv_color_t * dest_buf, const lv_are
         else {
             for(y = 0; y < h; y++) {
                 for(x = 0; x < w; x++) {
-                    dest_buf[x] = lv_color_mix(src_buf[x], dest_buf[x], opa);
+                    dest_buf[x] = lv_color_mix(((lv_color_t *)src_buf)[x], dest_buf[x], opa);
                 }
                 dest_buf += dest_stride;
                 src_buf += src_stride;
@@ -690,10 +704,10 @@ LV_ATTRIBUTE_FAST_MEM static void map_normal(lv_color_t * dest_buf, const lv_are
                 for(; x < x_end4; x += 4) {
                     if(*mask32) {
                         if((*mask32) == 0xFFFFFFFF) {
-                            dest_buf[x] = src_buf[x];
-                            dest_buf[x + 1] = src_buf[x + 1];
-                            dest_buf[x + 2] = src_buf[x + 2];
-                            dest_buf[x + 3] = src_buf[x + 3];
+                            dest_buf[x] = ((lv_color_t *)src_buf)[x];
+                            dest_buf[x + 1] = ((lv_color_t *)src_buf)[x + 1];
+                            dest_buf[x + 2] = ((lv_color_t *)src_buf)[x + 2];
+                            dest_buf[x + 3] = ((lv_color_t *)src_buf)[x + 3];
                         }
                         else {
                             mask_tmp_x = (const lv_opa_t *)mask32;
@@ -722,7 +736,7 @@ LV_ATTRIBUTE_FAST_MEM static void map_normal(lv_color_t * dest_buf, const lv_are
                 for(x = 0; x < w; x++) {
                     if(mask[x]) {
                         lv_opa_t opa_tmp = mask[x] >= LV_OPA_MAX ? opa : ((opa * mask[x]) >> 8);
-                        dest_buf[x] = lv_color_mix(src_buf[x], dest_buf[x], opa_tmp);
+                        dest_buf[x] = lv_color_mix(((lv_color_t *)src_buf)[x], dest_buf[x], opa_tmp);
                     }
                 }
                 dest_buf += dest_stride;
@@ -736,7 +750,7 @@ LV_ATTRIBUTE_FAST_MEM static void map_normal(lv_color_t * dest_buf, const lv_are
 
 #if LV_COLOR_SCREEN_TRANSP
 LV_ATTRIBUTE_FAST_MEM static void map_argb(lv_color_t * dest_buf, const lv_area_t * dest_area, lv_coord_t dest_stride,
-                                           const lv_color_t * src_buf, lv_coord_t src_stride, lv_opa_t opa,
+                                           const uint8_t * src_buf, lv_coord_t src_stride, lv_opa_t opa,
                                            const lv_opa_t * mask, lv_coord_t mask_stride, lv_blend_mode_t blend_mode)
 
 {
@@ -768,7 +782,7 @@ LV_ATTRIBUTE_FAST_MEM static void map_argb(lv_color_t * dest_buf, const lv_area_
         if(opa >= LV_OPA_MAX) {
             if(blend_fp == NULL && LV_COLOR_DEPTH == 32) {
                 for(y = 0; y < h; y++) {
-                    lv_memcpy(dest_buf, src_buf, w * sizeof(lv_color_t));
+                    lv_memcpy(dest_buf, src_buf, src_stride);
                     dest_buf += dest_stride;
                     src_buf += src_stride;
                 }
@@ -778,13 +792,13 @@ LV_ATTRIBUTE_FAST_MEM static void map_argb(lv_color_t * dest_buf, const lv_area_
                 for(y = 0; y < h; y++) {
                     if(blend_fp == NULL) {
                         for(x = 0; x < w; x++) {
-                            set_px_argb(dest_buf8, src_buf[x], LV_OPA_COVER);
+                            set_px_argb(dest_buf8, ((lv_color_t *)src_buf)[x], LV_OPA_COVER);
                             dest_buf8 += LV_IMG_PX_SIZE_ALPHA_BYTE;
                         }
                     }
                     else {
                         for(x = 0; x < w; x++) {
-                            set_px_argb_blend(dest_buf8, src_buf[x], LV_OPA_COVER, blend_fp);
+                            set_px_argb_blend(dest_buf8, ((lv_color_t *)src_buf)[x], LV_OPA_COVER, blend_fp);
                             dest_buf8 += LV_IMG_PX_SIZE_ALPHA_BYTE;
                         }
                     }
@@ -801,13 +815,13 @@ LV_ATTRIBUTE_FAST_MEM static void map_argb(lv_color_t * dest_buf, const lv_area_
             for(y = 0; y < h; y++) {
                 if(blend_fp == NULL) {
                     for(x = 0; x < w; x++) {
-                        set_px_argb(dest_buf8, src_buf[x], opa);
+                        set_px_argb(dest_buf8, ((lv_color_t *)src_buf)[x], opa);
                         dest_buf8 += LV_IMG_PX_SIZE_ALPHA_BYTE;
                     }
                 }
                 else {
                     for(x = 0; x < w; x++) {
-                        set_px_argb_blend(dest_buf8, src_buf[x], opa, blend_fp);
+                        set_px_argb_blend(dest_buf8, ((lv_color_t *)src_buf)[x], opa, blend_fp);
                         dest_buf8 += LV_IMG_PX_SIZE_ALPHA_BYTE;
                     }
                 }
@@ -826,13 +840,13 @@ LV_ATTRIBUTE_FAST_MEM static void map_argb(lv_color_t * dest_buf, const lv_area_
             for(y = 0; y < h; y++) {
                 if(blend_fp == NULL) {
                     for(x = 0; x < w; x++) {
-                        set_px_argb(dest_buf8, src_buf[x], mask[x]);
+                        set_px_argb(dest_buf8, ((lv_color_t *)src_buf)[x], mask[x]);
                         dest_buf8 += LV_IMG_PX_SIZE_ALPHA_BYTE;
                     }
                 }
                 else {
                     for(x = 0; x < w; x++) {
-                        set_px_argb_blend(dest_buf8, src_buf[x], mask[x], blend_fp);
+                        set_px_argb_blend(dest_buf8, ((lv_color_t *)src_buf)[x], mask[x], blend_fp);
                         dest_buf8 += LV_IMG_PX_SIZE_ALPHA_BYTE;
                     }
                 }
@@ -850,7 +864,7 @@ LV_ATTRIBUTE_FAST_MEM static void map_argb(lv_color_t * dest_buf, const lv_area_
                     for(x = 0; x < w; x++) {
                         if(mask[x]) {
                             lv_opa_t opa_tmp = mask[x] >= LV_OPA_MAX ? opa : ((opa * mask[x]) >> 8);
-                            set_px_argb(dest_buf8, src_buf[x], opa_tmp);
+                            set_px_argb(dest_buf8, ((lv_color_t *)src_buf)[x], opa_tmp);
                         }
                         dest_buf8 += LV_IMG_PX_SIZE_ALPHA_BYTE;
                     }
@@ -859,7 +873,7 @@ LV_ATTRIBUTE_FAST_MEM static void map_argb(lv_color_t * dest_buf, const lv_area_
                     for(x = 0; x < w; x++) {
                         if(mask[x]) {
                             lv_opa_t opa_tmp = mask[x] >= LV_OPA_MAX ? opa : ((opa * mask[x]) >> 8);
-                            set_px_argb_blend(dest_buf8, src_buf[x], opa_tmp, blend_fp);
+                            set_px_argb_blend(dest_buf8, ((lv_color_t *)src_buf)[x], opa_tmp, blend_fp);
                         }
                         dest_buf8 += LV_IMG_PX_SIZE_ALPHA_BYTE;
                     }
@@ -877,7 +891,7 @@ LV_ATTRIBUTE_FAST_MEM static void map_argb(lv_color_t * dest_buf, const lv_area_
 
 #if LV_DRAW_COMPLEX
 static void map_blended(lv_color_t * dest_buf, const lv_area_t * dest_area, lv_coord_t dest_stride,
-                        const lv_color_t * src_buf, lv_coord_t src_stride, lv_opa_t opa,
+                        const uint8_t * src_buf, lv_coord_t src_stride, lv_opa_t opa,
                         const lv_opa_t * mask, lv_coord_t mask_stride, lv_blend_mode_t blend_mode)
 {
 
@@ -908,13 +922,13 @@ static void map_blended(lv_color_t * dest_buf, const lv_area_t * dest_area, lv_c
     /*Simple fill (maybe with opacity), no masking*/
     if(mask == NULL) {
         last_dest_color = dest_buf[0];
-        last_src_color = src_buf[0];
+        last_src_color = ((lv_color_t *)src_buf)[0];
         lv_color_t last_res_color = blend_fp(last_src_color, last_dest_color, opa);
         for(y = 0; y < h; y++) {
             for(x = 0; x < w; x++) {
-                if(last_src_color.full != src_buf[x].full || last_dest_color.full != dest_buf[x].full) {
+                if(last_src_color.full != ((lv_color_t *)src_buf)[x].full || last_dest_color.full != dest_buf[x].full) {
                     last_dest_color = dest_buf[x];
-                    last_src_color = src_buf[x];
+                    last_src_color = ((lv_color_t *)src_buf)[x];
                     last_res_color = blend_fp(last_src_color, last_dest_color, opa);
                 }
                 dest_buf[x] = last_res_color;
@@ -926,16 +940,16 @@ static void map_blended(lv_color_t * dest_buf, const lv_area_t * dest_area, lv_c
     /*Masked*/
     else {
         last_dest_color = dest_buf[0];
-        last_src_color = src_buf[0];
+        last_src_color = ((lv_color_t *)src_buf)[0];
         lv_opa_t last_opa = mask[0] >= LV_OPA_MAX ? opa : ((opa * mask[0]) >> 8);
         lv_color_t last_res_color = blend_fp(last_src_color, last_dest_color, last_opa);
         for(y = 0; y < h; y++) {
             for(x = 0; x < w; x++) {
                 if(mask[x] == 0) continue;
                 lv_opa_t opa_tmp = mask[x] >= LV_OPA_MAX ? opa : ((opa * mask[x]) >> 8);
-                if(last_src_color.full != src_buf[x].full || last_dest_color.full != dest_buf[x].full || last_opa != opa_tmp) {
+                if(last_src_color.full != ((lv_color_t *)src_buf)[x].full || last_dest_color.full != dest_buf[x].full || last_opa != opa_tmp) {
                     last_dest_color = dest_buf[x];
-                    last_src_color = src_buf[x];
+                    last_src_color = ((lv_color_t *)src_buf)[x];
                     last_opa = opa_tmp;
                     last_res_color = blend_fp(last_src_color, last_dest_color, last_opa);
                 }

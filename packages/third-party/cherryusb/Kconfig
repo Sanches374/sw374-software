@@ -100,6 +100,10 @@ if LPKG_USING_CHERRYUSB
                 bool
                 prompt "Use cdc acm template"
                 default n
+            config LPKG_CHERRYUSB_DEVICE_CDC_AICUPG
+                bool
+                prompt "Use cdc acm for aicupg"
+                default n
         endif
 
         menuconfig LPKG_CHERRYUSB_DEVICE_HID
@@ -126,11 +130,30 @@ if LPKG_USING_CHERRYUSB
             default n
 
         if LPKG_CHERRYUSB_DEVICE_MSC
-            config LPKG_CHERRYUSB_DEVICE_MSC_TEMPLATE
-                bool
-                prompt "Use msc ram template"
-                default n
+            choice
+                prompt "Use ram or storage template"
+                default LPKG_CHERRYUSB_DEVICE_MSC_STORAGE_TEMPLATE
+                config LPKG_CHERRYUSB_DEVICE_MSC_RAM_TEMPLATE
+                    bool
+                    prompt "msc ram"
+                config LPKG_CHERRYUSB_DEVICE_MSC_STORAGE_TEMPLATE
+                    bool
+                    prompt "msc storage"
+            endchoice
+            menu "MSC Storage Parameter"
+                depends on LPKG_CHERRYUSB_DEVICE_MSC_STORAGE_TEMPLATE
+                if KERNEL_RTTHREAD
+                    config USBDEV_MSC_THREAD
+                        bool "USBDEV_MSC_THREAD"
+                        default y
+                endif
+                config MSC_STORAGE_PATH
+                    string "MSC_STORAGE_PATH"
+                    default "/sdcard"
+            endmenu
         endif
+
+
 
         menuconfig LPKG_CHERRYUSB_DEVICE_AUDIO
             bool
@@ -138,14 +161,36 @@ if LPKG_USING_CHERRYUSB
             default n
 
         if LPKG_CHERRYUSB_DEVICE_AUDIO
-            choice
-                prompt "Use audio speaker&mic template"
-                default LPKG_CHERRYUSB_DEVICE_AUDIO_V1_TEMPLATE
-                config LPKG_CHERRYUSB_DEVICE_AUDIO_V1_TEMPLATE
-                    bool "UAC1.0"
-                config LPKG_CHERRYUSB_DEVICE_AUDIO_V2_TEMPLATE
-                    bool "UAC2.0"
-            endchoice
+
+            menuconfig LPKG_CHERRYUSB_DEVICE_AUDIO_MIC_SPEAKER
+            bool
+            prompt "Use audio speaker&mic template"
+            default n
+
+            if LPKG_CHERRYUSB_DEVICE_AUDIO_MIC_SPEAKER
+                choice
+                    prompt "select audio speaker&mic template version"
+                    default LPKG_CHERRYUSB_DEVICE_AUDIO_V1_TEMPLATE
+                    config LPKG_CHERRYUSB_DEVICE_AUDIO_V1_TEMPLATE
+                        bool "UAC1.0"
+                    config LPKG_CHERRYUSB_DEVICE_AUDIO_V2_TEMPLATE
+                        bool "UAC2.0"
+                endchoice
+            endif
+
+            menuconfig LPKG_CHERRYUSB_DEVICE_AUDIO_SPEAKER
+            bool
+            prompt "Use audio speaker template"
+            default n
+
+            if LPKG_CHERRYUSB_DEVICE_AUDIO_SPEAKER
+                choice
+                    prompt "Use audio speaker template"
+                    default LPKG_CHERRYUSB_DEVICE_AUDIO_SPEAKER_V2_TEMPLATE
+                    config LPKG_CHERRYUSB_DEVICE_AUDIO_SPEAKER_V2_TEMPLATE
+                        bool "UAC2.0"
+                endchoice
+            endif
         endif
 
         menuconfig LPKG_CHERRYUSB_DEVICE_VIDEO
@@ -157,6 +202,18 @@ if LPKG_USING_CHERRYUSB
             config LPKG_CHERRYUSB_DEVICE_VIDEO_TEMPLATE
                 bool
                 prompt "Use video static mjpeg template"
+                default n
+        endif
+
+        menuconfig LPKG_CHERRYUSB_DEVICE_MIDI
+            bool
+            prompt "Enable usb midi device"
+            default n
+
+        if LPKG_CHERRYUSB_DEVICE_MIDI
+            config LPKG_CHERRYUSB_DEVICE_MIDI_TEMPLATE
+                bool
+                prompt "Use midi template"
                 default n
         endif
 

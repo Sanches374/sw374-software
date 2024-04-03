@@ -47,7 +47,7 @@ extern void reset_intr_proc(void);
 int usbd_connection_check_status(void)
 {
     u32 sts;
-    u64 start, timeout = 500;
+    u64 start, timeout = 750;
 
     start = aic_get_time_ms();
     do {

@@ -13,6 +13,38 @@
 
 #include <rtconfig.h>
 
+#define  LV_SUPPORT_SET_IMAGE_STRIDE 1
+// using LV_AIC_COLOR_SCREEN_TRANSP instead of LV_COLOR_SCREEN_TRANSP
+#define LV_AIC_COLOR_SCREEN_TRANSP 1
+
+#define LV_USE_LOG 0
+#if LV_USE_LOG
+
+    /*How important log should be added:
+    *LV_LOG_LEVEL_TRACE       A lot of logs to give detailed information
+    *LV_LOG_LEVEL_INFO        Log important events
+    *LV_LOG_LEVEL_WARN        Log if something unwanted happened but didn't cause a problem
+    *LV_LOG_LEVEL_ERROR       Only critical issue, when the system may fail
+    *LV_LOG_LEVEL_USER        Only logs added by the user
+    *LV_LOG_LEVEL_NONE        Do not log anything*/
+    #define LV_LOG_LEVEL LV_LOG_LEVEL_WARN
+
+    /*1: Print the log with 'printf';
+    *0: User need to register a callback with `lv_log_register_print_cb()`*/
+    #define LV_LOG_PRINTF 1
+
+    /*Enable/disable LV_LOG_TRACE in modules that produces a huge number of logs*/
+    #define LV_LOG_TRACE_MEM        1
+    #define LV_LOG_TRACE_TIMER      1
+    #define LV_LOG_TRACE_INDEV      1
+    #define LV_LOG_TRACE_DISP_REFR  1
+    #define LV_LOG_TRACE_EVENT      1
+    #define LV_LOG_TRACE_OBJ_CREATE 1
+    #define LV_LOG_TRACE_LAYOUT     1
+    #define LV_LOG_TRACE_ANIM       1
+
+#endif  /*LV_USE_LOG*/
+
 #ifndef LV_COLOR_DEPTH
 #define LV_COLOR_DEPTH          32
 #endif
@@ -29,9 +61,11 @@
 #define LV_MEM_CUSTOM_ALLOC   malloc
 #define LV_MEM_CUSTOM_FREE    free
 #define LV_MEM_CUSTOM_REALLOC realloc
+#endif
 
+#if defined(KERNEL_BAREMETAL) || defined(KERNEL_FREERTOS)
 #define LV_TICK_CUSTOM 1
-#define LV_TICK_CUSTOM_INCLUDE <aic_time.h>
+#define LV_TICK_CUSTOM_INCLUDE <aic_common.h>
 #define LV_TICK_CUSTOM_SYS_TIME_EXPR (aic_get_time_ms())    /*Expression evaluating to current system time in ms*/
 #define LV_DISP_DEF_REFR_PERIOD 10
 #endif
@@ -72,8 +106,6 @@
     #endif
 #endif
 
-#endif
-
-#define LV_COLOR_SCREEN_TRANSP 0
 #define LV_USE_GIF 1
-#define LV_USE_LOG 0
+
+#endif // LV_CONF_H

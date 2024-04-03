@@ -14,7 +14,7 @@
 #include <uart.h>
 #include <upg_uart.h>
 #include <trans_rw_data.h>
-#include <hexdump.h>
+#include <aic_utils.h>
 #include <crc16.h>
 
 #ifndef AICUPG_UART_DEBUG
@@ -376,6 +376,7 @@ static int uart_conn_normal_proc(void)
     }
 
     if (update_baudrate) {
+        printf("Update baudrate: %d bps\n", update_baudrate);
         if (uart_config_update(upg_uart_id, update_baudrate)) {
             pr_err("update uart baud rate %d failed.\n", update_baudrate);
             update_baudrate = 0;

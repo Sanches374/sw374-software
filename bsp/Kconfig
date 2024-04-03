@@ -118,6 +118,11 @@ config AIC_GPIO_DRV_DEBUG
     default n
     depends on AIC_GPIO_DRV
 
+config AIC_SE_GPIO_DRV_DEBUG
+    bool "Enable SE_GPIO driver debug"
+    default n
+    depends on AIC_SE_GPIO_DRV
+
 config AIC_DMA_DRV_DEBUG
     bool "Enable DMA driver debug"
     default n
@@ -139,7 +144,7 @@ config AIC_RTC_DRV_DEBUG
     depends on AIC_RTC_DRV
 
 config AIC_QSPI_DRV_DEBUG
-    bool "Enable QSPI driver debug"
+    bool "Enable SPI driver debug"
     default n
     depends on AIC_QSPI_DRV
 
@@ -163,6 +168,10 @@ config AIC_DISP_MIPI_DBI_DEBUG
     default n
     depends on AIC_DISPLAY_DRV && AIC_DISP_MIPI_DBI
 
+config AIC_CACHE_LINE_DEBUG
+    bool "Enable Cache Line debug"
+    default n
+
 endmenu
 
 menu "Drivers examples"
@@ -176,6 +185,11 @@ config AIC_GPIO_DRV_TEST
     bool "Enable GPIO driver test command"
     default n
     depends on AIC_GPIO_DRV
+
+config AIC_SE_GPIO_DRV_TEST
+    bool "Enable SE_GPIO driver test command"
+    default n
+    depends on AIC_SE_GPIO_DRV
 
 config AIC_DMA_DRV_TEST
     bool "Enable DMA driver test command"
@@ -197,13 +211,8 @@ config AIC_HRTIMER_DRV_TEST
     default n
     depends on AIC_HRTIMER_DRV
 
-config AIC_GPTIMER_DRV_TEST
-    bool "Enable GPTimer driver test command"
-    default n
-    depends on AIC_GPTIMER_DRV
-
 config AIC_QSPI_DRV_TEST
-    bool "Enable QSPI driver test command"
+    bool "Enable SPI driver test command"
     default n
     depends on AIC_QSPI_DRV
 
@@ -304,6 +313,11 @@ config AIC_GPAI_TEST
     default n
     depends on AIC_GPAI_DRV
 
+config AIC_KEYADC_TEST
+    bool "Enable KEYADC driver test command"
+    default n
+    depends on AIC_GPAI_DRV
+
 config AIC_TSEN_TEST
     bool "Enable TSEN driver test command"
     default n
@@ -334,10 +348,19 @@ config AIC_CAP_DRV_TEST
     default n
     depends on AIC_CAP_DRV
 
+config AIC_QEP_DRV_TEST
+    bool "Enable QEP driver test command"
+    default n
+    depends on AIC_QEP_DRV
+
 config AIC_ADCIM_DM_TEST
     bool "Enable ADCIM DM test command"
     default n
     depends on AIC_ADCIM_DM_DRV
+
+config AIC_MONKEY_TEST
+    bool "Enable Monkey test command"
+    default n
 
 if LPKG_USING_LWIP
 
@@ -350,6 +373,10 @@ if LPKG_USING_LWIP
 
     config AIC_IPERF_LWIP_TEST
         bool "Enable iperf test command"
+        default n
+
+    config AIC_ETH_LOOPBACK_LWIP_TEST
+        bool "Enable ethernet loopback test command"
         default n
 
     endmenu
@@ -370,6 +397,11 @@ config AIC_DM_LIB_TEST
     bool "Enable DM Lib test command"
     default n
     depends on RT_USING_MODULE
+
+config AIC_USERID_BARE_TEST
+    bool "Enable userid test command"
+    default n
+    depends on LPKG_USING_USERID
 
 endmenu
 endmenu

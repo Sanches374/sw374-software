@@ -239,6 +239,9 @@ extern const struct spinand_manufacturer umtek_spinand_manufacturer;
 #ifdef SPI_NAND_QUANXING
 extern const struct spinand_manufacturer quanxing_spinand_manufacturer;
 #endif
+#ifdef SPI_NAND_XINCUN
+extern const struct spinand_manufacturer xincun_spinand_manufacturer;
+#endif
 
 extern struct spi_nand_cmd_cfg cmd_cfg_table[];
 

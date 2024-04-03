@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2023, Artinchip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
@@ -12,7 +12,7 @@
 #include <string.h>
 #include <console.h>
 #include <aic_common.h>
-#include <hexdump.h>
+#include <aic_utils.h>
 
 #define MD_HELP                                                 \
     "memory display command:\n"                                 \
@@ -41,15 +41,15 @@ static int do_mem_display(int argc, char *argv[])
     }
 
     if (argc > 3) {
-        addr = strtol(argv[1], NULL, 0);
-        cnt = strtol(argv[2], NULL, 0);
-        groupsize = strtol(argv[3], NULL, 0);
+        addr = strtoul(argv[1], NULL, 0);
+        cnt = strtoul(argv[2], NULL, 0);
+        groupsize = strtoul(argv[3], NULL, 0);
         if ((groupsize != 1) && (groupsize != 2) && (groupsize != 4))
             goto help;
     } else {
         groupsize = 4;
-        addr = strtol(argv[1], NULL, 0);
-        cnt = strtol(argv[2], NULL, 0);
+        addr = strtoul(argv[1], NULL, 0);
+        cnt = strtoul(argv[2], NULL, 0);
     }
 
     hexdump((void *)addr, cnt * groupsize, groupsize);
@@ -89,15 +89,15 @@ static int do_mem_write(int argc, char *argv[])
     }
 
     if (argc > 3) {
-        addr = strtol(argv[1], NULL, 0);
-        val = strtol(argv[2], NULL, 0);
-        groupsize = strtol(argv[3], NULL, 0);
+        addr = strtoul(argv[1], NULL, 0);
+        val = strtoul(argv[2], NULL, 0);
+        groupsize = strtoul(argv[3], NULL, 0);
         if ((groupsize != 1) && (groupsize != 2) && (groupsize != 4))
             goto help;
     } else {
         groupsize = 4;
-        addr = strtol(argv[1], NULL, 0);
-        val = strtol(argv[2], NULL, 0);
+        addr = strtoul(argv[1], NULL, 0);
+        val = strtoul(argv[2], NULL, 0);
     }
 
     p = (unsigned char *)addr;

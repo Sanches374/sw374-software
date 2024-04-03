@@ -5,6 +5,7 @@
  */
 
 #include <stdint.h>
+#include "string.h"
 #include <aic_core.h>
 #include "aic_hal_clk.h"
 
@@ -73,6 +74,7 @@ int hal_clk_disable(uint32_t clk_id)
 
 int hal_clk_is_enabled(uint32_t clk_id)
 {
+    uint32_t parent_clk_id;
     struct aic_clk_comm_cfg *cfg;
 
     CHECK_PARAM(clk_id < AIC_CLK_END && clk_id > 0, -EINVAL);
@@ -80,9 +82,11 @@ int hal_clk_is_enabled(uint32_t clk_id)
     cfg = (struct aic_clk_comm_cfg *)aic_clk_cfgs[clk_id];
     CHECK_PARAM(cfg != NULL && cfg->ops != NULL, -EINVAL);
 
-    if (cfg->ops->is_enabled == NULL)
+    if (cfg->ops->is_enabled == NULL) {
+        parent_clk_id = hal_clk_get_parent(clk_id);
+        cfg->enable_count = hal_clk_is_enabled(parent_clk_id);
         return cfg->enable_count;
-
+    }
     return (cfg->ops->is_enabled(cfg));
 }
 
@@ -237,4 +241,20 @@ const char *hal_clk_get_name(uint32_t clk_id)
     CHECK_PARAM(cfg != NULL && cfg->name != NULL, NULL);
 
     return cfg->name;
+}
+
+int32_t hal_clk_get_id(char *name)
+{
+    uint32_t clk_id;
+    struct aic_clk_comm_cfg *cfg;
+
+    for (clk_id = 1; clk_id < AIC_CLK_END; clk_id++) {
+        cfg = (struct aic_clk_comm_cfg *)aic_clk_cfgs[clk_id];
+        if (cfg == NULL && cfg->name == NULL)
+            continue;
+        if(strcmp(name, cfg->name) == 0)
+            return clk_id;
+    }
+
+    return -EINVAL;
 }

@@ -1006,6 +1006,15 @@ DRESULT disk_ioctl(BYTE pdrv, BYTE cmd, void *buff)
     long dev_type = disk[pdrv].dev_type;
     void *handle = disk[pdrv].priv;
 
+    switch (cmd) {
+        case GET_DEVICE_TYPE:
+            *(uint32_t *)buff = dev_type;
+            return RES_OK;
+            break;
+        default:
+            break;
+    }
+
     switch (dev_type) {
 #ifdef RAM_DISK_ENABLE
         case DTL(DEVICE_TYPE_RAM_DISK):

@@ -22,6 +22,10 @@
 #include "drv_dma.h"
 #endif
 
+#ifdef AIC_OSR_CE_DRV
+#include <osrce.h>
+#endif
+
 #ifdef LPKG_CHERRYUSB_HOST
 #include <usbh_core.h>
 #include <usbh_hub.h>
@@ -95,6 +99,10 @@ int main(void)
 
 #ifdef TLSF_MEM_HEAP
     aic_tlsf_heap_test();
+#endif
+
+#ifdef AIC_OSR_CE_DRV
+    drv_osrce_init();
 #endif
 
 #ifdef LPKG_USING_DFS
@@ -172,13 +180,6 @@ int main(void)
     aic_show_startup_time();
 #endif
 
-#ifdef LPKG_CHERRYUSB_DEVICE
-#ifdef LPKG_CHERRYUSB_DEVICE_MSC_TEMPLATE
-    extern void msc_ram_init(void);
-    msc_ram_init();
-#endif
-#endif
-
 #ifdef LPKG_CHERRYUSB_HOST
     usbh_init();
     while(1)
@@ -219,6 +220,25 @@ int main(void)
     while (1) {
         do_pic_dec_test(0,NULL);
     }
+#endif
+
+#ifdef LPKG_CHERRYUSB_DEVICE
+#ifdef LPKG_CHERRYUSB_DEVICE_MSC_RAM_TEMPLATE
+    extern void msc_ram_init(void);
+    msc_ram_init();
+#endif
+#ifdef LPKG_CHERRYUSB_DEVICE_MSC_STORAGE_TEMPLATE
+    extern void msc_storage_init(char *path);
+    msc_storage_init(MSC_STORAGE_PATH);
+#endif
+#ifdef LPKG_CHERRYUSB_DEVICE_MIDI_TEMPLATE
+    extern void midi_init(void);
+    midi_init();
+#endif
+#ifdef LPKG_CHERRYUSB_DEVICE_AUDIO_SPEAKER_V2_TEMPLATE
+    extern  void audio_v2_init(void);
+    audio_v2_init();
+#endif
 #endif
 
 #ifdef AIC_CONSOLE_BARE_DRV

@@ -41,6 +41,11 @@ struct mpp_fb *mpp_fb_open(void)
 
 #if defined(KERNEL_RTTHREAD)
     dev = rt_device_find("aicfb");
+    if (!dev) {
+        pr_err("Failed to find aicfb device\n");
+        aicos_free(0, fb);
+        return NULL;
+    }
     fb->dev = dev;
 #endif
 
@@ -82,7 +87,7 @@ int mpp_fb_ioctl(struct mpp_fb *fb, int cmd, void *args)
     dev = fb->dev;
 
     ret = rt_device_control(dev, cmd, args);
-#elif defined(KERNEL_BAREMETAL)
+#elif defined(KERNEL_BAREMETAL) || defined(KERNEL_FREERTOS)
     ret = aicfb_ioctl(cmd, args);
 #endif
     return ret;

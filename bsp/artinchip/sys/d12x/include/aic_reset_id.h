@@ -43,7 +43,6 @@ extern "C" {
 #define RESET_RTP       44
 #define RESET_TSEN      45
 #define RESET_CIR       46
-#define RESET_MDI       47
 #define RESET_MTOP      48
 #define RESET_NUMBER    49
 

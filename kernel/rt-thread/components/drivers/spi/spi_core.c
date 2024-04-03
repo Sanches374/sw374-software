@@ -78,8 +78,8 @@ rt_err_t rt_spi_configure(struct rt_spi_device        *device,
 
     /* set configuration */
     device->config.data_width = cfg->data_width;
-    device->config.mode       = cfg->mode & RT_SPI_MODE_MASK ;
-    device->config.max_hz     = cfg->max_hz ;
+    device->config.mode       = cfg->mode & RT_SPI_MODE_MASK;
+    device->config.max_hz     = cfg->max_hz;
 
     if (device->bus != RT_NULL)
     {
@@ -97,6 +97,43 @@ rt_err_t rt_spi_configure(struct rt_spi_device        *device,
     }
 
     return RT_EOK;
+}
+
+rt_err_t rt_spi_nonblock_set(struct rt_spi_device        *device,
+                          rt_uint32_t nonblock_en)
+{
+    rt_err_t result = -RT_EINVAL;
+
+    RT_ASSERT(device != RT_NULL);
+
+    if (device->bus != RT_NULL)
+    {
+        result = rt_mutex_take(&(device->bus->lock), RT_WAITING_FOREVER);
+        if (result == RT_EOK)
+        {
+            result = -RT_EFULL;
+            result = device->bus->ops->nonblock(device, nonblock_en);
+
+            /* release lock */
+            rt_mutex_release(&(device->bus->lock));
+        }
+    }
+
+    return result;
+}
+
+rt_uint32_t rt_spi_get_transfer_status(struct rt_spi_device        *device)
+{
+    rt_uint32_t result = RT_EOK;
+
+    RT_ASSERT(device != RT_NULL);
+
+    if (device->bus != RT_NULL && device->bus->ops->gstatus != RT_NULL)
+    {
+        result = device->bus->ops->gstatus(device);
+    }
+
+    return result;
 }
 
 rt_err_t rt_spi_send_then_send(struct rt_spi_device *device,

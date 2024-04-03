@@ -287,6 +287,7 @@ typedef struct __sfud_spi {
     char *name;
     /* SPI bus work frequency */
     sfud_err (*set_speed)(const struct __sfud_spi *spi, uint32_t bus_hz);
+    sfud_err (*get_bus_id)(const struct __sfud_spi *spi, uint32_t *bus_id);
     /* SPI bus write read data function */
     sfud_err (*wr)(const struct __sfud_spi *spi, const uint8_t *write_buf, size_t write_size, uint8_t *read_buf,
                    size_t read_size);

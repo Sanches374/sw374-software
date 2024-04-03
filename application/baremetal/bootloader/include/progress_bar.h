@@ -13,7 +13,14 @@ extern "C" {
 
 #include <aic_core.h>
 
+#ifdef AIC_BOOTLOADER_CMD_PROGRESS_BAR
 void aicfb_draw_bar(unsigned int value);
+#else
+static inline void aicfb_draw_bar(unsigned int value)
+{
+    return;
+}
+#endif
 
 #ifdef __cplusplus
 }

@@ -534,6 +534,18 @@ __STATIC_INLINE uint32_t csi_plic_get_prio(uint64_t plic_base, int32_t IRQn)
     return prio;
 }
 
+__STATIC_INLINE void csi_plic_set_threshold(uint64_t plic_base, uint32_t threshold)
+{
+    PLIC_Type *plic = (PLIC_Type *)plic_base;
+    plic->PLIC_H0_MTH = threshold & 0x1F;
+}
+
+__STATIC_INLINE uint32_t csi_plic_get_threshold(uint64_t plic_base)
+{
+    PLIC_Type *plic = (PLIC_Type *)plic_base;
+    return plic->PLIC_H0_MTH & 0x1F;
+}
+
 /**
   \brief   Set interrupt handler
   \details Set the interrupt handler according to the interrupt num, the handler will be filled in irq vectors.
@@ -972,9 +984,11 @@ __STATIC_INLINE void csi_dcache_invalid_range(phy_addr_t addr, u32 dsize)
 
     if (op_size % CACHE_LINE_SIZE)
         op_size += CACHE_LINE_SIZE - op_size % CACHE_LINE_SIZE;
+#ifdef AIC_CACHE_LINE_DEBUG
     if ((op_size != dsize) || (op_addr != addr))
         printf("Alarm! Invalid cache out of range: 0x%x[%d] > 0x%x[%d]\n",
                op_addr, op_size, addr, dsize);
+#endif
 
     __DSB();
 
@@ -1013,9 +1027,11 @@ __STATIC_INLINE void csi_dcache_clean_range(phy_addr_t addr, u32 dsize)
 
     if (op_size % CACHE_LINE_SIZE)
         op_size += CACHE_LINE_SIZE - op_size % CACHE_LINE_SIZE;
+#ifdef AIC_CACHE_LINE_DEBUG
     if ((op_size != dsize) || (op_addr != addr))
         printf("Alarm! Clean cache out of range: 0x%x[%d] > 0x%x[%d]\n",
                op_addr, op_size, addr, dsize);
+#endif
 
     __DSB();
 
@@ -1054,9 +1070,11 @@ __STATIC_INLINE void csi_dcache_clean_invalid_range(phy_addr_t addr, u32 dsize)
 
     if (op_size % CACHE_LINE_SIZE)
         op_size += CACHE_LINE_SIZE - op_size % CACHE_LINE_SIZE;
+#ifdef AIC_CACHE_LINE_DEBUG
     if ((op_size != dsize) || (op_addr != addr))
         printf("Alarm! Clean&Invalid cache out of range: 0x%x[%d] > 0x%x[%d]\n",
                op_addr, op_size, addr, dsize);
+#endif
 
     __DSB();
 

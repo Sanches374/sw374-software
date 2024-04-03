@@ -8,6 +8,7 @@
 
 #include "aic_core.h"
 #include "hal_psadc.h"
+#include <string.h>
 
 /* Register definition of PSADC Controller */
 #define PSADC_MCR               0x000
@@ -28,6 +29,12 @@
 #define PSADC_MCR_QUE_COMB      BIT(1)
 #define PSADC_MCR_EN            BIT(0)
 
+#define PSADC_TCR_Q2_TRIG_CNT_SHIFT 4
+#define PSADC_QX_NODE_MASK          4
+
+#define PSADC_MSR_QX_CNT_MASK       GENMASK(27, 24)
+#define PSADC_MSR_Q2_FERR           BIT(6)
+#define PSADC_MSR_Q2_INT            BIT(4)
 #define PSADC_MSR_Q1_FERR           BIT(2)
 #define PSADC_MSR_Q1_INT            BIT(0)
 
@@ -37,13 +44,26 @@
 #define PSADC_Q1FCR_FIFO_ERRIE      BIT(3)
 #define PSADC_Q1FCR_FIFO_FLUSH      BIT(0)
 
+#define PSADC_Q2FCR_FIFO_DRTH_SHIFT 11
+#define PSADC_Q2FCR_UF_STS          BIT(17)
+#define PSADC_Q2FCR_OF_STS          BIT(16)
+#define PSADC_Q2FCR_FIFO_ERRIE      BIT(3)
+#define PSADC_Q2FCR_FIFO_FLUSH      BIT(0)
+
 #define PSADC_Q1FDR_CHNUM_SHIFT     12
+#define PSADC_Q1FDR_CHNUM_MASK      GENMASK(15, 12)
 #define PSADC_Q1FDR_DATA_MASK       GENMASK(11, 0)
 #define PSADC_Q1FDR_DATA            BIT(0)
 
+#define PSADC_Q2FDR_CHNUM_SHIFT     12
+#define PSADC_Q2FDR_CHNUM_MASK      GENMASK(15, 12)
+#define PSADC_Q2FDR_DATA_MASK       GENMASK(11, 0)
+#define PSADC_Q2FDR_DATA            BIT(0)
+
 extern struct aic_psadc_ch aic_psadc_chs[];
+extern struct aic_psadc_queue aic_psadc_queues[];
 static u32 aic_psadc_ch_num = 0; // the number of available channel
-static u16 aic_psadc_ch_data = 0;
+static u32 aic_psadc_ch_data[AIC_PSADC_CH_NUM];
 
 static inline void psadc_writel(u32 val, int reg)
 {
@@ -53,11 +73,6 @@ static inline void psadc_writel(u32 val, int reg)
 static inline u32 psadc_readl(int reg)
 {
     return readl(PSADC_BASE + reg);
-}
-
-static s32 psadc_data2vol(u16 data)
-{
-    return data;
 }
 
 static void psadc_reg_enable(int offset, int bit, int enable)
@@ -87,14 +102,14 @@ void hal_psadc_qc_irq_enable(int enable)
     psadc_reg_enable(PSADC_MCR, PSADC_MCR_Q1_INTE, enable);
 }
 
-static void psadc_fifo_flush(u32 ch)
+static void psadc_fifo1_flush()
 {
     u32 val = psadc_readl(PSADC_Q1FCR);
 
     if (val & PSADC_Q1FCR_UF_STS)
-        pr_err("ch%d FIFO is Underflow!%#x\n", ch, val);
+        pr_err("FIFO is Underflow!%#x\n", val);
     if (val & PSADC_Q1FCR_OF_STS)
-        pr_err("ch%d FIFO is Overflow!%#x\n", ch, val);
+        pr_err("FIFO is Overflow!%#x\n", val);
 
     psadc_writel(val | PSADC_Q1FCR_FIFO_FLUSH, PSADC_Q1FCR);
 }
@@ -108,33 +123,67 @@ static void psadc_fifo_init(void)
     psadc_writel(val, PSADC_Q2FCR);
 }
 
-int  hal_psadc_ch_init(struct aic_psadc_ch *chan, u32 pclk)
+int hal_psadc_set_queue_node(int queue, int ch, int node_ordinal)
 {
-    psadc_fifo_init();
-    psadc_writel(chan->id, PSADC_NODE1);
+    int val;
+    int node_chan = 0;
+    u32 node_regs = 0;
 
-    psadc_reg_enable(PSADC_MCR, PSADC_MCR_Q1_TRIGS, 1);
+    if (queue == AIC_PSADC_Q1)
+        node_regs = PSADC_NODE1;
+    if (queue == AIC_PSADC_Q2)
+        node_regs = PSADC_NODE2;
+
+    node_chan = ch << (node_ordinal * PSADC_QX_NODE_MASK);
+    val = psadc_readl(node_regs);
+    val |= node_chan;
+    psadc_writel(val, node_regs);
+
+    return 0;
+}
+
+int  hal_psadc_ch_init()
+{
+    int val = 0;
+    struct aic_psadc_queue *queue  = &aic_psadc_queues[0];
+
+    psadc_fifo_init();
+    if (queue->type == AIC_PSADC_QC) {
+        val = queue->nodes_num;
+        psadc_writel(val, PSADC_TCR);
+    }
+
     psadc_reg_enable(PSADC_MCR, PSADC_MCR_Q1_INTE, 1);
 
     return 0;
 }
 
-void hal_psadc_status_show(struct aic_psadc_ch *chan)
+void aich_psadc_status_show(void)
 {
     int version = psadc_readl(PSADC_VERSION);
 
-    printf("In PSADC V%d.%02d:\n"
-               "Ch Mode Enable\n"
-               "%2d %4s %6d \n",
-               version >> 8, version & 0xff,
-               chan->id, chan->mode ? "P" : "S",
-               chan->available ? 1 : 0);
+    printf("In PSADC V%d.%02d\n"
+           "enabled %d chans: ",
+           version >> 8, version & 0xff,
+           aic_psadc_ch_num);
+
+    for (int i = 0; i < aic_psadc_ch_num; i++) {
+        if (aic_psadc_chs[i].available)
+            printf("[%d] ", aic_psadc_chs[i].id);
+    }
+    printf("\n");
+    return;
 }
 
-static void psadc_read_ch(u32 ch)
+static void psadc_read_ch(int cnt)
 {
-    u32 data = psadc_readl(PSADC_Q1FDR) & PSADC_Q1FDR_DATA_MASK;
-    aic_psadc_ch_data = data;
+    u32 data;
+    int val;
+
+    val = psadc_readl(PSADC_Q1FDR);
+    data = val & PSADC_Q1FDR_DATA_MASK;
+    aic_psadc_ch_data[cnt] = data;
+    pr_debug("val %#x\n", val);
 }
 
 struct aic_psadc_ch *hal_psadc_ch_is_valid(u32 ch)
@@ -154,46 +203,83 @@ struct aic_psadc_ch *hal_psadc_ch_is_valid(u32 ch)
         else
             break;
     }
-    pr_warn("Ch%d is unavailable!\n", ch);
+    pr_debug("Ch%d is unavailable!\n", ch);
     return NULL;
 }
 
-int hal_psadc_read(struct aic_psadc_ch *chan, u32 *val, u32 timeout)
+int hal_psadc_read(u32 *val, u32 timeout)
 {
     int ret = 0;
-    u32 ch = chan->id;
+    struct aic_psadc_queue *queue  = &aic_psadc_queues[AIC_PSADC_QC];
 
-    if (!chan->available) {
-        hal_log_err("Ch%d is unavailable!\n", chan->id);
-        return -ENODATA;
-    }
-
-    ret = aicos_sem_take(chan->complete, timeout);
+    psadc_fifo1_flush();
+    psadc_reg_enable(PSADC_MCR, PSADC_MCR_Q1_TRIGS, 1);
+    ret = aicos_sem_take(queue->complete, timeout);
     if (ret < 0) {
-        hal_log_err("Ch%d read timeout!\n", ch);
+        hal_log_err("Queue%d read timeout!\n");
         hal_psadc_qc_irq_enable(0);
+
         return -ETIMEDOUT;
+    }
+    if (val)
+        memcpy(val, aic_psadc_ch_data, sizeof(aic_psadc_ch_data));
+
+    return RT_EOK;
+}
+
+int hal_psadc_read_poll(u32 *val, u32 timeout)
+{
+    u32 q_flag = 0;
+    int get_data_flag = 0;
+    int time_count = 0;
+    struct aic_psadc_queue *queue  = &aic_psadc_queues[AIC_PSADC_QC];
+
+    psadc_fifo1_flush();
+    psadc_reg_enable(PSADC_MCR, PSADC_MCR_Q1_TRIGS, 1);
+
+    while (1) {
+        time_count++;
+        q_flag = psadc_readl(PSADC_MSR);
+        psadc_writel(q_flag, PSADC_MSR);
+
+        if (q_flag & PSADC_MSR_Q1_INT) {
+            get_data_flag++;
+            for(int i = 0; i < queue->nodes_num; i++)
+                psadc_read_ch(i);
+        }
+
+        if (q_flag & PSADC_MSR_Q1_FERR)
+            psadc_fifo1_flush();
+        if (get_data_flag)
+            break;
+        if (time_count > timeout) {
+            hal_psadc_qc_irq_enable(0);
+            return -ETIMEDOUT;
+        }
     }
 
     if (val)
-        *val = psadc_data2vol(aic_psadc_ch_data);
+        memcpy(val, aic_psadc_ch_data,
+               sizeof(aic_psadc_ch_data[0]) * queue->nodes_num);
 
-    return 0;
+    return RT_EOK;
 }
 
 irqreturn_t hal_psadc_isr(int irq, void *arg)
 {
     u32 q_flag = 0;
-    u32 chan = 0;
-    chan = psadc_readl(PSADC_NODE1);
+    struct aic_psadc_queue *queue  = &aic_psadc_queues[AIC_PSADC_QC];
+
     q_flag = psadc_readl(PSADC_MSR);
     psadc_writel(q_flag, PSADC_MSR);
+    if (q_flag & PSADC_MSR_Q1_INT) {
+        for(int i = 0; i < queue->nodes_num; i++)
+            psadc_read_ch(i);
+        aicos_sem_give(queue->complete);
+    }
 
-    if (q_flag | PSADC_MSR_Q1_INT)
-        psadc_read_ch(chan);
-
-    if (q_flag | PSADC_MSR_Q1_FERR)
-        psadc_fifo_flush(chan);
+    if (q_flag & PSADC_MSR_Q1_FERR)
+        psadc_fifo1_flush();
 
     return IRQ_HANDLED;
 }

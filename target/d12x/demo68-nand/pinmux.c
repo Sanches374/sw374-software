@@ -33,6 +33,9 @@ struct aic_pinmux aic_pinmux_config[] = {
     /* can0 */
     {4, PIN_PULL_DIS, 3, "PA.4"},
     {4, PIN_PULL_DIS, 3, "PA.5"},
+#else
+    {2, PIN_PULL_DIS, 3, "PA.4"},
+    {2, PIN_PULL_DIS, 3, "PA.5"},
 #endif
 #ifdef AIC_USING_RTP
     {2, PIN_PULL_DIS, 3, "PA.8"},

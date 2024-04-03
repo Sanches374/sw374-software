@@ -18,8 +18,13 @@
 extern "C" {
 #endif
 
-void *mpp_alloc(size_t size);
+void *_mpp_alloc_(size_t len,const char *file,int line);
+
+void show_mem_info_debug();
+
 void mpp_free(void *ptr);
+
+#define  mpp_alloc(len) _mpp_alloc_(len,__FILE__,__LINE__)
 
 unsigned int mpp_phy_alloc(size_t size);
 void mpp_phy_free(unsigned int addr);

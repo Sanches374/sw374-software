@@ -77,7 +77,9 @@ if PLATFORM == 'gcc':
         DEVICE = ' -march=rv64imafdc_xthead -mabi=lp64d -mcmodel=medlow'
     if CPUNAME == 'c906fd':
         DEVICE = ' -march=rv64imafdc_xtheadc -mabi=lp64d -mcmodel=medany'
+        TOOLCHAIN_LIB = 'rv64imafdc_zfh_xtheadc'
         M_DEVICE = ' -march=rv64imafdc -mabi=lp64d -mcmodel=medany'
+        M_TOOLCHAIN_LIB = 'rv64imafdc'
     if CPUNAME == 'c906fdv':
         DEVICE = ' -march=rv64imafdcv0p7_zfh_xtheadc -mabi=lp64d -mcmodel=medany'
     if CPUNAME == 'c906v':

@@ -63,6 +63,7 @@ void aic_pm_enter_light_sleep(void)
 void aic_pm_enter_deep_sleep(void)
 {
     rt_base_t level;
+    uint32_t fra0_freq;
 
     level = rt_hw_interrupt_disable();
     /* change bus frequency to 24M */
@@ -77,11 +78,18 @@ void aic_pm_enter_deep_sleep(void)
     hal_clk_disable(CLK_PLL_INT1);
     /* disable PLL_INT0: cpu pll */
     hal_clk_disable(CLK_PLL_INT0);
+    /* bypass PLL_FRA0: spi/sdmc/psram pll */
+    fra0_freq = hal_clk_get_freq(CLK_PLL_FRA0);
+    hal_clk_set_freq(CLK_PLL_FRA0, 24000000);
+    /* disable PLL_FRA0 */
+    hal_clk_disable(CLK_PLL_FRA0);
+
     /* reset all pins */
     //TO DO
     __WFI();
 
     /* wakeup flow */
+    hal_clk_set_freq(CLK_PLL_FRA0, fra0_freq);
     /* enable PLL_INT0: cpu pll */
     hal_clk_enable(CLK_PLL_INT0);
     /* change cpu frequency to pll */

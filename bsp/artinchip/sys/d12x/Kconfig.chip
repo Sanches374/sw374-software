@@ -327,22 +327,6 @@ config AIC_VE_DRV_VER
     default "40" if AIC_VE_DRV_V40
 
 #--------------------------------------------
-# MDI driver global option
-#--------------------------------------------
-
-config AIC_MDI_DRV
-    bool
-    default n
-
-config AIC_MDI_DRV_V10
-    bool
-    default y if AIC_MDI_DRV
-
-config AIC_MDI_DRV_VER
-    string
-    default "10" if AIC_MDI_DRV_V10
-
-#--------------------------------------------
 # ADCIM driver global option
 #--------------------------------------------
 
@@ -441,6 +425,26 @@ config AIC_PWM_CH_NUM
     int
     default 4 if AIC_PWM_DRV_V11
 
+#--------------------------------------------
+# HRTimer driver global option
+#--------------------------------------------
+
+config AIC_HRTIMER_DRV
+    bool
+    default n
+    select RT_USING_HWTIMER if DRIVER_DRV_EN
+
+config AIC_HRTIMER_DRV_V12
+    bool
+    default y if AIC_HRTIMER_DRV
+
+config AIC_HRTIMER_DRV_VER
+    string
+    default "12" if AIC_HRTIMER_DRV_V12
+
+config AIC_HRTIMER_CH_NUM
+    int
+    default 2 if AIC_HRTIMER_DRV_V12
 
 #--------------------------------------------
 # sid driver global option
@@ -552,13 +556,13 @@ config AIC_PM_DRV
     select PM_ENABLE_SUSPEND_SLEEP_MODE
     select PM_ENABLE_THRESHOLD_SLEEP_MODE
 
-config AIC_PM_DRV_V12
+config AIC_PM_DRV_V11
     bool
     default y if AIC_PM_DRV
 
 config AIC_PM_DRV_VER
     string
-    default "12" if AIC_PM_DRV_V12
+    default "11" if AIC_PM_DRV_V11
 
 #--------------------------------------------
 # xxx driver global option

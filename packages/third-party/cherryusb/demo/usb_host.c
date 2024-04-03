@@ -58,7 +58,7 @@ find_class:
         USB_LOG_RAW("bulk out error,ret:%d\r\n", ret);
         goto find_class;
     } else {
-        USB_LOG_RAW("send over:%d\r\n", cdc_acm_class->bulkout_urb.actual_length);
+        USB_LOG_RAW("send over:%ld\r\n", cdc_acm_class->bulkout_urb.actual_length);
     }
 
     usbh_bulk_urb_fill(&cdc_acm_class->bulkin_urb, cdc_acm_class->hport, cdc_acm_class->bulkin, cdc_buffer, cdc_acm_class->bulkin->wMaxPacketSize, 3000, usbh_cdc_acm_callback, cdc_acm_class);
@@ -185,6 +185,8 @@ unmount:
 
 USB_NOCACHE_RAM_SECTION USB_MEM_ALIGNX uint8_t partition_table[512];
 
+#ifndef __RTTHREAD__
+#if TEST_USBH_MSC
 static void usbh_msc_thread(void *argument)
 {
     int ret;
@@ -222,6 +224,8 @@ delete:
     // clang-format on
 }
 #endif
+#endif // TEST_USBH_MSC
+#endif // __RTTHREAD__
 
 #if 0
 void usbh_videostreaming_parse_mjpeg(struct usbh_urb *urb, struct usbh_videostreaming *stream)
@@ -584,7 +588,7 @@ void timer_init(struct usbh_rndis *rndis_class)
     } else {
         USB_LOG_ERR("timer creation failed! \r\n");
         for (;;) {
-            ;
+           {};
         }
     }
 }

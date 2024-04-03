@@ -7,6 +7,7 @@
 import os
 import re
 import sys
+import glob
 import platform
 import shutil
 from SCons.Script import *
@@ -17,22 +18,28 @@ COLOR_YELLOW = COLOR_BEGIN + "43;30m"
 COLOR_WHITE = COLOR_BEGIN + "47;30m"
 COLOR_END = "\033[0m"
 
+
 def pr_err(string):
-    print(COLOR_RED + '*** '+ string + COLOR_END)
+    print(COLOR_RED + '*** ' + string + COLOR_END)
+
 
 def pr_info(string):
     print(COLOR_WHITE + '>>> ' + string + COLOR_END)
 
+
 def pr_warn(string):
     print(COLOR_YELLOW + '!!! ' + string + COLOR_END)
+
 
 def do_system(cmd):
     print('{}'.format(cmd))
     return os.system(cmd)
 
+
 def do_pipe(cmd):
     p = os.popen(cmd)
     return p.readlines()[0]
+
 
 def get_config(filename, key):
     if not os.path.exists(filename):
@@ -41,30 +48,32 @@ def get_config(filename, key):
         line = line.strip()
         if not line or line[0] == '#':
             continue
-        v =  line.split('=')
+        v = line.split('=')
         if v[0] == key:
             return v[1]
     return None
+
 
 def get_prj_defconfig(aic_root):
     config_file = os.path.join(aic_root, '.config')
     if not os.path.exists(config_file):
         return None
     key_defconfig = 'CONFIG_PRJ_DEFCONFIG_FILENAME'
-    key_chip      = 'CONFIG_PRJ_CHIP'
-    key_board     = 'CONFIG_PRJ_BOARD'
-    key_kernel    = 'CONFIG_PRJ_KERNEL'
-    key_app       = 'CONFIG_PRJ_APP'
+    key_chip = 'CONFIG_PRJ_CHIP'
+    key_board = 'CONFIG_PRJ_BOARD'
+    key_kernel = 'CONFIG_PRJ_KERNEL'
+    key_app = 'CONFIG_PRJ_APP'
     defconfig = get_config(config_file, key_defconfig)
     if defconfig:
-        defconfig = defconfig.replace('"','')
+        defconfig = defconfig.replace('"', '')
     else:
         prj_chip = get_config(config_file, key_chip)
         prj_board = get_config(config_file, key_board)
         prj_kernel = get_config(config_file, key_kernel)
         prj_app = get_config(config_file, key_app)
-        defconfig = prj_chip + '_' + prj_board + '_'  + prj_kernel + '_'  + prj_app + '_defconfig'
+        defconfig = prj_chip + '_' + prj_board + '_' + prj_kernel + '_' + prj_app + '_defconfig'
     return defconfig
+
 
 def list_defconfig(aic_root):
     v = []
@@ -81,6 +90,7 @@ def list_defconfig(aic_root):
     v.sort()
     return v, maxlen
 
+
 def apply_defconfig(aic_root, defconfig):
     src = os.path.join(aic_root, 'target', 'configs', defconfig)
     if not os.path.exists(src):
@@ -88,13 +98,15 @@ def apply_defconfig(aic_root, defconfig):
         sys.exit(110)
 
     print('Load config from {}'.format(os.path.join('target', 'configs', defconfig)))
-    os.system('echo ' + defconfig.replace('_defconfig', '') + ' > ' + os.path.join(aic_root, '.defconfig'))
+    os.system('echo ' + defconfig.replace('_defconfig', '') + ' > ' +
+              os.path.join(aic_root, '.defconfig'))
 
     dst = os.path.join(aic_root, '.config')
     shutil.copy(src, dst)
     sys.path.append(os.path.join(aic_root, 'kernel/rt-thread/tools'))
     from menuconfig import mk_rtconfig
     mk_rtconfig(".config")
+
 
 def save_defconfig(aic_root):
     src = os.path.join(aic_root, '.config')
@@ -106,6 +118,7 @@ def save_defconfig(aic_root):
         dst = os.path.join(aic_root, 'target', 'configs', defconfig)
         shutil.copy(src, dst)
 
+
 def update_defconfig(aic_root):
     defconfig = get_prj_defconfig(aic_root)
     if defconfig:
@@ -115,62 +128,53 @@ def update_defconfig(aic_root):
         dst = os.path.join(aic_root, '.config')
         shutil.copy(src, dst)
 
+
 # cmd-option: list defconfig
 def list_def_cmd(aic_root):
-    AddOption('--list-def',
-              dest = 'list_defconfig',
-              action = 'store_true',
-              default = False,
-              help = 'to list all board defconfigs')
+    AddOption('--list-def', dest='list_defconfig', action='store_true',
+              default=False, help='to list all board defconfigs')
     list_def = GetOption('list_defconfig')
     if list_def:
-        configs,maxlen = list_defconfig(aic_root)
+        configs, maxlen = list_defconfig(aic_root)
         index = 0
         print('Built-in configs:')
         for c in configs:
-            d = c.replace('_defconfig','')
-            print('%3d. %-*s - Build for %s' % (index, maxlen, c, d))
+            d = c.replace('_defconfig', '')
+            print('%3d. %-*s' % (index, maxlen, d))
             index += 1
         exit(0)
 
+
 # cmd-option: apply defconfig
 def apply_def_cmd(aic_root):
-    AddOption('--apply-def',
-              dest = 'apply_defconfig',
-              type='string',
-              nargs=1,
-              action = 'store',
-              default = "",
-              help = 'to apply one board defconfig')
+    AddOption('--apply-def', dest='apply_defconfig', type='string',
+              nargs=1, action='store',
+              default="", help='to apply one board defconfig')
     apply_def = GetOption('apply_defconfig')
     if apply_def:
         if apply_def.isdigit():
             i = int(apply_def, 10)
-            configs,maxlen = list_defconfig(aic_root)
+            configs, maxlen = list_defconfig(aic_root)
             if i < len(configs):
                 apply_def = configs[i]
         apply_defconfig(aic_root, apply_def)
         exit(0)
 
+
 # cmd-option: save defconfig
 def save_def_cmd(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defconfig):
-    AddOption('--save-def',
-              dest = 'save_defconfig',
-              action = 'store_true',
-              default = False,
-              help = 'to save current board defconfig')
+    AddOption('--save-def', dest='save_defconfig', action='store_true',
+              default=False, help='to save current board defconfig')
     save_def = GetOption('save_defconfig')
     if save_def:
         save_defconfig(aic_root)
         exit(0)
 
+
 # cmd-option: call 'pkgs --update'
 def pkgs_update_cmd(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defconfig):
-    AddOption('--pkgs-update',
-              dest = 'pkgs_update',
-              action = 'store_true',
-              default = False,
-              help = 'to update packages online')
+    AddOption('--pkgs-update', dest='pkgs_update', action='store_true',
+              default=False, help='to update packages online')
     update_def = GetOption('pkgs_update')
     if update_def:
         if platform.system() == 'Linux':
@@ -180,14 +184,12 @@ def pkgs_update_cmd(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defc
             os.system('pkgs --update')
         exit(0)
 
+
 # cmd-option: project info
 def show_info_cmd(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defconfig):
     config_file = os.path.join(aic_root, '.config')
-    AddOption('--info',
-              dest = 'prj_info',
-              action = 'store_true',
-              default = False,
-              help = 'to show current project info')
+    AddOption('--info', dest='prj_info', action='store_true',
+              default=False, help='to show current project info')
     prj_info = GetOption('prj_info')
     if prj_info:
         # arch
@@ -221,13 +223,11 @@ def show_info_cmd(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defcon
         print('     Toolchain: {}'.format(toolchain))
         exit(0)
 
+
 # cmd-option: add board
 def add_board_cmd(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defconfig):
-    AddOption('--add-board',
-              dest = 'add_board',
-              action = 'store_true',
-              default = False,
-              help = 'add new board')
+    AddOption('--add-board', dest='add_board', action='store_true',
+              default=False, help='add new board')
     add_board = GetOption('add_board')
     if add_board:
         path = os.path.join(aic_root, 'target')
@@ -239,13 +239,13 @@ def add_board_cmd(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defcon
             for c in chips:
                 print('%3d: %s' % (index, c))
                 index += 1
-            i = raw_input("Select chip for new board(number):")
+            i = raw_input("Select chip for new board(number): ")
             if i == 'q':
                 exit(0)
             if not i.isdigit():
                 print("Please enter the number!")
                 continue
-            i = int(i ,10)
+            i = int(i, 10)
             if i >= len(chips):
                 print("Input number is invalid!")
                 continue
@@ -253,7 +253,7 @@ def add_board_cmd(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defcon
         chip = chips[i]
         print("{} \n".format(chip))
         # select reference board
-        configs,maxlen = list_defconfig(aic_root)
+        configs, maxlen = list_defconfig(aic_root)
         configs = list(filter(lambda x: chip in x and 'bootloader' not in x, configs))
         while 1:
             index = 0
@@ -261,13 +261,13 @@ def add_board_cmd(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defcon
             for c in configs:
                 print('%3d: %s' % (index, c))
                 index += 1
-            i = raw_input("Select reference defconfig for new board(number):")
+            i = raw_input("Select reference defconfig for new board(number): ")
             if i == 'q':
                 exit(0)
             if not i.isdigit():
                 print("Please enter the number!")
                 continue
-            i = int(i ,10)
+            i = int(i, 10)
             if i >= len(configs):
                 print("Input number is invalid!")
                 continue
@@ -276,14 +276,15 @@ def add_board_cmd(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defcon
         print("{} \n".format(ref_cfg))
         def_elements = ref_cfg.split('_')
         if len(def_elements) != 5:
-            print("Error: {} is not conform to 'CHIP_BOARD_KERNEL_APP_defconfig' format!".format(ref_cfg))
+            print("Error: {} is not conform to 'CHIP_BOARD_KERNEL_APP_defconfig' format!"
+                  .format(ref_cfg))
             exit(0)
         board = def_elements[1]
         kernel = def_elements[2]
         app = def_elements[3]
         # input new board name
         while 1:
-            i = raw_input("Input new board's name:")
+            i = raw_input("Input new board's name: ")
             i = i.strip()
             if i == 'q':
                 exit(0)
@@ -296,7 +297,7 @@ def add_board_cmd(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defcon
         print("{} \n".format(new_board))
         # input new app name
         while 1:
-            i = raw_input("Input new app's name: (default {})".format(app))
+            i = raw_input("Input new app's name: (default {}) ".format(app))
             i = i.strip()
             if i == 'q':
                 exit(0)
@@ -310,7 +311,7 @@ def add_board_cmd(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defcon
         print("{} \n".format(new_app))
         # input manufacturer name
         while 1:
-            i = raw_input("Input manufacturer's name:")
+            i = raw_input("Input manufacturer's name: ")
             i = i.strip()
             if i == 'q':
                 exit(0)
@@ -368,8 +369,8 @@ def add_board_cmd(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defcon
         # copy board
         src_d = os.path.join(aic_root, 'target', chip, board)
         des_d = os.path.join(aic_root, 'target', chip, new_board)
-        src_d = os.path.normpath(src_d);
-        des_d = os.path.normpath(des_d);
+        src_d = os.path.normpath(src_d)
+        des_d = os.path.normpath(des_d)
         if not os.path.exists(des_d):
             print("Copy {} to {}".format(src_d, des_d))
             if platform.system() == 'Linux':
@@ -388,12 +389,10 @@ def add_board_cmd(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defcon
         # copy app
         if app != new_app:
             app_os = kernel
-            if app_os != 'baremetal':
-                app_os = 'os'
             src_d = os.path.join(aic_root, 'application', app_os, app)
             des_d = os.path.join(aic_root, 'application', app_os, new_app)
-            src_d = os.path.normpath(src_d);
-            des_d = os.path.normpath(des_d);
+            src_d = os.path.normpath(src_d)
+            des_d = os.path.normpath(des_d)
             if not os.path.exists(des_d):
                 print("Copy {} to {}".format(src_d, des_d))
                 if platform.system() == 'Linux':
@@ -403,26 +402,70 @@ def add_board_cmd(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defcon
         print("Add board {} for {} succeed!".format(new_board, manuf_name))
         exit(0)
 
+
+# cmd-option: aicupg
+def aicupg_cmd(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defconfig):
+    AddOption('--aicupg', dest='aicupg', action='store_true',
+              default=False, help='Call upgcmd to burn image')
+
+    aicupg = GetOption('aicupg')
+    if not aicupg:
+        return
+
+    if platform.system() == 'Windows':
+        upgcmd = os.path.join(aic_root, 'tools/scripts/upgcmd.exe')
+    else:
+        upgcmd = os.path.join(aic_root, 'tools/scripts/upgcmd')
+    if not os.path.exists(upgcmd):
+        print('{} does not exist!'.format(upgcmd))
+        sys.exit(100)
+
+    solution = get_prj_defconfig(aic_root).replace('_defconfig', '')
+    img_path = os.path.join(aic_root, 'output/' + solution + '/images')
+    if not os.path.exists(img_path):
+        print('{} does not exist! Need build the project first.'.format(img_path))
+        sys.exit(100)
+    for file in sorted(os.listdir(img_path)):
+        if file.endswith('.img'):
+            img_file = file
+            break
+
+    print('Try to burn image file: {} ...'.format(img_file))
+    os.system(upgcmd + ' image ' + os.path.join(img_path, img_file))
+    os.system(upgcmd + ' shcmd reset ')
+    sys.exit(0)
+
+
 # cmd-option: windows menuconfig
 def win_menuconfig_cmd(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defconfig):
+    # generate .Kconfig.prj
+    with open(".Kconfig.prj", "w") as f:
+        f.write('source "bsp/artinchip/sys/{}/Kconfig.chip"\n'.format(prj_chip))
+        f.write('source "target/{}/common/Kconfig.board"\n'.format(prj_chip))
+
+        tmp = "target/" + prj_chip + "/" + prj_board + "/Kconfig.extend"
+        if os.path.exists(os.path.join(aic_root, tmp)):
+            f.write('source "{}"\n'.format(tmp))
+
+        f.write('source "kernel/{}/Kconfig"\n'.format(prj_kernel))
+        f.write('source "application/{}/{}/Kconfig"\n'.format(prj_kernel, prj_app))
+        if prj_kernel == 'rt-thread':
+            f.write('source "$PKGS_DIR/Kconfig"\n')
+
+    # windows run menuconfig cmd
     if platform.system() == 'Windows':
-        AddOption('--menuconfig',
-                  dest = 'win_menuconfig',
-                  action = 'store_true',
-                  default = False,
-                  help='make menuconfig for luban-lite')
+        AddOption('--menuconfig', dest='win_menuconfig', action='store_true',
+                  default=False, help='make menuconfig for luban-lite')
         win_menuconfig = GetOption('win_menuconfig')
         if win_menuconfig:
-            with open(".Kconfig.prj", "w") as f:
-                f.write('source "./bsp/artinchip/sys/{}/Kconfig.chip"\n'.format(prj_chip))
-                f.write('source "target/{}/{}/Kconfig.board"\n'.format(prj_chip, prj_board))
-                f.write('source "kernel/{}/Kconfig"\n'.format(prj_kernel))
-                f.write('source "application/{}/{}/Kconfig"\n'.format(prj_kernel, prj_app))
-                if prj_kernel == 'rt-thread':
-                    f.write('source "$PKGS_DIR/Kconfig"\n')
             os.system('menuconfig')
             save_defconfig(aic_root)
-            exit(0)
+            # If 'output/xxxx/project_eclipse' folder exists need update eclipse project
+            prj_name = prj_defconfig.replace('_defconfig', '')
+            prj_eclipse_dir = os.path.join(aic_root, 'output', prj_name, 'project_eclipse')
+            if not os.path.exists(prj_eclipse_dir):
+                exit(0)
+
 
 # check qemu tool
 def chk_qemu_tool(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defconfig):
@@ -451,13 +494,11 @@ def chk_qemu_tool(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defcon
                 os.system('tar -xzf ' + abs_f + ' -C ' + qemu_path)
                 break
 
+
 # cmd-option: run qemu
 def run_qemu_cmd(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defconfig):
-    AddOption('--run-qemu',
-              dest = 'run_qemu',
-              action = 'store_true',
-              default = False,
-              help = 'use qemu run target')
+    AddOption('--run-qemu', dest='run_qemu', action='store_true',
+              default=False, help='use qemu run target')
     run_qemu = GetOption('run_qemu')
     if run_qemu:
         # check qemu tool
@@ -477,27 +518,26 @@ def run_qemu_cmd(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defconf
         elif platform.system() == 'Windows':
             qemu_path = os.path.join(aic_root, 'tools/env/tools/qemu/qemu-win', qemu_name)
         # target
-        prj_name = prj_defconfig.replace('_defconfig','')
+        prj_name = prj_defconfig.replace('_defconfig', '')
         prj_out_dir = 'output/' + prj_name + '/images/'
         target = os.path.join(aic_root, prj_out_dir, rtconfig.SOC + '.' + rtconfig.TARGET_EXT)
         # complete cmd
-        cmd = qemu_path + ' -cpu ' + rtconfig.CPUNAME + ' -M ' + machine + ' -kernel ' + target + ' -nographic'
+        cmd = qemu_path + ' -cpu ' + rtconfig.CPUNAME + ' -M ' + machine + \
+            ' -kernel ' + target + ' -nographic'
         os.system(cmd)
         exit(0)
 
+
 # cmd-option: list size
 def list_size_cmd(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defconfig):
-    AddOption('--list-size',
-              dest = 'list_size',
-              action = 'store_true',
-              default = False,
-              help = 'list all obj file size')
+    AddOption('--list-size', dest='list_size', action='store_true',
+              default=False, help='list all obj file size')
     list_size = GetOption('list_size')
     if list_size:
         # size
         gcc_size = os.path.join(aic_root, 'toolchain/bin/riscv64-unknown-elf-size')
         # obj foler
-        prj_name = prj_defconfig.replace('_defconfig','')
+        prj_name = prj_defconfig.replace('_defconfig', '')
         prj_out_dir = os.path.join(aic_root, 'output/' + prj_name)
         # target
         chip_path = os.path.join(aic_root, './bsp/artinchip/sys/' + prj_chip)
@@ -518,20 +558,224 @@ def list_size_cmd(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defcon
         os.system(cmd)
         exit(0)
 
+
+g_mem_items = {
+  ('d21x'):
+  [
+    # 'regions_level0':
+    [
+      [['dram', 0], ['__dram_start', '__dram_end'], [0x0, 0x0]],
+    ],
+    # 'regions_level1':
+    [
+      [['dram_sw', 0], ['__dram_start', '__dram_sw_end'], [0x0, 0x0]],
+      [['dram_cma', 0], ['__dram_sw_end', '__dram_cma_end'], [0x0, 0x0]],
+    ],
+    # 'regions_level2':
+    [
+      [['dram_sw_static', 0], ['__dram_start', '__dram_sw_heap_start'], [0x0, 0x0]],
+      [['dram_sw_heap', 0], ['__dram_sw_heap_start', '__dram_sw_heap_end'], [0x0, 0x0]],
+      [['dram_cma_static', 0], ['__dram_cma_start', '__dram_cma_heap_start'], [0x0, 0x0]],
+      [['dram_cma_heap', 0], ['__dram_cma_heap_start', '__dram_cma_heap_end'], [0x0, 0x0]],
+    ],
+    # 'regions_level3':
+    [
+      [['.text', 0], ['__stext', '__etext'], [0x0, 0x0]],
+      [['.rodata', 0], ['__srodata', '__erodata'], [0x0, 0x0]],
+      [['.data', 0], ['__sdata', '__edata'], [0x0, 0x0]],
+      [['.bss', 0], ['__sbss', '__ebss'], [0x0, 0x0]],
+      [['.heap_sys', 0], ['__heap_start', '__heap_end'], [0x0, 0x0]],
+      [['.heap_cma', 0], ['__cma_heap_start', '__cma_heap_end'], [0x0, 0x0]],
+    ],
+  ],
+
+  ('d13x'):
+  [
+    # 'regions_level0':
+    [
+      [['itcm', 0], ['__itcm_start', '__itcm_end'], [0x0, 0x0]],
+      [['dtcm', 0], ['__dtcm_start', '__dtcm_end'], [0x0, 0x0]],
+      [['sram_s0', 0], ['__sram_s0_start', '__sram_s0_end'], [0x0, 0x0]],
+      [['sram_s1', 0], ['__sram_s1_start', '__sram_s1_end'], [0x0, 0x0]],
+      [['psram', 0], ['__psram_start', '__psram_end'], [0x0, 0x0]],
+      [['xip', 0], ['__xip_start', '__xip_end'], [0x0, 0x0]]
+    ],
+    # 'regions_level1':
+    [
+      [['itcm_code', 0], ['__itcm_code_start', '__itcm_code_end'], [0x0, 0x0]],
+      [['itcm_heap', 0], ['__itcm_heap_start', '__itcm_heap_end'], [0x0, 0x0]],
+      [['dtcm_data', 0], ['__dtcm_data_start', '__dtcm_data_end'], [0x0, 0x0]],
+      [['dtcm_heap', 0], ['__dtcm_heap_start', '__dtcm_heap_end'], [0x0, 0x0]],
+      [['sram_s0_static', 0], ['__sram_s0_start', '__sram_s0_sw_heap_start'], [0x0, 0x0]],
+      [['sram_s0_heap', 0], ['__sram_s0_sw_heap_start', '__sram_s0_sw_heap_end'], [0x0, 0x0]],
+      [['sram_s1_sw', 0], ['__sram_s1_sw_start', '__sram_s1_sw_end'], [0x0, 0x0]],
+      [['sram_s1_cma', 0], ['__sram_s1_cma_start', '__sram_s1_cma_end'], [0x0, 0x0]],
+      [['psram_sw', 0], ['__psram_sw_start', '__psram_sw_end'], [0x0, 0x0]],
+      [['psram_cma', 0], ['__psram_cma_start', '__psram_cma_end'], [0x0, 0x0]],
+    ],
+    # 'regions_level2':
+    [
+      [['sram_s1_sw_static', 0], ['__sram_s1_sw_start', '__sram_s1_sw_heap_start'], [0x0, 0x0]],
+      [['sram_s1_sw_heap', 0], ['__sram_s1_sw_heap_start', '__sram_s1_sw_heap_end'], [0x0, 0x0]],
+      [['sram_s1_cma_static', 0], ['__sram_s1_cma_start', '__sram_s1_cma_heap_start'], [0x0, 0x0]],
+      [['sram_s1_cma_heap', 0], ['__sram_s1_cma_heap_start', '__sram_s1_cma_heap_end'], [0x0, 0x0]],
+      [['psram_sw_static', 0], ['__psram_sw_start', '__psram_sw_heap_start'], [0x0, 0x0]],
+      [['psram_sw_heap', 0], ['__psram_sw_heap_start', '__psram_sw_heap_end'], [0x0, 0x0]],
+      [['psram_cma_static', 0], ['__psram_cma_start', '__psram_cma_heap_start'], [0x0, 0x0]],
+      [['psram_cma_heap', 0], ['__psram_cma_heap_start', '__psram_cma_heap_end'], [0x0, 0x0]],
+    ],
+    # 'regions_level3':
+    [
+      [['.text', 0], ['__stext', '__etext'], [0x0, 0x0]],
+      [['.rodata', 0], ['__srodata', '__erodata'], [0x0, 0x0]],
+      [['.data', 0], ['__sdata', '__edata'], [0x0, 0x0]],
+      [['.bss', 0], ['__sbss', '__ebss'], [0x0, 0x0]],
+      [['.heap_sys', 0], ['__heap_start', '__heap_end'], [0x0, 0x0]],
+      [['.heap_cma', 0], ['__cma_heap_start', '__cma_heap_end'], [0x0, 0x0]],
+    ],
+  ],
+
+  ('d12x'):
+  [
+    # 'regions_level0':
+    [
+      [['sram', 0], ['__sram_start', '__sram_end'], [0x0, 0x0]],
+      [['psram', 0], ['__psram_start', '__psram_end'], [0x0, 0x0]],
+      [['xip', 0], ['__xip_start', '__xip_end'], [0x0, 0x0]]
+    ],
+    # 'regions_level1':
+    [
+      [['sram_sw', 0], ['__sram_sw_start', '__sram_sw_end'], [0x0, 0x0]],
+      [['sram_cma', 0], ['__sram_cma_start', '__sram_cma_end'], [0x0, 0x0]],
+      [['psram_sw', 0], ['__psram_sw_start', '__psram_sw_end'], [0x0, 0x0]],
+      [['psram_cma', 0], ['__psram_cma_start', '__psram_cma_end'], [0x0, 0x0]],
+    ],
+    # 'regions_level2':
+    [
+      [['sram_sw_static', 0], ['__sram_sw_start', '__sram_sw_heap_start'], [0x0, 0x0]],
+      [['sram_sw_heap', 0], ['__sram_sw_heap_start', '__sram_sw_heap_end'], [0x0, 0x0]],
+      [['sram_cma_static', 0], ['__sram_cma_start', '__sram_cma_heap_start'], [0x0, 0x0]],
+      [['sram_cma_heap', 0], ['__sram_cma_heap_start', '__sram_cma_heap_end'], [0x0, 0x0]],
+      [['psram_sw_static', 0], ['__psram_sw_start', '__psram_sw_heap_start'], [0x0, 0x0]],
+      [['psram_sw_heap', 0], ['__psram_sw_heap_start', '__psram_sw_heap_end'], [0x0, 0x0]],
+      [['psram_cma_static', 0], ['__psram_cma_start', '__psram_cma_heap_start'], [0x0, 0x0]],
+      [['psram_cma_heap', 0], ['__psram_cma_heap_start', '__psram_cma_heap_end'], [0x0, 0x0]],
+    ],
+    # 'regions_level3':
+    [
+      [['.text', 0], ['__stext', '__etext'], [0x0, 0x0]],
+      [['.rodata', 0], ['__srodata', '__erodata'], [0x0, 0x0]],
+      [['.data', 0], ['__sdata', '__edata'], [0x0, 0x0]],
+      [['.bss', 0], ['__sbss', '__ebss'], [0x0, 0x0]],
+      [['.heap_sys', 0], ['__heap_start', '__heap_end'], [0x0, 0x0]],
+      [['.heap_cma', 0], ['__cma_heap_start', '__cma_heap_end'], [0x0, 0x0]],
+    ],
+  ],
+}
+
+
+def get_mem_item_addr(sym_table, item):
+    ret = -2
+    s = 0
+    e = 0
+    for i in range(0, 2):
+        addr_list = re.findall('([0-9a-fA-F]{8,16}).*' + item[i], sym_table)
+        if addr_list == []:
+            continue
+        addr = int(addr_list[0], 16)
+        ret += 1
+        if i == 0:
+            s = addr
+        else:
+            e = addr
+    if ret == 0 and s == e:
+        ret = -100
+    # print('{}: {:#x} - {:#x}, ret = {}'.format(item, s, e, ret))
+    return ret, s, e
+
+
+def print_mem_item(chip_mem_items, prefix, lvl, p_s, p_e):
+    max_lvl = len(chip_mem_items)
+    if lvl >= max_lvl:
+        return
+    if lvl == 0:
+        print('{:^23}{}{:^10} {:^10}  {:^10}'.format('Region', ' ' * ((max_lvl - lvl) * 5),
+              'Start', 'End', 'Length'))
+    found = 0
+    for item in chip_mem_items[lvl]:
+        ret = item[0][1]
+        name = item[0][0]
+        s = item[2][0]
+        e = item[2][1]
+        if (ret != 0) or (s < p_s) or (e > p_e):
+            continue
+        found = 1
+        sys.stdout.write(prefix)
+        if lvl != 0:
+            sys.stdout.write('  └─ ')
+        print('{:20}{}0x{:0>8x} - 0x{:0>8x}  0x{:0>8x}'.format(name, ' ' * ((max_lvl - lvl) * 5),
+              s, e, e-s))
+        if lvl == 0:
+            print_mem_item(chip_mem_items, prefix, lvl+1, s, e)
+        else:
+            print_mem_item(chip_mem_items, prefix + '     ', lvl+1, s, e)
+    if found == 0:
+        print_mem_item(chip_mem_items, prefix + '     ', lvl+1, p_s, p_e)
+
+
+# cmd-option: list mem
+def list_mem_cmd(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defconfig):
+    AddOption('--list-mem', dest='list_mem', action='store_true',
+              default=False, help='list all memory layout')
+    list_mem = GetOption('list_mem')
+    if list_mem:
+        # obj foler
+        prj_name = prj_defconfig.replace('_defconfig', '')
+        prj_out_dir = os.path.join(aic_root, 'output/' + prj_name)
+        # target
+        chip_path = os.path.join(aic_root, './bsp/artinchip/sys/' + prj_chip)
+        sys.path.append(chip_path)
+        import rtconfig
+        target = os.path.join(prj_out_dir, 'images', rtconfig.SOC + '.' + rtconfig.TARGET_EXT)
+        if not os.path.exists(target):
+            print('{} does not exist! Need build the project first.'.format(target))
+            sys.exit(100)
+        # get symbol table
+        bin_nm = os.path.join(aic_root, 'toolchain/bin/' + rtconfig.PREFIX + 'nm')
+        cmd = bin_nm + ' ' + target
+        sym_table = os.popen(cmd).read()
+        chip_mem_items = []
+        for chip_set in g_mem_items.keys():
+            if prj_chip in chip_set:
+                chip_mem_items = g_mem_items[chip_set]
+        if chip_mem_items == []:
+            print('{} definition not found in g_mem_items[]!'.format(prj_chip))
+            sys.exit(200)
+        # get symbol addr
+        for key in range(len(chip_mem_items)):
+            for item in chip_mem_items[key]:
+                ret, s, e = get_mem_item_addr(sym_table, item[1])
+                item[0][1] = ret
+                item[2][0] = s
+                item[2][1] = e
+        # print mem layout
+        print('{} Memory layout:\n'.format(os.path.relpath(target, aic_root)))
+        print_mem_item(chip_mem_items, '', 0, 0, 0xFFFFFFFF)
+        exit(0)
+
+
 # cmd-option: distclean
 def distclean_cmd(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defconfig):
-    AddOption('--distclean',
-              dest = 'distclean',
-              action = 'store_true',
-              default = False,
-              help = 'clean the toolchain and the output folder')
+    AddOption('--distclean', dest='distclean', action='store_true',
+              default=False, help='clean the toolchain and the output folder')
     distclean = GetOption('distclean')
     if distclean:
-        prj_name = prj_defconfig.replace('_defconfig','')
+        prj_name = prj_defconfig.replace('_defconfig', '')
         os.system('rm -rf ' + aic_root + '/output/' + prj_name)
         os.system('rm -rf ' + aic_root + '/toolchain')
         os.system('rm -f ' + aic_root + '/.config')
         exit(0)
+
 
 # check & prepare toolchain
 def chk_prepare_toolchain(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defconfig):
@@ -565,22 +809,123 @@ def chk_prepare_toolchain(aic_root, prj_chip, prj_board, prj_kernel, prj_app, pr
                 else:
                     return
     # prepare
+    trim_tar = ''
+    full_tar = ''
     for root, dirs, files in os.walk(toolchain_ppath):
         if root != toolchain_ppath:
             break
         for f in files:
-            if f.startswith(toolchain_name) and f.find('.tar') >= 0:
-                abs_f = os.path.join(toolchain_ppath, f)
-                pr_info('Extract toolchain ' + toolchain_name + ' ...')
-                if not os.path.exists(toolchain_bpath):
-                    os.mkdir(toolchain_bpath)
+            if f.startswith(toolchain_name) and f.endswith('-trim.tar.gz'):
+                trim_tar = f
+            elif f.startswith(toolchain_name) and f.endswith('.tar.gz'):
+                full_tar = f
+            else:
+                continue
+    if trim_tar != '':
+        tar_f = trim_tar
+    elif full_tar != '':
+        tar_f = full_tar
+    else:
+        print("Coundn't find toolchain tar file.")
+        return
+    abs_f = os.path.join(toolchain_ppath, tar_f)
+    pr_info('Extract toolchain ' + tar_f + ' ...')
+    if not os.path.exists(toolchain_bpath):
+        os.mkdir(toolchain_bpath)
+    os.system('tar -xzf ' + abs_f
+              + ' --strip-components 1 -C ' + toolchain_bpath)
+    with open(ready_f, 'w') as f:
+        f.write(platform.system() + "\n")
+        f.write(toolchain_name)
 
-                os.system('tar -xzf ' + abs_f \
-                    + ' --strip-components 1 -C ' + toolchain_bpath)
-                with open(ready_f, 'w') as f:
-                    f.write(platform.system() + "\n")
-                    f.write(toolchain_name)
+
+def trim_folder(folders, prefix, saves):
+    for folder in folders:
+        if not os.path.exists(folder):
+            continue
+        for root, dirs, files in os.walk(folder):
+            if root != folder:
                 break
+            for d in dirs:
+                if d.startswith(prefix) and d not in saves:
+                    shutil.rmtree(os.path.join(folder, d))
+
+
+def trim_toolchain(aic_root, tar_path, exec_path, tar_prefix, cross_prefix, marchs):
+    toolchain_ppath = os.path.join(aic_root, tar_path)
+    toolchain_bpath = os.path.join(aic_root, exec_path)
+    toolchain_prefix = tar_prefix
+    toolchain_suffix = '.tar.gz'
+    toolchain_trim = '-trim'
+    toolchain_cross = cross_prefix
+    for root, dirs, files in os.walk(toolchain_ppath):
+        if root != toolchain_ppath:
+            break
+        for f in files:
+            if f.startswith(toolchain_prefix) and f.endswith(toolchain_suffix) and \
+               f.find(toolchain_trim) < 0:
+                abs_f = os.path.join(toolchain_ppath, f)
+                toolchain_name = re.findall('(.+?)\\.tar\\.gz', f)[0]
+                toolchain_xpath = os.path.join(toolchain_ppath, toolchain_name)
+                if os.path.exists(toolchain_xpath):
+                    shutil.rmtree(toolchain_xpath)
+                pr_info('Extract toolchain ' + f + ' ...')
+                if not os.path.exists(toolchain_xpath):
+                    os.mkdir(toolchain_xpath)
+                os.system('tar -xzf ' + abs_f
+                          + ' --strip-components 1 -C ' + toolchain_xpath)
+                pr_info('Trim toolchain ' + f + ' ...')
+                folder1 = os.path.join(toolchain_xpath, toolchain_cross + '/lib')
+                p_folder2 = os.path.join(toolchain_xpath, 'lib/gcc/' + toolchain_cross)
+                folder2 = glob.glob(p_folder2 + '/*')[0]
+                folders = [folder1, folder2]
+                trim_folder(folders, 'rv', marchs)
+                toolchain_trimname = toolchain_name + toolchain_trim + toolchain_suffix
+                pr_info('Repack trim toolchain ' + toolchain_trimname + ' ...')
+                abs_f = os.path.join(toolchain_ppath, toolchain_trimname)
+                if os.path.exists(abs_f):
+                    os.remove(abs_f)
+                os.system('tar -czf ' + abs_f + ' -C ' + toolchain_ppath + ' ' + toolchain_name)
+                shutil.rmtree(toolchain_xpath)
+    if os.path.exists(toolchain_bpath):
+        shutil.rmtree(toolchain_bpath)
+
+
+# cmd-option: trim-toolchain
+def trimtoolchain_cmd(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defconfig):
+    AddOption('--trim-toolchain', dest='trim-toolchain', action='store_true',
+              default=False, help='trim toolchain, only retian the arch used by SDK.')
+    trimtoolchain = GetOption('trim-toolchain')
+    if trimtoolchain:
+        # collect riscv arch in SDK
+        path = os.path.join(aic_root, 'target')
+        chips = get_all_chip(path)
+        marchs = []
+        m_marchs = []
+        for chip in chips:
+            chip_path = os.path.join(aic_root, './bsp/artinchip/sys/' + chip)
+            sys.path.append(chip_path)
+            import rtconfig
+            reload(rtconfig)
+            if hasattr(rtconfig, 'TOOLCHAIN_LIB'):
+                marchs.append(rtconfig.TOOLCHAIN_LIB)
+            if hasattr(rtconfig, 'M_TOOLCHAIN_LIB'):
+                m_marchs.append(rtconfig.M_TOOLCHAIN_LIB)
+            sys.path.remove(chip_path)
+        marchs = list(set(marchs))
+        m_marchs = list(set(m_marchs))
+        print('marchs = {}. \nm_marchs = {}'.format(marchs, m_marchs))
+
+        # trim kernel toolchain
+        trim_toolchain(aic_root, 'tools/toolchain/', 'toolchain', 'Xuantie-900-gcc-elf-newlib',
+                       'riscv64-unknown-elf', marchs)
+
+        # trim dm-app toolchain
+        trim_toolchain(aic_root, 'packages/artinchip/aic-dm-apps/tools/toolchain',
+                       'packages/artinchip/aic-dm-apps/toolchain', 'xpack-riscv-none-embed-gcc',
+                       'riscv-none-embed', m_marchs)
+        exit(0)
+
 
 def mkimage_get_mtdpart_size(imgname):
     partlist = prj_out_dir + 'partition_file_list.h'
@@ -595,8 +940,9 @@ def mkimage_get_mtdpart_size(imgname):
                 size = int(ln.split(',')[2])
                 return size
     print('Image {} is not used in any partition'.format(imgname))
-    print('please check your project\'s image_cfg.json');
+    print('please check your project\'s image_cfg.json')
     return size
+
 
 def mkimage_get_nand_params():
     partlist = prj_out_dir + 'partition_file_list.h'
@@ -607,7 +953,7 @@ def mkimage_get_nand_params():
         lines = f.readlines()
         for ln in lines:
             if "nands=" in ln:
-                nands=ln[6:]
+                nands = ln[6:]
                 break
     if len(nands) == 0:
         return None
@@ -617,9 +963,10 @@ def mkimage_get_nand_params():
         ret_list.append(tuple(nandparam.split(',')))
     return ret_list
 
+
 def mkimage_gen_uffs_script(srcdir, script):
     fs = open(script, 'w+')
-    root_path =srcdir
+    root_path = srcdir
     for root, dirs, files in os.walk(srcdir):
         for sub in dirs:
             dirpath = os.path.join(root, sub).replace(root_path, '').replace('\\', '/')
@@ -635,19 +982,22 @@ def mkimage_gen_uffs_script(srcdir, script):
             fs.write('cp {} {}\n'.format(srcpath, dstpath))
     fs.close()
 
+
 def mkimage_check_file_exist(pathdir, filename):
     restr = filename.replace('.', '\\.').replace('*', '.*')
     ents = os.listdir(pathdir)
     for ent in ents:
-        matchobj=re.match(restr, ent)
+        matchobj = re.match(restr, ent)
         if matchobj:
             return True
     return False
+
 
 def mkimage_gen_empty_img(outimg, size):
     f = open(outimg, 'wb')
     f.write(bytearray(size))
     f.close()
+
 
 def mkimage_gen_mkfs_action(img_id):
     img_enable = 'CONFIG_AIC_USING_FS_IMAGE_{}'.format(img_id)
@@ -660,7 +1010,6 @@ def mkimage_gen_mkfs_action(img_id):
     if get_config(prj_root_dir + '.config', fatfs_enable) == 'y':
         imgname_opt = 'CONFIG_AIC_FS_IMAGE_NAME_{}'.format(img_id)
         imgname = get_config(prj_root_dir + '.config', imgname_opt).replace('"', '')
-        imgsize = mkimage_get_mtdpart_size(imgname)
         auto_opt = 'CONFIG_AIC_FATFS_AUTO_SIZE_FOR_{}'.format(img_id)
         srcdir_opt = 'CONFIG_AIC_FS_IMAGE_DIR_{}'.format(img_id)
         srcdir = get_config(prj_root_dir + '.config', srcdir_opt).replace('"', '')
@@ -672,7 +1021,7 @@ def mkimage_gen_mkfs_action(img_id):
         data_siz = 0
 
         # when CONFIG_AIC_FATFS_AUTO_SIZE_FOR_0 is not set, should be check None
-        if get_config(prj_root_dir + '.config', auto_opt) != None:
+        if get_config(prj_root_dir + '.config', auto_opt) is not None:
             auto_siz = get_config(prj_root_dir + '.config', auto_opt).replace('"', '')
         else:
             auto_siz = 'n'
@@ -703,16 +1052,9 @@ def mkimage_gen_mkfs_action(img_id):
             cmdstr += '--inputdir {} '.format(srcdir)
             cmdstr += '--outfile {}\n'.format(outimg)
             mkfscmd += cmdstr
-        if data_siz > imgsize:
-            print('data_size:{}'.format(data_siz))
-            print('imgsize:{}'.format(imgsize))
-            print('Error, the image size will larger than partition size')
-            print('  -> {}'.format(outimg))
-            sys.exit(0)
     if get_config(prj_root_dir + '.config', littlefs_enable) == 'y':
         imgname_opt = 'CONFIG_AIC_FS_IMAGE_NAME_{}'.format(img_id)
         imgname = get_config(prj_root_dir + '.config', imgname_opt).replace('"', '')
-        imgsize = mkimage_get_mtdpart_size(imgname)
         blksiz_opt = 'CONFIG_AIC_LITTLEFS_BLOCK_SIZE_FOR_{}'.format(img_id)
         blksiz = get_config(prj_root_dir + '.config', blksiz_opt)
         pagesiz_opt = 'CONFIG_AIC_LITTLEFS_PAGE_SIZE_FOR_{}'.format(img_id)
@@ -731,7 +1073,7 @@ def mkimage_gen_mkfs_action(img_id):
         mkfscmd += cmdstr
     if get_config(prj_root_dir + '.config', uffs_enable) == 'y':
         nand_list = mkimage_get_nand_params()
-        if nand_list == None:
+        if nand_list is None:
             return ''
         imgname_opt = 'CONFIG_AIC_FS_IMAGE_NAME_{}'.format(img_id)
         imgname = get_config(prj_root_dir + '.config', imgname_opt).replace('"', '')
@@ -747,9 +1089,9 @@ def mkimage_gen_mkfs_action(img_id):
             oobsiz = int(oobsiz)
             blkpagecnt = int(blksiz / pagesiz)
             partblkcnt = int(imgsize / blksiz)
-            prefix = 'page_{}k_block_{}k_oob_{}_'.format(int(pagesiz / 1024),
-                    int(blksiz / 1024), oobsiz)
-            outimg = os.path.join(prj_out_dir,prefix + imgname)
+            prefix = 'page_{}k_block_{}k_oob_{}_'.format(
+                int(pagesiz / 1024), int(blksiz / 1024), oobsiz)
+            outimg = os.path.join(prj_out_dir, prefix + imgname)
             if os.path.exists(outimg):
                 os.remove(outimg)
             cmdstr = 'python3 ' + aic_script_dir + 'makeuffs.py '
@@ -786,7 +1128,7 @@ def mkimage_prebuild(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_def
     aic_script_dir = os.path.join(aic_root, 'tools/scripts/')
     aic_common_dir = os.path.join(aic_root, 'bsp/artinchip/sys/' + prj_chip)
     aic_pack_dir = os.path.join(aic_root, 'target/' + prj_chip + '/' + prj_board + '/pack/')
-    prj_name = prj_defconfig.replace('_defconfig','')
+    prj_name = prj_defconfig.replace('_defconfig', '')
     prj_out_dir = os.path.join(aic_root, 'output/' + prj_name + '/images/')
     chip_path = os.path.join(aic_root, './bsp/artinchip/sys/' + prj_chip)
     os.environ["PRJ_OUT_DIR"] = prj_out_dir
@@ -806,7 +1148,7 @@ def mkimage_prebuild(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_def
         os.makedirs(prj_out_dir)
     # Gen partition table
     CMD = 'python3 ' + aic_script_dir + 'gen_partition_table.py'
-    CMD += ' -c ' + aic_pack_dir +  'image_cfg.json'
+    CMD += ' -c ' + aic_pack_dir + 'image_cfg.json'
     CMD += ' -o ' + prj_root_dir + 'partition_table.h'
     CMD += ' -j ' + prj_out_dir + 'partition.json'
     os.system(CMD)
@@ -814,7 +1156,7 @@ def mkimage_prebuild(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_def
 
     # Gen partition-file-list table
     CMD = 'python3 ' + aic_script_dir + 'gen_partition_file_list.py'
-    CMD += ' -c ' + aic_pack_dir +  'image_cfg.json'
+    CMD += ' -c ' + aic_pack_dir + 'image_cfg.json'
     CMD += ' -o ' + prj_out_dir + 'partition_file_list.h'
     os.system(CMD)
     PRE_ACTION += CMD + ';'
@@ -824,7 +1166,8 @@ def mkimage_prebuild(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_def
     MKFS_ACTION += mkimage_gen_mkfs_action(1)
 
     # save bootloader
-    POST_ACTION += 'python3 ' + aic_script_dir + 'linked_size.py' + ' -m ' + prj_out_dir + rtconfig.SOC + '.map\n'
+    POST_ACTION += 'python3 ' + aic_script_dir + 'linked_size.py' + ' -m ' \
+        + prj_out_dir + rtconfig.SOC + '.map\n'
     SOURCE_BIN = prj_out_dir + rtconfig.SOC + '.bin'
     TARGET_BIN = aic_pack_dir + 'bootloader.bin'
     if prj_kernel == 'baremetal' and "bootloader" == prj_app:
@@ -841,12 +1184,14 @@ def mkimage_prebuild(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_def
         DDR_JSON = prj_out_dir + 'ddr_init.json'
         PART_JSON = prj_out_dir + 'partition.json'
         DDR_BIN = prj_out_dir + 'ddr_init.bin'
-        MAKE_DDR_ACTION = MAKE_DDR_TOOL + ' -v -l {},{} -o {}\n'.format(DDR_JSON, PART_JSON, DDR_BIN)
+        MAKE_DDR_ACTION = MAKE_DDR_TOOL + \
+            ' -v -l {},{} -o {}\n'.format(DDR_JSON, PART_JSON, DDR_BIN)
         if os.path.exists(aic_pack_dir + 'ddr_init.json'):
             POST_ACTION += MAKE_DDR_ACTION
         PBP_JSON = prj_out_dir + 'pbp_cfg.json'
         PBP_BIN = prj_out_dir + 'pbp_cfg.bin'
-        MAKE_PBP_ACTION = MAKE_DDR_TOOL + ' -v -l {},{} -o {}\n'.format(PBP_JSON, PART_JSON, PBP_BIN)
+        MAKE_PBP_ACTION = MAKE_DDR_TOOL + \
+            ' -v -l {},{} -o {}\n'.format(PBP_JSON, PART_JSON, PBP_BIN)
         if os.path.exists(aic_pack_dir + 'pbp_cfg.json'):
             POST_ACTION += MAKE_PBP_ACTION
         # pack image files
@@ -872,7 +1217,8 @@ def mkimage_prebuild(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_def
         POST_ACTION += MAKE_IMG_ACTION
 
     if get_config(prj_root_dir + '.config', ota_enable) == 'y':
-        POST_ACTION += mkimage_cpio(aic_root, prj_chip, prj_kernel, prj_app, prj_defconfig, rtconfig.OBJCPY)
+        POST_ACTION += mkimage_cpio(aic_root, prj_chip, prj_kernel, prj_app,
+                                    prj_defconfig, rtconfig.OBJCPY)
 
     # eclipse pre/post build cmd
     aic_root_n = os.path.normpath(aic_root)
@@ -880,7 +1226,8 @@ def mkimage_prebuild(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_def
     aic_script_dir_n = os.path.normpath(aic_script_dir)
 
     eclipse_pre_build = PRE_ACTION
-    eclipse_pre_build = eclipse_pre_build.replace('python3', '${ProjDirPath}/../../../tools/env/tools/Python39/python3')
+    eclipse_pre_build = eclipse_pre_build.replace(
+        'python3', '${ProjDirPath}/../../../tools/env/tools/Python39/python3')
     eclipse_pre_build = eclipse_pre_build.replace(prj_out_dir, '${ProjDirPath}/Debug/')
     eclipse_pre_build = eclipse_pre_build.replace(prj_out_dir_n, '${ProjDirPath}/Debug')
     eclipse_pre_build = eclipse_pre_build.replace(aic_root, '${ProjDirPath}/../../..')
@@ -888,40 +1235,51 @@ def mkimage_prebuild(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_def
     eclipse_pre_build = eclipse_pre_build.replace('\\', '/')
 
     eclipse_sdk_pre_build = PRE_ACTION
-    eclipse_sdk_pre_build = eclipse_sdk_pre_build.replace('python3', '${ProjDirPath}/tools/Python39/python3')
+    eclipse_sdk_pre_build = eclipse_sdk_pre_build.replace(
+        'python3', '${ProjDirPath}/tools/Python39/python3')
     eclipse_sdk_pre_build = eclipse_sdk_pre_build.replace(prj_out_dir, '${ProjDirPath}/Debug/')
     eclipse_sdk_pre_build = eclipse_sdk_pre_build.replace(prj_out_dir_n, '${ProjDirPath}/Debug')
-    eclipse_sdk_pre_build = eclipse_sdk_pre_build.replace(aic_script_dir, '${ProjDirPath}/tools/scripts/')
-    eclipse_sdk_pre_build = eclipse_sdk_pre_build.replace(aic_script_dir_n, '${ProjDirPath}/tools/scripts')
+    eclipse_sdk_pre_build = eclipse_sdk_pre_build.replace(
+        aic_script_dir, '${ProjDirPath}/tools/scripts/')
+    eclipse_sdk_pre_build = eclipse_sdk_pre_build.replace(
+        aic_script_dir_n, '${ProjDirPath}/tools/scripts')
     eclipse_sdk_pre_build = eclipse_sdk_pre_build.replace(aic_root, '${ProjDirPath}')
     eclipse_sdk_pre_build = eclipse_sdk_pre_build.replace(aic_root_n, '${ProjDirPath}')
     eclipse_sdk_pre_build = eclipse_sdk_pre_build.replace('\\', '/')
 
     eclipse_post_build = POST_ACTION
-    eclipse_post_build = eclipse_post_build.replace('\n',';')
-    eclipse_post_build = eclipse_post_build.replace('python3', '${ProjDirPath}/../../../tools/env/tools/Python39/python3')
-    eclipse_post_build = eclipse_post_build.replace('@cp', '${ProjDirPath}/../../../tools/env/tools/bin/cp')
-    eclipse_post_build = eclipse_post_build.replace('@echo', '${ProjDirPath}/../../../tools/env/tools/bin/echo')
+    eclipse_post_build = eclipse_post_build.replace('\n', ';')
+    eclipse_post_build = eclipse_post_build.replace(
+        'python3', '${ProjDirPath}/../../../tools/env/tools/Python39/python3')
+    eclipse_post_build = eclipse_post_build.replace(
+        '@cp', '${ProjDirPath}/../../../tools/env/tools/bin/cp')
+    eclipse_post_build = eclipse_post_build.replace(
+        '@echo', '${ProjDirPath}/../../../tools/env/tools/bin/echo')
     eclipse_post_build = eclipse_post_build.replace(prj_out_dir, '${ProjDirPath}/Debug/')
     eclipse_post_build = eclipse_post_build.replace(prj_out_dir_n, '${ProjDirPath}/Debug')
     eclipse_post_build = eclipse_post_build.replace(aic_root, '${ProjDirPath}/../../..')
     eclipse_post_build = eclipse_post_build.replace(aic_root_n, '${ProjDirPath}/../../..')
-    eclipse_post_build = eclipse_post_build.replace('$TARGET', '${ProjDirPath}/Debug/${ProjName}.elf')
+    eclipse_post_build = eclipse_post_build.replace(
+        '$TARGET', '${ProjDirPath}/Debug/${ProjName}.elf')
     eclipse_post_build = eclipse_post_build.replace('\\', '/')
 
     eclipse_sdk_post_build = POST_ACTION
-    eclipse_sdk_post_build = eclipse_sdk_post_build.replace('\n',';')
-    eclipse_sdk_post_build = eclipse_sdk_post_build.replace('python3', '${ProjDirPath}/tools/Python39/python3')
+    eclipse_sdk_post_build = eclipse_sdk_post_build.replace('\n', ';')
+    eclipse_sdk_post_build = eclipse_sdk_post_build.replace(
+        'python3', '${ProjDirPath}/tools/Python39/python3')
     eclipse_sdk_post_build = eclipse_sdk_post_build.replace('@cp', '${ProjDirPath}/tools/bin/cp')
-    eclipse_sdk_post_build = eclipse_sdk_post_build.replace('@echo', '${ProjDirPath}/tools/bin/echo')
+    eclipse_sdk_post_build = eclipse_sdk_post_build.replace(
+        '@echo', '${ProjDirPath}/tools/bin/echo')
     eclipse_sdk_post_build = eclipse_sdk_post_build.replace(prj_out_dir, '${ProjDirPath}/Debug/')
     eclipse_sdk_post_build = eclipse_sdk_post_build.replace(prj_out_dir_n, '${ProjDirPath}/Debug')
     eclipse_sdk_post_build = eclipse_sdk_post_build.replace(aic_root, '${ProjDirPath}')
     eclipse_sdk_post_build = eclipse_sdk_post_build.replace(aic_root_n, '${ProjDirPath}')
-    eclipse_sdk_post_build = eclipse_sdk_post_build.replace('$TARGET', '${ProjDirPath}/Debug/${ProjName}.elf')
+    eclipse_sdk_post_build = eclipse_sdk_post_build.replace(
+        '$TARGET', '${ProjDirPath}/Debug/${ProjName}.elf')
     eclipse_sdk_post_build = eclipse_sdk_post_build.replace('\\', '/')
 
-    post_objcopy = "${cross_prefix}${cross_objcopy}${cross_suffix} -O binary ${ProjName}.elf ${ProjName}.bin;"
+    post_objcopy = "${cross_prefix}${cross_objcopy}${cross_suffix} -O binary \
+        ${ProjName}.elf ${ProjName}.bin;"
     os.environ["eclipse_pre_build"] = eclipse_pre_build
     os.environ["eclipse_post_build"] = post_objcopy + eclipse_post_build
     os.environ["eclipse_sdk_pre_build"] = eclipse_sdk_pre_build
@@ -933,6 +1291,7 @@ def mkimage_prebuild(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_def
     POST_ACTION += '@echo \n@echo Luban-Lite is built successfully \n@echo \n'
     return POST_ACTION
 
+
 noprj_msg = '''
 No project information
 You can start one project by following commands
@@ -941,6 +1300,7 @@ You can start one project by following commands
     scons --apply-def=<chip>_<board>_<kernel>_<app>_defconfig
     scons
 '''
+
 
 def chk_prj_config(aic_root):
     # cmd-option: list defconfig
@@ -963,6 +1323,7 @@ def chk_prj_config(aic_root):
     from menuconfig import mk_rtconfig
     mk_rtconfig(".config")
 
+
 def get_all_chip(tdir):
     v = []
     for root, dirs, files in os.walk(tdir):
@@ -974,6 +1335,7 @@ def get_all_chip(tdir):
     v.sort()
     return v
 
+
 def get_all_board(tdir):
     v = []
     for root, dirs, files in os.walk(tdir):
@@ -983,6 +1345,7 @@ def get_all_board(tdir):
             v.append(d)
     v.sort()
     return v
+
 
 def get_all_kernel(tdir):
     v = []
@@ -995,6 +1358,7 @@ def get_all_kernel(tdir):
     v.sort()
     return v
 
+
 def get_all_app(tdir):
     v = []
     for root, dirs, files in os.walk(tdir):
@@ -1005,9 +1369,10 @@ def get_all_app(tdir):
     v.sort()
     return v
 
+
 def mkimage_xip_postaction(aic_root, prj_chip, prj_kernel, prj_app, prj_defconfig, rtconfig_objcpy):
     config_file = os.path.join(aic_root, '.config')
-    key_xip    = 'CONFIG_AIC_XIP'
+    key_xip = 'CONFIG_AIC_XIP'
     global XIP_POST_ACTION
     XIP_POST_ACTION = ''
 
@@ -1017,94 +1382,103 @@ def mkimage_xip_postaction(aic_root, prj_chip, prj_kernel, prj_app, prj_defconfi
         return XIP_POST_ACTION
 
     global prj_out_dir
-    prj_name = prj_defconfig.replace('_defconfig','')
+    prj_name = prj_defconfig.replace('_defconfig', '')
     prj_out_dir = os.path.join(aic_root, 'output/' + prj_name + '/images/')
 
     # XIP image post action
     XIP_POST_ACTION += '@echo ' + prj_kernel + "-" + prj_app + ': make XIP image begin...\n'
-    XIP_POST_ACTION += rtconfig_objcpy + ' -O binary -j .text -j .eh_frame_hdr -j .eh_frame -j .gcc_except_table -j .rodata $TARGET ' + prj_out_dir + prj_chip + '.text.bin\n'
-    XIP_POST_ACTION += rtconfig_objcpy + ' -O binary -j .ram.code -j .data $TARGET ' + prj_out_dir + prj_chip+ '.data.bin\n'
+    XIP_POST_ACTION += rtconfig_objcpy + ' -O binary -j .text -j .eh_frame_hdr -j .eh_frame\
+        -j .gcc_except_table -j .rodata $TARGET ' + prj_out_dir + prj_chip\
+        + '.text.bin\n'
+    XIP_POST_ACTION += rtconfig_objcpy + ' -O binary -j .ram.code -j .data $TARGET '\
+        + prj_out_dir + prj_chip + '.data.bin\n'
 
-    XIP_POST_ACTION += 'python3 '+ aic_script_dir + 'merge_files.py ' + '-i ' + prj_out_dir + prj_chip + '.text.bin' + ' ' + prj_out_dir + prj_chip + '.data.bin' + ' -o ' + prj_out_dir + prj_chip + '.bin\n'
+    XIP_POST_ACTION += 'python3 ' + aic_script_dir + 'merge_files.py ' + '-i '\
+        + prj_out_dir + prj_chip + '.text.bin' + ' ' + prj_out_dir\
+        + prj_chip + '.data.bin' + ' -o ' + prj_out_dir + prj_chip + '.bin\n'
     XIP_POST_ACTION += '@echo ' + prj_kernel + "-" + prj_app + ': make XIP image done... \n'
 
     return XIP_POST_ACTION
+
 
 def mkimage_cpio(aic_root, prj_chip, prj_kernel, prj_app, prj_defconfig, rtconfig_objcpy):
     global CPIO_POST_ACTION
     CPIO_POST_ACTION = ''
 
     if not os.path.exists(aic_pack_dir + 'ota-subimgs.cfg'):
-        CPIO_POST_ACTION += '@echo ' + 'Warning: mkimage_cpio not find ' + aic_pack_dir + 'ota-subimgs.cfg' + ' \n'
+        CPIO_POST_ACTION += '@echo ' + 'Warning: mkimage_cpio not find '\
+                + aic_pack_dir + 'ota-subimgs.cfg' + ' \n'
         return CPIO_POST_ACTION
 
     os.system('cp ' + aic_pack_dir + 'ota-subimgs.cfg ' + prj_out_dir)
     aic_system = platform.system()
 
     CPIO_POST_ACTION += '@echo ' + 'make CPIO image begin...\n'
-    CPIO_POST_ACTION += 'python3 ' + aic_script_dir + 'mkcpio.py ' + aic_system + ' ' + aic_root + ' ' + aic_pack_dir + ' ' + prj_out_dir + '\n'
+    CPIO_POST_ACTION += 'python3 ' + aic_script_dir + 'mkcpio.py ' + aic_system\
+        + ' ' + aic_root + ' ' + aic_pack_dir + ' ' + prj_out_dir + '\n'
 
     CPIO_POST_ACTION += '@echo ' + 'make CPIO image done...\n'
     return CPIO_POST_ACTION
 
+
 def get_prj_config(aic_root):
     config_file = os.path.join(aic_root, '.config')
-    key_chip    = 'CONFIG_PRJ_CHIP'
-    key_board   = 'CONFIG_PRJ_BOARD'
-    key_kernel  = 'CONFIG_PRJ_KERNEL'
-    key_app     = 'CONFIG_PRJ_APP'
-    key_lds     = 'CONFIG_PRJ_CUSTOM_LDS'
+    key_chip = 'CONFIG_PRJ_CHIP'
+    key_board = 'CONFIG_PRJ_BOARD'
+    key_kernel = 'CONFIG_PRJ_KERNEL'
+    key_app = 'CONFIG_PRJ_APP'
+    key_lds = 'CONFIG_PRJ_CUSTOM_LDS'
 
     # get PRJ_CHIP
     PRJ_CHIP = get_config(config_file, key_chip)
     if PRJ_CHIP is None:
-        print('Get {} in {} fail, please check your configuration!!!'.format(key_chip, config_file))
+        print('Get {} in {} fail, please check your configuration!'.format(key_chip, config_file))
         exit(0)
-    PRJ_CHIP = PRJ_CHIP.replace('"','')
+    PRJ_CHIP = PRJ_CHIP.replace('"', '')
     # check PRJ_CHIP
     path = os.path.join(aic_root, 'target')
     chips = get_all_chip(path)
     if PRJ_CHIP not in chips:
-        print('Chip name {} is invalid, please check your configuration!!!'.format(PRJ_CHIP))
+        print('Chip name {} is invalid, please check your configuration!'.format(PRJ_CHIP))
         exit(0)
 
     # get PRJ_BOARD
     PRJ_BOARD = get_config(config_file, key_board)
     if PRJ_BOARD is None:
-        print('Get {} in {} fail, please check your configuration!!!'.format(key_board, config_file))
+        print('Get {} in {} fail, please check your configuration!'.format(key_board, config_file))
         exit(0)
-    PRJ_BOARD = PRJ_BOARD.replace('"','')
+    PRJ_BOARD = PRJ_BOARD.replace('"', '')
     # check PRJ_BOARD
     path = os.path.join(aic_root, 'target', PRJ_CHIP)
     boards = get_all_board(path)
     if PRJ_BOARD not in boards:
-        print('Board name {} is invalid, please check your configuration!!!'.format(PRJ_BOARD))
+        print('Board name {} is invalid, please check your configuration!'.format(PRJ_BOARD))
         exit(0)
 
     # get PRJ_KERNEL
     PRJ_KERNEL = get_config(config_file, key_kernel)
     if PRJ_KERNEL is None:
-        print('Get {} in {} fail, please check your configuration!!!'.format(key_kernel, config_file))
+        print('Get {} in {} fail, please check your configuration!'.format(key_kernel, config_file))
         exit(0)
-    PRJ_KERNEL = PRJ_KERNEL.replace('"','')
+    PRJ_KERNEL = PRJ_KERNEL.replace('"', '')
     # check PRJ_KERNEL
     path = os.path.join(aic_root, 'kernel')
     kernels = get_all_kernel(path)
     if PRJ_KERNEL not in kernels:
-        print('Kernel name {} is invalid, please check your configuration!!!'.format(PRJ_KERNEL))
+        print('Kernel name {} is invalid, please check your configuration!'.format(PRJ_KERNEL))
         exit(0)
 
     # get PRJ_APP
     PRJ_APP = get_config(config_file, key_app)
     if PRJ_APP is None:
-        print('Get {} in {} fail, please check your configuration!!!'.format(key_app, config_file))
+        print('Get {} in {} fail, please check your configuration!'.format(key_app, config_file))
         exit(0)
     PRJ_APP = PRJ_APP.replace('"', '')
     # check PRJ_APP
     path = os.path.join(aic_root, 'application', PRJ_KERNEL)
     apps = get_all_app(path)
     if PRJ_APP not in apps:
-        print('App name {} is invalid, please check your configuration!!!'.format(PRJ_APP))
+        print('App name {} is invalid, please check your configuration!'.format(PRJ_APP))
         exit(0)
 
     # get PRJ_NAME
@@ -1113,7 +1487,7 @@ def get_prj_config(aic_root):
     # get PRJ_CUSTOM_LDS
     custom_lds = get_config(config_file, key_lds)
     if custom_lds:
-        custom_lds = custom_lds.replace('"','')
+        custom_lds = custom_lds.replace('"', '')
     else:
         custom_lds = ''
     PRJ_CUSTOM_LDS = custom_lds
@@ -1133,19 +1507,30 @@ def get_prj_config(aic_root):
     # cmd-option: run qemu target
     run_qemu_cmd(aic_root, PRJ_CHIP, PRJ_BOARD, PRJ_KERNEL, PRJ_APP, PRJ_DEFCONFIG_NAME)
 
+    # cmd-option: list mem
+    list_mem_cmd(aic_root, PRJ_CHIP, PRJ_BOARD, PRJ_KERNEL, PRJ_APP, PRJ_DEFCONFIG_NAME)
+
     # cmd-option: list size
     list_size_cmd(aic_root, PRJ_CHIP, PRJ_BOARD, PRJ_KERNEL, PRJ_APP, PRJ_DEFCONFIG_NAME)
 
     # cmd-option: add board
     add_board_cmd(aic_root, PRJ_CHIP, PRJ_BOARD, PRJ_KERNEL, PRJ_APP, PRJ_DEFCONFIG_NAME)
 
+    # cmd-option: call aicupg command (installed by AiBurn)
+    aicupg_cmd(aic_root, PRJ_CHIP, PRJ_BOARD, PRJ_KERNEL, PRJ_APP, PRJ_DEFCONFIG_NAME)
+
     # cmd-option: distclean
     distclean_cmd(aic_root, PRJ_CHIP, PRJ_BOARD, PRJ_KERNEL, PRJ_APP, PRJ_DEFCONFIG_NAME)
+
+    # trim toolchain
+    trimtoolchain_cmd(aic_root, PRJ_CHIP, PRJ_BOARD, PRJ_KERNEL, PRJ_APP, PRJ_DEFCONFIG_NAME)
 
     # check & prepare toolchain
     chk_prepare_toolchain(aic_root, PRJ_CHIP, PRJ_BOARD, PRJ_KERNEL, PRJ_APP, PRJ_DEFCONFIG_NAME)
 
     # make image pre_build cmd
-    MKIMAGE_POST_ACTION = mkimage_prebuild(aic_root, PRJ_CHIP, PRJ_BOARD, PRJ_KERNEL, PRJ_APP, PRJ_DEFCONFIG_NAME)
+    MKIMAGE_POST_ACTION = mkimage_prebuild(aic_root, PRJ_CHIP, PRJ_BOARD, PRJ_KERNEL,
+                                           PRJ_APP, PRJ_DEFCONFIG_NAME)
 
-    return PRJ_CHIP, PRJ_BOARD, PRJ_KERNEL, PRJ_APP, PRJ_DEFCONFIG_NAME, PRJ_CUSTOM_LDS, MKIMAGE_POST_ACTION
+    return (PRJ_CHIP, PRJ_BOARD, PRJ_KERNEL, PRJ_APP, PRJ_DEFCONFIG_NAME,
+            PRJ_CUSTOM_LDS, MKIMAGE_POST_ACTION)

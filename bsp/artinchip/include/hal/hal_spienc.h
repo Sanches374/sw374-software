@@ -24,6 +24,7 @@
 
 int hal_spienc_init(void);
 void hal_spienc_set_cfg(u32 spi_bus, u32 addr, u32 cpos, u32 clen);
+void hal_spienc_set_bypass(int status);
 void hal_spienc_start(void);
 void hal_spienc_stop(void);
 int hal_spienc_check_empty(void);

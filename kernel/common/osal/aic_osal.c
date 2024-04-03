@@ -10,6 +10,7 @@
 
 unsigned long g_aicos_irq_state = 0;
 unsigned int g_aicos_irq_nested_cnt = 0;
+unsigned char g_dma_w_sync_buffer[CACHE_LINE_SIZE] __attribute__((aligned(CACHE_LINE_SIZE)));
 
 void aicos_irq_enter(void)
 {

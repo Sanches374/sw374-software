@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2023-2024, ArtInChip Technology Co., Ltd
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Authors: dwj <weijie.ding@artinchip.com>
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -7,7 +14,8 @@
 #include <aic_errno.h>
 #include <aic_hal_can.h>
 
-uint8_t rx_done = 0;
+#define CAN_TEST_ID                     0x123
+volatile uint8_t rx_done = 0;
 
 #define CAN_HELP                                            \
     "test_can <CAN BUS ID>:\n"                              \
@@ -33,6 +41,7 @@ static int test_can_example(int argc, char *argv[])
     int idx;
     can_handle can;
     can_msg_t msg, rx_msg;
+    can_filter_config_t filter_config;
 
     if (argc != 2)
     {
@@ -54,9 +63,19 @@ static int test_can_example(int argc, char *argv[])
     hal_can_enable_interrupt(&can);
     /* Set can callback */
     hal_can_attach_callback(&can, can_rx_callback, NULL);
+    /* Set can filter, only frame with ID CAN_TEST_ID is received */
+    memset(&filter_config, 0, sizeof(filter_config));
+    filter_config.filter_mode = SINGLE_FILTER_MODE;
+    filter_config.is_eff = 0;
+    filter_config.rxcode.sfs.id_filter = CAN_TEST_ID;
+    filter_config.rxmask.sfs.id_filter = 0;
+    filter_config.rxmask.sfs.rtr_filter = 1;
+    filter_config.rxmask.sfs.data0_filter = 0xff;
+    filter_config.rxmask.sfs.data1_filter = 0xff;
+    hal_can_ioctl(&can, CAN_IOCTL_SET_FILTER, &filter_config);
 
     /* Send CAN frame */
-    msg.id = 0x1FF;
+    msg.id = CAN_TEST_ID;
     msg.ide = 0;
     msg.rtr = 0;
     msg.dlc = 8;
@@ -70,7 +89,11 @@ static int test_can_example(int argc, char *argv[])
     msg.data[7] = 0x77;
     hal_can_send_frame(&can, &msg, SELF_REQ);
     /* Receive CAN frame*/
-    while (!rx_done);
+    while (!rx_done)
+    {
+
+    }
+
     rx_done = 0;
     hal_can_receive_frame(&can, &rx_msg);
     printf("self-test received msg:\n\t");

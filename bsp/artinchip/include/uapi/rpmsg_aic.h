@@ -17,7 +17,7 @@
 #define RPMSG_CMD_NACK          RPMSG_CMD_DEF('a', 1) /* Negative Ack */
 #define RPMSG_CMD_IS_IDLE       RPMSG_CMD_DEF('a', 2)
 #define RPMSG_CMD_PRE_STANDBY   RPMSG_CMD_DEF('a', 3) /* Prepare to standby */
-#define RPMSG_CMD_SYS_RDY       RPMSG_CMD_DEF('a', 0) /* System is ready */
+#define RPMSG_CMD_SYS_RDY       RPMSG_CMD_DEF('a', 4) /* System is ready */
 
 /* CSYS is receiver */
 
@@ -33,7 +33,7 @@
 #define RPMSG_CMD_EFUSE_WR      RPMSG_CMD_DEF('e', 4) /* Write eFuse */
 /* Only in APP environment */
 #define RPMSG_CMD_REQ_STANDBY   RPMSG_CMD_DEF('e', 5) /* Request to enter standby */
-#define RPMSG_CMD_DDR_RDY       RPMSG_CMD_DEF('e', 5) /* DDR is ready */
+#define RPMSG_CMD_DDR_RDY       RPMSG_CMD_DEF('e', 6) /* DDR is ready */
 
 /* SCSS is receiver */
 

@@ -843,46 +843,10 @@ static OMX_ERRORTYPE OMX_VideoRenderEmptyThisBuffer(
         return OMX_ErrorIncorrectStateOperation;
     }
 
-    // if (OMX_VideoRenderListEmpty(&pVideoRenderDataType->sInEmptyFrame,pVideoRenderDataType->sInFrameLock))
-    // {
-    //     if (pVideoRenderDataType->nInFrameNodeNum + 1> VIDEO_RENDER_FRAME_NUM_MAX) {
-    //         loge("empty node has aready increase to max [%d]!!!\n",pVideoRenderDataType->nInFrameNodeNum);
-    //         eError = OMX_ErrorInsufficientResources;
-    //         return  eError;
-    //     } else {
-    //         int i;
-    //         loge("no empty node,need to extend!!!\n");
-    //         for(i =0 ; i < VIDEO_RENDER_FRAME_ONE_TIME_CREATE_NUM; i++ ) {
-    //             VIDEO_RENDER_IN_FRAME *pFrameNode = (VIDEO_RENDER_IN_FRAME*)mpp_alloc(sizeof(VIDEO_RENDER_IN_FRAME));
-    //             if (NULL == pFrameNode) {
-    //                 break;
-    //             }
-    //             memset(pFrameNode,0x00,sizeof(VIDEO_RENDER_IN_FRAME));
-    //             aic_pthread_mutex_lock(&pVideoRenderDataType->sInFrameLock);
-    //             mpp_list_add_tail(&pFrameNode->sList, &pVideoRenderDataType->sInEmptyFrame);
-    //             aic_pthread_mutex_unlock(&pVideoRenderDataType->sInFrameLock);
-    //             pVideoRenderDataType->nInFrameNodeNum++;
-    //         }
-    //         if (i == 0) {
-    //             loge("mpp_alloc empty video node fail\n");
-    //             eError = OMX_ErrorInsufficientResources;
-    //             return  eError;
-    //         }
-    //     }
-    // }
-
     if (OMX_VideoRenderListEmpty(&pVideoRenderDataType->sInEmptyFrame,pVideoRenderDataType->sInFrameLock)) {
-        VIDEO_RENDER_IN_FRAME *pFrameNode = (VIDEO_RENDER_IN_FRAME*)mpp_alloc(sizeof(VIDEO_RENDER_IN_FRAME));
-        if (NULL == pFrameNode) {
-            loge("OMX_ErrorInsufficientResources\n");
-            aic_pthread_mutex_unlock(&pVideoRenderDataType->stateLock);
-            return OMX_ErrorInsufficientResources;
-        }
-        memset(pFrameNode,0x00,sizeof(VIDEO_RENDER_IN_FRAME));
-        aic_pthread_mutex_lock(&pVideoRenderDataType->sInFrameLock);
-        mpp_list_add_tail(&pFrameNode->sList, &pVideoRenderDataType->sInEmptyFrame);
-        aic_pthread_mutex_unlock(&pVideoRenderDataType->sInFrameLock);
-        pVideoRenderDataType->nInFrameNodeNum++;
+        loge("OMX_ErrorInsufficientResources\n");
+        aic_pthread_mutex_unlock(&pVideoRenderDataType->stateLock);
+        return OMX_ErrorInsufficientResources;
     }
 
     if (pVideoRenderDataType->sInPortTunneledInfo[VIDEO_RENDER_PORT_IN_VIDEO_INDEX].nTunneledFlag) {// now Tunneled and non-Tunneled are same
@@ -948,32 +912,6 @@ static OMX_ERRORTYPE OMX_VideoRenderEmptyThisBuffer(
     aic_pthread_mutex_unlock(&pVideoRenderDataType->stateLock);
 
     return eError;
-
-#if 0
-    pFrame->sFrameInfo.flags = pFrame1->sFrameInfo.flags;
-    pFrame->sFrameInfo.id = pFrame1->sFrameInfo.id;
-    pFrame->sFrameInfo.pts = pFrame1->sFrameInfo.pts;
-    pFrame->sFrameInfo.buf.buf_type = pFrame1->sFrameInfo.buf.buf_type;
-    pFrame->sFrameInfo.buf.crop.x = pFrame1->sFrameInfo.buf.crop.x;
-    pFrame->sFrameInfo.buf.crop.y = pFrame1->sFrameInfo.buf.crop.y;
-    pFrame->sFrameInfo.buf.crop.width = pFrame1->sFrameInfo.buf.crop.width;
-    pFrame->sFrameInfo.buf.crop.height = pFrame1->sFrameInfo.buf.crop.height;
-    pFrame->sFrameInfo.buf.crop_en = pFrame1->sFrameInfo.buf.crop_en;
-    pFrame->sFrameInfo.buf.phy_addr[0] = pFrame1->sFrameInfo.buf.phy_addr[0];
-    pFrame->sFrameInfo.buf.phy_addr[1] = pFrame1->sFrameInfo.buf.phy_addr[1];
-    pFrame->sFrameInfo.buf.phy_addr[2] = pFrame1->sFrameInfo.buf.phy_addr[2];
-    pFrame->sFrameInfo.buf.fd[0] = pFrame1->sFrameInfo.buf.fd[0];
-    pFrame->sFrameInfo.buf.fd[1] = pFrame1->sFrameInfo.buf.fd[1];
-    pFrame->sFrameInfo.buf.fd[2] = pFrame1->sFrameInfo.buf.fd[2];
-    pFrame->sFrameInfo.buf.flags = pFrame1->sFrameInfo.buf.flags;
-    pFrame->sFrameInfo.buf.format = pFrame1->sFrameInfo.buf.format;
-    pFrame->sFrameInfo.buf.size.width = pFrame1->sFrameInfo.buf.size.width;
-    pFrame->sFrameInfo.buf.size.height = pFrame1->sFrameInfo.buf.size.height;
-    pFrame->sFrameInfo.buf.stride[0] = pFrame1->sFrameInfo.buf.stride[0];
-    pFrame->sFrameInfo.buf.stride[1] = pFrame1->sFrameInfo.buf.stride[1];
-    pFrame->sFrameInfo.buf.stride[2] = pFrame1->sFrameInfo.buf.stride[2];
-#endif
-
 }
 
 static OMX_ERRORTYPE OMX_VideoRenderFillThisBuffer(
@@ -1005,7 +943,7 @@ OMX_ERRORTYPE OMX_VideoRenderComponentDeInit(
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     OMX_COMPONENTTYPE *pComp;
     VIDEO_RENDER_DATA_TYPE *pVideoRenderDataType;
-    VIDEO_RENDER_IN_FRAME    *pFrameNode = NULL,*pFrameNode1 = NULL;
+    // VIDEO_RENDER_IN_FRAME    *pFrameNode = NULL,*pFrameNode1 = NULL;
     pComp = (OMX_COMPONENTTYPE *)hComponent;
     struct aic_message sMsg;
     pVideoRenderDataType = (VIDEO_RENDER_DATA_TYPE *)pComp->pComponentPrivate;
@@ -1024,24 +962,9 @@ OMX_ERRORTYPE OMX_VideoRenderComponentDeInit(
     pthread_join(pVideoRenderDataType->threadId, (void*)&eError);
 
     aic_pthread_mutex_lock(&pVideoRenderDataType->sInFrameLock);
-    if (!mpp_list_empty(&pVideoRenderDataType->sInEmptyFrame)) {
-            mpp_list_for_each_entry_safe(pFrameNode, pFrameNode1, &pVideoRenderDataType->sInEmptyFrame, sList) {
-                mpp_list_del(&pFrameNode->sList);
-                mpp_free(pFrameNode);
-        }
-    }
-
-    if (!mpp_list_empty(&pVideoRenderDataType->sInReadyFrame)) {
-            mpp_list_for_each_entry_safe(pFrameNode, pFrameNode1, &pVideoRenderDataType->sInReadyFrame, sList) {
-                mpp_list_del(&pFrameNode->sList);
-                mpp_free(pFrameNode);
-        }
-    }
-    if (!mpp_list_empty(&pVideoRenderDataType->sInProcessedFrmae)) {
-            mpp_list_for_each_entry_safe(pFrameNode, pFrameNode1, &pVideoRenderDataType->sInProcessedFrmae, sList) {
-                mpp_list_del(&pFrameNode->sList);
-                mpp_free(pFrameNode);
-        }
+     if (pVideoRenderDataType->pInFrameNodeHead) {
+        mpp_free(pVideoRenderDataType->pInFrameNodeHead);
+        pVideoRenderDataType->pInFrameNodeHead = NULL;
     }
     aic_pthread_mutex_unlock(&pVideoRenderDataType->sInFrameLock);
 
@@ -1087,7 +1010,13 @@ OMX_ERRORTYPE OMX_VideoRenderComponentInit(
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     OMX_U32 err;
     OMX_U32 i;
-    //OMX_U32 cnt;
+
+    VIDEO_RENDER_IN_FRAME *pFrameNode = NULL;
+    VIDEO_RENDER_IN_FRAME *pFrameNodeHead = NULL;
+
+    OMX_S8 nMsgCreateOk = 0;
+    OMX_S8 nInFrameLockInitOk = 0;
+    OMX_S8 nSateLockInitOk = 0;
 
     pthread_attr_t attr;
     video_thread_attr_init(&attr);
@@ -1100,8 +1029,7 @@ OMX_ERRORTYPE OMX_VideoRenderComponentInit(
 
     if (NULL == pVideoRenderDataType) {
         loge("mpp_alloc(sizeof(VIDEO_RENDER_DATA_TYPE) fail!");
-        eError = OMX_ErrorInsufficientResources;
-        goto _EXIT1;
+        return OMX_ErrorInsufficientResources;
     }
 
     memset(pVideoRenderDataType, 0x0, sizeof(VIDEO_RENDER_DATA_TYPE));
@@ -1148,68 +1076,82 @@ OMX_ERRORTYPE OMX_VideoRenderComponentInit(
     mpp_list_init(&pVideoRenderDataType->sInEmptyFrame);
     mpp_list_init(&pVideoRenderDataType->sInReadyFrame);
     mpp_list_init(&pVideoRenderDataType->sInProcessedFrmae);
-    pthread_mutex_init(&pVideoRenderDataType->sInFrameLock, NULL);
-    for(i =0 ; i < VIDEO_RENDER_FRAME_ONE_TIME_CREATE_NUM; i++) {
-        VIDEO_RENDER_IN_FRAME *pFrameNode = (VIDEO_RENDER_IN_FRAME*)mpp_alloc(sizeof(VIDEO_RENDER_IN_FRAME));
-        if (NULL == pFrameNode) {
-            break;
-        }
-        memset(pFrameNode,0x00,sizeof(VIDEO_RENDER_IN_FRAME));
-        mpp_list_add_tail(&pFrameNode->sList, &pVideoRenderDataType->sInEmptyFrame);
-        pVideoRenderDataType->nInFrameNodeNum++;
-    }
-    if (pVideoRenderDataType->nInFrameNodeNum == 0) {
-        loge("mpp_alloc empty video node fail\n");
-        eError = OMX_ErrorInsufficientResources;
-        goto _EXIT2;
-    }
 
-    if (aic_msg_create(&pVideoRenderDataType->sMsgQue)<0)
-    {
+    if (pthread_mutex_init(&pVideoRenderDataType->sInFrameLock, NULL)) {
+        loge("pthread_mutex_init fail!\n");
+        eError = OMX_ErrorInsufficientResources;
+        goto _EXIT;
+    }
+    nInFrameLockInitOk = 1;
+
+    pFrameNodeHead = (VIDEO_RENDER_IN_FRAME*)mpp_alloc(sizeof(VIDEO_RENDER_IN_FRAME) * VIDEO_RENDER_FRAME_ONE_TIME_CREATE_NUM);
+    if (pFrameNodeHead == NULL) {
+        loge("mpp_alloc empty VDEC_IN_PACKET node fail\n");
+        eError = OMX_ErrorInsufficientResources;
+        goto _EXIT;
+    }
+    memset(pFrameNodeHead,0x00,sizeof(VIDEO_RENDER_IN_FRAME) * VIDEO_RENDER_FRAME_ONE_TIME_CREATE_NUM);
+    pVideoRenderDataType->nInFrameNodeNum = VIDEO_RENDER_FRAME_ONE_TIME_CREATE_NUM;
+    pFrameNode = pFrameNodeHead;
+    for(i = 0; i < VIDEO_RENDER_FRAME_ONE_TIME_CREATE_NUM; i++) {
+        mpp_list_init(&pFrameNode->sList);
+        mpp_list_add_tail(&pFrameNode->sList, &pVideoRenderDataType->sInEmptyFrame);
+        pFrameNode++;
+    }
+    pVideoRenderDataType->pInFrameNodeHead = pFrameNodeHead;
+
+    if (aic_msg_create(&pVideoRenderDataType->sMsgQue)<0) {
         loge("aic_msg_create fail!");
         eError = OMX_ErrorInsufficientResources;
-        goto _EXIT4;
+        goto _EXIT;
     }
+    nMsgCreateOk = 1;
 
     pVideoRenderDataType->eClockState = OMX_TIME_ClockStateStopped;
-
     pVideoRenderDataType->nRotationAngle = MPP_ROTATION_0;
     pVideoRenderDataType->nRotationAngleChange = 0;
     pVideoRenderDataType->nInitRotationParam = 0;
 
-    pthread_mutex_init(&pVideoRenderDataType->stateLock, NULL);
+    if (pthread_mutex_init(&pVideoRenderDataType->stateLock, NULL)) {
+        loge("pthread_mutex_init fail!\n");
+        eError = OMX_ErrorInsufficientResources;
+        goto _EXIT;
+    }
+    nSateLockInitOk = 1;
+
     // Create the component thread
     err = pthread_create(&pVideoRenderDataType->threadId, &attr, OMX_VideoRenderComponentThread, pVideoRenderDataType);
-    //if (err || !pVideoRenderDataType->threadId)
-    if (err)
-    {
+    if (err) {
         loge("pthread_create fail!");
         eError = OMX_ErrorInsufficientResources;
-        goto _EXIT5;
+        goto _EXIT;
     }
 
     return eError;
 
-_EXIT5:
-    aic_msg_destroy(&pVideoRenderDataType->sMsgQue);
-    pthread_mutex_destroy(&pVideoRenderDataType->stateLock);
-
-_EXIT4:
-    if (!mpp_list_empty(&pVideoRenderDataType->sInEmptyFrame)) {
-        VIDEO_RENDER_IN_FRAME    *pFrameNode = NULL,*pFrameNode1 = NULL;
-        mpp_list_for_each_entry_safe(pFrameNode, pFrameNode1, &pVideoRenderDataType->sInEmptyFrame, sList) {
-            mpp_list_del(&pFrameNode->sList);
-            mpp_free(pFrameNode);
-        }
+_EXIT:
+    if (nInFrameLockInitOk) {
+        pthread_mutex_destroy(&pVideoRenderDataType->sInFrameLock);
     }
 
-_EXIT2:
+    if (nSateLockInitOk) {
+        pthread_mutex_destroy(&pVideoRenderDataType->stateLock);
+    }
+
+    if (nMsgCreateOk) {
+       aic_msg_destroy(&pVideoRenderDataType->sMsgQue);
+    }
+
+    if (pVideoRenderDataType->pInFrameNodeHead) {
+        mpp_free(pVideoRenderDataType->pInFrameNodeHead);
+        pVideoRenderDataType->pInFrameNodeHead = NULL;
+    }
+
     if (pVideoRenderDataType) {
         mpp_free(pVideoRenderDataType);
         pVideoRenderDataType = NULL;
     }
 
-_EXIT1:
     return eError;
 }
 
@@ -1613,54 +1555,54 @@ static OMX_VIDEO_SYNC_TYPE OMX_VdieoRenderProcessVideoSync(VIDEO_RENDER_DATA_TYP
 #ifdef OMX_VIDEORENDER_ENABLE_DUMP_PIC
 static int OMX_VideoRenderDumpPic(struct mpp_buf* video,int index)
 {
-	int i;
-	int data_size[3] =  {0, 0, 0};
-	int comp = 3;
-	FILE* fp_save = NULL;
-	char fileName[255] =  {0};
-	if (video->format == MPP_FMT_YUV420P)  {
-		comp = 3;
-		data_size[0] = video->size.height * video->stride[0];
-		data_size[1] = data_size[2] = data_size[0]/4;
-	}  else if (video->format == MPP_FMT_NV12 || video->format == MPP_FMT_NV21)  {
-		comp = 2;
-		data_size[0] = video->size.height * video->stride[0];
-		data_size[1] =  data_size[0]/2;
-	}  else if (video->format == MPP_FMT_YUV444P)  {
-		comp = 3;
-		data_size[0] = video->size.height * video->stride[0];
-		data_size[1] = data_size[2] = data_size[0];
-	}  else if (video->format == MPP_FMT_YUV422P)  {
-		comp = 3;
-		data_size[0] = video->size.height * video->stride[0];
-		data_size[1] = data_size[2] = data_size[0]/2;
-	}  else if (video->format == MPP_FMT_RGBA_8888 || video->format == MPP_FMT_BGRA_8888
-		|| video->format == MPP_FMT_ARGB_8888 || video->format == MPP_FMT_ABGR_8888)  {
-		comp = 1;
-		data_size[0] = video->size.height * video->stride[0];
-	}  else if (video->format == MPP_FMT_RGB_888 || video->format == MPP_FMT_BGR_888)  {
-		comp = 1;
-		data_size[0] = video->size.height * video->stride[0];
-	}  else if (video->format == MPP_FMT_RGB_565 || video->format == MPP_FMT_BGR_565)  {
-		comp = 1;
-		data_size[0] = video->size.height * video->stride[0];
-	}
-	loge("data_size: %d %d %d, height: %d, stride: %d, format: %d",
-		data_size[0], data_size[1], data_size[2],
-		video->size.height, video->stride[0], video->format);
-	snprintf(fileName,sizeof(fileName),"/sdcard/video/pics/pic%d.yuv",index);
-	fp_save = fopen(fileName, "wb");
-	if (fp_save  == NULL) {
-		loge("fopen %s error\n",fileName);
-		return -1;
-	}
-	logd("fopen %s ok\n",fileName);
-	for(i=0; i<comp; i++)  {
-		if (fp_save)
-			fwrite((void *)video->phy_addr[i], 1, data_size[i], fp_save);
-	}
-	fclose(fp_save);
-	return 0;
+    int i;
+    int data_size[3] =  {0, 0, 0};
+    int comp = 3;
+    FILE* fp_save = NULL;
+    char fileName[255] =  {0};
+    if (video->format == MPP_FMT_YUV420P)  {
+        comp = 3;
+        data_size[0] = video->size.height * video->stride[0];
+        data_size[1] = data_size[2] = data_size[0]/4;
+    }  else if (video->format == MPP_FMT_NV12 || video->format == MPP_FMT_NV21)  {
+        comp = 2;
+        data_size[0] = video->size.height * video->stride[0];
+        data_size[1] =  data_size[0]/2;
+    }  else if (video->format == MPP_FMT_YUV444P)  {
+        comp = 3;
+        data_size[0] = video->size.height * video->stride[0];
+        data_size[1] = data_size[2] = data_size[0];
+    }  else if (video->format == MPP_FMT_YUV422P)  {
+        comp = 3;
+        data_size[0] = video->size.height * video->stride[0];
+        data_size[1] = data_size[2] = data_size[0]/2;
+    }  else if (video->format == MPP_FMT_RGBA_8888 || video->format == MPP_FMT_BGRA_8888
+        || video->format == MPP_FMT_ARGB_8888 || video->format == MPP_FMT_ABGR_8888)  {
+        comp = 1;
+        data_size[0] = video->size.height * video->stride[0];
+    }  else if (video->format == MPP_FMT_RGB_888 || video->format == MPP_FMT_BGR_888)  {
+        comp = 1;
+        data_size[0] = video->size.height * video->stride[0];
+    }  else if (video->format == MPP_FMT_RGB_565 || video->format == MPP_FMT_BGR_565)  {
+        comp = 1;
+        data_size[0] = video->size.height * video->stride[0];
+    }
+    loge("data_size: %d %d %d, height: %d, stride: %d, format: %d",
+        data_size[0], data_size[1], data_size[2],
+        video->size.height, video->stride[0], video->format);
+    snprintf(fileName,sizeof(fileName),"/sdcard/video/pics/pic%d.yuv",index);
+    fp_save = fopen(fileName, "wb");
+    if (fp_save  == NULL) {
+        loge("fopen %s error\n",fileName);
+        return -1;
+    }
+    logd("fopen %s ok\n",fileName);
+    for(i=0; i<comp; i++)  {
+        if (fp_save)
+            fwrite((void *)video->phy_addr[i], 1, data_size[i], fp_save);
+    }
+    fclose(fp_save);
+    return 0;
 }
 #endif
 

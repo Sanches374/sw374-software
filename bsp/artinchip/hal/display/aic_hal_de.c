@@ -16,7 +16,7 @@
 
 #define CSC_COEFFS_NUM  12
 #define CCM_COEF_NUM    12
-#define GAMMA_COEF_NUM  64
+#define GAMMA_COEF_NUM  16
 
 static int yuv2rgb_bt601_limit[3][4] = {
     {1192, 0, 1634, -3269},
@@ -661,21 +661,20 @@ void de_config_gamma_lut(void *base_addr, const u32 *gamma_table, int channel)
 {
     int i, value;
 
-    for (i = 0; i < GAMMA_COEF_NUM; i += 4) {
-        value = (GAMMA_LUT0(gamma_table[i + 0]) & GAMMA_LUT0_MASK) |
-                (GAMMA_LUT1(gamma_table[i + 1]) & GAMMA_LUT1_MASK) |
-                (GAMMA_LUT2(gamma_table[i + 2]) & GAMMA_LUT2_MASK) |
-                (GAMMA_LUT3(gamma_table[i + 3]) & GAMMA_LUT3_MASK);
+    for (i = 0; i < GAMMA_COEF_NUM; i++) {
+        value = gamma_table[i];
 
         switch (channel) {
-        case 0:
-            reg_write(base_addr + GAMMA_RED_LUT(i / 4), value);
+        case GAMMA_RED:
+            reg_write(base_addr + GAMMA_RED_LUT(i), value);
             break;
-        case 1:
-            reg_write(base_addr + GAMMA_GREEN_LUT(i / 4), value);
+        case GAMMA_GREEN:
+            reg_write(base_addr + GAMMA_GREEN_LUT(i), value);
+            break;
+        case GAMMA_BLUE:
+            reg_write(base_addr + GAMMA_BLUE_LUT(i), value);
             break;
         default:
-            reg_write(base_addr + GAMMA_BLUE_LUT(i / 4), value);
             break;
         }
     }

@@ -1137,7 +1137,13 @@ int wifi_on(rtw_mode_t mode)
 
 	#if CONFIG_LWIP_LAYER
 	#if defined(CONFIG_PLATFOMR_CUSTOMER_RTOS)
-	//TODO
+	netif_set_up(&xnetif[0]);
+	if(mode == RTW_MODE_AP)
+		netif_set_link_up(&xnetif[0]);
+	else if(mode == RTW_MODE_STA_AP) {
+		netif_set_up(&xnetif[1]);
+		netif_set_link_up(&xnetif[1]);
+	}
 	#else
 	netif_set_up(&xnetif[0]);
 	if(mode == RTW_MODE_AP)

@@ -245,8 +245,8 @@ struct aic_clk_ops {
         .comm.ops    = &aic_clk_cpu_ops, \
         .comm.name = _name,  \
     }
-#define CPUCLK(_id, _name, _parent, _key_val, _reg, _key, _keyw, _gate, _mux, _muxw, _div0, _div0w) \
-    CPUCLK_DEF(_id, _name, _parent, _key_val, _reg, _key, _keyw, _gate, _mux, _muxw, _div0, _div0w)
+#define CPUCLK(_id, _name, _parent, _reg, _key_val, _key, _keyw, _gate, _mux, _muxw, _div0, _div0w) \
+    CPUCLK_DEF(_id, _name, _parent, _reg, _key_val, _key, _keyw, _gate, _mux, _muxw, _div0, _div0w)
 
 /* For display clock */
 #define DISPCLK_DEF(_id, _name, _parent_id, _parent_name, _reg, _divn, \

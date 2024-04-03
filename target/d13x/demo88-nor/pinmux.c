@@ -24,29 +24,75 @@ struct aic_pinmux aic_pinmux_config[] = {
     {5, PIN_PULL_DIS, 3, "PA.0"},
     {5, PIN_PULL_DIS, 3, "PA.1"},
 #ifdef AIC_DEV_UART0_MODE_RS485
-    {1, PIN_PULL_DIS, 3, AIC_UART0_PA_RS485_CTL_NAME},
+    {1, PIN_PULL_DIS, 3, AIC_UART0_RTS_NAME},
 #endif
+#ifdef AIC_DEV_UART0_MODE_RS232_UNAUTO_FLOW_CTRL
+    #ifdef AIC_UART0_RTS_ENABLE
+        {1, PIN_PULL_DIS, 3, AIC_UART0_RTS_NAME},   // BT_UART2_RTS
+    #endif
+    #ifdef AIC_UART0_CTS_ENABLE
+        {1, PIN_PULL_DIS, 3, AIC_UART0_CTS_NAME},   // BT_UART2_CTS
+    #endif
+#elif defined AIC_DEV_UART0_MODE_RS232_SW_HW_FLOW_CTRL
+    #ifdef AIC_UART0_RTS_ENABLE
+        {1, PIN_PULL_DIS, 3, AIC_UART0_RTS_NAME},   // BT_UART2_RTS
+    #endif
+    #ifdef AIC_UART0_CTS_ENABLE
+        {1, PIN_PULL_DIS, 3, AIC_UART0_CTS_NAME},   // BT_UART2_CTS
+    #endif
+#endif
+
 #endif
 #ifdef AIC_USING_UART1
     /* uart1 */
     {5, PIN_PULL_DIS, 3, "PD.2"},
     {5, PIN_PULL_DIS, 3, "PD.3"},
 #ifdef AIC_DEV_UART1_MODE_RS485
-    {1, PIN_PULL_DIS, 3, AIC_UART1_PA_RS485_CTL_NAME},
+    {1, PIN_PULL_DIS, 3, AIC_UART1_RTS_NAME},
 #endif
+#ifdef AIC_DEV_UART1_MODE_RS232_UNAUTO_FLOW_CTRL
+    #ifdef AIC_UART1_RTS_ENABLE
+        {1, PIN_PULL_DIS, 3, AIC_UART1_RTS_NAME},   // BT_UART2_RTS
+    #endif
+    #ifdef AIC_UART1_CTS_ENABLE
+        {1, PIN_PULL_DIS, 3, AIC_UART1_CTS_NAME},   // BT_UART2_CTS
+    #endif
+#endif
+#ifdef AIC_DEV_UART1_MODE_RS232_SW_HW_FLOW_CTRL
+    #ifdef AIC_UART1_RTS_ENABLE
+        {1, PIN_PULL_DIS, 3, AIC_UART1_RTS_NAME},   // BT_UART2_RTS
+    #endif
+    #ifdef AIC_UART1_CTS_ENABLE
+        {1, PIN_PULL_DIS, 3, AIC_UART1_CTS_NAME},   // BT_UART2_CTS
+    #endif
+#endif
+
 #endif
 #ifdef AIC_USING_UART2
     /* uart2 */
+    {5, PIN_PULL_DIS, 3, "PD.4"},   // BT_UART2_TX
+    {5, PIN_PULL_DIS, 3, "PD.5"},   // BT_UART2_RX
 #ifdef AIC_DEV_UART2_MODE_RS485
-    {5, PIN_PULL_DIS, 3, "PD.4"},   // BT_UART2_TX
-    {5, PIN_PULL_DIS, 3, "PD.5"},   // BT_UART2_RX
-    {1, PIN_PULL_DIS, 3, AIC_UART2_PA_RS485_CTL_NAME},
+    {1, PIN_PULL_DIS, 3, AIC_UART2_RTS_NAME},
+#elif defined AIC_DEV_UART2_MODE_RS232_UNAUTO_FLOW_CTRL
+    #ifdef AIC_UART2_RTS_ENABLE
+        {1, PIN_PULL_DIS, 3, AIC_UART2_RTS_NAME},   // BT_UART2_RTS
+    #endif
+    #ifdef AIC_UART2_CTS_ENABLE
+        {1, PIN_PULL_DIS, 3, AIC_UART2_CTS_NAME},   // BT_UART2_CTS
+    #endif
+#elif defined AIC_DEV_UART2_MODE_RS232_SW_HW_FLOW_CTRL
+    #ifdef AIC_UART2_RTS_ENABLE
+        {1, PIN_PULL_DIS, 3, AIC_UART2_RTS_NAME},   // BT_UART2_RTS
+    #endif
+    #ifdef AIC_UART2_CTS_ENABLE
+        {1, PIN_PULL_DIS, 3, AIC_UART2_CTS_NAME},   // BT_UART2_CTS
+    #endif
 #else
-    {8, PIN_PULL_DIS, 3, "PA.2"},   // BT_UART2_CTS
-    {8, PIN_PULL_DIS, 3, "PA.3"},   // BT_UART2_RTS
-    {5, PIN_PULL_DIS, 3, "PD.4"},   // BT_UART2_TX
-    {5, PIN_PULL_DIS, 3, "PD.5"},   // BT_UART2_RX
-    {1, PIN_PULL_DIS, 3, "PD.6"},   // BT_PWR_ON
+   {8, PIN_PULL_DIS, 3, "PA.2"},   // BT_UART2_CTS
+   {8, PIN_PULL_DIS, 3, "PA.3"},   // BT_UART2_RTS
+   {1, PIN_PULL_DIS, 3, "PD.6"},   // BT_PWR_ON
+
 #endif
 #endif
 #ifdef AIC_USING_CAN0
@@ -242,6 +288,78 @@ struct aic_pinmux aic_pinmux_config[] = {
     {2, PIN_PULL_DIS, 3, "PA.9"},
     {2, PIN_PULL_DIS, 3, "PA.10"},
     {2, PIN_PULL_DIS, 3, "PA.11"},
+#endif
+#ifdef AIC_USING_PSADC0
+    {7, PIN_PULL_DIS, 3, "PA.0"},
+#endif
+#ifdef AIC_USING_PSADC1
+    {7, PIN_PULL_DIS, 3, "PA.1"},
+#endif
+#ifdef AIC_USING_PSADC2
+    {7, PIN_PULL_DIS, 3, "PA.2"},
+#endif
+#ifdef AIC_USING_PSADC3
+    {7, PIN_PULL_DIS, 3, "PA.3"},
+#endif
+#ifdef AIC_USING_PSADC4
+    {7, PIN_PULL_DIS, 3, "PA.4"},
+#endif
+#ifdef AIC_USING_PSADC5
+    {7, PIN_PULL_DIS, 3, "PA.5"},
+#endif
+#ifdef AIC_USING_PSADC6
+    {7, PIN_PULL_DIS, 3, "PA.6"},
+#endif
+#ifdef AIC_USING_PSADC7
+    {7, PIN_PULL_DIS, 3, "PA.7"},
+#endif
+#ifdef AIC_USING_PSADC8
+    {7, PIN_PULL_DIS, 3, "PA.8"},
+#endif
+#ifdef AIC_USING_PSADC9
+    {7, PIN_PULL_DIS, 3, "PA.9"},
+#endif
+#ifdef AIC_USING_PSADC10
+    {7, PIN_PULL_DIS, 3, "PA.10"},
+#endif
+#ifdef AIC_USING_PSADC11
+    {7, PIN_PULL_DIS, 3, "PA.11"},
+#endif
+#ifdef AIC_USING_PSADC12
+    {7, PIN_PULL_DIS, 3, "PA.12"},
+#endif
+#ifdef AIC_USING_PSADC13
+    {7, PIN_PULL_DIS, 3, "PA.13"},
+#endif
+#ifdef AIC_USING_PSADC14
+    {7, PIN_PULL_DIS, 3, "PA.14"},
+#endif
+#ifdef AIC_USING_PSADC15
+    {7, PIN_PULL_DIS, 3, "PA.15"},
+#endif
+#ifdef AIC_USING_GPAI0
+    {2, PIN_PULL_DIS, 3, "PA.0"},
+#endif
+#ifdef AIC_USING_GPAI1
+    {2, PIN_PULL_DIS, 3, "PA.1"},
+#endif
+#ifdef AIC_USING_GPAI2
+    {2, PIN_PULL_DIS, 3, "PA.2"},
+#endif
+#ifdef AIC_USING_GPAI3
+    {2, PIN_PULL_DIS, 3, "PA.3"},
+#endif
+#ifdef AIC_USING_GPAI4
+    {2, PIN_PULL_DIS, 3, "PA.4"},
+#endif
+#ifdef AIC_USING_GPAI5
+    {2, PIN_PULL_DIS, 3, "PA.5"},
+#endif
+#ifdef AIC_USING_GPAI6
+    {2, PIN_PULL_DIS, 3, "PA.6"},
+#endif
+#ifdef AIC_USING_GPAI7
+    {2, PIN_PULL_DIS, 3, "PA.7"},
 #endif
 };
 

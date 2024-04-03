@@ -186,6 +186,25 @@ rt_err_t rt_pwm_set(struct rt_device_pwm *device, int channel, rt_uint32_t perio
     return result;
 }
 
+rt_err_t rt_pwm_set_output(struct rt_device_pwm *device, int channel, rt_uint32_t period, rt_uint32_t pulse, rt_uint32_t output)
+{
+    rt_err_t result = RT_EOK;
+    struct rt_pwm_configuration configuration = {0};
+
+    if (!device)
+    {
+        return -RT_EIO;
+    }
+
+    configuration.channel = (channel > 0) ? (channel) : (-channel);
+    configuration.period = period;
+    configuration.pulse = pulse;
+    configuration.output = output;
+    result = rt_device_control(&device->parent, PWM_CMD_SET_OUTPUT, &configuration);
+
+    return result;
+}
+
 #ifdef AIC_XPWM_DRV
 rt_err_t rt_pwm_set_fifo_num(struct rt_device_pwm *device, int channel, rt_uint32_t fifo_num)
 {

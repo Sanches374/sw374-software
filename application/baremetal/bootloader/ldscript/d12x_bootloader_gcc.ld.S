@@ -49,7 +49,7 @@ MEMORY
 {
     /* The last 256KB for bootloader */
     SRAM_SW     : ORIGIN = 0x30040000, LENGTH = 0x8000
-    PSRAM_BOOT_SW : ORIGIN = 0x40300100, LENGTH = 0x100000
+    PSRAM_BOOT_SW : ORIGIN = 0x40200100, LENGTH = 0x200000
 }
 
 PROVIDE (__sram_start             = 0x30040000);

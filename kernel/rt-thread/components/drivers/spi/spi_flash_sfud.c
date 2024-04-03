@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <rtdevice.h>
+#include <spienc.h>
 #include "spi_flash.h"
 #include "spi_flash_sfud.h"
 #include "aic_time.h"
@@ -145,6 +146,15 @@ static sfud_err spi_set_speed(const sfud_spi *spi, uint32_t bus_hz)
 #endif
 }
 
+static sfud_err spi_get_bus_id(const sfud_spi *spi, uint32_t *bus_id)
+{
+    sfud_flash *sfud_dev = (sfud_flash *) (spi->user_data);
+
+    *bus_id = sfud_dev->index;
+
+    return SFUD_SUCCESS;
+}
+
 /**
  * SPI write data then read data
  */
@@ -211,6 +221,7 @@ static sfud_err qspi_read(const struct __sfud_spi *spi, uint32_t addr, sfud_qspi
     sfud_flash *sfud_dev = (sfud_flash *) (spi->user_data);
     struct spi_flash_device *rtt_dev = (struct spi_flash_device *) (sfud_dev->user_data);
     struct rt_qspi_device *qspi_dev = (struct rt_qspi_device *) (rtt_dev->rt_spi_device);
+    uint32_t single_cnt, rest_cnt, dmycnt, dmybw;
 
     RT_ASSERT(spi);
     RT_ASSERT(sfud_dev);
@@ -238,9 +249,45 @@ static sfud_err qspi_read(const struct __sfud_spi *spi, uint32_t addr, sfud_qspi
     message.parent.cs_take = 1;
     message.qspi_data_lines = qspi_read_cmd_format->data_lines;
 
+    single_cnt = 0;
+    rest_cnt = 0;
+    dmybw = 1;
+    if (message.instruction.qspi_lines == 1) {
+        single_cnt++;
+    } else if (message.instruction.qspi_lines > 1) {
+        rest_cnt++;
+        dmybw = message.instruction.qspi_lines;
+    }
+
+    if ((message.address.size != 0) &&
+        (message.address.qspi_lines == 1)) {
+        single_cnt += message.address.size;
+        dmybw = message.address.qspi_lines;
+    } else if ((message.address.size != 0) &&
+               (message.address.qspi_lines > 1)) {
+        rest_cnt += message.address.size;
+        dmybw = message.address.qspi_lines;
+    }
+
+    dmycnt = (dmybw * message.dummy_cycles) / 8;
+    if ((dmycnt != 0) && (dmybw == 1)) {
+        single_cnt += dmycnt;
+    } else if (dmycnt != 0) {
+        rest_cnt += dmycnt;
+    }
+
+#if defined(AIC_SPIENC_DRV)
+    spienc_set_cfg(sfud_dev->index, addr, single_cnt + rest_cnt, read_size);
+    spienc_start();
+#endif
     if (rt_qspi_transfer_message(qspi_dev, &message) != read_size) {
         result = SFUD_ERR_TIMEOUT;
     }
+#if defined(AIC_SPIENC_DRV)
+    spienc_stop();
+    if (spienc_check_empty())
+        memset(read_buf, 0xFF, read_size);
+#endif
 
     return result;
 }
@@ -281,6 +328,7 @@ sfud_err sfud_spi_port_init(sfud_flash *flash) {
     /* port SPI device interface */
     flash->spi.wr = spi_write_read;
     flash->spi.set_speed = spi_set_speed;
+    flash->spi.get_bus_id = spi_get_bus_id;
 #ifdef SFUD_USING_QSPI
     flash->spi.qspi_read = qspi_read;
 #endif
@@ -299,7 +347,7 @@ sfud_err sfud_spi_port_init(sfud_flash *flash) {
 }
 
 #ifdef RT_USING_DEVICE_OPS
-const static struct rt_device_ops flash_device_ops =
+static const struct rt_device_ops flash_device_ops =
 {
     RT_NULL,
     RT_NULL,
@@ -583,7 +631,8 @@ static void sf(uint8_t argc, char **argv) {
 #define CMD_WRITE_INDEX               2
 #define CMD_ERASE_INDEX               3
 #define CMD_RW_STATUS_INDEX           4
-#define CMD_BENCH_INDEX               5
+#define CMD_BYPASS_INDEX              5
+#define CMD_BENCH_INDEX               6
 
     sfud_err result = SFUD_SUCCESS;
     static const sfud_flash *sfud_dev = NULL;
@@ -596,6 +645,9 @@ static void sf(uint8_t argc, char **argv) {
             [CMD_WRITE_INDEX]     = "sf write addr data1 ... dataN   - write some bytes 'data' to flash starting at 'addr'",
             [CMD_ERASE_INDEX]     = "sf erase addr size              - erase 'size' bytes starting at 'addr'",
             [CMD_RW_STATUS_INDEX] = "sf status [<volatile> <status>] - read or write '1:volatile|0:non-volatile' 'status'",
+#if defined(AIC_SPIENC_DRV)
+            [CMD_BYPASS_INDEX]    = "sf bypass status                - status 0:disable' 1:'enable'",
+#endif
             [CMD_BENCH_INDEX]     = "sf bench                        - full chip benchmark. DANGER: It will erase full chip!",
     };
 
@@ -634,6 +686,16 @@ static void sf(uint8_t argc, char **argv) {
                             sfud_dev->name);
                 }
             }
+#if defined(AIC_SPIENC_DRV)
+        } else if (!strcmp(operator, "bypass")) {
+            uint32_t status;
+            if (!sfud_dev) {
+                rt_kprintf("No flash device selected. Please run 'sf probe'.\n");
+                return;
+            }
+            status = strtol(argv[2], NULL, 0);
+            spienc_set_bypass(status);
+#endif
         } else {
             if (!sfud_dev) {
                 rt_kprintf("No flash device selected. Please run 'sf probe'.\n");
@@ -657,7 +719,7 @@ static void sf(uint8_t argc, char **argv) {
                             rt_kprintf("Read the %s flash data success. Start from 0x%08X, size is %ld. The data is:\n",
                                     sfud_dev->name, addr, size);
                             rt_kprintf("Offset (h) 00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F\n");
-                            for (i = 0; i < 0x2000; i += HEXDUMP_WIDTH)
+                            for (i = 0; i < size; i += HEXDUMP_WIDTH)
                             {
                                 rt_kprintf("[%08X] ", addr + i);
                                 /* dump hex */

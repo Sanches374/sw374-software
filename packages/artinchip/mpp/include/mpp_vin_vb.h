@@ -51,18 +51,16 @@ struct vb_buffer {
 };
 
 struct vb_queue {
-    aicos_mutex_t       lock;
+    aicos_sem_t         done;
 
     struct vb_buffer    bufs[VIN_MAX_BUF_NUM];
     unsigned int        num_buffers;
 
     struct list_head    queued_list;
     unsigned int        queued_count;
-    aicos_mutex_t       queued_lock;
     unsigned int        owned_by_drv_count;
 
     struct list_head    done_list;
-    aicos_mutex_t       done_lock;
 
     unsigned int        streaming:1;
     unsigned int        error:1;
@@ -82,6 +80,8 @@ int vin_vb_dq_buf(struct vb_queue *q, u32 *pindex);
 void vin_vb_buffer_done(struct vb_buffer *vb, enum vb_buffer_state state);
 
 int vin_vb_init(struct vb_queue *q, const struct vb_ops *ops);
+void vin_vb_deinit(struct vb_queue *q);
+
 int vin_vb_stream_on(struct vb_queue *q);
 int vin_vb_stream_off(struct vb_queue *q);
 

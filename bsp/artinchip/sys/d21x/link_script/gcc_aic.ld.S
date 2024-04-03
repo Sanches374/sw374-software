@@ -43,12 +43,12 @@ MEMORY
     DRAM_CMA    : ORIGIN = 0x40000000 + AIC_DRAM_TOTAL_SIZE - AIC_DRAM_CMA_SIZE   , LENGTH = AIC_DRAM_CMA_SIZE
 }
 
-PROVIDE (__dram_sw_start          = 0x40000000);
-PROVIDE (__dram_sw_end            = 0x40000000 + AIC_DRAM_TOTAL_SIZE - AIC_DRAM_CMA_SIZE);
-PROVIDE (__dram_cma_start         = __dram_sw_end);
-PROVIDE (__dram_cma_end           = 0x40000000 + AIC_DRAM_TOTAL_SIZE);
 PROVIDE (__dram_start             = 0x40000000);
 PROVIDE (__dram_end               = 0x40000000 + AIC_DRAM_TOTAL_SIZE);
+PROVIDE (__dram_sw_start          = __dram_start);
+PROVIDE (__dram_sw_end            = __dram_end - AIC_DRAM_CMA_SIZE);
+PROVIDE (__dram_cma_start         = __dram_sw_end);
+PROVIDE (__dram_cma_end           = __dram_end);
 
 PROVIDE (__dram_cma_heap_end      = __dram_cma_end);
 PROVIDE (__dram_sw_heap_end       = __dram_sw_end);

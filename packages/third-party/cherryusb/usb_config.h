@@ -17,6 +17,8 @@
 #define usb_malloc(size) malloc(size)
 #define usb_free(ptr)    free(ptr)
 
+//#define CONFIG_USB_DBG_LEVEL USB_DBG_LOG
+//#define CONFIG_USBDEV_SETUP_LOG_PRINT
 #ifndef CONFIG_USB_DBG_LEVEL
 #define CONFIG_USB_DBG_LEVEL USB_DBG_INFO
 #endif
@@ -72,7 +74,9 @@
 #define CONFIG_USBDEV_MSC_VERSION_STRING "0.01"
 #endif
 
-// #define CONFIG_USBDEV_MSC_THREAD
+#ifdef USBDEV_MSC_THREAD
+#define CONFIG_USBDEV_MSC_THREAD
+#endif
 
 #ifndef CONFIG_USBDEV_MSC_PRIO
 #define CONFIG_USBDEV_MSC_PRIO 4

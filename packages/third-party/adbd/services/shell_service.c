@@ -250,6 +250,7 @@ static rt_size_t _shell_service_device_write(rt_device_t dev, rt_off_t pos,
 {
     struct adb_shdev *ad = (struct adb_shdev *)dev;
     int wlen = 0, r = 0;
+    rt_size_t old_size = size;
     char *spos = crlf_rpc((const char *)buffer, size, &size);
 
     if (!dev->user_data)
@@ -277,7 +278,7 @@ static rt_size_t _shell_service_device_write(rt_device_t dev, rt_off_t pos,
 
 __exit:
     free(spos);
-    return wlen;
+    return (wlen == size ? old_size : wlen);
 }
 
 static rt_err_t _shell_service_device_ctrl(rt_device_t dev,
@@ -382,6 +383,7 @@ static int _shell_open(struct adb_service *ser, char *args)
 #endif
 
         libc_stdio_set_console("as-sh", O_RDWR);
+        ext->dev->parent.rx_indicate(rt_console_get_device(), 0);
         rt_console_set_device("as-sh");
 
 #ifdef RT_USING_FINSH
@@ -412,8 +414,11 @@ static int _shell_close(struct adb_service *ser)
     ext = (struct shell_ext *)ser->extptr;
 
     ser->online = 0;
+    ext->old_flag = ioctl(libc_stdio_get_console(), F_GETFL, 0);
+    ioctl(libc_stdio_get_console(), F_SETFL, (void *)(size_t)(ext->old_flag | O_NONBLOCK));
     rt_console_set_device(RT_CONSOLE_DEVICE_NAME);
     libc_stdio_set_console(RT_CONSOLE_DEVICE_NAME, O_RDWR);
+    ext->dev->parent.rx_indicate(rt_console_get_device(), 0);
     rt_console_get_device()->rx_indicate = ext->dev->parent.rx_indicate;
 
     rt_thread_resume(ext->shid);

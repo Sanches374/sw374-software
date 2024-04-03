@@ -413,7 +413,7 @@ static struct mmcsd_blk_device * rt_mmcsd_create_blkdev(struct rt_mmcsd_card *ca
 #ifdef RT_USING_DFS_MNTTABLE
     if ( blk_dev )
     {
-        LOG_I("try to mount file system!");
+        LOG_D("Try to mount %s\n", blk_dev->dev.parent.name);
         /* try to mount file system on this block device */
         dfs_mount_device(&(blk_dev->dev));
     }

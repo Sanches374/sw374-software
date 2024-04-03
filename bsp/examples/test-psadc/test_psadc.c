@@ -14,18 +14,21 @@
 #include "rtdevice.h"
 #include "aic_core.h"
 #include "aic_log.h"
+#include "rtdevice.h"
+#include "hal_psadc.h"
 
 /* Global macro and variables */
 #define AIC_PSADC_NAME               "psadc"
-#define AIC_PSADC_CH_NUM             12
 #define AIC_PSADC_ADC_MAX_VAL        0xFFF
 #define AIC_PSADC_DEFAULT_VOLTAGE    3
+#define AIC_PSADC_QC_MODE            0
 
 static rt_adc_device_t psadc_dev;
-static const char sopts[] = "c:t:h";
+static const char sopts[] = "rt:sh";
 static const struct option lopts[] = {
-    {"channel", required_argument, NULL, 'c'},
+    {"read",          no_argument, NULL, 'r'},
     {"voltage", required_argument, NULL, 't'},
+    {"status",        no_argument, NULL, 's'},
     {"help",          no_argument, NULL, 'h'},
     {0, 0, 0, 0}
     };
@@ -36,16 +39,30 @@ static void cmd_psadc_usage(char *program)
 {
     printf("Compile time: %s %s\n", __DATE__, __TIME__);
     printf("Usage: %s [options]\n", program);
-    printf("\t -c, --channel\t\tSelect one channel in [0, 11],default is 0\n");
+    printf("\t -r, --read\t\tRead the adc value\n");
     printf("\t -t, --voltage\t\tInput standard voltage, default is 3\n");
+    printf("\t -s, --status\t\tShow more hardware information\n");
     printf("\t -h, --help \n");
     printf("\n");
-    printf("Example: %s -c 4 -t 3\n", program);
+    printf("Example: %s -r -t 3\n", program);
 }
 
-static int psadc_get_adc(int chan)
+static void adc2voltage(float st_voltage, int adc_value)
 {
-    int ret, val;
+    int voltage;
+
+    voltage = (adc_value * st_voltage * 100) / AIC_PSADC_ADC_MAX_VAL;
+    rt_kprintf(" %d.%2dv", voltage / 100, voltage % 100);
+    return;
+}
+
+int psadc_get_adc(float st_voltage)
+{
+    int ret = 0;
+    u32 adc_values[AIC_PSADC_CH_NUM];
+    int cnt = 0;
+    int chan_cnt = 0;
+    u64 start_us, end_us;
 
     psadc_dev = (rt_adc_device_t)rt_device_find(AIC_PSADC_NAME);
     if (!psadc_dev) {
@@ -53,32 +70,46 @@ static int psadc_get_adc(int chan)
         return -RT_ERROR;
     }
 
-    ret = rt_adc_enable(psadc_dev, chan);
-    if (!ret) {
-        val = rt_adc_read(psadc_dev, chan);
-        rt_kprintf("PSADC ch%d: %d\n", chan, val);
-        rt_adc_disable(psadc_dev, chan);
-        return val;
+    rt_adc_enable(psadc_dev, AIC_PSADC_QC_MODE);
+    chan_cnt = rt_adc_control(psadc_dev, RT_ADC_CMD_GET_CHAN_COUNT, NULL);
+    rt_kprintf("Starting sampling for %d channels\n", chan_cnt);
+
+    while (cnt < 10) {
+        cnt++;
+
+        start_us = aic_get_time_us();
+        ret = rt_adc_control(psadc_dev, RT_ADC_CMD_GET_VALUES_POLL,
+                             (void *)adc_values);
+        end_us = aic_get_time_us();
+        rt_kprintf("Sample time: %d us\n", abs(end_us - start_us));
+        if (ret < 0) {
+            rt_kprintf("Read timeout!\n");
+            return -RT_ERROR;
+        }
+        // aic_udelay(10);
+
+        rt_kprintf("[%d] PSADC: ", cnt);
+        for (int i = 0; i < chan_cnt; i++) {
+            rt_kprintf(" %d", adc_values[i]);
+        }
+        rt_kprintf("\nvoltage: ");
+        for (int i = 0; i < chan_cnt; i++) {
+            adc2voltage(st_voltage, adc_values[i]);
+        }
+        rt_kprintf("\n");
+
     }
+    rt_adc_disable(psadc_dev, AIC_PSADC_QC_MODE);
+
     return -RT_ERROR;
 }
 
-static void adc2voltage(float st_voltage, int adc_value, int chan)
-{
-    int voltage;
-
-    voltage = (adc_value*st_voltage*100) / AIC_PSADC_ADC_MAX_VAL;
-    rt_kprintf("PSADC ch%d-voltage:%d.%2d\n", chan, voltage / 100,
-               voltage % 100);
-    return;
-}
 
 static void cmd_test_psadc(int argc, char **argv)
 {
     int c;
-    u32 ch = 0;
-    int adc_value = -1;
     float st_voltage = AIC_PSADC_DEFAULT_VOLTAGE;
+    bool show_status = false;
 
     if (argc < 2) {
         cmd_psadc_usage(argv[0]);
@@ -88,16 +119,14 @@ static void cmd_test_psadc(int argc, char **argv)
     optind = 0;
     while ((c = getopt_long(argc, argv, sopts, lopts, NULL)) != -1) {
         switch (c) {
-        case 'c':
-            ch = atoi(optarg);
-            if ((ch < 0) || (ch >= AIC_PSADC_CH_NUM)) {
-                pr_err("Invalid channel No.%s\n", optarg);
-            }
-            adc_value = psadc_get_adc(ch);
+        case 'r':
+            psadc_get_adc(st_voltage);
             break;
         case 't':
             st_voltage = atof(optarg);
-
+            break;
+        case 's':
+            show_status = true;
             break;
         case 'h':
         default:
@@ -106,15 +135,16 @@ static void cmd_test_psadc(int argc, char **argv)
         }
     }
 
-    if (adc_value < 0){
-        rt_kprintf("Please select a channel first\n");
+    if (show_status) {
+        aich_psadc_status_show();
+        aicos_msleep(10);
         return;
     }
-    if (st_voltage < 0){
+
+    if (st_voltage < 0) {
         rt_kprintf("Please input standard voltage\n");
         return;
     }
-    adc2voltage(st_voltage, adc_value, ch);
 
     return;
 }

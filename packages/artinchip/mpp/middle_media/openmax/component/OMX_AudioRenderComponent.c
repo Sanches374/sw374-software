@@ -387,45 +387,10 @@ static OMX_ERRORTYPE OMX_AudioRenderEmptyThisBuffer(
         return OMX_ErrorIncorrectStateOperation;
     }
 
-    // if (OMX_AudioRenderListEmpty(&pAudioRenderDataType->sInEmptyFrame,pAudioRenderDataType->sInFrameLock)) {
-    //     if (pAudioRenderDataType->nInFrameNodeNum + 1> AUDIO_RENDER_FRAME_NUM_MAX) {
-    //         loge("empty node has aready increase to max [%d]!!!\n",pAudioRenderDataType->nInFrameNodeNum);
-    //         eError = OMX_ErrorInsufficientResources;
-    //         return  eError;
-    //     } else {
-    //         int i;
-    //         loge("no empty node,need to extend!!!\n");
-    //         for(i =0 ; i < AUDIO_RENDER_FRAME_ONE_TIME_CREATE_NUM; i++ ) {
-    //             AUDIO_RENDER_IN_FRAME *pFrameNode = (AUDIO_RENDER_IN_FRAME*)mpp_alloc(sizeof(AUDIO_RENDER_IN_FRAME));
-    //             if (NULL == pFrameNode) {
-    //                 break;
-    //             }
-    //             memset(pFrameNode,0x00,sizeof(AUDIO_RENDER_IN_FRAME));
-    //             aic_pthread_mutex_lock(&pAudioRenderDataType->sInFrameLock);
-    //             mpp_list_add_tail(&pFrameNode->sList, &pAudioRenderDataType->sInEmptyFrame);
-    //             aic_pthread_mutex_unlock(&pAudioRenderDataType->sInFrameLock);
-    //             pAudioRenderDataType->nInFrameNodeNum++;
-    //         }
-    //         if (i == 0) {
-    //             loge("mpp_alloc empty Audio node fail\n");
-    //             eError = OMX_ErrorInsufficientResources;
-    //             return  eError;
-    //         }
-    //     }
-    // }
-
     if (OMX_AudioRenderListEmpty(&pAudioRenderDataType->sInEmptyFrame,pAudioRenderDataType->sInFrameLock)) {
-        AUDIO_RENDER_IN_FRAME *pFrameNode = (AUDIO_RENDER_IN_FRAME*)mpp_alloc(sizeof(AUDIO_RENDER_IN_FRAME));
-        if (NULL == pFrameNode) {
-            loge("OMX_ErrorInsufficientResources\n");
-            aic_pthread_mutex_unlock(&pAudioRenderDataType->stateLock);
-            return OMX_ErrorInsufficientResources;
-        }
-        memset(pFrameNode,0x00,sizeof(AUDIO_RENDER_IN_FRAME));
-        aic_pthread_mutex_lock(&pAudioRenderDataType->sInFrameLock);
-        mpp_list_add_tail(&pFrameNode->sList, &pAudioRenderDataType->sInEmptyFrame);
-        aic_pthread_mutex_unlock(&pAudioRenderDataType->sInFrameLock);
-        pAudioRenderDataType->nInFrameNodeNum++;
+        loge("OMX_ErrorInsufficientResources\n");
+        aic_pthread_mutex_unlock(&pAudioRenderDataType->stateLock);
+        return OMX_ErrorInsufficientResources;
     }
 
     if (pAudioRenderDataType->sInPortTunneledInfo[AUDIO_RENDER_PORT_IN_AUDIO_INDEX].nTunneledFlag) {// now Tunneled and non-Tunneled are same
@@ -476,32 +441,6 @@ static OMX_ERRORTYPE OMX_AudioRenderEmptyThisBuffer(
     }
     aic_pthread_mutex_unlock(&pAudioRenderDataType->stateLock);
     return eError;
-
-#if 0
-    pFrame->sFrameInfo.flags = pFrame1->sFrameInfo.flags;
-    pFrame->sFrameInfo.id = pFrame1->sFrameInfo.id;
-    pFrame->sFrameInfo.pts = pFrame1->sFrameInfo.pts;
-    pFrame->sFrameInfo.buf.buf_type = pFrame1->sFrameInfo.buf.buf_type;
-    pFrame->sFrameInfo.buf.crop.x = pFrame1->sFrameInfo.buf.crop.x;
-    pFrame->sFrameInfo.buf.crop.y = pFrame1->sFrameInfo.buf.crop.y;
-    pFrame->sFrameInfo.buf.crop.width = pFrame1->sFrameInfo.buf.crop.width;
-    pFrame->sFrameInfo.buf.crop.height = pFrame1->sFrameInfo.buf.crop.height;
-    pFrame->sFrameInfo.buf.crop_en = pFrame1->sFrameInfo.buf.crop_en;
-    pFrame->sFrameInfo.buf.phy_addr[0] = pFrame1->sFrameInfo.buf.phy_addr[0];
-    pFrame->sFrameInfo.buf.phy_addr[1] = pFrame1->sFrameInfo.buf.phy_addr[1];
-    pFrame->sFrameInfo.buf.phy_addr[2] = pFrame1->sFrameInfo.buf.phy_addr[2];
-    pFrame->sFrameInfo.buf.fd[0] = pFrame1->sFrameInfo.buf.fd[0];
-    pFrame->sFrameInfo.buf.fd[1] = pFrame1->sFrameInfo.buf.fd[1];
-    pFrame->sFrameInfo.buf.fd[2] = pFrame1->sFrameInfo.buf.fd[2];
-    pFrame->sFrameInfo.buf.flags = pFrame1->sFrameInfo.buf.flags;
-    pFrame->sFrameInfo.buf.format = pFrame1->sFrameInfo.buf.format;
-    pFrame->sFrameInfo.buf.size.width = pFrame1->sFrameInfo.buf.size.width;
-    pFrame->sFrameInfo.buf.size.height = pFrame1->sFrameInfo.buf.size.height;
-    pFrame->sFrameInfo.buf.stride[0] = pFrame1->sFrameInfo.buf.stride[0];
-    pFrame->sFrameInfo.buf.stride[1] = pFrame1->sFrameInfo.buf.stride[1];
-    pFrame->sFrameInfo.buf.stride[2] = pFrame1->sFrameInfo.buf.stride[2];
-#endif
-
 }
 
 static OMX_ERRORTYPE OMX_AudioRenderFillThisBuffer(
@@ -533,7 +472,7 @@ OMX_ERRORTYPE OMX_AudioRenderComponentDeInit(
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     OMX_COMPONENTTYPE *pComp;
     AUDIO_RENDER_DATA_TYPE *pAudioRenderDataType;
-    AUDIO_RENDER_IN_FRAME    *pFrameNode = NULL,*pFrameNode1 = NULL;
+    // AUDIO_RENDER_IN_FRAME    *pFrameNode = NULL,*pFrameNode1 = NULL;
     pComp = (OMX_COMPONENTTYPE *)hComponent;
     struct aic_message sMsg;
     pAudioRenderDataType = (AUDIO_RENDER_DATA_TYPE *)pComp->pComponentPrivate;
@@ -552,24 +491,9 @@ OMX_ERRORTYPE OMX_AudioRenderComponentDeInit(
     pthread_join(pAudioRenderDataType->threadId, (void*)&eError);
 
     aic_pthread_mutex_lock(&pAudioRenderDataType->sInFrameLock);
-    if (!mpp_list_empty(&pAudioRenderDataType->sInEmptyFrame)) {
-            mpp_list_for_each_entry_safe(pFrameNode, pFrameNode1, &pAudioRenderDataType->sInEmptyFrame, sList) {
-                mpp_list_del(&pFrameNode->sList);
-                mpp_free(pFrameNode);
-        }
-    }
-
-    if (!mpp_list_empty(&pAudioRenderDataType->sInReadyFrame)) {
-            mpp_list_for_each_entry_safe(pFrameNode, pFrameNode1, &pAudioRenderDataType->sInReadyFrame, sList) {
-                mpp_list_del(&pFrameNode->sList);
-                mpp_free(pFrameNode);
-        }
-    }
-    if (!mpp_list_empty(&pAudioRenderDataType->sInProcessedFrmae)) {
-            mpp_list_for_each_entry_safe(pFrameNode, pFrameNode1, &pAudioRenderDataType->sInProcessedFrmae, sList) {
-                mpp_list_del(&pFrameNode->sList);
-                mpp_free(pFrameNode);
-        }
+    if (pAudioRenderDataType->pInFrameNodeHead) {
+        mpp_free(pAudioRenderDataType->pInFrameNodeHead);
+        pAudioRenderDataType->pInFrameNodeHead = NULL;
     }
     aic_pthread_mutex_unlock(&pAudioRenderDataType->sInFrameLock);
 
@@ -593,8 +517,7 @@ static int audio_thread_attr_init(pthread_attr_t *attr)
         return EINVAL;
     }
     pthread_attr_init(attr);
-    attr->stacksize = 16*1024;
-    //attr->schedparam.sched_priority = 23;
+    attr->stacksize = 32*1024;
     attr->schedparam.sched_priority = 22;
     return 0;
 }
@@ -607,7 +530,13 @@ OMX_ERRORTYPE OMX_AudioRenderComponentInit(
     OMX_ERRORTYPE eError = OMX_ErrorNone;
     OMX_U32 err;
     OMX_U32 i;
-    //OMX_U32 cnt;
+
+    AUDIO_RENDER_IN_FRAME *pFrameNode = NULL;
+    AUDIO_RENDER_IN_FRAME *pFrameNodeHead = NULL;
+
+    OMX_S8 nMsgCreateOk = 0;
+    OMX_S8 nInFrameLockInitOk = 0;
+    OMX_S8 nSateLockInitOk = 0;
 
     pthread_attr_t attr;
     audio_thread_attr_init(&attr);
@@ -619,9 +548,8 @@ OMX_ERRORTYPE OMX_AudioRenderComponentInit(
     pAudioRenderDataType = (AUDIO_RENDER_DATA_TYPE *)mpp_alloc(sizeof(AUDIO_RENDER_DATA_TYPE));
 
     if (NULL == pAudioRenderDataType) {
-        loge("mpp_alloc(sizeof(AUDIO_RENDER_DATA_TYPE) fail!\n");
-        eError = OMX_ErrorInsufficientResources;
-        goto _EXIT1;
+        loge("mpp_alloc(sizeof(AUDIO_RENDER_DATA_TYPE) fail!");
+        return OMX_ErrorInsufficientResources;
     }
 
     memset(pAudioRenderDataType, 0x0, sizeof(AUDIO_RENDER_DATA_TYPE));
@@ -667,39 +595,50 @@ OMX_ERRORTYPE OMX_AudioRenderComponentInit(
     mpp_list_init(&pAudioRenderDataType->sInEmptyFrame);
     mpp_list_init(&pAudioRenderDataType->sInReadyFrame);
     mpp_list_init(&pAudioRenderDataType->sInProcessedFrmae);
-    pthread_mutex_init(&pAudioRenderDataType->sInFrameLock, NULL);
-    for(i =0 ; i < AUDIO_RENDER_FRAME_ONE_TIME_CREATE_NUM; i++) {
-        AUDIO_RENDER_IN_FRAME *pFrameNode = (AUDIO_RENDER_IN_FRAME*)mpp_alloc(sizeof(AUDIO_RENDER_IN_FRAME));
-        if (NULL == pFrameNode) {
-            break;
-        }
-        memset(pFrameNode,0x00,sizeof(AUDIO_RENDER_IN_FRAME));
-        mpp_list_add_tail(&pFrameNode->sList, &pAudioRenderDataType->sInEmptyFrame);
-        pAudioRenderDataType->nInFrameNodeNum++;
-    }
-    if (pAudioRenderDataType->nInFrameNodeNum == 0) {
-        loge("mpp_alloc empty Audio node fail\n");
+    if (pthread_mutex_init(&pAudioRenderDataType->sInFrameLock, NULL)) {
+        loge("pthread_mutex_init fail!\n");
         eError = OMX_ErrorInsufficientResources;
-        goto _EXIT2;
+        goto _EXIT;
     }
+    nInFrameLockInitOk = 1;
 
-    if (aic_msg_create(&pAudioRenderDataType->sMsgQue)<0)
-    {
+    pFrameNodeHead = (AUDIO_RENDER_IN_FRAME*)mpp_alloc(sizeof(AUDIO_RENDER_IN_FRAME) * AUDIO_RENDER_FRAME_ONE_TIME_CREATE_NUM);
+    if (pFrameNodeHead == NULL) {
+        loge("mpp_alloc empty VDEC_IN_PACKET node fail\n");
+        eError = OMX_ErrorInsufficientResources;
+        goto _EXIT;
+    }
+    memset(pFrameNodeHead,0x00,sizeof(AUDIO_RENDER_IN_FRAME) * AUDIO_RENDER_FRAME_ONE_TIME_CREATE_NUM);
+    pAudioRenderDataType->nInFrameNodeNum = AUDIO_RENDER_FRAME_ONE_TIME_CREATE_NUM;
+    pFrameNode = pFrameNodeHead;
+    for(i = 0; i < AUDIO_RENDER_FRAME_ONE_TIME_CREATE_NUM; i++) {
+        mpp_list_init(&pFrameNode->sList);
+        mpp_list_add_tail(&pFrameNode->sList, &pAudioRenderDataType->sInEmptyFrame);
+        pFrameNode++;
+    }
+    pAudioRenderDataType->pInFrameNodeHead = pFrameNodeHead;
+
+    if (aic_msg_create(&pAudioRenderDataType->sMsgQue)<0) {
         loge("aic_msg_create fail!\n");
         eError = OMX_ErrorInsufficientResources;
-        goto _EXIT4;
+        goto _EXIT;
     }
 
     pAudioRenderDataType->eClockState = OMX_TIME_ClockStateStopped;
 
-    pthread_mutex_init(&pAudioRenderDataType->stateLock, NULL);
+    if (pthread_mutex_init(&pAudioRenderDataType->stateLock, NULL)) {
+        loge("pthread_mutex_init fail!\n");
+        eError = OMX_ErrorInsufficientResources;
+        goto _EXIT;
+    }
+    nSateLockInitOk = 1;
+
     // Create the component thread
     err = pthread_create(&pAudioRenderDataType->threadId, &attr, OMX_AudioRenderComponentThread, pAudioRenderDataType);
-    if (err || !pAudioRenderDataType->threadId)
-    {
+    if (err) {
         loge("pthread_create fail!\n");
         eError = OMX_ErrorInsufficientResources;
-        goto _EXIT5;
+        goto _EXIT;
     }
 
     logi("OMX_AudioRenderComponentInit OK\n");
@@ -711,26 +650,28 @@ OMX_ERRORTYPE OMX_AudioRenderComponentInit(
 
     return eError;
 
-_EXIT5:
-    aic_msg_destroy(&pAudioRenderDataType->sMsgQue);
-    pthread_mutex_destroy(&pAudioRenderDataType->stateLock);
-
-_EXIT4:
-    if (!mpp_list_empty(&pAudioRenderDataType->sInEmptyFrame)) {
-        AUDIO_RENDER_IN_FRAME    *pFrameNode = NULL,*pFrameNode1 = NULL;
-        mpp_list_for_each_entry_safe(pFrameNode, pFrameNode1, &pAudioRenderDataType->sInEmptyFrame, sList) {
-            mpp_list_del(&pFrameNode->sList);
-            mpp_free(pFrameNode);
-        }
+_EXIT:
+    if (nInFrameLockInitOk) {
+        pthread_mutex_destroy(&pAudioRenderDataType->sInFrameLock);
     }
 
-_EXIT2:
+    if (nSateLockInitOk) {
+        pthread_mutex_destroy(&pAudioRenderDataType->stateLock);
+    }
+
+    if (nMsgCreateOk) {
+       aic_msg_destroy(&pAudioRenderDataType->sMsgQue);
+    }
+
+    if (pAudioRenderDataType->pInFrameNodeHead) {
+        mpp_free(pAudioRenderDataType->pInFrameNodeHead);
+        pAudioRenderDataType->pInFrameNodeHead = NULL;
+    }
+
     if (pAudioRenderDataType) {
         mpp_free(pAudioRenderDataType);
         pAudioRenderDataType = NULL;
     }
-
-_EXIT1:
     return eError;
 }
 

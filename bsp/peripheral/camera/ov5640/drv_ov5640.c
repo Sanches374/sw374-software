@@ -29,7 +29,7 @@
 #define OV5640_CSI2_DATA_LANES  2
 
 /* The clk source is decided by board design */
-#ifdef AIC_CHIP_D13X
+#if defined(AIC_CHIP_D13X) || defined(AIC_CHIP_G73X)
 #define OV5640_CLK_SRC          CLK_OUT1
 #define OV5640_FPS              OV5640_15_FPS
 #else

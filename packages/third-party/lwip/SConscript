@@ -263,7 +263,15 @@ contrib/examples/example_app/test.c
 contrib/examples/example_app/netif_startup.c
 """)
 
-# 20.1
+# 21. nettools
+lwipnettools_SRCS = Split("""
+nettools/nettools.c
+""")
+
+# 22. dhcpd
+lwipdhcpd_SRCS = Split("""
+lwip-dhcpd/dhcp_server_raw.c
+""")
 
 src = []
 path = []
@@ -316,6 +324,12 @@ if GetDepend(['AIC_GMAC_DRV']):
 
 if GetDepend(['LPKG_LWIP_EXAMPLES']):
     src += lwipexample_SRCS
+
+if GetDepend(['LPKG_USING_NETTOOLS']):
+    src += lwipnettools_SRCS
+
+if GetDepend(['LPKG_LWIP_USING_DHCPD']):
+    src += lwipdhcpd_SRCS
 
 group = DefineGroup('lwIP', src, depend = ['LPKG_USING_LWIP'], CPPPATH = path)
 

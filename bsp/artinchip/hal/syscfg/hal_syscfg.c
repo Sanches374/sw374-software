@@ -346,12 +346,12 @@ static void syscfg_fpga_gmac_clk_sel(u32 id)
 
 static s32 syscfg_usb_init(void)
 {
-#if defined(AIC_USING_USB0) || defined(AIC_USING_USB1)
+#if defined(AIC_USING_USB0_HOST) || defined(AIC_USING_USB1_HOST) || defined(AIC_USING_USB0_OTG) || defined(AIC_USING_USB1_OTG)
     u32 cfg_reg = 0;
     s32 cfg = 0;
 #endif
 
-#ifdef AIC_USING_USB0
+#if defined(AIC_USING_USB0_HOST) || defined(AIC_USING_USB0_OTG)
     cfg_reg =  SYSCFG_USB0_REXT;
     cfg = syscfg_readl(cfg_reg);
     cfg &= SYSCFG_USB_RES_CAL_VAL_MASK;
@@ -361,7 +361,7 @@ static s32 syscfg_usb_init(void)
     syscfg_writel(cfg, cfg_reg);
 #endif
 
-#ifdef AIC_USING_USB1
+#if defined(AIC_USING_USB1_HOST) || defined(AIC_USING_USB1_OTG)
     cfg_reg =  SYSCFG_USB1_REXT;
     cfg &= SYSCFG_USB_RES_CAL_VAL_MASK;
     cfg += SYSCFG_USB_RES_CAL_BIAS_DEF;
@@ -443,6 +443,18 @@ static void syscfg_sip_flash_init(void)
     hal_efuse_read(iomap_efuse_wid, &val);
     map = (val >> 24) & 0xFF;
 
+    /* 2. Set the SiP flash's access Controller */
+    ctrl_id = 2 + AIC_SIP_FLASH_ACCESS_QSPI_ID;
+    val = map << 8 | (ctrl_id & 0x3);
+    syscfg_writel(val, SYSCFG_FLASH_CFG);
+#endif
+#if defined(AIC_SYSCFG_SIP_FLASH_ENABLE) && defined(AIC_SID_DRV_V12)
+    u32 val, map, ctrl_id;
+    u32 iomap_efuse_wid = 7;
+
+    /* 1. Read eFuse to set SiP flash IO mapping */
+    hal_efuse_read(iomap_efuse_wid, &val);
+    map = (val >> 8) & 0xFF;
     /* 2. Set the SiP flash's access Controller */
     ctrl_id = 2 + AIC_SIP_FLASH_ACCESS_QSPI_ID;
     val = map << 8 | (ctrl_id & 0x3);

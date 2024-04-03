@@ -46,9 +46,15 @@ menu "GPAI0 Parameter"
 
     if AIC_GPAI0_MODE_PERIOD
             config AIC_GPAI0_PERIOD_TIME
-                int "sample period time (ms)"
-                default 1
+                int "sample period time (us)"
+                default 1000
     endif
+
+    config AIC_GPAI0_ADC_ACQ
+        hex "ADC Acquisition Time"
+        range 0 0xff
+        default 0x2f
+
 endmenu
 
 menu "GPAI1 Parameter"
@@ -96,9 +102,14 @@ menu "GPAI1 Parameter"
 
     if AIC_GPAI1_MODE_PERIOD
             config AIC_GPAI1_PERIOD_TIME
-                int "sample period time (ms)"
-                default 1
+                int "sample period time (us)"
+                default 1000
     endif
+
+    config AIC_GPAI1_ADC_ACQ
+        hex "ADC Acquisition Time"
+        range 0 0xff
+        default 0x2f
 endmenu
 
 menu "GPAI2 Parameter"
@@ -146,9 +157,14 @@ menu "GPAI2 Parameter"
 
     if AIC_GPAI2_MODE_PERIOD
             config AIC_GPAI2_PERIOD_TIME
-                int "sample period time (ms)"
-                default 1
+                int "sample period time (us)"
+                default 1000
     endif
+
+    config AIC_GPAI2_ADC_ACQ
+        hex "ADC Acquisition Time"
+        range 0 0xff
+        default 0x2f
 endmenu
 
 menu "GPAI3 Parameter"
@@ -196,9 +212,14 @@ menu "GPAI3 Parameter"
 
     if AIC_GPAI3_MODE_PERIOD
             config AIC_GPAI3_PERIOD_TIME
-                int "sample period time (ms)"
-                default 1
+                int "sample period time (us)"
+                default 1000
     endif
+
+    config AIC_GPAI3_ADC_ACQ
+        hex "ADC Acquisition Time"
+        range 0 0xff
+        default 0x2f
 endmenu
 
 menu "GPAI4 Parameter"
@@ -246,9 +267,14 @@ menu "GPAI4 Parameter"
 
     if AIC_GPAI4_MODE_PERIOD
             config AIC_GPAI4_PERIOD_TIME
-                int "sample period time (ms)"
-                default 1
+                int "sample period time (us)"
+                default 1000
     endif
+
+    config AIC_GPAI4_ADC_ACQ
+        hex "ADC Acquisition Time"
+        range 0 0xff
+        default 0x2f
 endmenu
 
 
@@ -297,9 +323,14 @@ menu "GPAI5 Parameter"
 
     if AIC_GPAI5_MODE_PERIOD
             config AIC_GPAI5_PERIOD_TIME
-                int "sample period time (ms)"
-                default 1
+                int "sample period time (us)"
+                default 1000
     endif
+
+    config AIC_GPAI5_ADC_ACQ
+        hex "ADC Acquisition Time"
+        range 0 0xff
+        default 0x2f
 endmenu
 
 
@@ -348,9 +379,14 @@ menu "GPAI6 Parameter"
 
     if AIC_GPAI6_MODE_PERIOD
             config AIC_GPAI6_PERIOD_TIME
-                int "sample period time (ms)"
-                default 1
+                int "sample period time (us)"
+                default 1000
     endif
+
+    config AIC_GPAI6_ADC_ACQ
+        hex "ADC Acquisition Time"
+        range 0 0xff
+        default 0x2f
 endmenu
 
 
@@ -399,9 +435,14 @@ menu "GPAI7 Parameter"
 
     if AIC_GPAI7_MODE_PERIOD
             config AIC_GPAI7_PERIOD_TIME
-                int "sample period time (ms)"
-                default 1
+                int "sample period time (us)"
+                default 1000
     endif
+
+    config AIC_GPAI7_ADC_ACQ
+        hex "ADC Acquisition Time"
+        range 0 0xff
+        default 0x2f
 endmenu
 
 
@@ -450,9 +491,14 @@ menu "GPAI8 Parameter"
 
     if AIC_GPAI8_MODE_PERIOD
             config AIC_GPAI8_PERIOD_TIME
-                int "sample period time (ms)"
-                default 1
+                int "sample period time (us)"
+                default 1000
     endif
+
+    config AIC_GPAI8_ADC_ACQ
+        hex "ADC Acquisition Time"
+        range 0 0xff
+        default 0x2f
 endmenu
 
 
@@ -501,9 +547,14 @@ menu "GPAI9 Parameter"
 
     if AIC_GPAI9_MODE_PERIOD
             config AIC_GPAI9_PERIOD_TIME
-                int "sample period time (ms)"
-                default 1
+                int "sample period time (us)"
+                default 1000
     endif
+
+    config AIC_GPAI9_ADC_ACQ
+        hex "ADC Acquisition Time"
+        range 0 0xff
+        default 0x2f
 endmenu
 
 
@@ -552,9 +603,14 @@ menu "GPAI10 Parameter"
 
     if AIC_GPAI10_MODE_PERIOD
             config AIC_GPAI10_PERIOD_TIME
-                int "sample period time (ms)"
-                default 1
+                int "sample period time (us)"
+                default 1000
     endif
+
+    config AIC_GPAI10_ADC_ACQ
+        hex "ADC Acquisition Time"
+        range 0 0xff
+        default 0x2f
 endmenu
 
 
@@ -603,7 +659,12 @@ menu "GPAI11 Parameter"
 
     if AIC_GPAI11_MODE_PERIOD
             config AIC_GPAI11_PERIOD_TIME
-                int "sample period time (ms)"
-                default 1
+                int "sample period time (us)"
+                default 1000
     endif
+
+    config AIC_GPAI11_ADC_ACQ
+        hex "ADC Acquisition Time"
+        range 0 0xff
+        default 0x2f
 endmenu

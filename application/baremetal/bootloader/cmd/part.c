@@ -13,7 +13,7 @@
 #include <console.h>
 #include <mmc.h>
 #include <disk_part.h>
-#include <hexdump.h>
+#include <aic_utils.h>
 
 static struct aic_sdmc *mmc_host = NULL;
 

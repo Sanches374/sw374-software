@@ -42,10 +42,10 @@
  */
 
 /* data line assignments */
-#define LANE_ASSIGNMENTS 0x3210;
+#define LANE_ASSIGNMENTS 0x3210
 
 /* data line polarities */
-#define LANE_POLARITIES  0b0000;
+#define LANE_POLARITIES  0b0000
 
 /* data clk inverse */
 #define CLK_INVERSE      0
@@ -107,6 +107,43 @@
  */
 #  define TE_PIN      "PC.6"
 #  define TE_PULSE_WIDTH  2
+#endif
+
+#ifdef AIC_DISP_PQ_TOOL
+
+#define PANEL_PIXELCLOCK      70
+#define PANEL_HACTIVE         800
+#define PANEL_HBP             150
+#define PANEL_HFP             160
+#define PANEL_HSW             20
+#define PANEL_VACTIVE         1280
+#define PANEL_VBP             12
+#define PANEL_VFP             20
+#define PANEL_VSW             2
+
+#define AIC_RGB_MODE          PRGB
+#define AIC_RGB_FORMAT        PRGB_18BIT_HD
+#define AIC_RGB_CLK_CTL       DEGREE_0
+#define AIC_RGB_DATA_ORDER    RGB
+#define AIC_RGB_DATA_MIRROR   0
+
+#define AIC_LVDS_MODE         NS
+#define AIC_LVDS_LINK_MODE    SINGLE_LINK0
+
+#define AIC_MIPI_DSI_MODE     DSI_MOD_VID_BURST
+#define AIC_MIPI_DSI_FORMAT   DSI_FMT_RGB888
+#define AIC_MIPI_DSI_LINE_NUM 4
+
+#define AIC_PANEL_ENABLE_GPIO "PE.19"
+
+#define PANEL_RESET 0
+#if PANEL_RESET
+#define AIC_PANEL_RESET_GPIO "PE.6"
+#endif
+
+#define PANEL_DSI_SIMEP_SEND_SEQ                \
+    panel_dsi_dcs_send_seq(panel, 0x00);        \
+
 #endif
 
 #endif /* _DISP_CONF_H_ */

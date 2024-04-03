@@ -7,8 +7,17 @@
 #include "aic_ui.h"
 #include "aic_osal.h"
 
+// #define AIC_LVGL_QC_TEST_DEMO
+
 void aic_ui_init()
 {
+/* qc test demo is only for aic internal qc testing, please ignore it. */
+#ifdef AIC_LVGL_QC_TEST_DEMO
+    extern void qc_test_init();
+    qc_test_init();
+    return;
+#endif
+
 #ifdef AIC_LVGL_BASE_DEMO
 #include "base_ui.h"
     base_ui_init();
@@ -29,5 +38,9 @@ void aic_ui_init()
     lv_demo_music();
 #endif
 
+#ifdef AIC_LVGL_DASHBOARD_DEMO
+    extern void dashboard_ui_init(void);
+    dashboard_ui_init();
+#endif
     return;
 }

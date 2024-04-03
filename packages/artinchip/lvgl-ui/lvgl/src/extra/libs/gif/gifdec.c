@@ -250,9 +250,6 @@ read_application_ext(gd_GIF *gif)
         /* Discard block size (0x03) and constant byte (0x01). */
         f_gif_seek(gif, 2, LV_FS_SEEK_CUR);
         gif->loop_count = read_num(gif);
-        if (gif->set_count)
-            gif->loop_count = gif->set_count;
-
         /* Skip block terminator. */
         f_gif_seek(gif, 1, LV_FS_SEEK_CUR);
     } else if (gif->application) {

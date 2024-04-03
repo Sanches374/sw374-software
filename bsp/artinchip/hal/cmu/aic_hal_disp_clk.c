@@ -41,8 +41,10 @@ static unsigned long clk_disp_mod_recalc_rate(struct aic_clk_comm_cfg *comm_cfg,
         default:
             return -EINVAL;
         }
-    } else
+    } else {
         return -EINVAL;
+    }
+
 
 #ifdef FPGA_BOARD_ARTINCHIP
     rate = fpga_board_rate[mod->id];
@@ -134,8 +136,10 @@ static long clk_disp_mod_round_rate(struct aic_clk_comm_cfg *comm_cfg,
         /* For sclk */
         clk_disp_try_best_divider(rate, parent_rate, mod->divn_mask, &divn);
         rrate = parent_rate / (1 << divn);
-    } else
+    } else {
         return -EINVAL;
+    }
+
 
 #ifdef FPGA_BOARD_ARTINCHIP
     rrate = fpga_board_rate[mod->id];
@@ -180,7 +184,15 @@ static int clk_disp_mod_set_rate(struct aic_clk_comm_cfg *comm_cfg,
     return 0;
 }
 
+static unsigned int clk_disp_mod_get_parent(struct aic_clk_comm_cfg *comm_cfg)
+{
+    struct aic_clk_disp_cfg *mod = to_clk_disp_mod(comm_cfg);
+
+    return mod->parent_id;
+}
+
 const struct aic_clk_ops aic_clk_disp_ops = {
+    .get_parent  = clk_disp_mod_get_parent,
     .recalc_rate = clk_disp_mod_recalc_rate,
     .round_rate  = clk_disp_mod_round_rate,
     .set_rate    = clk_disp_mod_set_rate,

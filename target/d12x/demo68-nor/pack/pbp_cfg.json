@@ -1,6 +1,6 @@
 {
 	"psram": {
-		"cfg0": {
+		"cfg0": { //OPI APS3208K 8M PSRAM
 			"common": {
 				"clock":      "192000000",
 				"cs0_pins":   "0x0",
@@ -48,7 +48,7 @@
 			"backup": {
 				"buf0": "0xAA55AA55",
 				"buf1": "0x55AA55AA",
-				"buf2": "0x040801ff", //byte0:read_hold (0x04); byte1:write_hold (0x08); byte3:axi_read_first (0x01); byte4:NA
+				"buf2": "0x04080100", //byte0:read_hold (0x04); byte1:write_hold (0x08); byte3:axi_read_first(0x01); byte4: bit mode
 				"buf3": "0xFFFFFF04",
 				"buf4": "0xFFFFFF05",
 				"buf5": "0xFFFFFF06",
@@ -58,7 +58,7 @@
 				"buf9": "0xFFFFFF00",
 			},
 		},
-		"cfg1": {
+		"cfg1": { //OPI APS3208K 4M PSRAM
 			"common": {
 				"clock":      "192000000",
 				"cs0_pins":   "0x0",
@@ -106,7 +106,7 @@
 			"backup": {
 				"buf0": "0xAA55AA55",
 				"buf1": "0x55AA55AA",
-				"buf2": "0x040801ff", //byte0:read_hold (0x04); byte1:write_hold (0x08); byte3:axi_read_first (0x01); byte4:NA
+				"buf2": "0x04080100", //byte0:read_hold (0x04); byte1:write_hold (0x08); byte3:axi_read_first(0x01); byte4: bit mode
 				"buf3": "0xFFFFFF04",
 				"buf4": "0xFFFFFF05",
 				"buf5": "0xFFFFFF06",
@@ -117,14 +117,14 @@
 			},
 		},
 
-        "cfg3": {
+        "cfg2": { // XCCELA AP12816 16M PSRAM
 			"common": {
 				"clock":      "198000000",
 				"cs0_pins":   "0x0",
 				"cs1_pins":   "0x0",
 				"xspi_ctl":   "0x116d",
 				"xspi_tcr":   "0x280011",
-				"xspi_cfg":   "0x01000001",
+				"xspi_cfg":   "0x03000001",
 				"xspi_ldo":   "0x17", //1.92V
 				"psram_cfg0": "0x03030304", //cmd_lines, addr_lines, data_lines, addr_width
 				"psram_cfg1": "0x02000001",
@@ -158,7 +158,7 @@
 				"buf3":   "0xffffffff",
 			},
 			"xip_cfg": {
-				"wr_proto": "0x80070002", //cmd: byte[0]=; dummy: byte[1]=; addr: byte[2]=; len: byte[3]=;
+				"wr_proto": "0x80070002", //cmd: byte[0]=0x80; dummy: byte[1]=0x07; addr: byte[2]=0x08; len: byte[3]=0x02;
 				"wr_buf":   "0xffffffff",
 				"rd_proto": "0x00070003",
 				"rd_buf":   "0xffffffff",
@@ -166,9 +166,9 @@
 			"backup": {
 				"buf0": "0x5555aaaa",
 				"buf1": "0xaaaa5555",
-				"buf2": "0x050501ff", //byte0:read_hold; byte1:write_hold; byte3:axi_read_first; byte4:NA
-				"buf3": "0x00000006", // efuse_mark_id,
-				"buf4": "0x00000002", //efuse_psram_id
+				"buf2": "0x05050101", //byte0:read_hold; byte1:write_hold; byte3:axi_read_first; byte4:bit mode
+				"buf3": "0xFFFFFF04",
+				"buf4": "0xFFFFFF05",
 				"buf5": "0xFFFFFF06",
 				"buf6": "0xFFFFFF07",
 				"buf7": "0xFFFFFF08",
@@ -177,14 +177,14 @@
 			},
 		},
 
-		"cfg4": {
+		"cfg3": { // XCCELA UnilC SCKW18X12816 16M PSRAM
 			"common": {
 				"clock":      "198000000",
 				"cs0_pins":   "0x0",
 				"cs1_pins":   "0x0",
 				"xspi_ctl":   "0x116d",
 				"xspi_tcr":   "0x280011",
-				"xspi_cfg":   "0x01000001",
+				"xspi_cfg":   "0x03000001",
 				"xspi_ldo":   "0x17", //1.92V
 				"psram_cfg0": "0x03030304", //cmd_lines, addr_lines, data_lines, addr_width
 				"psram_cfg1": "0x02000001",
@@ -218,7 +218,7 @@
 				"buf3":   "0xffffffff",
 			},
 			"xip_cfg": {
-				"wr_proto": "0x80070002", //cmd: byte[0]=; dummy: byte[1]=; addr: byte[2]=; len: byte[3]=;
+				"wr_proto": "0x80070002", //cmd: byte[0]=0x80; dummy: byte[1]=0x07; addr: byte[2]=0x08; len: byte[3]=0x02;
 				"wr_buf":   "0xffffffff",
 				"rd_proto": "0x00070003",
 				"rd_buf":   "0xffffffff",
@@ -226,7 +226,7 @@
 			"backup": {
 				"buf0": "0x5555aaaa",
 				"buf1": "0xaaaa5555",
-				"buf2": "0x050501ff", //byte0:read_hold; byte1:write_hold; byte3:axi_read_first; byte4:NA
+				"buf2": "0x05050101", //byte0:read_hold; byte1:write_hold; byte3:axi_read_first; byte4:bit mode
 				"buf3": "0xFFFFFF04",
 				"buf4": "0xFFFFFF05",
 				"buf5": "0xFFFFFF06",
@@ -248,7 +248,7 @@
 			"upgmode_pin_input_val": "0x0", // Bit VAL
 			"upgmode_pin_pullup_dly": "500", // us
 		},
-		"uart": { // PBP's uart setting
+		"uart": { // PBP's uart setting, remove uart setting to disable log in PBP
 			"main": {
 				// "uart_id": "0", // UART0 for log output
 				// "uart_tx_pin_cfg_reg": "0x18700080", // PA0

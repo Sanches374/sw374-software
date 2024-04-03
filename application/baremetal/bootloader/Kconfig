@@ -171,6 +171,16 @@ menu "Commands"
         bool "boot progress bar"
         default n
 
+    config AIC_BOOTLOADER_CMD_FB_CONSOLE
+        bool "fb console support"
+        default y
+        depends on AIC_BOOTLOADER_CMD_PROGRESS_BAR
+
+    config AIC_BOOTLOADER_CMD_ONLY_FB_CONSOLE
+        bool "only fb console"
+        default n
+        depends on AIC_BOOTLOADER_CMD_FB_CONSOLE
+
     config AIC_BOOTLOADER_CMD_PSRAM_TEST
         bool "psram memory test"
         depends on AIC_XSPI_DRV

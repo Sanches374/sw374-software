@@ -19,10 +19,13 @@ source "packages/third-party/ota_downloader/Kconfig"
 source "packages/third-party/freetype/Kconfig"
 source "packages/third-party/rtt_auto_exe_cmd/Kconfig"
 source "packages/third-party/netutils/Kconfig"
+source "packages/third-party/libmodbus/Kconfig"
+source "packages/third-party/ptpd/Kconfig"
 
 # for baremetal mode
 source "packages/third-party/dfs/Kconfig"
 source "packages/third-party/libmad/Kconfig"
 source "packages/third-party/fdtlib/Kconfig"
+source "packages/third-party/gif/Kconfig"
 
 endmenu

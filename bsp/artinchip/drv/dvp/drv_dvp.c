@@ -229,7 +229,7 @@ static int aic_dvp_frame_done(struct aic_dvp *dvp, int err)
     return 0;
 }
 
-static int aic_dvp_update_done(struct aic_dvp *dvp)
+static int aic_dvp_update_addr(struct aic_dvp *dvp)
 {
     struct vb_buffer *cur_buf;
     struct vb_buffer *next_buf;
@@ -287,9 +287,7 @@ static void aic_dvp_buf_queue(struct vb_buffer *vb)
 {
     pr_debug("Queue buf %d\n", vb->index);
 
-    aicos_mutex_take(g_dvp.active_lock, AICOS_WAIT_FOREVER);
     list_add_tail(&vb->active_entry, &g_dvp.active_list);
-    aicos_mutex_give(g_dvp.active_lock);
     vb->hw_using = 0;
 }
 
@@ -298,12 +296,14 @@ static void aic_dvp_reclaim_all_buffers(struct aic_dvp *dvp,
 {
     struct vb_buffer *vb, *node;
 
-    aicos_mutex_take(dvp->active_lock, AICOS_WAIT_FOREVER);
+    rt_base_t level = rt_hw_interrupt_disable();
+
     list_for_each_entry_safe(vb, node, &dvp->active_list, active_entry) {
         vin_vb_buffer_done(vb, state);
         list_del(&vb->active_entry);
     }
-    aicos_mutex_give(dvp->active_lock);
+
+    rt_hw_interrupt_enable(level);
 }
 
 static int aic_dvp_start_streaming(struct vb_queue *q)
@@ -316,8 +316,6 @@ static int aic_dvp_start_streaming(struct vb_queue *q)
 
     dvp->sequence = 0;
 
-    aicos_mutex_take(dvp->active_lock, AICOS_WAIT_FOREVER);
-
     aich_dvp_set_cfg(&dvp->cfg);
     aich_dvp_set_pol(dvp->cfg.flags);
     aich_dvp_record_mode();
@@ -328,26 +326,17 @@ static int aic_dvp_start_streaming(struct vb_queue *q)
     /* Prepare our active_uffers in hardware */
     vb = list_first_entry(&dvp->active_list, struct vb_buffer, active_entry);
     ret = aic_dvp_buf_reload(dvp, vb);
-    if (ret) {
-        aicos_mutex_give(dvp->active_lock);
+    if (ret)
         goto err_disable_pipeline;
-    }
 
     aich_dvp_capture_start();
     aich_dvp_update_ctl();
-    aicos_mutex_give(dvp->active_lock);
 
     dvp->streaming = 1;
-    // TODO: stream on OV5640
-
     return 0;
 
 err_disable_pipeline:
-
-    aicos_mutex_take(dvp->active_lock, AICOS_WAIT_FOREVER);
     aic_dvp_reclaim_all_buffers(dvp, VB_BUF_STATE_QUEUED);
-    aicos_mutex_give(dvp->active_lock);
-
     return ret;
 }
 
@@ -362,9 +351,7 @@ static void aic_dvp_stop_streaming(struct vb_queue *q)
     aich_dvp_update_ctl();
 
     /* Release all active buffers */
-    aicos_mutex_take(dvp->active_lock, AICOS_WAIT_FOREVER);
     aic_dvp_reclaim_all_buffers(dvp, VB_BUF_STATE_ERROR);
-    aicos_mutex_give(dvp->active_lock);
     dvp->streaming = 0;
 }
 
@@ -379,10 +366,9 @@ static irqreturn_t aic_dvp_isr(int irq, void *data)
     struct aic_dvp *dvp = &g_dvp;
     u32 sta, err = 0;
 
-    aicos_local_irq_disable();
-
     sta = aich_dvp_clr_int();
     pr_debug("IRQ status 0x%x, sequence %d\n", sta, dvp->sequence);
+
     if (sta & DVP_IRQ_STA_FIFO_FULL) {
         g_dvp_full_cnt++;
         /* should tag the buf error, so APP can ignore it */
@@ -393,24 +379,16 @@ static irqreturn_t aic_dvp_isr(int irq, void *data)
         pr_warn("DVP checksum has error! (0x%x)\n", sta);
     }
 
-    /* FRAME_DONE and UPDATE_DONE may come in one single interrupt,
-     * process FRAME_DONE first. */
     if (sta & DVP_IRQ_EN_FRAME_DONE) {
         if (err)
             aich_dvp_clr_fifo();
 
-        aicos_mutex_take(dvp->active_lock, AICOS_WAIT_FOREVER);
         aic_dvp_frame_done(dvp, err);
-        aicos_mutex_give(dvp->active_lock);
     }
 
-    if (sta & DVP_IRQ_STA_UPDATE_DONE) {
-        aicos_mutex_take(dvp->active_lock, AICOS_WAIT_FOREVER);
-        aic_dvp_update_done(dvp);
-        aicos_mutex_give(dvp->active_lock);
-    }
+    if (sta & DVP_IRQ_STA_HNUM)
+        aic_dvp_update_addr(dvp);
 
-    aicos_local_irq_enable();
     return IRQ_HANDLED;
 }
 
@@ -425,9 +403,7 @@ int aic_dvp_probe(void)
     }
 
     memset(&g_dvp, 0, sizeof(struct aic_dvp));
-    g_dvp.active_lock = aicos_mutex_create();
     INIT_LIST_HEAD(&g_dvp.active_list);
-    vin_vb_init(&g_dvp.queue, &aic_dvp_vb_ops);
 
     return ret;
 }
@@ -453,6 +429,8 @@ int aic_dvp_open(void)
         pr_err("DVP reset enable failed!\n");
         return -1;
     }
+
+    vin_vb_init(&g_dvp.queue, &aic_dvp_vb_ops);
 
     aich_dvp_qos_cfg(AIC_DVP_QOS_HIGH, AIC_DVP_QOS_LOW, 0x100, 0x80);
     aich_dvp_enable(1);
@@ -480,6 +458,7 @@ int aic_dvp_close(void)
         return -1;
     }
 
+    vin_vb_deinit(&g_dvp.queue);
     if (g_dvp_full_cnt)
         pr_info("DVP FIFO full happened %d times\n", g_dvp_full_cnt);
 

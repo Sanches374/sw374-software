@@ -22,6 +22,7 @@ extern "C" {
 #define PULSE_ENCODER_CMD_ENABLE         (128 + 1)    /* enable pulse_encoder */
 #define PULSE_ENCODER_CMD_DISABLE        (128 + 2)    /* disable pulse_encoder */
 #define PULSE_ENCODER_CMD_CLEAR_COUNT    (128 + 3)    /* clear pulse_encoder count */
+#define PULSE_ENCODER_CMD_SET_COUNT      (128 + 4)    /* set pulse_encoder count */
 
 /* pulse_encoder type */
 enum rt_pulse_encoder_type

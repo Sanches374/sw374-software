@@ -46,7 +46,7 @@ extern "C" {
 #ifdef AIC_BOOTLOADER_PSRAM_EN
 #define DATA_WRITE_ONCE_SIZE (1024 * 1024)
 #else
-#define DATA_WRITE_ONCE_SIZE (64 * 1024)
+#define DATA_WRITE_ONCE_SIZE (20 * 1024)
 #endif
 
 struct cmd_header {
@@ -124,6 +124,8 @@ s32 aicupg_data_packet_read(u8 *data, s32 len);
 s32 aicupg_fat_write(char *image_name, char *protection,
 				struct image_header_upgrade *header);
 
+int aicupg_fat_direct_write(char *dst_type, u32 intf_id, char *fpath,
+                            u32 dst_offset, u32 boot_flag, char *attr);
 #ifdef __cplusplus
 }
 #endif

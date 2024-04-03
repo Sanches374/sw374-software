@@ -37,6 +37,21 @@ config CPU_BASE
     depends on AIC_CHIP_D13X
 
 #--------------------------------------------
+# interrupt global option
+#--------------------------------------------
+
+config GLOBAL_INT_SW_THRESHOLD_EN
+    bool "Use threshold as global interrupt switch"
+    default n
+
+if GLOBAL_INT_SW_THRESHOLD_EN
+    config GLOBAL_INT_SW_THRESHOLD
+        int "Threshold value (0-7)"
+        default 6
+        range 0 7
+endif
+
+#--------------------------------------------
 # cmu driver global option
 #--------------------------------------------
 

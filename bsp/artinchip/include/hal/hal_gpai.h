@@ -41,6 +41,7 @@ struct aic_dma_transfer_info
 struct aic_gpai_ch {
     u8 id;
     u8 available;
+    u8 adc_acq;
     enum aic_gpai_mode mode;
     enum aic_gpai_obtain_data_mode obtain_data_mode;
     u32 smp_period;

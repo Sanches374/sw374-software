@@ -508,8 +508,6 @@ static int mov_read_hdlr(struct aic_mov_parser *c, struct mov_atom atom)
 		st->type = MPP_MEDIA_TYPE_VIDEO;
 	else if (type == MKTAG('s','o','u','n'))
 		st->type = MPP_MEDIA_TYPE_AUDIO;
-	else
-		st->type = MPP_MEDIA_TYPE_UNKNOWN;
 
 	rb32(c->stream); /* component  manufacture */
 	rb32(c->stream); /* component flags */

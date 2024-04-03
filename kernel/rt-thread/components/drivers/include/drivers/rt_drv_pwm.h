@@ -25,12 +25,15 @@
 #define PWM_CMD_SET_FIFO_NUM (RT_DEVICE_CTRL_BASE(PWM) + 9)
 #define PWM_CMD_GET_FIFO    (RT_DEVICE_CTRL_BASE(PWM) + 10)
 #define PWM_CMD_SET_PUL     (RT_DEVICE_CTRL_BASE(PWM) + 11)
+#define PWM_CMD_SET_OUTPUT  (RT_DEVICE_CTRL_BASE(PWM) + 12)
 
 struct rt_pwm_configuration
 {
     rt_uint32_t channel; /* 1-n or 0-n, which depends on specific MCU requirements */
     rt_uint32_t period;  /* unit:ns 1ns~4.29s:1Ghz~0.23hz */
     rt_uint32_t pulse;   /* unit:ns (pulse<=period) */
+
+    rt_uint32_t output;  /* 0:output0, 1:output1 */
 
     /*
      * RT_TRUE  : The channel of pwm is complememtary.
@@ -80,6 +83,7 @@ rt_err_t rt_pwm_set(struct rt_device_pwm *device, int channel, rt_uint32_t perio
 #else
 rt_err_t rt_pwm_set(struct rt_device_pwm *device, int channel, rt_uint32_t period, rt_uint32_t pulse);
 #endif
+rt_err_t rt_pwm_set_output(struct rt_device_pwm *device, int channel, rt_uint32_t period, rt_uint32_t pulse, rt_uint32_t output);
 rt_err_t rt_pwm_set_period(struct rt_device_pwm *device, int channel, rt_uint32_t period);
 rt_err_t rt_pwm_set_pulse(struct rt_device_pwm *device, int channel, rt_uint32_t pulse);
 

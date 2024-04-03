@@ -28,6 +28,7 @@ struct aic_gpai_ch aic_gpai_chs[] = {
     {
         .id = 0,
         .available = 1,
+        .adc_acq = AIC_GPAI0_ADC_ACQ,
 #ifdef AIC_GPAI_DRV_V20
         .dma_port_id = DMA_ID_GPAI0,
 #endif
@@ -47,6 +48,7 @@ struct aic_gpai_ch aic_gpai_chs[] = {
     {
         .id = 1,
         .available = 1,
+        .adc_acq = AIC_GPAI1_ADC_ACQ,
 #ifdef AIC_GPAI_DRV_V20
         .dma_port_id = DMA_ID_GPAI1,
 #endif
@@ -66,6 +68,7 @@ struct aic_gpai_ch aic_gpai_chs[] = {
     {
         .id = 2,
         .available = 1,
+        .adc_acq = AIC_GPAI2_ADC_ACQ,
 #ifdef AIC_GPAI_DRV_V20
         .dma_port_id = DMA_ID_GPAI2,
 #endif
@@ -81,6 +84,7 @@ struct aic_gpai_ch aic_gpai_chs[] = {
     {
         .id = 3,
         .available = 1,
+        .adc_acq = AIC_GPAI3_ADC_ACQ,
 #ifdef AIC_GPAI_DRV_V20
         .dma_port_id = DMA_ID_GPAI3,
 #endif
@@ -96,6 +100,7 @@ struct aic_gpai_ch aic_gpai_chs[] = {
     {
         .id = 4,
         .available = 1,
+        .adc_acq = AIC_GPAI4_ADC_ACQ,
 #ifdef AIC_GPAI_DRV_V20
         .dma_port_id = DMA_ID_GPAI4,
 #endif
@@ -111,6 +116,7 @@ struct aic_gpai_ch aic_gpai_chs[] = {
     {
         .id = 5,
         .available = 1,
+        .adc_acq = AIC_GPAI5_ADC_ACQ,
 #ifdef AIC_GPAI_DRV_V20
         .dma_port_id = DMA_ID_GPAI5,
 #endif
@@ -126,6 +132,7 @@ struct aic_gpai_ch aic_gpai_chs[] = {
     {
         .id = 6,
         .available = 1,
+        .adc_acq = AIC_GPAI6_ADC_ACQ,
 #ifdef AIC_GPAI_DRV_V20
         .dma_port_id = DMA_ID_GPAI6,
 #endif
@@ -141,6 +148,7 @@ struct aic_gpai_ch aic_gpai_chs[] = {
     {
         .id = 7,
         .available = 1,
+        .adc_acq = AIC_GPAI7_ADC_ACQ,
 #ifdef AIC_GPAI_DRV_V20
         .dma_port_id = DMA_ID_GPAI7,
 #endif
@@ -156,6 +164,7 @@ struct aic_gpai_ch aic_gpai_chs[] = {
     {
         .id = 8,
         .available = 1,
+        .adc_acq = AIC_GPAI8_ADC_ACQ,
         .dma_port_id = DMA_ID_GPAI8,
         .obtain_data_mode = AIC_GPAI8_OBTAIN_DATA_MODE,
         .mode = AIC_GPAI8_MODE,
@@ -169,6 +178,7 @@ struct aic_gpai_ch aic_gpai_chs[] = {
     {
         .id = 9,
         .available = 1,
+        .adc_acq = AIC_GPAI9_ADC_ACQ,
         .dma_port_id = DMA_ID_GPAI9,
         .obtain_data_mode = AIC_GPAI9_OBTAIN_DATA_MODE,
         .mode = AIC_GPAI9_MODE,
@@ -182,6 +192,7 @@ struct aic_gpai_ch aic_gpai_chs[] = {
     {
         .id = 10,
         .available = 1,
+        .adc_acq = AIC_GPAI10_ADC_ACQ,
         .dma_port_id = DMA_ID_GPAI10,
         .obtain_data_mode = AIC_GPAI10_OBTAIN_DATA_MODE,
         .mode = AIC_GPAI10_MODE,
@@ -195,6 +206,7 @@ struct aic_gpai_ch aic_gpai_chs[] = {
     {
         .id = 11,
         .available = 1,
+        .adc_acq = AIC_GPAI11_ADC_ACQ,
         .dma_port_id = DMA_ID_GPAI11,
         .obtain_data_mode = AIC_GPAI11_OBTAIN_DATA_MODE,
         .mode = AIC_GPAI11_MODE,

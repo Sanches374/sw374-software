@@ -124,9 +124,20 @@ static int aic_dsi_attach_panel(struct aic_panel *panel)
     }
     comp->pll_disp_rate = pll_disp_rate;
 
-    comp->ln_assign = LANE_ASSIGNMENTS;
-    comp->ln_polrs = LANE_POLARITIES;
-    comp->dc_inv = CLK_INVERSE;
+    if (dsi->ln_assign)
+        comp->ln_assign = dsi->ln_assign;
+    else
+        comp->ln_assign = LANE_ASSIGNMENTS;
+
+    if (dsi->ln_polrs)
+        comp->ln_polrs = dsi->ln_polrs;
+    else
+        comp->ln_polrs = LANE_POLARITIES;
+
+    if (dsi->dc_inv)
+        comp->dc_inv = dsi->dc_inv;
+    else
+        comp->dc_inv = CLK_INVERSE;
 
     aic_dsi_release_drvdata();
     return 0;
@@ -158,9 +169,36 @@ static int aic_dsi_set_vm(const struct display_timing *timing, int enable)
     return 0;
 }
 
+static void aic_dsi_send_debug_cmd(struct aic_dsi_comp *comp)
+{
+    struct dsi_command *commands = &comp->panel->dsi->command;
+    unsigned int i = 0;
+
+    aic_dsi_set_vm(comp->panel->timings, false);
+    while (i < commands->len) {
+        u8 command = commands->buf[i++];
+        u8 num_parameters = commands->buf[i++];
+        const u8 *parameters = &commands->buf[i];
+
+        if (command == 0x00 && num_parameters == 1)
+            aic_delay_ms(parameters[0]);
+        else
+            dsi_cmd_wr(comp->regs, command, comp->vc_num, parameters, num_parameters);
+
+        i += num_parameters;
+    }
+    aic_dsi_set_vm(comp->panel->timings, true);
+}
+
 static int aic_dsi_send_cmd(u32 dt, u32 vc, const u8 *data, u32 len)
 {
     struct aic_dsi_comp *comp = aic_dsi_request_drvdata();
+    int command_on = comp->panel->dsi->command.command_on;
+
+    if (command_on) {
+        aic_dsi_send_debug_cmd(comp);
+        return 0;
+    }
 
     dsi_cmd_wr(comp->regs, dt, vc, data, len);
     aic_dsi_release_drvdata();

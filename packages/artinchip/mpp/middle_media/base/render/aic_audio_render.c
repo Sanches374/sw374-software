@@ -63,6 +63,7 @@ s32 rt_audio_render_set_attr(struct aic_audio_render *render,struct aic_audio_re
 {
     struct aic_rt_audio_render *rt_render = (struct aic_rt_audio_render*)render;
     struct rt_audio_caps caps = {0};
+    int stream;
 
     caps.main_type               = AUDIO_TYPE_OUTPUT;
     caps.sub_type                = AUDIO_DSP_PARAM;
@@ -70,6 +71,10 @@ s32 rt_audio_render_set_attr(struct aic_audio_render *render,struct aic_audio_re
     caps.udata.config.channels   = attr->channels;
     caps.udata.config.samplebits = 16;
     rt_device_control(rt_render->snd_dev, AUDIO_CTL_CONFIGURE, &caps);
+
+    stream = AUDIO_STREAM_REPLAY;
+    rt_device_control(rt_render->snd_dev, AUDIO_CTL_START, (void *)&stream);
+    rt_thread_mdelay(100);
     return 0;
 
 }
@@ -80,7 +85,7 @@ s32 rt_audio_render_get_attr(struct aic_audio_render *render,struct aic_audio_re
 }
 
 #ifdef RT_AUDIO_REPLAY_MP_BLOCK_SIZE
-    #define BLOCK_SIZE RT_AUDIO_REPLAY_MP_BLOCK_SIZE
+    #define BLOCK_SIZE (RT_AUDIO_REPLAY_MP_BLOCK_SIZE/2)
 #else
     #define BLOCK_SIZE (2*1024)
 #endif

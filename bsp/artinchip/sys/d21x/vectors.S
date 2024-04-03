@@ -105,9 +105,11 @@ Default_IRQHandler:
 #endif
 
 #if defined(KERNEL_RTTHREAD)
-    jal     rt_interrupt_enter
+    la      t0, rt_interrupt_enter
+    jalr    t0
 #elif defined(KERNEL_FREERTOS)
-    jal     aicos_irq_enter
+    la      t0, aicos_irq_enter
+    jalr    t0
 #endif
 
     /* call isr */
@@ -150,9 +152,11 @@ Default_IRQHandler:
     jalr    t2
 
 #if defined(KERNEL_RTTHREAD)
-    jal     rt_interrupt_leave
+    la      t0, rt_interrupt_leave
+    jalr    t0
 #elif defined(KERNEL_FREERTOS)
-    jal     aicos_irq_exit
+    la      t0, aicos_irq_exit
+    jalr    t0
 #endif
 
     /* write PLIC_H0_MCLAIM and exit interrupt */
@@ -162,10 +166,6 @@ Default_IRQHandler:
     li      t0, PLIC_H0_MCLAIM
     sw      a0, (t0)
 .no_ext_irq_exit:
-
-    /* resume mstatus */
-    //li      t0, MSTATUS_PRV1
-    //csrs    mstatus, t0
 
 #ifdef ARCH_RISCV_FPU
     FLOAD   ft0,  0 * FREGBYTES(sp)

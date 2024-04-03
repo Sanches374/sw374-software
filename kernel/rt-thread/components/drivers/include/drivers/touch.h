@@ -57,6 +57,9 @@ extern "C" {
 #define RT_TOUCH_EVENT_UP                (1)   /* Touch up event */
 #define RT_TOUCH_EVENT_DOWN              (2)   /* Touch down event */
 #define RT_TOUCH_EVENT_MOVE              (3)   /* Touch move event */
+#ifdef AIC_MONKEY_TEST
+#define RT_TOUCH_MONKEY_TEST             (4)   /* Touch monkey test event */
+#endif
 
 struct rt_touch_info
 {
@@ -92,6 +95,9 @@ struct rt_touch_data
     rt_uint8_t          event;                 /* The touch event of the data */
     rt_uint8_t          track_id;              /* Track id of point */
     rt_uint8_t          width;                 /* Point of width */
+#ifdef AIC_RTP_DRV
+    rt_uint16_t         pressure;              /* The pressure */
+#endif
     rt_uint16_t         x_coordinate;          /* Point of x coordinate */
     rt_uint16_t         y_coordinate;          /* Point of y coordinate */
     rt_tick_t           timestamp;             /* The timestamp when the data was received */

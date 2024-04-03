@@ -36,7 +36,10 @@
 
 #define SPI_CTLR_0     0
 #define SPI_CTLR_1     1
+#define SPI_CTLR_SE    5
 #define SPI_CTLR_INVAL 0xFF
+
+static int bypass = 0;
 
 static int hal_spienc_attach_bus(u8 bus)
 {
@@ -46,14 +49,24 @@ static int hal_spienc_attach_bus(u8 bus)
     val &= ~SPIE_SPI_SEL_MSK;
 
     switch (bus) {
+#if defined(AIC_SPIENC_QSPI0)
         case SPI_CTLR_0:
             val |= (1 << SPIE_SPI_SEL_OFF);
             writel(val, (SPI_ENC_BASE + SPIE_REG_CTL));
             break;
+#endif
+#if defined(AIC_SPIENC_QSPI1)
         case SPI_CTLR_1:
             val |= (2 << SPIE_SPI_SEL_OFF);
             writel(val, (SPI_ENC_BASE + SPIE_REG_CTL));
             break;
+#endif
+#if defined(AIC_USING_SE_SPI)
+        case SPI_CTLR_SE:
+            val |= (1 << SPIE_SPI_SEL_OFF);
+            writel(val, (SPI_ENC_BASE + SPIE_REG_CTL));
+            break;
+#endif
         case SPI_CTLR_INVAL:
             val |= (0 << SPIE_SPI_SEL_OFF);
             writel(val, (SPI_ENC_BASE + SPIE_REG_CTL));
@@ -61,7 +74,7 @@ static int hal_spienc_attach_bus(u8 bus)
         default:
             val |= (0 << SPIE_SPI_SEL_OFF);
             writel(val, (SPI_ENC_BASE + SPIE_REG_CTL));
-            hal_log_err("Wrong SPI Controller ID In DTS\n");
+            hal_log_warn("SPI controller %d not enable spienc\n", bus);
             return -EINVAL;
     }
 
@@ -97,20 +110,33 @@ void hal_spienc_set_cfg(u32 spi_bus, u32 addr, u32 cpos, u32 clen)
 #if defined(AIC_SPIENC_QSPI0)
         tweak = AIC_SPIENC_QSPI0_TWEAK;
 #endif
-    } else if (spi_bus == 1){
+    } else if (spi_bus == 1) {
 #if defined(AIC_SPIENC_QSPI1)
         tweak = AIC_SPIENC_QSPI1_TWEAK;
+#endif
+    } else if (spi_bus == 5) {
+#if defined(AIC_SPIENC_SE_SPI)
+        tweak = AIC_SPIENC_SE_SPI_TWEAK;
 #endif
     } else {
         tweak = 0;
         hal_log_warn("not define spi %d tweak, default(%d).\n", spi_bus, tweak);
     }
 
-    hal_spienc_attach_bus(spi_bus);
+    if (bypass)
+        hal_spienc_attach_bus(0xff);
+    else
+        hal_spienc_attach_bus(spi_bus);
+
     writel(addr, (SPI_ENC_BASE + SPIE_REG_ADDR));
     writel(cpos, (SPI_ENC_BASE + SPIE_REG_CPOS));
     writel(clen, (SPI_ENC_BASE + SPIE_REG_CLEN));
     writel(tweak, (SPI_ENC_BASE + SPIE_REG_TWEAK));
+}
+
+void hal_spienc_set_bypass(int status)
+{
+    bypass = status;
 }
 
 void hal_spienc_start(void)

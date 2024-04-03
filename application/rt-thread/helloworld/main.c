@@ -7,6 +7,9 @@
  */
 
 #include <rtthread.h>
+#ifdef RT_USING_ULOG
+#include <ulog.h>
+#endif
 
 #ifdef AIC_AB_SYSTEM_INTERFACE
 #include <absystem.h>
@@ -27,6 +30,10 @@ int main(void)
 
     if (dfs_mount(target, "/rodata", "elm", 0, 0) < 0)
         printf("Failed to mount elm\n");
+#endif
+
+#ifdef ULOG_USING_FILTER
+    ulog_global_filter_lvl_set(ULOG_OUTPUT_LVL);
 #endif
     return 0;
 }

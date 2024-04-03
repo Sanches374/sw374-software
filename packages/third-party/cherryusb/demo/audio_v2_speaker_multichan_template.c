@@ -1,5 +1,19 @@
+/*
+ * Copyright (c) 2024, ArtInChip Technology Co., Ltd
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
 #include "usbd_core.h"
 #include "usbd_audio.h"
+#include <hal_audio.h>
+
+
+#if !defined(KERNEL_RTTHREAD)
+#include "ringbuffer.h"
+#else
+#include <rtthread.h>
+#include <rtdevice.h>
+#endif
 
 #define USBD_VID           0x33C3
 #define USBD_PID           0xffff
@@ -67,7 +81,7 @@
                       AUDIO_V2_SIZEOF_AC_FEATURE_UNIT_DESC(OUT_CHANNEL_NUM) + \
                       AUDIO_V2_SIZEOF_AC_OUTPUT_TERMINAL_DESC)
 
-const uint8_t audio_v2_descriptor[] = {
+uint8_t audio_v2_descriptor[] = {
     USB_DEVICE_DESCRIPTOR_INIT(USB_2_0, 0x00, 0x00, 0x00, USBD_VID, USBD_PID, 0x0001, 0x01),
     USB_CONFIG_DESCRIPTOR_INIT(USB_AUDIO_CONFIG_DESC_SIZ, 0x02, 0x01, USB_CONFIG_BUS_POWERED, USBD_MAX_POWER),
     AUDIO_V2_AC_DESCRIPTOR_INIT(0x00, 0x02, AUDIO_AC_SIZ, AUDIO_CATEGORY_SPEAKER, 0x00, 0x00),
@@ -169,14 +183,36 @@ static const uint8_t default_sampling_freq_table[] = {
     AUDIO_SAMPLE_FREQ_4B(0x00),
 };
 
+#define TX_FIFO_PERIOD_COUNT            20
+#define TX_FIFO_SIZE                    AUDIO_OUT_PACKET*TX_FIFO_PERIOD_COUNT//3840
+
+struct audio_volume_mute {
+    int volume;
+    bool     mute;
+} usbd_volume_mute;
+
+uint8_t audio_fifo_tx[TX_FIFO_SIZE] __attribute__((aligned(64)));
 USB_NOCACHE_RAM_SECTION USB_MEM_ALIGNX uint8_t read_buffer[AUDIO_OUT_PACKET];
 
+aic_audio_ctrl audio_ctrl0;
 volatile bool rx_flag = 0;
+uint32_t total_len = 0;
+uint8_t usbd_start_flag = 0;
+
+void usbd_clear_buffer(void)
+{
+    static uint8_t reset_num = 1;
+    /* The usb enumeration generates two reset operations.*/
+    if (reset_num++>2) {
+        memset(read_buffer, 0, AUDIO_OUT_PACKET);
+    }
+}
 
 void usbd_event_handler(uint8_t event)
 {
     switch (event) {
         case USBD_EVENT_RESET:
+            usbd_clear_buffer();
             break;
         case USBD_EVENT_CONNECTED:
             break;
@@ -198,18 +234,56 @@ void usbd_event_handler(uint8_t event)
     }
 }
 
+void usbd_audio_set_volume(uint8_t ep, uint8_t ch, int volume)
+{
+    USB_LOG_DBG("set volume:%d\r\n", volume);
+    usbd_volume_mute.volume = volume;
+}
+
+int usbd_audio_get_volume(uint8_t ep, uint8_t ch)
+{
+    int reg_volume;
+    USB_LOG_DBG("get volume:%d\r\n", usbd_volume_mute.volume);
+    reg_volume = usbd_volume_mute.volume * MAX_VOLUME_0DB / 100;
+    hal_audio_set_playback_volume(&audio_ctrl0, reg_volume);
+
+    return usbd_volume_mute.volume;
+}
+
+void usbd_audio_set_mute(uint8_t ep, uint8_t ch, bool mute)
+{
+    usbd_volume_mute.mute = mute;
+}
+
+bool usbd_audio_get_mute(uint8_t ep, uint8_t ch)
+{
+    return usbd_volume_mute.mute;
+}
+
 void usbd_audio_open(uint8_t intf)
 {
     rx_flag = 1;
     /* setup first out ep read transfer */
     usbd_ep_start_read(AUDIO_OUT_EP, read_buffer, AUDIO_OUT_PACKET);
-    USB_LOG_RAW("OPEN\r\n");
+    USB_LOG_DBG("OPEN\r\n");
 }
 
 void usbd_audio_close(uint8_t intf)
 {
-    USB_LOG_RAW("CLOSE\r\n");
+    USB_LOG_DBG("CLOSE\r\n");
     rx_flag = 0;
+}
+
+
+void usbd_audio_set_sampling_freq(uint8_t ep, uint32_t sampling_freq)
+{
+    uint16_t packet_size = 0;
+    USB_LOG_DBG("usb device audio sampling_freq %ld,\r\n", sampling_freq);
+    if (ep == AUDIO_OUT_EP) {
+        packet_size = ((sampling_freq * 2 * OUT_CHANNEL_NUM) / 1000);
+        audio_v2_descriptor[18 + USB_AUDIO_CONFIG_DESC_SIZ - 11] = packet_size;
+        audio_v2_descriptor[18 + USB_AUDIO_CONFIG_DESC_SIZ - 10] = packet_size >> 8;
+    }
 }
 
 void usbd_audio_get_sampling_freq_table(uint8_t ep, uint8_t **sampling_freq_table)
@@ -219,9 +293,141 @@ void usbd_audio_get_sampling_freq_table(uint8_t ep, uint8_t **sampling_freq_tabl
     }
 }
 
+#if defined(KERNEL_RTTHREAD)
+struct rt_ringbuffer  ring_buf0;
+void audio_ringbuffer_init(void)
+{
+    rt_ringbuffer_init(&ring_buf0, audio_fifo_tx, TX_FIFO_SIZE);
+}
+#else
+ringbuf_t ring_buf0;
+void audio_ringbuffer_init(void)
+{
+    ring_buf0.buffer = audio_fifo_tx;
+    ring_buf0.size = TX_FIFO_SIZE;
+    ring_buf0.write = 0;
+    ring_buf0.read = 0;
+    ring_buf0.data_len = 0;
+}
+#endif
+
+void usbd_audio_data_process(uint8_t* read_buffer)
+{
+    int length, wr_size;
+    uint8_t *tmp_buf;
+
+    length = AUDIO_OUT_PACKET;
+
+    if (!usbd_start_flag) {
+        wr_size = 0;
+        tmp_buf = read_buffer;
+
+        #if defined(KERNEL_RTTHREAD)
+        wr_size = rt_ringbuffer_put(&ring_buf0, tmp_buf, length);
+        #else
+        wr_size = ringbuf_in(&ring_buf0, tmp_buf, length);
+        #endif
+        total_len += wr_size;
+        if (total_len >= TX_FIFO_SIZE)
+        {
+            usbd_start_flag = 1;
+            hal_audio_playback_start(&audio_ctrl0);
+        }
+    } else {
+        tmp_buf = read_buffer;
+        #if defined(KERNEL_RTTHREAD)
+        wr_size = rt_ringbuffer_put_force(&ring_buf0, tmp_buf, length);
+        #else
+        wr_size = ringbuf_in(&ring_buf0, tmp_buf, length);
+        #endif
+    }
+}
+
+void usbd_hal_audio_callback(aic_audio_ctrl *pcodec, void *arg)
+{
+    unsigned long event = (unsigned long)arg;
+
+    switch (event) {
+        case AUDIO_TX_PERIOD_INT:
+            #if !defined(KERNEL_RTTHREAD)
+            ring_buf0.read += pcodec->tx_info.buf_info.period_len;
+            ring_buf0.data_len -= pcodec->tx_info.buf_info.period_len;
+            #else
+            if (ring_buf0.buffer_size - ring_buf0.read_index > pcodec->tx_info.buf_info.period_len)
+            {
+                ring_buf0.read_index += pcodec->tx_info.buf_info.period_len;
+            } else {
+                ring_buf0.read_mirror = ~ring_buf0.read_mirror;
+                ring_buf0.read_index = pcodec->tx_info.buf_info.period_len - (ring_buf0.buffer_size - ring_buf0.read_index);
+            }
+            #endif
+
+            aicos_dcache_clean_range((void *)audio_fifo_tx, TX_FIFO_SIZE);
+            break;
+        default:
+            USB_LOG_ERR("%s(%d)\n", __func__, __LINE__);
+            break;
+    }
+}
+
+void usbd_audio_config(aic_audio_ctrl *pcodec, uint32_t samplerate, uint32_t channel)
+{
+    pcodec->tx_info.buf_info.buf = (void *)audio_fifo_tx;
+    pcodec->tx_info.buf_info.buf_len = TX_FIFO_SIZE;
+    pcodec->tx_info.buf_info.period_len = TX_FIFO_SIZE / TX_FIFO_PERIOD_COUNT;
+
+    hal_audio_init(pcodec);
+    hal_audio_attach_callback(pcodec, usbd_hal_audio_callback, NULL);
+
+    hal_audio_set_playback_channel(pcodec, channel);
+    hal_audio_set_samplerate(pcodec, samplerate);
+    pcodec->config.samplerate = samplerate;
+    pcodec->config.channel = channel;
+    pcodec->config.samplebits = 16;
+
+#ifdef AIC_AUDIO_SPK_0
+    hal_audio_set_playback_by_spk0(pcodec);
+#endif
+#ifdef AIC_AUDIO_SPK_1
+    hal_audio_set_playback_by_spk1(pcodec);
+#endif
+#ifdef AIC_AUDIO_SPK_0_1
+    hal_audio_set_playback_by_spk0(pcodec);
+    hal_audio_set_playback_by_spk1(pcodec);
+#ifdef AIC_AUDIO_SPK0_OUTPUT_DIFFERENTIAL
+    hal_audio_set_pwm0_differential(pcodec);
+#endif
+#ifdef AIC_AUDIO_SPK1_OUTPUT_DIFFERENTIAL
+    hal_audio_set_pwm1_differential(pcodec);
+#endif
+#endif
+}
+
+void usbd_audio_hal_init(void)
+{
+    unsigned int pa, group, pin;
+
+    usbd_audio_config(&audio_ctrl0, AUDIO_FREQ, OUT_CHANNEL_NUM);
+
+    pa = hal_gpio_name2pin(AIC_AUDIO_PA_ENABLE_GPIO);
+    group = GPIO_GROUP(pa);
+    pin = GPIO_GROUP_PIN(pa);
+    hal_gpio_set_func(group, pin, 1);
+    hal_gpio_direction_output(group, pin);
+
+#ifdef AIC_AUDIO_EN_PIN_HIGH
+    hal_gpio_set_output(group, pin);
+#else
+    hal_gpio_clr_output(group, pin);
+#endif
+    hal_dma_init();
+    aicos_request_irq(DMA_IRQn, hal_dma_irq, 0, NULL, NULL);
+
+}
+
 void usbd_audio_iso_out_callback(uint8_t ep, uint32_t nbytes)
 {
-    USB_LOG_RAW("actual out len:%d\r\n", nbytes);
+    usbd_audio_data_process(read_buffer);
     usbd_ep_start_read(AUDIO_OUT_EP, read_buffer, AUDIO_OUT_PACKET);
 }
 
@@ -248,12 +454,24 @@ void audio_v2_init(void)
     usbd_add_interface(usbd_audio_init_intf(&intf0, 0x0200, audio_entity_table, 2));
     usbd_add_interface(usbd_audio_init_intf(&intf1, 0x0200, audio_entity_table, 2));
     usbd_add_endpoint(&audio_out_ep);
-
     usbd_initialize();
+    audio_ringbuffer_init();
+    usbd_audio_hal_init();
 }
 
-void audio_v2_test(void)
-{
-    if (rx_flag) {
-    }
+#if defined(KERNEL_RTTHREAD)
+rt_thread_t usb_audio_tid;
+
+void audio_usb_thread_entry(void *parameter) {
+   audio_v2_init();
 }
+
+int usbd_audio_v2_init(void)
+{
+    usb_audio_tid = rt_thread_create("usb-audio-test", audio_usb_thread_entry, RT_NULL, 2048, 10, 50);
+    if (usb_audio_tid != RT_NULL)
+        rt_thread_startup(usb_audio_tid);
+    return 0;
+}
+INIT_DEVICE_EXPORT(usbd_audio_v2_init);
+#endif

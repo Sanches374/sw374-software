@@ -1028,12 +1028,12 @@ static s32 CMD_SET_UART_ARGS_read_output_data(struct upg_cmd *cmd, u8 *buf, s32 
 extern void aic_upg_uart_baudrate_update(int baudrate);
 static void CMD_SET_UART_ARGS_end(struct upg_cmd *cmd)
 {
-    int baudrate = 0;
-
     pr_debug("%s\n", __func__);
     if (cmd->state == CMD_STATE_END) {
-        baudrate = (uintptr_t)cmd->priv;
+#ifdef AICUPG_UART_ENABLE
+        int baudrate = (uintptr_t)cmd->priv;
         aic_upg_uart_baudrate_update(baudrate);
+#endif
         cmd->priv = 0;
         cmd_state_set_next(cmd, CMD_STATE_IDLE);
     }

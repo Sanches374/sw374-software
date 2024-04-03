@@ -11,7 +11,7 @@
 #include "mpp_dec_type.h"
 
 #ifdef __cplusplus
-extern "C"{
+extern "C" {
 #endif /* __cplusplus */
 
 struct aic_audio_render_attr {
@@ -53,13 +53,13 @@ struct aic_audio_render
 	    ((struct aic_audio_render*)render)->destroy(render)
 
 #define aic_audio_render_set_attr(render,attr)\
-	    ((struct aic_audio_render*)render)->destory(render,attr)
+	    ((struct aic_audio_render*)render)->set_attr(render,attr)
 
 #define aic_audio_render_get_attr(render,attr)\
-	    ((struct aic_audio_render*)render)->destory(render,attr)
+	    ((struct aic_audio_render*)render)->get_attr(render,attr)
 
 #define aic_audio_render_rend(render,pData,nDataSize)\
-	    ((struct aic_audio_render*)render)->destory(render,pData,nDataSize)
+	    ((struct aic_audio_render*)render)->rend(render,pData,nDataSize)
 
 #define aic_audio_render_get_cached_time(render)\
 			((struct aic_audio_render*)render)->get_cached_time(render)

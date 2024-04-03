@@ -174,13 +174,16 @@ void disp_draw_buf(lv_disp_drv_t * drv, lv_color_t * color_p)
         blt.ctrl.flags = MPP_ROTATION_0;
         break;
     case LV_DISP_ROT_90:
-        blt.ctrl.flags = MPP_ROTATION_90;
+        /* LV_DISP_ROT_90 means display rotate 90 degrees counterclockwise,
+         * so set degree to MPP_ROTATION_270
+         */
+        blt.ctrl.flags = MPP_ROTATION_270;
         break;
     case LV_DISP_ROT_180:
         blt.ctrl.flags = MPP_ROTATION_180;
         break;
     case LV_DISP_ROT_270:
-        blt.ctrl.flags = MPP_ROTATION_270;
+        blt.ctrl.flags = MPP_ROTATION_90;
         break;
     default:
         break;
@@ -212,6 +215,9 @@ static void fbdev_flush(lv_disp_drv_t * drv, const lv_area_t * area, lv_color_t 
 {
     lv_disp_t * disp = _lv_refr_get_disp_refreshing();
     lv_disp_draw_buf_t * draw_buf = lv_disp_get_draw_buf(disp);
+#ifndef AIC_DISP_COLOR_BLOCK
+    static bool first_frame = true;
+#endif
 
     if (!disp->driver->direct_mode || draw_buf->flushing_last) {
 #ifdef USE_DRAW_BUF
@@ -225,7 +231,10 @@ static void fbdev_flush(lv_disp_drv_t * drv, const lv_area_t * area, lv_color_t 
         if (g_fb_id >= g_fb_num)
             g_fb_id = 0;
         mpp_fb_ioctl(g_fb, AICFB_PAN_DISPLAY , &index);
-        mpp_fb_ioctl(g_fb, AICFB_WAIT_FOR_VSYNC, 0);
+#ifndef AIC_DISP_COLOR_BLOCK
+        if (!first_frame)
+#endif
+            mpp_fb_ioctl(g_fb, AICFB_WAIT_FOR_VSYNC, 0);
 #endif
 #else
 #ifdef AIC_PAN_DISPLAY
@@ -241,7 +250,11 @@ static void fbdev_flush(lv_disp_drv_t * drv, const lv_area_t * area, lv_color_t 
             index = 1;
 
         mpp_fb_ioctl(g_fb, AICFB_PAN_DISPLAY , &index);
-        mpp_fb_ioctl(g_fb, AICFB_WAIT_FOR_VSYNC, 0);
+
+#ifndef AIC_DISP_COLOR_BLOCK
+        if (!first_frame)
+#endif
+            mpp_fb_ioctl(g_fb, AICFB_WAIT_FOR_VSYNC, 0);
 #else
         aicos_dcache_clean_invalid_range((ulong *)color_p, (ulong)ALIGN_UP(info.smem_len, CACHE_LINE_SIZE));
 #endif
@@ -249,8 +262,6 @@ static void fbdev_flush(lv_disp_drv_t * drv, const lv_area_t * area, lv_color_t 
 
 #ifndef AIC_DISP_COLOR_BLOCK
         /* enable display power after flush first frame */
-        static bool first_frame = true;
-
         if (first_frame) {
             mpp_fb_ioctl(g_fb, AICFB_POWERON, 0);
             first_frame = false;
@@ -364,9 +375,18 @@ void lv_port_disp_init(void)
     lv_disp_drv_register(&disp_drv);
 #endif
 
+#ifndef AIC_MONKEY_TEST
 #ifdef KERNEL_RTTHREAD
     /* run touch panel */
+#ifdef AIC_TOUCH_PANEL_GT911
     tpc_run("gt911", info.width, info.height);
+#elif defined(AIC_USING_RTP)
+    tpc_run("aic-rtp", info.width, info.height);
+#else
+    LV_LOG_INFO("can't find touch panel\n");
+#endif
+
+#endif
 #endif
 }
 

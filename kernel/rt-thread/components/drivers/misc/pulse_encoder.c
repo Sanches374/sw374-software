@@ -84,6 +84,9 @@ static rt_err_t rt_pulse_encoder_control(struct rt_device *dev, int cmd, void *a
         break;
     case PULSE_ENCODER_CMD_ENABLE:
     case PULSE_ENCODER_CMD_DISABLE:
+#ifdef AIC_QEP_DRV
+    case PULSE_ENCODER_CMD_SET_COUNT:
+#endif
         result = pulse_encoder->ops->control(pulse_encoder, cmd, args);
         break;
     default:

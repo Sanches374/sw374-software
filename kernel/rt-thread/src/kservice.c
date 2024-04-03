@@ -1255,7 +1255,11 @@ rt_device_t rt_console_set_device(const char *name)
         }
 
         /* set new console device */
+    #ifdef FINSH_POLL_MODE
+        rt_device_open(new_device, RT_DEVICE_OFLAG_RDWR | RT_DEVICE_FLAG_STREAM);
+    #else
         rt_device_open(new_device, RT_DEVICE_FLAG_INT_RX | RT_DEVICE_OFLAG_RDWR | RT_DEVICE_FLAG_STREAM);
+    #endif
         _console_device = new_device;
     }
 

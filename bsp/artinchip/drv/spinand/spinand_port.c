@@ -481,8 +481,8 @@ rt_err_t rt_hw_mtd_spinand_register(const char *device_name, u32 bus_hz)
     device->config.parent.data_width = 8;
     device->config.parent.max_hz = bus_hz;
     device->config.ddr_mode = 0;
-    device->config.qspi_dl_width = 4;
 
+    spinand->qspi_dl_width = device->config.qspi_dl_width;
     aic_nand = spinand;
 
     result = rt_hw_mtd_spinand_init(spinand);
@@ -834,7 +834,8 @@ MSH_CMD_EXPORT(ncontread, test nand cont read);
 static int rt_hw_spinand_register(void)
 {
 #if defined(AIC_QSPI0_DEVICE_SPINAND)
-    aic_qspi_bus_attach_device("qspi0", "spinand0", 0, 4, RT_NULL, RT_NULL);
+    aic_qspi_bus_attach_device("qspi0", "spinand0", 0, AIC_QSPI0_BUS_WIDTH,
+                               RT_NULL, RT_NULL);
     rt_hw_mtd_spinand_register("spinand0", AIC_QSPI0_DEVICE_SPINAND_FREQ);
 #endif
     return RT_EOK;

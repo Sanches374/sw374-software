@@ -6,7 +6,6 @@
 *  Desc: OMX_DemuxerComponent
 */
 
-
 #ifndef _OMX_VIDEO_RENDER_COMPONENT_H_
 #define _OMX_VIDEO_RENDER_COMPONENT_H_
 
@@ -14,7 +13,6 @@
 #include "OMX_Core.h"
 #include "OMX_CoreExt1.h"
 #include "OMX_Component.h"
-
 
 #include <pthread.h>
 #include <malloc.h>
@@ -25,7 +23,6 @@
 #include <unistd.h>
 //#include <sys/mman.h>
 #include <inttypes.h>
-
 
 #include "mpp_log.h"
 #include "mpp_list.h"
@@ -41,14 +38,13 @@ OMX_ERRORTYPE OMX_VideoRenderComponentDeInit(
 OMX_ERRORTYPE OMX_VideoRenderComponentInit(
         OMX_IN    OMX_HANDLETYPE hComponent);
 
-
 typedef struct VIDEO_RENDER_IN_FRAME {
     struct mpp_frame   sFrameInfo;
     struct mpp_list  sList;
 }VIDEO_RENDER_IN_FRAME;
 
 #define VIDEO_RENDER_FRAME_NUM_MAX 16
-#define VIDEO_RENDER_FRAME_ONE_TIME_CREATE_NUM 4
+#define VIDEO_RENDER_FRAME_ONE_TIME_CREATE_NUM 8
 
 #define VIDEO_RENDER_INPORT_FRAME_END_FLAG  0x01 //inprot stream end
 
@@ -116,9 +112,9 @@ typedef struct VIDEO_RENDER_DATA_TYPE {
     struct mpp_frame sRotationFrames[2];
     struct mpp_frame *pCurDisplayFrame;
     struct mpp_ge *sGeHandle;
+
+    VIDEO_RENDER_IN_FRAME * pInFrameNodeHead;
+
 }VIDEO_RENDER_DATA_TYPE;
 
-
 #endif
-
-

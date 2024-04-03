@@ -18,11 +18,21 @@
 #else
 #define PWM_CLK_RATE        48000000 /* 48 MHz */
 #endif
-#define PWM_TB_CLK_RATE     24000000 /* 24 MHz */
 
 enum pwm_polarity {
     PWM_POLARITY_NORMAL,
     PWM_POLARITY_INVERSED,
+};
+
+enum aic_pwm_irq_event {
+    PWM_RESERVE_EVENT1 = 0,
+    PWM_ZERO_EVENT,
+    PWM_PRD_EVENT,
+    PWM_RESERVE_EVENT2,
+    PWM_CMPA_UP_EVENT,
+    PWM_CMPA_DOWN_EVENT,
+    PWM_CMPB_UP_EVENT,
+    PWM_CMPB_DOWN_EVENT
 };
 
 enum aic_pwm_mode {
@@ -40,6 +50,12 @@ enum aic_pwm_action_type {
     PWM_ACT_NUM
 };
 
+enum aic_pwm_cmp_write_type {
+    PWM_SET_CMPA = 0,
+    PWM_SET_CMPB,
+    PWM_SET_CMPA_CMPB
+};
+
 struct aic_pwm_action {
     enum aic_pwm_action_type CBD;
     enum aic_pwm_action_type CBU;
@@ -53,6 +69,7 @@ struct aic_pwm_arg {
     u16 available;
     u16 id;
     enum aic_pwm_mode mode;
+    u32 clk_rate;
     u32 tb_clk_rate;
     u32 freq;
     struct aic_pwm_action action0;
@@ -78,18 +95,21 @@ struct aic_pwm_pulse_para {
 
 void hal_pwm_ch_init(u32 ch, enum aic_pwm_mode mode, u32 default_level,
                      struct aic_pwm_action *a0, struct aic_pwm_action *a1);
-int hal_pwm_set(u32 ch, u32 duty_ns, u32 period_ns);
+void hal_pwm_ch_deinit(u32 ch);
+int hal_pwm_set_prd(u32 ch, u32 cnt);
+int hal_pwm_set(u32 ch, u32 duty_ns, u32 period_ns, u32 output);
 int hal_pwm_get(u32 ch, u32 *duty_ns, u32 *period_ns);
 int hal_pwm_set_polarity(u32 ch, enum pwm_polarity polarity);
 int hal_pwm_enable(u32 ch);
 int hal_pwm_disable(u32 ch);
 u32 hal_pwm_int_sts(void);
 void hal_pwm_clr_int(u32 stat);
-void hal_pwm_int_config(u32 ch, u8 irq_mode, u8 enable);
+void hal_pwm_int_config(u32 ch, enum aic_pwm_irq_event irq_mode, u8 enable);
 
 int hal_pwm_init(void);
 int hal_pwm_deinit(void);
 
 void hal_pwm_status_show(void);
+int hal_pwm_set_tb(u32 ch, int freq);
 
 #endif // end of _ARTINCHIP_HAL_PWM_H_

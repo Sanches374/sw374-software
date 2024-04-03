@@ -30,7 +30,6 @@ typedef struct gd_GIF {
     uint16_t width, height;
     uint16_t depth;
     uint16_t loop_count;
-    uint16_t set_count;
     gd_GCE gce;
     gd_Palette *palette;
     gd_Palette lct, gct;

@@ -64,16 +64,18 @@ MEMORY
 #endif
 }
 
+PROVIDE (__sram_start              = 0x30040000);
+PROVIDE (__sram_end                = 0x30040000 + AIC_SRAM_SIZE);
 PROVIDE (__sram_sw_start           = 0x30040000);
 PROVIDE (__sram_sw_end             = 0x30040000 + AIC_SRAM_SW_SIZE);
 PROVIDE (__sram_cma_start          = __sram_sw_end);
 PROVIDE (__sram_cma_end            = 0x30040000 + AIC_SRAM_SIZE);
-PROVIDE (__psram_sw_start          = 0x40000000);
-PROVIDE (__psram_sw_end            = 0x40000000 + AIC_PSRAM_SW_SIZE);
-PROVIDE (__psram_cma_start         = __psram_sw_end);
-PROVIDE (__psram_cma_end           = 0x40000000 + AIC_PSRAM_SIZE);
 PROVIDE (__psram_start             = 0x40000000);
 PROVIDE (__psram_end               = 0x40000000 + AIC_PSRAM_SIZE);
+PROVIDE (__psram_sw_start          = __psram_start);
+PROVIDE (__psram_sw_end            = __psram_sw_start + AIC_PSRAM_SW_SIZE);
+PROVIDE (__psram_cma_start         = __psram_sw_end);
+PROVIDE (__psram_cma_end           = 0x40000000 + AIC_PSRAM_SIZE);
 
 PROVIDE (__sram_sw_heap_end        = __sram_sw_end);
 PROVIDE (__sram_cma_heap_end       = __sram_cma_end);
@@ -111,24 +113,6 @@ REGION_ALIAS("REGION_FPGA_EXT"     , PSRAM_ext);
 ENTRY(Reset_Handler)
 SECTIONS
 {
- .sram_sw : {
-  . = ALIGN(0x4) ;
-  __sram_sw_data_start = .;
-  *(.sram_sw_data)
-  . = ALIGN(0x4) ;
-  __sram_sw_data_end = .;
-  __sram_sw_heap_start = .;
- } > REGION_SRAM_SW AT > REGION_SRAM_SW
-
- .sram_cma : {
-  . = ALIGN(0x4) ;
-  __sram_cma_data_start = .;
-  *(.sram_cma_data)
-  . = ALIGN(0x4) ;
-  __sram_cma_data_end = .;
-  __sram_cma_heap_start = .;
- } > REGION_SRAM_CMA AT > REGION_SRAM_CMA
-
  .text : AT(ADDR(.text)){
   . = ALIGN(0x4) ;
   __stext = . ;
@@ -339,4 +323,22 @@ SECTIONS
   __fpga_ext_heap_start = .;
  } > REGION_FPGA_EXT AT > REGION_FPGA_EXT
  #endif
+
+ .sram_sw : {
+  . = ALIGN(0x4) ;
+  __sram_sw_data_start = .;
+  *(.sram_sw_data)
+  . = ALIGN(0x4) ;
+  __sram_sw_data_end = .;
+  __sram_sw_heap_start = .;
+ } > REGION_SRAM_SW AT > REGION_SRAM_SW
+
+ .sram_cma : {
+  . = ALIGN(0x4) ;
+  __sram_cma_data_start = .;
+  *(.sram_cma_data)
+  . = ALIGN(0x4) ;
+  __sram_cma_data_end = .;
+  __sram_cma_heap_start = .;
+ } > REGION_SRAM_CMA AT > REGION_SRAM_CMA
 }

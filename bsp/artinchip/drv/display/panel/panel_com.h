@@ -20,6 +20,7 @@ struct aic_panel *aic_find_panel(u32 connector_type);
 
 extern struct aic_panel aic_panel_rgb;
 extern struct aic_panel aic_panel_lvds;
+extern struct aic_panel dsi_simple;
 extern struct aic_panel dsi_xm91080;
 extern struct aic_panel dsi_st7797;
 extern struct aic_panel dbi_ili9488;

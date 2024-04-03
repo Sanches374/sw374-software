@@ -399,12 +399,16 @@ enum aic_reboot_reason aic_get_reboot_reason(void)
 
     val = readl_bits(WRI_REBOOT_REASON_MASK, WRI_REBOOT_REASON_SHIFT,
                      WRI_BOOT_INFO);
-    if (val)
-        aic_set_reboot_reason(REBOOT_REASON_COLD);
 
     pr_debug("Last reboot info: hw %d, sw %d\n", hw, val);
     g_last_reboot.reason = aic_judge_reboot_reason(hw, val);
     g_last_reboot.inited = 1;
+
+    if (val) {
+        clrbits(WRI_BOOT_INFO, val);
+        writel(val, WRI_BOOT_INFO);
+    }
+
     return g_last_reboot.reason;
 }
 

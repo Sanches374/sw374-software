@@ -44,16 +44,20 @@ if GetDepend(['LPKG_CHERRYUSB_DEVICE']) and GetDepend(['AIC_USB_DEVICE_DRV']):
         src += Glob('class/wireless/usbd_rndis.c')
     if GetDepend(['LPKG_CHERRYUSB_USING_DFU']):
         src += Glob('class/dfu/usbd_dfu.c')
+    if GetDepend(['LPKG_CHERRYUSB_DEVICE_MIDI']):
+        src += Glob('class/midi/usbd_midi.c')
 
     if GetDepend(['LPKG_CHERRYUSB_DEVICE_CDC_TEMPLATE']):
         src += Glob('demo/cdc_acm_template.c')
+    if GetDepend(['LPKG_CHERRYUSB_DEVICE_CDC_AICUPG']):
+        src += Glob('demo/cdc_acm_aicupg.c')
     if GetDepend(['LPKG_CHERRYUSB_DEVICE_HID_MOUSE_TEMPLATE']):
         src += Glob('demo/hid_mouse_template.c')
     if GetDepend(['LPKG_CHERRYUSB_DEVICE_HID_KEYBOARD_TEMPLATE']):
         src += Glob('demo/hid_keyboard_template.c')
     if GetDepend(['LPKG_CHERRYUSB_DEVICE_HID_IO_TEMPLATE']):
         src += Glob('demo/hid_custom_inout_template.c')
-    if GetDepend(['LPKG_CHERRYUSB_DEVICE_MSC_TEMPLATE']):
+    if GetDepend(['LPKG_CHERRYUSB_DEVICE_MSC_RAM_TEMPLATE']):
         src += Glob('demo/msc_ram_template.c')
     if GetDepend(['LPKG_CHERRYUSB_DEVICE_MSC_STORAGE_TEMPLATE']):
         src += Glob('demo/msc_storage_template.c')
@@ -61,11 +65,15 @@ if GetDepend(['LPKG_CHERRYUSB_DEVICE']) and GetDepend(['AIC_USB_DEVICE_DRV']):
         src += Glob('demo/audio_v1_mic_speaker_multichan_template.c')
     if GetDepend(['LPKG_CHERRYUSB_DEVICE_AUDIO_V2_TEMPLATE']):
         src += Glob('demo/audio_v2_mic_speaker_multichan_template.c')
+    if GetDepend(['LPKG_CHERRYUSB_DEVICE_AUDIO_SPEAKER_V2_TEMPLATE']):
+        src += Glob('demo/audio_v2_speaker_multichan_template.c')
     if GetDepend(['LPKG_CHERRYUSB_DEVICE_VIDEO_TEMPLATE']):
         src += Glob('demo/video_static_mjpeg_template.c')
     if GetDepend(['LPKG_CHERRYUSB_DEVICE_RNDIS_TEMPLATE']):
         src += Glob('demo/cdc_rndis_template.c')
-	
+    if GetDepend(['LPKG_CHERRYUSB_DEVICE_MIDI_TEMPLATE']):
+        src += Glob('demo/midi_template.c')
+
     if GetDepend(['LPKG_CHERRYUSB_DEVICE_AIC']):
         src += Glob('port/aic/usb_dc_aic.c')
         src += Glob('port/aic/usb_dc_aic_ll.c')
@@ -96,7 +104,7 @@ if GetDepend(['LPKG_CHERRYUSB_DEVICE']) and GetDepend(['AIC_USB_DEVICE_DRV']):
         path += [cwd + '/port/pusb2/common']
         path += [cwd + '/port/pusb2/fpusb2']
         src += Glob('port/pusb2/fpusb2' + '/*.c')
-        src += Glob('port/pusb2/usb_dc_pusb2.c') 
+        src += Glob('port/pusb2/usb_dc_pusb2.c')
 
 # USB HOST
 if GetDepend(['LPKG_CHERRYUSB_HOST']) and GetDepend(['AIC_USB_HOST_EHCI_DRV']):
@@ -150,7 +158,7 @@ if GetDepend(['LPKG_CHERRYUSB_HOST']) and GetDepend(['AIC_USB_HOST_EHCI_DRV']):
         path += [cwd + '/port/pusb2/common']
         path += [cwd + '/port/pusb2/fpusb2']
         src += Glob('port/pusb2/fpusb2' + '/*.c')
-        src += Glob('port/pusb2/usb_hc_pusb2.c')         
+        src += Glob('port/pusb2/usb_hc_pusb2.c')
 
     if GetDepend(['LPKG_CHERRYUSB_HOST_TEMPLATE']):
         src += Glob('demo/usb_host.c')

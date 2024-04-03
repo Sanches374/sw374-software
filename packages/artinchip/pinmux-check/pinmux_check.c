@@ -43,7 +43,7 @@ struct gpio_info
 };
 
 
-#ifdef AIC_CHIP_D13X
+#if defined(AIC_CHIP_D13X) || defined(AIC_CHIP_G73X)
 static const struct gpio_info pinmux_list[] = {
     {'A',   0,      16},
     {'B',   1,      18},
@@ -51,6 +51,14 @@ static const struct gpio_info pinmux_list[] = {
     {'D',   3,      28},
     {'E',   4,      18},
     {'U',   14,     2},
+};
+#elif defined(AIC_CHIP_D12X)
+static const struct gpio_info pinmux_list[] = {
+    {'A',   0,      12},
+    {'B',   1,      18},
+    {'C',   2,      8},
+    {'D',   3,      28},
+    {'E',   4,      14},
 };
 #else
 static const struct gpio_info pinmux_list[] = {

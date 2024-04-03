@@ -134,19 +134,40 @@ LV_ATTRIBUTE_FAST_MEM void lv_draw_sw_img_decoded(struct _lv_draw_ctx_t * draw_c
                                           LV_DRAW_MASK_RES_CHANGED : LV_DRAW_MASK_RES_FULL_COVER;
         blend_dsc.mask_res = mask_res_def;
 
+#if LV_SUPPORT_SET_IMAGE_STRIDE
+        // save src stride
+        int32_t src_stride = draw_ctx->src_stride;
+#endif
         while(blend_area.y1 <= y_last) {
             /*Apply transformations if any or separate the channels*/
             lv_area_t transform_area;
             lv_area_copy(&transform_area, &blend_area);
             lv_area_move(&transform_area, -coords->x1, -coords->y1);
             if(transform) {
-                lv_draw_transform(draw_ctx, &transform_area, src_buf, src_w, src_h, src_w,
+#if LV_SUPPORT_SET_IMAGE_STRIDE
+                // set src stride
+                draw_ctx->src_stride = src_stride;
+                lv_draw_transform(draw_ctx, &transform_area, src_buf, src_w, src_h, draw_ctx->src_stride,
                                   draw_dsc, cf, rgb_buf, mask_buf);
+#else
+                lv_draw_transform(draw_ctx, &transform_area, src_buf, src_w, src_h, 0,
+                                  draw_dsc, cf, rgb_buf, mask_buf);
+#endif
             }
             else {
-                convert_cb(&transform_area, src_buf, src_w, src_h, src_w, draw_dsc, cf, rgb_buf, mask_buf);
+#if LV_SUPPORT_SET_IMAGE_STRIDE
+                // set src stride
+                draw_ctx->src_stride = src_stride;
+                convert_cb(&transform_area, src_buf, src_w, src_h, draw_ctx->src_stride, draw_dsc, cf, rgb_buf, mask_buf);
+#else
+                convert_cb(&transform_area, src_buf, src_w, src_h, 0, draw_dsc, cf, rgb_buf, mask_buf);
+#endif
             }
 
+#if LV_SUPPORT_SET_IMAGE_STRIDE
+            // clear src stride
+            draw_ctx->src_stride = 0;
+#endif
             /*Apply recolor*/
             if(draw_dsc->recolor_opa > LV_OPA_MIN) {
                 uint16_t premult_v[3];
@@ -214,11 +235,15 @@ static void convert_cb(const lv_area_t * dest_area, const void * src_buf, lv_coo
         uint32_t px_cnt = lv_area_get_size(dest_area);
         lv_memset_ff(abuf, px_cnt);
 
-        src_tmp8 += (src_stride * dest_area->y1 * sizeof(lv_color_t)) + dest_area->x1 * sizeof(lv_color_t);
+        if (src_stride == 0) {
+            src_stride = src_w * sizeof(lv_color_t);
+        }
+
+        src_tmp8 += src_stride * dest_area->y1 + dest_area->x1 * sizeof(lv_color_t);
         uint32_t dest_w = lv_area_get_width(dest_area);
         uint32_t dest_w_byte = dest_w * sizeof(lv_color_t);
 
-        lv_coord_t src_stride_byte = src_stride * sizeof(lv_color_t);
+        lv_coord_t src_stride_byte = src_stride;
         lv_color_t * cbuf_tmp = cbuf;
         for(y = dest_area->y1; y <= dest_area->y2; y++) {
             lv_memcpy(cbuf_tmp, src_tmp8, dest_w_byte);
@@ -246,10 +271,18 @@ static void convert_cb(const lv_area_t * dest_area, const void * src_buf, lv_coo
         }
     }
     else if(cf == LV_IMG_CF_TRUE_COLOR_ALPHA) {
-        src_tmp8 += (src_stride * dest_area->y1 * LV_IMG_PX_SIZE_ALPHA_BYTE) + dest_area->x1 * LV_IMG_PX_SIZE_ALPHA_BYTE;
+        lv_coord_t src_new_line_step_byte;
 
-        lv_coord_t src_new_line_step_px = (src_stride - lv_area_get_width(dest_area));
-        lv_coord_t src_new_line_step_byte = src_new_line_step_px * LV_IMG_PX_SIZE_ALPHA_BYTE;
+        if (src_stride == 0) {
+            lv_coord_t src_new_line_step_px;
+            src_stride = src_w;
+            src_tmp8 += (src_stride * dest_area->y1 * LV_IMG_PX_SIZE_ALPHA_BYTE) + dest_area->x1 * LV_IMG_PX_SIZE_ALPHA_BYTE;
+            src_new_line_step_px = (src_stride - lv_area_get_width(dest_area));
+            src_new_line_step_byte = src_new_line_step_px * LV_IMG_PX_SIZE_ALPHA_BYTE;
+        } else {
+            src_tmp8 += src_stride * dest_area->y1 + dest_area->x1 * 4;
+            src_new_line_step_byte =  src_stride - lv_area_get_width(dest_area) * 4;
+        }
 
         lv_coord_t dest_h = lv_area_get_height(dest_area);
         lv_coord_t dest_w = lv_area_get_width(dest_area);
@@ -292,6 +325,41 @@ static void convert_cb(const lv_area_t * dest_area, const void * src_buf, lv_coo
             lv_memcpy(abuf, src_tmp8, dest_w);
             abuf += dest_w;
             src_tmp8 += src_stride;
+        }
+    }
+    else if(cf == LV_IMG_CF_RESERVED_15) {
+        lv_coord_t src_new_line_step_byte;
+
+        if (src_stride == 0) {
+            lv_coord_t src_new_line_step_px;
+            src_stride = src_w;
+            src_tmp8 += (src_stride * dest_area->y1 * 4) + dest_area->x1 * 4;
+            src_new_line_step_px = (src_stride - lv_area_get_width(dest_area));
+            src_new_line_step_byte = src_new_line_step_px * 4;
+        } else {
+            src_tmp8 += src_stride * dest_area->y1 + dest_area->x1 * 4;
+            src_new_line_step_byte =  src_stride - lv_area_get_width(dest_area) * 4;
+        }
+
+        lv_coord_t dest_h = lv_area_get_height(dest_area);
+        lv_coord_t dest_w = lv_area_get_width(dest_area);
+
+        for(y = 0; y < dest_h; y++) {
+            for(x = 0; x < dest_w; x++) {
+                abuf[x] = src_tmp8[3];
+#if LV_COLOR_DEPTH == 16
+                cbuf[x].full = (((unsigned short)(src_tmp8[2] >> 3)) << 11) |
+                               (((unsigned short)(src_tmp8[1] >> 2)) << 5) |
+                               (src_tmp8[0] >> 3);
+#elif LV_COLOR_DEPTH == 32
+                cbuf[x] = *((lv_color_t *) src_tmp8);
+                cbuf[x].ch.alpha = 0xff;
+#endif
+                src_tmp8 += 4;
+            }
+            cbuf += dest_w;
+            abuf += dest_w;
+            src_tmp8 += src_new_line_step_byte;
         }
     }
 }

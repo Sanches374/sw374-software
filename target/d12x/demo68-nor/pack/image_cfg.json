@@ -1,8 +1,9 @@
 {
     "spi-nor": { // Device, The name should be the same with string in image:info:media:type
-        "size": "16m", // Size of SPI NAND
+        "size": "16m", // Size of SPI NOR
         "partitions": {
             "spl":        { "size": "256k" },
+            "userid":     { "size": "256k" }, // at least 16KB
             "os":         { "size": "2m" },
             "rodata":     { "size": "6m" },
             "data":       { "size": "7m" }
@@ -68,8 +69,8 @@
                     "file": "bootloader.bin",
                     "load address":     "0x30043000",
                     "entry point":      "0x30043100",
-                    "load address ext": "0x40300000",
-                    "entry point ext":  "0x40300100",
+                    "load address ext": "0x40200000",
+                    "entry point ext":  "0x40200100",
                 },
                 "resource": {
                     "private": "pbp_cfg.bin",

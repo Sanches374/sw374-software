@@ -100,7 +100,7 @@ void lv_gif_set_loop_count(lv_obj_t * obj, uint16_t loop_count)
     lv_gif_t * gifobj = (lv_gif_t *) obj;
 
     if(gifobj->gif) {
-        gifobj->gif->set_count = loop_count;
+        gifobj->gif->loop_count = loop_count;
     }
 }
 

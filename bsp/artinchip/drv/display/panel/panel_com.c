@@ -17,6 +17,9 @@ static struct aic_panel *panels[] = {
 #if defined(AIC_DISP_LVDS) && defined(AIC_SIMPLE_PANEL)
     &aic_panel_lvds,
 #endif
+#ifdef AIC_DSI_SIMPLE_PANEL
+    &dsi_simple,
+#endif
 #ifdef AIC_PANEL_DSI_XM91080
     &dsi_xm91080,
 #endif
@@ -171,7 +174,7 @@ int panel_default_unprepare(void)
 int panel_default_enable(struct aic_panel *panel)
 {
     panel_di_enable(panel, 0);
-    panel_de_timing_enable(panel, 0);
+    panel_de_timing_enable(panel, 60);
     panel_backlight_enable(panel, 0);
     return 0;
 }
@@ -218,7 +221,16 @@ void panel_get_gpio(struct gpio_desc *desc, char *name)
 {
     long pin;
 
+    if (!desc || !name) {
+        pr_err("Invalid parameter\n");
+        return;
+    }
+
     pin = hal_gpio_name2pin(name);
+    if (pin < 0) {
+        pr_err("Failed to get GPIO %s\n", name);
+        return;
+    }
 
     desc->g = GPIO_GROUP(pin);
     desc->p = GPIO_GROUP_PIN(pin);
@@ -228,6 +240,11 @@ void panel_get_gpio(struct gpio_desc *desc, char *name)
 
 void panel_gpio_set_value(struct gpio_desc *desc, u32 value)
 {
+    if (!desc) {
+        pr_err("Invalid parameter\n");
+        return;
+    }
+
     if (value)
         hal_gpio_set_output(desc->g, desc->p);
     else

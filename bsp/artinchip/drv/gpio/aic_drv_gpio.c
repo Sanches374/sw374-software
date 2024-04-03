@@ -79,6 +79,7 @@ void drv_pin_mode(struct rt_device *device, rt_base_t pin, rt_base_t mode)
 
 void drv_pin_write(struct rt_device *device, rt_base_t pin, rt_base_t value)
 {
+    int ret;
     unsigned int g = GPIO_GROUP(pin);
     unsigned int p = GPIO_GROUP_PIN(pin);
 
@@ -89,6 +90,12 @@ void drv_pin_write(struct rt_device *device, rt_base_t pin, rt_base_t value)
     else
     {
         hal_gpio_set_output(g, p);
+        ret = hal_gpio_get_pincfg(g, p, GPIO_CHECK_PIN_GEN_OE);
+        if (ret < 0) {
+            pr_err("Set the output pin failed\n");
+        } else {
+            pr_debug("Set the output pin successfully\n");
+        }
     }
 }
 
@@ -153,7 +160,7 @@ irqreturn_t drv_gpio_group_irqhandler(int irq, void * data)
     hal_gpio_group_get_irq_en(g, &mask);
     stat &= mask;
 
-    for (i=0; i<32; i++){
+    for (i=0; i<32; i++) {
         if (!(stat & (1U<<i)))
             continue;
 
@@ -169,16 +176,24 @@ irqreturn_t drv_gpio_group_irqhandler(int irq, void * data)
 unsigned int pin_group_irq_en = 0;
 rt_err_t drv_pin_irq_enable(struct rt_device *device, rt_base_t pin, rt_uint32_t enabled)
 {
+    int ret;
     unsigned int g = GPIO_GROUP(pin);
     unsigned int p = GPIO_GROUP_PIN(pin);
 
     if (enabled) {
-        if (!(pin_group_irq_en & (1<<g))){
+        if (!(pin_group_irq_en & (1<<g))) {
             aicos_request_irq(GPIO_IRQn + g, drv_gpio_group_irqhandler, 0, "pin_group", NULL);
             aicos_irq_enable(GPIO_IRQn + g);
             pin_group_irq_en |= (1<<g);
         }
         hal_gpio_enable_irq(g, p);
+        ret = hal_gpio_get_pincfg(g, p, GPIO_CHECK_PIN_GEN_IE);
+        if (ret < 0) {
+            pr_err("Set the input pin failed\n");
+        } else {
+            pr_debug("Set the input pin successfully\n");
+        }
+
     } else {
         hal_gpio_disable_irq(g, p);
     }
@@ -191,7 +206,7 @@ rt_base_t drv_pin_get(const char *name)
     return hal_gpio_name2pin(name);
 }
 
-const static struct rt_pin_ops _drv_pin_ops =
+static const struct rt_pin_ops _drv_pin_ops =
 {
     drv_pin_mode,
     drv_pin_write,

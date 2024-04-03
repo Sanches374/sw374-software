@@ -12,6 +12,7 @@
 #include <mtd.h>
 #include <sfud.h>
 #include "upg_internal.h"
+#include <spienc.h>
 
 #define MAX_DUPLICATED_PART 6
 #define MAX_NOR_NAME        32
@@ -78,6 +79,9 @@ s32 nor_fwc_prepare(struct fwc_info *fwc, u32 id)
         return -1;
     }
 
+#ifdef AIC_SPIENC_BYPASS_IN_UPGMODE
+        spienc_set_bypass(1);
+#endif
     return 0;
 }
 

@@ -624,6 +624,10 @@ void aicmac_dma_tx_desc_init(uint32_t port)
 
         /* Set Second Address Chained bit */
         pdesc->control = ETH_DMATxDesc_TCH;
+        
+        #ifdef LWIP_PTP
+        pdesc->control |= ETH_DMATxDesc_TTSE;
+        #endif
 
         #ifndef CONFIG_MAC_ZERO_COPY_TXBUF
         /* Set Buffer1 address pointer */
@@ -890,6 +894,11 @@ int aicmac_submit_tx_frame(uint32_t port, u16 frame_len)
         /* Set Own bit of the Tx descriptor Status: gives the buffer back to ETHERNET DMA */
         tmpreg |= ETH_DMATxDesc_OWN;
         pdesc->control = tmpreg;
+
+        #ifdef LWIP_PTP
+        pdesc->control |= ETH_DMATxDesc_TTSE;
+        #endif
+
         /* after write: flush cache */
         aicmac_dcache_clean((uintptr_t)&pdesc->control, sizeof(uint32_t));
         /* update */
@@ -922,6 +931,10 @@ int aicmac_submit_tx_frame(uint32_t port, u16 frame_len)
 
             /* Set Own bit of the Tx descriptor Status: gives the buffer back to ETHERNET DMA */
             pdesc->control |= ETH_DMATxDesc_OWN;
+
+            #ifdef LWIP_PTP
+            pdesc->control |= ETH_DMATxDesc_TTSE;
+            #endif
 
             /* after write: flush cache */
             aicmac_dcache_clean((uintptr_t)&pdesc->control, sizeof(uint32_t));
@@ -1205,5 +1218,59 @@ int aicmac_write_phy_reg(uint32_t port, uint32_t addr, uint16_t val)
     }
 
     return ETH_SUCCESS;
+}
+
+#define AICMAC_PTP_NANO_SEC_REG_SET 1
+u32_t nanosecond2subsecond(u32_t nanosecond)
+{
+#if AICMAC_PTP_NANO_SEC_REG_SET
+	return nanosecond;
+#else
+	uint64_t val = nanosecond * 0x80000000ll;
+	val /= 1000000000;
+	return val;
+#endif
+}
+
+u32_t subsecond2nanosecond(u32_t subsecond)
+{
+#if AICMAC_PTP_NANO_SEC_REG_SET
+	return subsecond;
+#else
+	uint64_t val = ((uint64_t)subsecond * 1000000000) / 0x80000000ll;
+	return val;
+#endif
+}
+
+aicmac_timestamp_t aicmac_get_rx_timestamp(uint32_t port, aicmac_frame_t *frame)
+{
+    aicmac_timestamp_t timestamp = {0};
+    aicmac_dma_desc_t *pdesc = frame->last_desc;
+
+    if ((pdesc->control & (ETH_DMARxDesc_LS | ETH_DMARxDesc_IPV4HCE)) == \
+        (ETH_DMARxDesc_LS | ETH_DMARxDesc_IPV4HCE)) {
+        timestamp.second = pdesc->timestamp_high;
+        timestamp.nanosecond = subsecond2nanosecond(pdesc->timestamp_low);
+
+        //printf(">>>>>>>Get rx timestamp, %d, %d\n",timestamp.second, timestamp.nanosecond);
+    }
+
+    return timestamp;
+}
+
+aicmac_timestamp_t aicmac_get_tx_timestamp(uint32_t port, aicmac_dma_desc_t *pdesc)
+{
+    aicmac_timestamp_t timestamp = {0};
+
+    if ((pdesc->control & (ETH_DMATxDesc_LS | ETH_DMATxDesc_TTSS)) == \
+        (ETH_DMATxDesc_LS | ETH_DMATxDesc_TTSS)) {
+
+        timestamp.second = pdesc->timestamp_high;
+        timestamp.nanosecond = subsecond2nanosecond(pdesc->timestamp_low);
+
+        // printf("<<<<<<<<<<Get tx timestamp, %d, %d\n",timestamp.second, timestamp.nanosecond);
+    }
+
+    return timestamp;
 }
 

@@ -19,7 +19,9 @@
 
 #include <rthw.h>
 #include <rtthread.h>
+#if RT_DEBUG_INIT
 #include <aic_time.h>
+#endif
 
 #ifdef RT_USING_USER_MAIN
 #ifndef RT_MAIN_THREAD_STACK_SIZE
@@ -237,7 +239,9 @@ void rt_application_init(void)
  */
 int rtthread_startup(void)
 {
+#ifndef GLOBAL_INT_SW_THRESHOLD_EN
     rt_hw_interrupt_disable();
+#endif
 
     /* board level initialization
      * NOTE: please initialize heap inside board initialization.

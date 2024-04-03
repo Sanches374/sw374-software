@@ -12,6 +12,7 @@
 #include "tkc/mem.h"
 #include "base/timer.h"
 #include "main_loop/main_loop_simple.h"
+#include "stdlib.h"
 
 extern void aic_date_time_init(void);
 
@@ -42,8 +43,11 @@ ret_t platform_prepare(void) {
   }
   inited = TRUE;
 
+/* use the build-in memory allocation of AWTK to reduce memory fragmentation issues.
+ * if the platform itself supports the C library, EXPORT_STD_MALLOC needs to be masked to avoid conflicts in awtk/src/tkc/mem.c
+*/
 #ifndef HAS_STD_MALLOC
-#define TK_HEAP_MEM_SIZE  1024 * 1024
+#define TK_HEAP_MEM_SIZE  2048 * 1024
   static uint32_t s_heap_mem[TK_HEAP_MEM_SIZE / 4];
   tk_mem_init(s_heap_mem, sizeof(s_heap_mem));
 #endif /*HAS_STD_MALLOC*/

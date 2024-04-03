@@ -317,25 +317,6 @@ int video_layer_set(struct aic_dvp_data *vdata, int index)
     return 0;
 }
 
-#define NS_PER_SEC      1000000000
-
-static void show_fps(struct timespec *start, struct timespec *end, int cnt)
-{
-     double diff;
-
-    if (end->tv_nsec < start->tv_nsec) {
-        diff = (double)(NS_PER_SEC + end->tv_nsec - start->tv_nsec)/NS_PER_SEC;
-        diff += end->tv_sec - 1 - start->tv_sec;
-    } else {
-        diff = (double)(end->tv_nsec - start->tv_nsec)/NS_PER_SEC;
-        diff += end->tv_sec - start->tv_sec;
-    }
-
-    printf("\nDVP frame rate: %d.%d, frame %d / %d.%d seconds\n",
-           (u32)(cnt / diff), (u32)(cnt * 10 / diff) % 10, cnt,
-           (u32)diff, (u32)(diff * 10) % 10);
-}
-
 static void test_dvp_thread(void *arg)
 {
     int i, index = 0;
@@ -358,7 +339,7 @@ static void test_dvp_thread(void *arg)
     pr_info("DVP scale is disable\n");
 #endif
 
-    clock_gettime(CLOCK_REALTIME, &begin);
+    gettimespec(&begin);
     for (i = 0; i < g_vdata.frame_cnt; i++) {
         if (dvp_dequeue_buf(&index) < 0)
             break;
@@ -368,22 +349,24 @@ static void test_dvp_thread(void *arg)
         dvp_queue_buf(index);
 
         if (i && (i % 1000 == 0)) {
-            clock_gettime(CLOCK_REALTIME, &now);
-            show_fps(&begin, &now, i);
+            gettimespec(&now);
+            show_fps("DVP", &begin, &now, i);
         }
     }
-    if ((i - 1) % 1000 != 0) {
-        clock_gettime(CLOCK_REALTIME, &now);
-        show_fps(&begin, &now, i);
+    if ((i > 0) && ((i - 1) % 1000 != 0)) {
+        gettimespec(&now);
+        show_fps("DVP", &begin, &now, i);
     }
 
     dvp_stop();
     dvp_release_buf(g_vdata.binfo.num_buffers);
     mpp_vin_deinit();
     if (g_fb) {
-	video_layer_disable();
+        video_layer_disable();
         mpp_fb_close(g_fb);
     }
+
+    pr_info("Total receive %d frames, so exit\n");
 }
 
 static void cmd_test_dvp(int argc, char **argv)

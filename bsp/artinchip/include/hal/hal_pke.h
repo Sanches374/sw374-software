@@ -146,7 +146,6 @@ extern const edward_curve_t ed25519[1];
 #define PKE_ERROR           (9)
 
 //APIs
-s32 pke_init(void);
 u32 pke_get_version(void);
 u32 pke_set_operand_width(u32 bitLen);
 u32 pke_get_operand_bytes(void);

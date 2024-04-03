@@ -23,6 +23,10 @@ if GetDepend('AICUPG_NOR_ARTINCHIP'):
     src     += Glob('nor_fwc.c')
 if GetDepend('AIC_BOOTLOADER_FATFS_SUPPORT'):
     src     += Glob('upg_fat.c')
+    src     += Glob('upg_fat_direct.c')
+    src     += Glob('upg_fat_direct_mmc.c')
+    src     += Glob('upg_fat_direct_nor.c')
+    src     += Glob('upg_fat_direct_nand.c')
 CPPPATH = [cwd]
 ASFLAGS = ''
 

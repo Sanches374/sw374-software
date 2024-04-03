@@ -17,7 +17,7 @@
 #include <mmc.h>
 #include <image.h>
 #include <boot.h>
-#include <hexdump.h>
+#include <aic_utils.h>
 
 #define APPLICATION_PART "os"
 

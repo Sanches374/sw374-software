@@ -24,12 +24,36 @@
 #endif
 #endif
 
-aic_audio_ctrl audio_ctrl;
-ringbuf_t *ring_buf;
 #define TX_FIFO_SIZE                    4096
 #define TX_FIFO_PERIOD_COUNT            2
 #define BUFFER_SIZE                     2048
+aic_audio_ctrl audio_ctrl;
+ringbuf_t *ring_buf;
 rt_uint8_t audio_tx_fifo[TX_FIFO_SIZE] __attribute__((aligned(64)));
+int fd;
+uint8_t *buffer = NULL;
+volatile uint8_t read_done, start_flag;
+
+void ring_buffer_fill(void)
+{
+    int len = 0;
+    int wr_cnt;
+
+    if (start_flag)
+    {
+        len = read(fd, buffer, BUFFER_SIZE);
+        if (len <= 0)
+            read_done = 1;
+        else
+        {
+            while (len)
+            {
+                wr_cnt = ringbuf_in(ring_buf, buffer, len);
+                len -= wr_cnt;
+            }
+        }
+    }
+}
 
 static void drv_audio_callback(aic_audio_ctrl *pcodec, void *arg)
 {
@@ -40,6 +64,7 @@ static void drv_audio_callback(aic_audio_ctrl *pcodec, void *arg)
     case AUDIO_TX_PERIOD_INT:
         ring_buf->read += pcodec->tx_info.buf_info.period_len;
         ring_buf->data_len -= pcodec->tx_info.buf_info.period_len;
+        ring_buffer_fill();
         aicos_dcache_clean_range((void *)audio_tx_fifo, TX_FIFO_SIZE);
         break;
     default:
@@ -49,18 +74,139 @@ static void drv_audio_callback(aic_audio_ctrl *pcodec, void *arg)
 
 }
 
+int wav_file_parse(int fd, struct wav_header *info)
+{
+    if (fd < 0)
+        return fd;
+
+    if (read(fd, info, sizeof(struct wav_header)) <= 0)
+    {
+        hal_log_err("read info error\n");
+        return -EINVAL;
+    }
+
+    if (info->fmt_bit_per_sample != 16)
+    {
+        hal_log_err("audio only support 16 bits samplebits!!!\n");
+        return -EINVAL;
+    }
+
+    printf("wav information:\n");
+    printf("samplerate: %d\n", info->fmt_sample_rate);
+    printf("channel: %d\n", info->fmt_channels);
+    printf("samplebits: %d\n", info->fmt_bit_per_sample);
+
+    return 0;
+}
+
+void audio_config(aic_audio_ctrl *pcodec, struct wav_header *info)
+{
+    pcodec->tx_info.buf_info.buf = (void *)audio_tx_fifo;
+    pcodec->tx_info.buf_info.buf_len = TX_FIFO_SIZE;
+    pcodec->tx_info.buf_info.period_len = TX_FIFO_SIZE / TX_FIFO_PERIOD_COUNT;
+
+    hal_audio_init(pcodec);
+    hal_audio_attach_callback(pcodec, drv_audio_callback, NULL);
+
+    /* Configure audio format */
+    /* AudioCodec only support 16 bits */
+    hal_audio_set_playback_channel(pcodec, info->fmt_channels);
+    hal_audio_set_samplerate(pcodec, info->fmt_sample_rate);
+    pcodec->config.samplerate = info->fmt_sample_rate;
+    pcodec->config.channel = info->fmt_channels;
+    pcodec->config.samplebits = 16;
+
+#ifdef AIC_AUDIO_SPK_0
+    hal_audio_set_playback_by_spk0(pcodec);
+#endif
+#ifdef AIC_AUDIO_SPK_1
+    hal_audio_set_playback_by_spk1(pcodec);
+#endif
+#ifdef AIC_AUDIO_SPK_0_1
+    hal_audio_set_playback_by_spk0(pcodec);
+    hal_audio_set_playback_by_spk1(pcodec);
+#ifdef AIC_AUDIO_SPK0_OUTPUT_DIFFERENTIAL
+    hal_audio_set_pwm0_differential(pcodec);
+#endif
+#ifdef AIC_AUDIO_SPK1_OUTPUT_DIFFERENTIAL
+    hal_audio_set_pwm1_differential(pcodec);
+#endif
+#endif
+}
+
+ringbuf_t * ringbuffer_init(void)
+{
+    ringbuf_t *ring_buffer;
+
+    ring_buffer = aicos_malloc(MEM_CMA, sizeof(ringbuf_t));
+    if (!ring_buffer)
+    {
+        hal_log_err("ring_buffer malloc error!\n");
+        return NULL;
+    }
+
+    ring_buffer->buffer = audio_tx_fifo;
+    ring_buffer->size = TX_FIFO_SIZE;
+    ring_buffer->write = 0;
+    ring_buffer->read = 0;
+    ring_buffer->data_len = 0;
+
+    return ring_buffer;
+}
+
+void pa_pin_init(int pa)
+{
+    unsigned int group, pin;
+
+    pa = hal_gpio_name2pin(AIC_AUDIO_PA_ENABLE_GPIO);
+    group = GPIO_GROUP(pa);
+    pin = GPIO_GROUP_PIN(pa);
+    hal_gpio_direction_output(group, pin);
+#ifdef AIC_AUDIO_EN_PIN_HIGH
+    hal_gpio_clr_output(group, pin);
+#else
+    hal_gpio_set_output(group, pin);
+#endif
+}
+
+void pa_pin_enable(int pa)
+{
+    unsigned int group, pin;
+
+    group = GPIO_GROUP(pa);
+    pin = GPIO_GROUP_PIN(pa);
+
+#ifdef AIC_AUDIO_EN_PIN_HIGH
+    hal_gpio_set_output(group, pin);
+#else
+    hal_gpio_clr_output(group, pin);
+#endif
+}
+
+void pa_pin_disable(int pa)
+{
+    unsigned int group, pin;
+
+    group = GPIO_GROUP(pa);
+    pin = GPIO_GROUP_PIN(pa);
+
+#ifdef AIC_AUDIO_EN_PIN_HIGH
+    hal_gpio_clr_output(group, pin);
+#else
+    hal_gpio_set_output(group, pin);
+#endif
+}
+
 static int sound_aplay(int argc, char *argv[])
 {
-    int fd;
-    struct wav_header *info = NULL;
-    uint8_t *buffer = NULL;
-    unsigned int pa, group, pin;
-    uint8_t start_flag = 0;
+    int ret = 0;
+    struct wav_header info = {0};
+    unsigned int pa;
 
     if (argc != 2)
     {
-        hal_log_err("Usage:\n");
-        hal_log_err("aplay song.wav\n");
+        printf("Usage:\n"
+               "\taplay song.wav\n");
         return 0;
     }
 
@@ -78,122 +224,42 @@ static int sound_aplay(int argc, char *argv[])
         goto __exit;
     }
 
-    ring_buf = aicos_malloc(MEM_CMA, sizeof(ringbuf_t));
+    memset(audio_tx_fifo, 0, sizeof(audio_tx_fifo));
+
+    ring_buf = ringbuffer_init();
     if (!ring_buf)
-    {
-        hal_log_err("ring_buf malloc error!\n");
         goto __exit;
-    }
 
-    ring_buf->buffer = audio_tx_fifo;
-    ring_buf->size = TX_FIFO_SIZE;
-    ring_buf->write = 0;
-    ring_buf->read = 0;
-    ring_buf->data_len = 0;
-
-    info = aicos_malloc(MEM_CMA, sizeof(struct wav_header));
-    if (!info)
-    {
-        hal_log_err("malloc error!\n");
+    ret = wav_file_parse(fd, &info);
+    if (ret)
         goto __exit;
-    }
 
-    if (read(fd, info, sizeof(struct wav_header)) <= 0)
-    {
-        hal_log_err("read info error\n");
-        goto __exit;
-    }
-
-    hal_log_info("wav information:\n");
-    hal_log_info("samplerate %u\n", info->fmt_sample_rate);
-    hal_log_info("channel %u\n", info->fmt_channels);
-
-    audio_ctrl.tx_info.buf_info.buf = (void *)audio_tx_fifo;
-    audio_ctrl.tx_info.buf_info.buf_len = TX_FIFO_SIZE;
-    audio_ctrl.tx_info.buf_info.period_len = TX_FIFO_SIZE / TX_FIFO_PERIOD_COUNT;
-
-    hal_audio_init(&audio_ctrl);
-    hal_audio_attach_callback(&audio_ctrl, drv_audio_callback, NULL);
-
-    /* Configure audio format */
-    /* AudioCodec only support 16 bits */
-    hal_audio_set_playback_channel(&audio_ctrl, info->fmt_channels);
-    hal_audio_set_samplerate(&audio_ctrl, info->fmt_sample_rate);
-    audio_ctrl.config.samplerate = info->fmt_sample_rate;
-    audio_ctrl.config.channel = info->fmt_channels;
-    audio_ctrl.config.samplebits = 16;
-
-#ifdef AIC_AUDIO_SPK_0
-    hal_audio_set_playback_by_spk0(&audio_ctrl);
-#endif
-#ifdef AIC_AUDIO_SPK_1
-    hal_audio_set_playback_by_spk1(&audio_ctrl);
-#endif
-#ifdef AIC_AUDIO_SPK_0_1
-    hal_audio_set_playback_by_spk0(&audio_ctrl);
-    hal_audio_set_playback_by_spk1(&audio_ctrl);
-#ifdef AIC_AUDIO_SPK0_OUTPUT_DIFFERENTIAL
-    hal_audio_set_pwm0_differential(&audio_ctrl);
-#endif
-#ifdef AIC_AUDIO_SPK1_OUTPUT_DIFFERENTIAL
-    hal_audio_set_pwm1_differential(&audio_ctrl);
-#endif
-#endif
+    audio_config(&audio_ctrl, &info);
 
     pa = hal_gpio_name2pin(AIC_AUDIO_PA_ENABLE_GPIO);
-    group = GPIO_GROUP(pa);
-    pin = GPIO_GROUP_PIN(pa);
-    hal_gpio_set_func(group, pin, 1);
-    hal_gpio_direction_output(group, pin);
-#ifdef AIC_AUDIO_EN_PIN_HIGH
-    hal_gpio_set_output(group, pin);
-#else
-    hal_gpio_clr_output(group, pin);
-#endif
+    pa_pin_init(pa);
 
+    read_done = 0;
+    start_flag = 0;
     hal_dma_init();
     aicos_request_irq(DMA_IRQn, hal_dma_irq, 0, NULL, NULL);
 
-    uint32_t total_len = 0;
-    while (1)
+    hal_audio_playback_start(&audio_ctrl);
+    /* Enable PA after a delay of 10ms to prevent pop */
+    aicos_msleep(10);
+
+    /* Enable Power Amplifier */
+    pa_pin_enable(pa);
+    /* Wait Power Amplifier stable */
+    aicos_msleep(200);
+    start_flag = 1;
+
+    while (!read_done)
     {
-        int length, wr_size;
-        uint8_t *tmp_buf;
 
-        length = read(fd, buffer, BUFFER_SIZE);
-        if (length <= 0)
-            break;
-
-        if (!start_flag)
-        {
-            wr_size = 0;
-            tmp_buf = buffer;
-            wr_size = ringbuf_in(ring_buf, tmp_buf, length);
-            total_len += wr_size;
-            if (total_len >= TX_FIFO_SIZE)
-            {
-                start_flag = 1;
-                hal_audio_playback_start(&audio_ctrl);
-            }
-        }
-        else
-        {
-            wr_size = 0;
-            tmp_buf = buffer;
-            while (length)
-            {
-                wr_size = ringbuf_in(ring_buf, tmp_buf, length);
-                tmp_buf += wr_size;
-                length -= wr_size;
-            }
-        }
     }
 
-#ifdef AIC_AUDIO_EN_PIN_HIGH
-    hal_gpio_clr_output(group, pin);
-#else
-    hal_gpio_set_output(group, pin);
-#endif
+    pa_pin_disable(pa);
     hal_audio_playback_stop(&audio_ctrl);
 
 __exit:
@@ -203,8 +269,7 @@ __exit:
         aicos_free(MEM_CMA, buffer);
     if (ring_buf != NULL)
         aicos_free(MEM_CMA, ring_buf);
-    if (info != NULL)
-        aicos_free(MEM_CMA, info);
+
     return 0;
 }
 

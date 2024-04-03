@@ -188,6 +188,9 @@ typedef struct _lv_draw_ctx_t  {
     void * user_data;
 #endif
 
+#if LV_SUPPORT_SET_IMAGE_STRIDE
+    int32_t src_stride;
+#endif
 } lv_draw_ctx_t;
 
 /**********************

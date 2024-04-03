@@ -15,7 +15,7 @@
 
 #include <image.h>
 #include <fatfs.h>
-#include <hexdump.h>
+#include <aic_utils.h>
 #include <mmc.h>
 #include <usbhost.h>
 
@@ -457,7 +457,7 @@ static s32 exfat_search_file(struct fat_volume *vol, struct fat_file *file,
         secondary_cnt--;
 
         if (name_len != file->name_len) {
-            pr_err("Filename length is %d\n", name_len);
+            pr_debug("Filename length is %d\n", name_len);
             continue;
         }
 
@@ -545,7 +545,7 @@ static s32 read_file_data(struct fat_volume *vol, struct fat_file *file,
             rdsect_cnt -= 1;
             skip_byte = 0;
             if (got_len >= want_size)
-                return 0;
+                return got_len;
         }
         rdbyte_cnt = rdsect_cnt * LBA_SIZE;
 
@@ -559,7 +559,7 @@ static s32 read_file_data(struct fat_volume *vol, struct fat_file *file,
             p += rdbyte_cnt;
             got_len += rdbyte_cnt;
             if (got_len >= want_size) {
-                return 0;
+                return got_len;
             }
         } else {
             /* The last data and less than one cluster */
@@ -574,12 +574,12 @@ static s32 read_file_data(struct fat_volume *vol, struct fat_file *file,
             p += rdsect_cnt * LBA_SIZE;
             got_len += rdsect_cnt * LBA_SIZE;
             if (got_len >= want_size) {
-                return 0;
+                return got_len;
             }
         }
     }
 
-    return 0;
+    return got_len;
 }
 
 static u32 get_fat_ent_sector_num(struct fat_region *fat, u32 clus_id)
@@ -680,27 +680,31 @@ static s32 fat_read_from_fatfs(struct fat_volume *vol, char *filename,
     }
 
     if (offset % LBA_SIZE) {
-        pr_err("start offset 0x%lx not alignment with 0x%x\n", offset,
-               LBA_SIZE);
+        pr_debug("start offset 0x%lx not alignment with 0x%x\n", offset,
+                 LBA_SIZE);
     }
     skip_cnt = offset / LBA_SIZE;
     skip_byte = offset % LBA_SIZE;
 
     /* Read data to buffer: fw_base */
     ret = read_file_data(vol, file, skip_cnt, skip_byte, maxsize, databuf);
-    if (ret != 0) {
-        pr_err("Read %s file failed.\n", filename);
+    if (ret <= 0) {
+        // pr_err("Read %s file failed.\n", filename);
+        ret = -1;
         goto out;
     }
 
-    *actread = min((u32)file->size, (u32)maxsize);
+    if (offset + maxsize > file->size)
+        *actread = file->size - offset;
+    else
+        *actread = maxsize;
 
-    aicos_free(0, file);
+    aicos_free_align(0, file);
     return 0;
 
 out:
     if (file)
-        aicos_free(0, file);
+        aicos_free_align(0, file);
 
     return ret;
 }
@@ -713,11 +717,6 @@ static s32 fat_read_file_from_fatfs(struct fat_volume *vol, char *filename,
 
     pr_debug("\n%s\n", __func__);
     ret = fat_read_from_fatfs(vol, filename, buf, offset, maxsize, actread);
-    if (ret) {
-        pr_err("read from fatfs failed.\n");
-        return ret;
-    }
-
     return ret;
 }
 
@@ -755,9 +754,9 @@ static s32 fat_read_file_from_raw_volume_fat32(struct blkdev *pdev,
 
     ret = fat_read_file_from_fatfs(&vol, filename, fw_base, buf, offset,
                                    maxsize, actread);
-    if (ret) {
-        pr_err("Read file from FAT32 failed.\n");
-    }
+    // if (ret) {
+    //     pr_err("Read file from FAT32 failed.\n");
+    // }
 
     return ret;
 }

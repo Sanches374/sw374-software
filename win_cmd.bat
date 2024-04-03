@@ -26,6 +26,7 @@ doskey list=scons --list-def -C %SDK_PRJ_TOP_DIR%
 doskey m=scons -C %SDK_PRJ_TOP_DIR% -j 8
 doskey c=scons -c -C %SDK_PRJ_TOP_DIR%
 doskey i=scons --info -C %SDK_PRJ_TOP_DIR%
+doskey aicupg=scons --aicupg -C %SDK_PRJ_TOP_DIR%
 doskey croot=cd /d %SDK_PRJ_TOP_DIR%
 doskey cr=cd /d %SDK_PRJ_TOP_DIR%
 doskey cb=cbuild
@@ -33,6 +34,16 @@ doskey co=cout
 doskey ct=ctarget
 
 chcp 65001 > nul
+
+if NOT "%3" == "" (
+	cmd.exe /K "%2 %3"
+	exit /b %errorlevel%
+)
+if NOT "%2" == "" (
+	cmd.exe /K "%2"
+	exit /b %errorlevel%
+)
+
 echo Luban-Lite command for Windows
 echo.
 echo      _         _   ___        ___ _     _

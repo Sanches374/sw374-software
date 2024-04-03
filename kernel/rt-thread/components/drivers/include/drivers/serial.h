@@ -81,6 +81,10 @@
 #define RT_SERIAL_FLOWCONTROL_CTSRTS     1
 #define RT_SERIAL_FLOWCONTROL_NONE       0
 
+#define RT_SERIAL_RS485_MODE            1       /* ArtInChip Uart 485 mode flag */
+#define RT_SERIAL_RS485_RTS_LOW         0x80    /* ArtInChip Uart 485 RTS_Pin Low level*/
+#define RT_SERIAL_RS485_RTS_HIGH        0x81    /* ArtInChip Uart 485 RTS_Pin High Level */
+
 /* Default config for serial_configure structure */
 #define RT_SERIAL_CONFIG_DEFAULT           \
 {                                          \
@@ -92,7 +96,11 @@
     NRZ_NORMAL,       /* Normal mode */    \
     RT_SERIAL_RB_BUFSZ, /* Buffer size */  \
     RT_SERIAL_FLOWCONTROL_NONE, /* Off flowcontrol */ \
-    0                                      \
+    0,                                     \
+    259,                                   \
+    USART_FUNC_RS232,                      \
+    0,                                      \
+    0x0F                                   \
 }
 
 struct serial_configure
@@ -106,8 +114,11 @@ struct serial_configure
     rt_uint32_t invert                  :1;
     rt_uint32_t bufsz                   :16;
     rt_uint32_t flowcontrol             :1;
-    rt_uint32_t function                :2;
     rt_uint32_t reserved                :5;
+    rt_uint32_t flag;
+    rt_uint32_t function                :4;
+    rt_uint32_t flow_ctrl_suspend       :1;
+    rt_uint32_t uart_index              :4;
 };
 
 /*

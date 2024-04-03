@@ -38,6 +38,12 @@ enum aic_epwm_action_type {
     EPWM_ACT_NUM
 };
 
+enum aic_epwm_cmp_write_type {
+    EPWM_SET_CMPA = 0,
+    EPWM_SET_CMPB,
+    EPWM_SET_CMPA_CMPB
+};
+
 struct aic_epwm_action {
     enum aic_epwm_action_type CBD;
     enum aic_epwm_action_type CBU;
@@ -48,6 +54,7 @@ struct aic_epwm_action {
 };
 
 struct aic_epwm_arg {
+    bool sync_mode;
     u16 available;
     u16 id;
     enum aic_epwm_mode mode;
@@ -73,9 +80,9 @@ struct aic_epwm_pulse_para {
     u32 pulse_cnt;
 };
 
-void hal_epwm_ch_init(u32 ch, enum aic_epwm_mode mode, u32 default_level,
+void hal_epwm_ch_init(u32 ch, bool sync_mode, enum aic_epwm_mode mode, u32 default_level,
                      struct aic_epwm_action *a0, struct aic_epwm_action *a1);
-int hal_epwm_set(u32 ch, u32 duty_ns, u32 period_ns);
+int hal_epwm_set(u32 ch, u32 duty_ns, u32 period_ns, u32 output);
 int hal_epwm_get(u32 ch, u32 *duty_ns, u32 *period_ns);
 int hal_epwm_enable(u32 ch);
 int hal_epwm_disable(u32 ch);

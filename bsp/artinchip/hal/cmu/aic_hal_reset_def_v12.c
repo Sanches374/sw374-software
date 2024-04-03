@@ -41,7 +41,6 @@ const struct aic_reset_signal aic_reset_signals[RESET_NUMBER] = {
     [RESET_GPAI]        = { CLK_GPAI_REG, BIT(13) },
     [RESET_RTP]         = { CLK_RTP_REG, BIT(13) },
     [RESET_TSEN]        = { CLK_TSEN_REG, BIT(13) },
-    [RESET_MDI]         = { CLK_MDI_REG, BIT(13) },
     [RESET_CIR]         = { CLK_CIR_REG, BIT(13) },
     [RESET_MTOP]        = { CLK_MTOP_REG, BIT(13) },
 };

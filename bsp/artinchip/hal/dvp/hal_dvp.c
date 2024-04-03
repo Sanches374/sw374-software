@@ -35,6 +35,10 @@ static void aic_dvp_reg_enable(int offset, int bit, int enable)
 
 void aich_dvp_enable(int enable)
 {
+    /* When 10 lines had be refreshed, so we can update the address */
+    if (enable)
+        dvp_writel(10 << DVP_IRQ_CFG_HNUM_SHIFT, DVP_IRQ_CFG);
+
     aic_dvp_reg_enable(DVP_CTL, DVP_CTL_DROP_FRAME_EN, enable);
     aic_dvp_reg_enable(DVP_CTL, DVP_CTL_EN, enable);
 }
@@ -64,8 +68,8 @@ int aich_dvp_clr_int(void)
 
 void aich_dvp_enable_int(int enable)
 {
-    aic_dvp_reg_enable(DVP_IRQ_EN, DVP_IRQ_EN_UPDATE_DONE, enable);
-    aic_dvp_reg_enable(DVP_IRQ_EN, DVP_IRQ_EN_FRAME_DONE, enable);
+    aic_dvp_reg_enable(DVP_IRQ_EN,
+                       DVP_IRQ_EN_FRAME_DONE | DVP_IRQ_STA_HNUM, enable);
 }
 
 void aich_dvp_set_pol(u32 flags)

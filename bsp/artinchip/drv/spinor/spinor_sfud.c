@@ -6,6 +6,7 @@
  * Authors: xuan.wen <xuan.wen@artinchip.com>
  */
 
+#include <rtconfig.h>
 #include <rtdevice.h>
 #include <drv_qspi.h>
 #include <aic_log.h>
@@ -49,7 +50,8 @@ int rt_hw_spi_flash_with_sfud_init(void)
     rt_err_t ret;
     rt_spi_flash_device_t flash_dev;
 
-    ret = aic_qspi_bus_attach_device("qspi0", SPI_FLASH_DEVICE_NAME, 0, 4,
+    ret = aic_qspi_bus_attach_device("qspi0", SPI_FLASH_DEVICE_NAME, 0,
+                                     AIC_QSPI0_BUS_WIDTH,
                                      RT_NULL, RT_NULL);
     if (ret < 0) {
         pr_err("attach qspi device failed.\n");
@@ -79,7 +81,7 @@ void sfud_log_debug(const char *file, const long line, const char *fmt, ...)
     char log_buf[RT_CONSOLEBUF_SIZE];
     int head_len;
 
-    sprintf(log_buf, "[D] %s()%ld ", file, line);
+    snprintf(log_buf, RT_CONSOLEBUF_SIZE, "[D] %s()%ld ", file, line);
     head_len = strlen(log_buf);
     va_start(args, fmt);
     vsnprintf(log_buf + head_len, sizeof(log_buf) - head_len - 1, fmt, args);
@@ -93,7 +95,7 @@ void sfud_log_info(const char *fmt, ...)
     char log_buf[RT_CONSOLEBUF_SIZE];
     int head_len;
 
-    sprintf(log_buf, "[I] ");
+    snprintf(log_buf, RT_CONSOLEBUF_SIZE, "[I] ");
     head_len = strlen(log_buf);
     va_start(args, fmt);
     vsnprintf(log_buf + head_len, sizeof(log_buf) - head_len - 1, fmt, args);

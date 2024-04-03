@@ -114,10 +114,6 @@ Default_IRQHandler:
     jal     aicos_irq_exit
 #endif
 
-    /* resume mstatus */
-    li      t0, MSTATUS_PRV1
-    csrs    mstatus, t0
-
 #ifdef ARCH_RISCV_FPU
     FLOAD   ft0,  0 * FREGBYTES(sp)
     FLOAD   ft1,  1 * FREGBYTES(sp)

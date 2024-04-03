@@ -61,7 +61,11 @@ static void test_tsen_read(int ch)
     struct aic_tsen_ch *chan;
 
     chan = &aic_tsen_chs[AIC_TSEN_CH_CHOSEN];
+
+#ifdef AIC_SID_DRV
     hal_tsen_curve_fitting(chan);
+#endif
+
     chan->complete = aicos_sem_create(0);
     aicos_request_irq(TSEN_IRQn, hal_tsen_irq_handle, 0, NULL, NULL);
     for (num = 0; num < 10; num++) {

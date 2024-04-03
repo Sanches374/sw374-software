@@ -95,4 +95,6 @@ static inline int dmaengine_resume(struct dma_chan *chan)
     return hal_dma_chan_resume((struct aic_dma_chan *)chan);
 }
 
+void drv_dma_ch_stop(struct dma_chan *dma_ch);
+
 #endif /* __ARTINCHIP_DMA_DRV_H_ */

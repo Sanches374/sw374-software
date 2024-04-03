@@ -67,7 +67,6 @@ typedef enum IRQn {
     UART2_IRQn                      = 78U,
     UART3_IRQn                      = 79U,
     LCD_IRQn                        = 55U,
-    MDI_IRQn                        = 58U,
     DE_IRQn                         = 59U,
     GE_IRQn                         = 60U,
     VE_IRQn                         = 61U,
@@ -145,7 +144,6 @@ IRQn_Type;
 #define UART2_BASE                  QEMU_IO_BASE
 #define UART3_BASE                  QEMU_IO_BASE
 #define LCD_BASE                    QEMU_IO_BASE
-#define MDI_BASE                    QEMU_IO_BASE
 #define DE_BASE                     QEMU_IO_BASE
 #define GE_BASE                     QEMU_IO_BASE
 #define VE_BASE                     QEMU_IO_BASE
@@ -190,7 +188,6 @@ IRQn_Type;
 #define UART3_BASE                  0x18713000UL /* - 0x18713FFF, 4KB	,--	*/
 #define UART_BASE(id)               (UART0_BASE + (id) * 0x1000UL)
 #define LCD_BASE                    0x18800000UL /* - 0x18800FFF, 4KB	,64KB	*/
-#define MDI_BASE                    0x18840000UL /* - 0x18840FFF, 4KB	,64KB	*/
 #define DE_BASE                     0x18A00000UL /* - 0x18AFFFFF, 1MB	,1MB	*/
 #define GE_BASE                     0x18B00000UL /* - 0x18BFFFFF, 1MB	,1MB	*/
 #define VE_BASE                     0x18C00000UL /* - 0x18CFFFFF, 1MB	,1MB	*/

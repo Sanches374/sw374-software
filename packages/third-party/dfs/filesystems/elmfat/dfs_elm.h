@@ -25,6 +25,7 @@ extern "C" {
 #define DEVICE_TYPE_SPINOR_DISK      ((const void *)3)      /* SPINOR */
 #define DEVICE_TYPE_RAM_DISK         ((const void *)4)      /* RAM */
 #define DTL(x)                       (long)(x)
+#define GET_DEVICE_TYPE              (0)
 
 struct elm_dev_info {
     char *dev_name;

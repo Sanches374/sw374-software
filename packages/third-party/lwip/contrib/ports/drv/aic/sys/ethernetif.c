@@ -111,13 +111,13 @@ static void low_level_init(struct netif *netif)
     netif->hwaddr[5] = (CONFIG_PORT_MAC_ADDR_HIGH >> 8) & 0xFF;
 
 #ifdef AIC_DEV_GMAC0_MACADDR
-    if (aic_netif->port == 0){
+    if (aic_netif->port == 0) {
         hex2bin(netif->hwaddr, AIC_DEV_GMAC0_MACADDR, 6);
     }
 #endif
 
 #ifdef AIC_DEV_GMAC1_MACADDR
-    if (aic_netif->port == 1){
+    if (aic_netif->port == 1) {
         hex2bin(netif->hwaddr, AIC_DEV_GMAC1_MACADDR, 6);
     }
 #endif
@@ -190,7 +190,7 @@ static err_t low_level_output(struct netif *netif, struct pbuf *p)
 
     pr_debug("%s\n", __func__);
 
-    if ((netif == NULL) || (p == NULL)){
+    if ((netif == NULL) || (p == NULL)) {
         pr_err("%s invalid parameter.\n", __func__);
         return ERR_MEM;
     }
@@ -262,7 +262,7 @@ static err_t low_level_output(struct netif *netif, struct pbuf *p)
     /* Count number of pbufs in a chain */
     q = p;
     while (q != NULL) {
-        if (q->len > ETH_DMATxDesc_TBS1){
+        if (q->len > ETH_DMATxDesc_TBS1) {
             pr_err("%s too large pbuf.(len = %d)\n", __func__, q->len);
             ret = ERR_MEM;
             goto error;
@@ -281,7 +281,7 @@ static err_t low_level_output(struct netif *netif, struct pbuf *p)
 
         /* Point to next descriptor */
         pdesc = (aicmac_dma_desc_t *)(unsigned long)(pdesc->buff2_addr);
-        if (pdesc == dctl[aic_netif->port].tx_desc_unconfirm_p){
+        if (pdesc == dctl[aic_netif->port].tx_desc_unconfirm_p) {
             pr_info("%s don't overwrite unconfirm area.\n", __func__);
             break;
         }
@@ -290,7 +290,7 @@ static err_t low_level_output(struct netif *netif, struct pbuf *p)
         aicmac_dcache_invalid((uintptr_t)pdesc, sizeof(aicmac_dma_desc_t));
     }
 
-    if (p_cnt > empty_desc_cnt){
+    if (p_cnt > empty_desc_cnt) {
         pr_err("%s no enough desc for transmit pbuf.(pbuf_cnt = %d, empty_desc = %d)\n",
                 __func__, p_cnt, empty_desc_cnt);
         ret = ERR_MEM;
@@ -300,25 +300,25 @@ static err_t low_level_output(struct netif *netif, struct pbuf *p)
     pbuf_ref(p);
     q = p;
     p_type = p->type_internal;
-    for(i=0; i<p_cnt; i++){
+    for(i=0; i<p_cnt; i++) {
         index = pdesc->reserved1;
-        if (index >= ETH_RXBUFNB){
+        if (index >= ETH_RXBUFNB) {
             pr_err("%s get dma desc index err.\n", __func__);
             pbuf_free(p);
             ret = ERR_MEM;
             goto error;
         }
 
-        if (i == (p_cnt-1)){
+        if (i == (p_cnt-1)) {
             dctl[aic_netif->port].tx_buff[index] = p;
-        }else{
+        } else {
             dctl[aic_netif->port].tx_buff[index] = NULL;
         }
 
         /* flush data cache */
-        if (p_type == PBUF_POOL){
+        if (p_type == PBUF_POOL) {
             aicmac_dcache_clean((uintptr_t)q->payload, q->len);
-        }else{
+        } else {
             aicos_dcache_clean_range((unsigned long *)q->payload, q->len);
         }
 
@@ -356,6 +356,23 @@ static err_t low_level_output(struct netif *netif, struct pbuf *p)
     aicmac_resume_dma_tx(aic_netif->port);
 #endif
 
+#ifdef LWIP_PTP
+    // todo: block or unblock?
+    /* wait for xmit finished */
+    while (1) {
+        aicmac_dcache_invalid((uintptr_t)pdesc, sizeof(aicmac_dma_desc_t));
+        if (!(pdesc->control & ETH_DMATxDesc_OWN))
+            break;
+    }
+
+    aicmac_timestamp_t timestamp;
+    /* get tx timestamp if needed */
+    timestamp = aicmac_get_tx_timestamp(aic_netif->port, pdesc);
+
+    p->second = timestamp.second;
+    p->nanosecond = timestamp.nanosecond;
+#endif
+
 error:
     /* Give semaphore and exit */
     aicos_mutex_give(eth_tx_mutex);
@@ -369,7 +386,7 @@ static struct pbuf * low_level_input(struct netif *netif, bool poll)
     struct pbuf *p = NULL;
     struct pbuf *q = NULL;
     u32_t len;
-    aicmac_frame_t frame = { 0, 0, 0, 0};
+    aicmac_frame_t frame = { 0, 0, 0, 0 };
     aicmac_dma_desc_t *pdesc = NULL;
 #ifndef CONFIG_MAC_ZERO_COPY_RXBUF
     u8 *buffer;
@@ -383,8 +400,8 @@ static struct pbuf * low_level_input(struct netif *netif, bool poll)
     pr_debug("%s\n", __func__);
 
     /* get received frame */
-    if (poll){
-        if (!aicmac_check_rx_frame_poll(aic_netif->port)){
+    if (poll) {
+        if (!aicmac_check_rx_frame_poll(aic_netif->port)) {
             return NULL;
         }
         frame = aicmac_get_rx_frame_poll(aic_netif->port);
@@ -414,6 +431,7 @@ static struct pbuf * low_level_input(struct netif *netif, bool poll)
 
             /* Check if the length of bytes to copy in current pbuf is bigger than Rx buffer size*/
             while ((byteslefttocopy + bufferoffset) > ETH_RX_BUF_SIZE) {
+                aicmac_gdma_sync();
                 /* before read: invalid cache */
                 aicmac_dcache_invalid((uintptr_t)((u8_t *)buffer + bufferoffset),
                                       (ETH_RX_BUF_SIZE - bufferoffset));
@@ -431,6 +449,7 @@ static struct pbuf * low_level_input(struct netif *netif, bool poll)
                 bufferoffset = 0;
             }
 
+            aicmac_gdma_sync();
             /* before read: invalid cache */
             aicmac_dcache_invalid((uintptr_t)((u8_t *)buffer + bufferoffset),
                                   byteslefttocopy);
@@ -448,9 +467,9 @@ static struct pbuf * low_level_input(struct netif *netif, bool poll)
     len = frame.length;
     pdesc = frame.descriptor;
 
-    do{
+    do {
         index = pdesc->reserved1;
-        if (index >= ETH_RXBUFNB){
+        if (index >= ETH_RXBUFNB) {
             pr_err("%s get dma desc index err.\n", __func__);
             return NULL;
         }
@@ -467,13 +486,14 @@ static struct pbuf * low_level_input(struct netif *netif, bool poll)
         q = dctl[aic_netif->port].rx_buff[index];
 
         q->tot_len = len;
-        if (len > AICMAC_PBUF_SIZE){
+        if (len > AICMAC_PBUF_SIZE) {
             q->len = AICMAC_PBUF_SIZE;
-        }else{
+        } else {
             q->len = len;
         }
         len -= q->len;
         q->next = NULL;
+        aicmac_gdma_sync();
         aicmac_dcache_invalid((uintptr_t)q->payload, q->len);
 
         /* Point to next descriptor */
@@ -483,9 +503,18 @@ static struct pbuf * low_level_input(struct netif *netif, bool poll)
     }while(len);
 #endif
 
+#ifdef LWIP_PTP
+    /* get rx timestamp if needed */
+    aicmac_timestamp_t timestamp;
+    timestamp = aicmac_get_rx_timestamp(aic_netif->port, &frame);
+    p->second = timestamp.second;
+    p->nanosecond = timestamp.nanosecond;
+#endif
+
     aicmac_release_rx_frame(aic_netif->port);
     return p;
 }
+
 #if !NO_SYS
 void ethernetif_input_thread(void *pvParameters)
 {
@@ -510,7 +539,7 @@ void ethernetif_input_thread(void *pvParameters)
             }
 
             #ifdef CONFIG_MAC_ZERO_COPY_TXBUF
-            while (dctl[aic_netif.port].rx_buf_underrun){
+            while (dctl[aic_netif.port].rx_buf_underrun) {
                 aicos_msleep(100);
                 pr_info("%s try resume rx underrun!\n", __func__);
                 aicmac_release_rx_frame(aic_netif.port);
@@ -577,8 +606,7 @@ ethernetif_igmp_mac_filter_fun(struct netif *netif,
 
         aicmac_set_mac_addr(port, j, macaddr);
         aicmac_set_mac_addr_mode(port, j, true, false, 0);
-    }
-    else {
+    } else {
         if (i < ETH_MACADDR_MAX_INDEX)
             macaddr_used_mask &= ~(1 << i);
         else

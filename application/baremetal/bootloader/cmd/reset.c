@@ -22,7 +22,7 @@ static int do_reset_boot(int argc, char *argv[])
     printf("Going to reboot ...\n");
     aic_set_reboot_reason(REBOOT_REASON_CMD_REBOOT);
     wdt_expire_now();
-    while(1);
+    while(1) {};
     return 0;
 }
 

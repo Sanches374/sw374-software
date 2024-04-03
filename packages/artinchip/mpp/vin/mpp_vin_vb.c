@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -84,6 +84,7 @@ static void __enqueue_in_driver(struct vb_buffer *vb)
 int vin_vb_q_buf(struct vb_queue *q, u32 index)
 {
     struct vb_buffer *vb = NULL;
+    rt_base_t level = 0;
 
     if (q->error) {
         pr_err("Fatal error occurred on queue\n");
@@ -103,11 +104,10 @@ int vin_vb_q_buf(struct vb_queue *q, u32 index)
     }
 
     /* Add to the queued buffers list. It will stay on it until dequeued */
-    aicos_mutex_take(q->queued_lock, AICOS_WAIT_FOREVER);
+    level = rt_hw_interrupt_disable();
     list_add_tail(&vb->queued_entry, &q->queued_list);
     q->queued_count++;
     vb->state = VB_BUF_STATE_QUEUED;
-    aicos_mutex_give(q->queued_lock);
 
     /*
      * If already streaming, give the buffer to driver for processing.
@@ -115,6 +115,8 @@ int vin_vb_q_buf(struct vb_queue *q, u32 index)
      */
     __enqueue_in_driver(vb);
     q->owned_by_drv_count++;
+    rt_hw_interrupt_enable(level);
+
     if (q->streaming)
         vin_vb_stream_on(q);
 
@@ -124,33 +126,23 @@ int vin_vb_q_buf(struct vb_queue *q, u32 index)
 
 static int __wait_for_done_vb(struct vb_queue *q)
 {
-    int i, try = 1000;
+    if (!q->streaming) {
+        pr_err("streaming off, will not wait for buffers\n");
+        return -EINVAL;
+    }
 
-    for (i = 0; i < try; i++) {
-        if (!q->streaming) {
-            pr_err("streaming off, will not wait for buffers\n");
-            return -EINVAL;
-        }
+    if (q->error) {
+        pr_err("Queue in error state, will not wait for buffers\n");
+        return -EIO;
+    }
 
-        if (q->error) {
-            pr_err("Queue in error state, will not wait for buffers\n");
-            return -EIO;
-        }
+    if (aicos_sem_take(q->done, 60000) < 0)  /* Wait 1 min */
+        return -EBUSY;
 
-        if (!list_empty(&q->done_list)) {
-            /* Found a buffer that we were waiting for.*/
-            pr_debug("done_list is not empty after tried %d times!\n", i + 1);
-            return 0;
-        }
-
-        q->waiting_in_dqbuf = 1;
-
-        /* All locks have been released, it is safe to sleep now. */
-        aicos_mutex_give(q->lock);
-        aicos_msleep(5);
-        aicos_mutex_take(q->lock, AICOS_WAIT_FOREVER);
-
-        q->waiting_in_dqbuf = 0;
+    if (!list_empty(&q->done_list)) {
+        /* Found a buffer that we were waiting for.*/
+        pr_debug("done_list is not empty after tried %d times!\n", i + 1);
+        return 0;
     }
 
     return -EBUSY;
@@ -160,15 +152,16 @@ int vin_vb_dq_buf(struct vb_queue *q, u32 *pindex)
 {
     int ret = 0;
     struct vb_buffer *vb = NULL;
+    rt_base_t level = 0;
 
     ret = __wait_for_done_vb(q);
     if (ret)
         return ret;
 
-    aicos_mutex_take(q->done_lock, AICOS_WAIT_FOREVER);
+    level = rt_hw_interrupt_disable();
+
     vb = list_first_entry(&q->done_list, struct vb_buffer, done_entry);
     list_del(&vb->done_entry);
-    aicos_mutex_give(q->done_lock);
 
     pr_debug("DQ buf: %d, state: %s\n", vb->index, vb_state_name(vb->state));
     switch (vb->state) {
@@ -187,6 +180,8 @@ int vin_vb_dq_buf(struct vb_queue *q, u32 *pindex)
     /* Remove from videobuf queue */
     list_del(&vb->queued_entry);
     q->queued_count--;
+
+    rt_hw_interrupt_enable(level);
 
     vb->state = VB_BUF_STATE_DEQUEUED;
     return 0;
@@ -225,16 +220,12 @@ void vin_vb_buffer_done(struct vb_buffer *vb, enum vb_buffer_state state)
         vb->state = VB_BUF_STATE_QUEUED;
     } else {
         /* Add the buffer to the done buffers list */
-        aicos_mutex_take(q->done_lock, AICOS_WAIT_FOREVER);
         list_add_tail(&vb->done_entry, &q->done_list);
-        aicos_mutex_give(q->done_lock);
-
+        aicos_sem_give(q->done);
         vb->state = state;
     }
 
-    aicos_mutex_take(q->lock, AICOS_WAIT_FOREVER);
     q->owned_by_drv_count--;
-    aicos_mutex_give(q->lock);
 }
 
 int vin_vb_stream_on(struct vb_queue *q)
@@ -309,7 +300,7 @@ int vin_vb_stream_off(struct vb_queue *q)
 
         for (i = 0; i < q->num_buffers; ++i)
             if (q->bufs[i].state == VB_BUF_STATE_ACTIVE) {
-                pr_warn("driver bug: stop_streaming operation is leaving buf %d in active state\n", i);
+                pr_warn("stop_streaming operation is leaving buf %d in active state\n", i);
                 vin_vb_buffer_done(&q->bufs[i], VB_BUF_STATE_ERROR);
             }
 
@@ -324,19 +315,13 @@ int vin_vb_stream_off(struct vb_queue *q)
     q->error = 0;
 
     /* Remove all buffers from videobuf's list... */
-    aicos_mutex_take(q->queued_lock, AICOS_WAIT_FOREVER);
     INIT_LIST_HEAD(&q->queued_list);
-    aicos_mutex_give(q->queued_lock);
 
     /* ...and done list;
      * user will not receive any buffers it has not already dequeued */
-    aicos_mutex_take(q->done_lock, AICOS_WAIT_FOREVER);
     INIT_LIST_HEAD(&q->done_list);
-    aicos_mutex_give(q->done_lock);
 
-    aicos_mutex_take(q->lock, AICOS_WAIT_FOREVER);
     q->owned_by_drv_count = 0;
-    aicos_mutex_give(q->lock);
 
     /* Reinitialize all buffers for next use. */
     for (i = 0; i < q->num_buffers; ++i)
@@ -357,10 +342,18 @@ int vin_vb_init(struct vb_queue *q, const struct vb_ops *ops)
     INIT_LIST_HEAD(&q->queued_list);
     INIT_LIST_HEAD(&q->done_list);
 
-    q->lock = aicos_mutex_create();
-    q->queued_lock = aicos_mutex_create();
-    q->done_lock = aicos_mutex_create();
-
+    q->done = aicos_sem_create(0);
     g_vb_ops = ops;
     return 0;
+}
+
+void vin_vb_deinit(struct vb_queue *q)
+{
+    if (!q) {
+        pr_err("Invalid parameter: q %#lx\n", (long)q);
+        return;
+    }
+
+    aicos_sem_delete(q->done);
+    g_vb_ops = NULL;
 }

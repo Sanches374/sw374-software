@@ -229,6 +229,9 @@ static int clk_pll_set_rate(struct aic_clk_comm_cfg *comm_cfg,
         }
         /* Configure fractional division */
         writel(fra_en << PLL_FRAC_EN_BIT | fra_in, cmu_reg(pll->offset_fra));
+        /* when using decimal divsion, do not configure spreading parameters */
+        sdm_en = (1UL << PLL_SDM_EN_BIT) | (2UL << PLL_SDM_MODE_BIT);
+        writel(sdm_en, cmu_reg(pll->offset_sdm));
     } else if (pll->type == AIC_PLL_SDM) {
         sdm_en = readl(cmu_reg(pll->offset_sdm));
         sdm_en >>= 31;

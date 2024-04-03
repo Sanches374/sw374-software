@@ -37,27 +37,38 @@ rt_err_t aic_rtp_init(void)
     g_rtp_dev.x_plate = AIC_RTP_X_PLATE;
     if (AIC_RTP_Y_PLATE > 0)
         g_rtp_dev.y_plate = AIC_RTP_Y_PLATE;
+    LOG_I("x_plate %d y_plate %d", g_rtp_dev.x_plate, g_rtp_dev.y_plate);
 
     g_rtp_dev.mode = AIC_RTP_DEFAULT_MODE;
     g_rtp_dev.max_press = AIC_RTP_MAX_PRESSURE;
     g_rtp_dev.smp_period = AIC_RTP_PERIOD_MS;
-    g_rtp_dev.pdeb = AIC_RTP_PDEB;
     g_rtp_dev.delay = AIC_RTP_DELAY;
     if (g_rtp_dev.mode != RTP_MODE_AUTO1)
         g_rtp_dev.pressure_det = 1;
 
     hal_rtp_enable(&g_rtp_dev, 1);
-    hal_rtp_int_enable(&g_rtp_dev, 1);
-    hal_rtp_auto_mode(&g_rtp_dev);
 
     return RT_EOK;
+}
+
+static int drv_rtp_plate_check(struct aic_rtp_dev *rtp,
+                               struct rt_touch_data *data)
+{
+    int tmp = 0;
+
+    if (rtp->x_plate < rtp->y_plate) {
+            tmp = data->x_coordinate;
+            data->x_coordinate = data->y_coordinate;
+            data->y_coordinate = tmp;
+    }
+
+    return 0;
 }
 
 static rt_size_t drv_rtp_read_point(struct rt_touch_device *touch, void *buf,
                                    rt_size_t touch_num)
 {
     s32 ret = 0;
-    static s32 down = 0;
     struct aic_rtp_event e = {0};
     struct rt_touch_data *data = (struct rt_touch_data *)buf;
 
@@ -71,25 +82,18 @@ static rt_size_t drv_rtp_read_point(struct rt_touch_device *touch, void *buf,
 
     ret = hal_rtp_ebuf_read(&g_rtp_dev.ebuf, &e);
     if (ret < 0) {
-        LOG_I("Failed to get touch data");
+        rt_kprintf("Failed to get touch data");
         return 0;
     }
 
     data->x_coordinate = e.x;
     data->y_coordinate = e.y;
-    data->width = e.pressure;
+    data->pressure = e.pressure;
     data->timestamp = e.timestamp;
-    if (!e.down) {
+    if (e.down)
+        data->event = RT_TOUCH_EVENT_DOWN;
+    else
         data->event = RT_TOUCH_EVENT_UP;
-        down = 0;
-    } else {
-        if (down)
-            data->event = RT_TOUCH_EVENT_MOVE;
-        else
-            data->event = RT_TOUCH_EVENT_DOWN;
-
-        down = 1;
-    }
 
     return touch_num;
 }
@@ -97,20 +101,27 @@ static rt_size_t drv_rtp_read_point(struct rt_touch_device *touch, void *buf,
 static rt_err_t drv_rtp_control(struct rt_touch_device *touch,
                                 int cmd, void *arg)
 {
-    u32 val;
     switch (cmd) {
     case RT_TOUCH_CTRL_ENABLE_INT:
         hal_rtp_int_enable(&g_rtp_dev, 1);
+        hal_rtp_ebuf_init(&g_rtp_dev.ebuf);
+        hal_rtp_auto_mode(&g_rtp_dev);
         break;
 
     case RT_TOUCH_CTRL_DISABLE_INT:
         hal_rtp_int_enable(&g_rtp_dev, 0);
         break;
 
+#if 0
     case RT_TOUCH_CTRL_PDEB_VALID_CHECK:
-        val = hal_rtp_pdeb_valid_check(&g_rtp_dev);
+        u32 val = hal_rtp_pdeb_valid_check(&g_rtp_dev);
         if (val != RT_EOK)
             LOG_I("PDEB should be configured as 0xff%xff%x\n", val, val);
+        break;
+#endif
+
+    case RT_TOUCH_CTRL_SET_X_TO_Y:
+        drv_rtp_plate_check(&g_rtp_dev, arg);
         break;
 
     default:

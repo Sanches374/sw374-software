@@ -22,6 +22,7 @@
 struct aic_psadc_dev {
     struct rt_adc_device *dev;
     struct aic_psadc_ch *chan;
+    struct aic_psadc_queue *queue;
 };
 
 static u32 g_psadc_pclk_rate = 0;
@@ -161,40 +162,69 @@ struct aic_psadc_ch aic_psadc_chs[] = {
 #endif
 };
 
-static rt_err_t drv_psadc_enabled(struct rt_adc_device *dev, rt_uint32_t ch,
-                                  rt_bool_t enabled)
-{
-    struct aic_psadc_ch *chan = hal_psadc_ch_is_valid(ch);
+struct aic_psadc_queue aic_psadc_queues[] = {
+    {
+        .id = 0,
+        .type = AIC_PSADC_QC,
+    },
+};
 
-    if (!chan)
-        return -RT_EINVAL;
+static rt_err_t drv_psadc_enabled(struct rt_adc_device *dev,
+                                  rt_uint32_t queue_type, rt_bool_t enabled)
+{
+
+    struct aic_psadc_queue *queue = &aic_psadc_queues[queue_type];
+
     if (enabled) {
-        hal_psadc_ch_init(chan, g_psadc_pclk_rate);
-        if (chan->mode == AIC_PSADC_MODE_SINGLE)
-            chan->complete = aicos_sem_create(0);
+        int cnt = 0;
+        for (int i = 0; i < AIC_PSADC_CH_NUM; i++) {
+            struct aic_psadc_ch *chan = hal_psadc_ch_is_valid(i);
+            if (!chan)
+                continue;
+            if (chan->available && cnt < AIC_PSADC_QUEUE_LENGTH) {
+                hal_psadc_set_queue_node(AIC_PSADC_Q1, chan->id, cnt);
+                cnt++;
+                continue;
+            }
+            if (chan->available && cnt >= AIC_PSADC_QUEUE_LENGTH) {
+                hal_psadc_set_queue_node(AIC_PSADC_Q2, chan->id,
+                                         cnt - AIC_PSADC_QUEUE_LENGTH);
+                cnt++;
+                continue;
+            }
+        }
+        queue->nodes_num = cnt;
+        queue->complete = aicos_sem_create(0);
+        hal_psadc_ch_init();
     } else {
         hal_psadc_qc_irq_enable(0);
-        if (chan->mode == AIC_PSADC_MODE_SINGLE) {
-            aicos_sem_delete(chan->complete);
-            chan->complete = NULL;
-        }
+        aicos_sem_delete(queue->complete);
+        queue->complete = NULL;
     }
 
     return RT_EOK;
 }
 
-static rt_err_t drv_psadc_convert(struct rt_adc_device *dev, rt_uint32_t ch,
-                                  rt_uint32_t *value)
+static rt_err_t drv_psadc_get_adc_values_poll(struct rt_adc_device *dev,
+                                              void *values)
 {
-    struct aic_psadc_ch *chan = hal_psadc_ch_is_valid(ch);
-
-    if (!chan)
-        return -RT_EINVAL;
-
-    return hal_psadc_read(chan, (u32 *)value, AIC_PSADC_TIMEOUT);
+    return hal_psadc_read_poll(values, AIC_PSADC_POLL_READ_TIMEOUT);
 }
 
-static rt_uint8_t drv_gpai_resolution(struct rt_adc_device *dev)
+static rt_err_t drv_psadc_get_adc_values(struct rt_adc_device *dev,
+                                         void *values)
+{
+    return hal_psadc_read(values, AIC_PSADC_TIMEOUT);
+}
+
+static rt_uint32_t drv_psadc_get_chan_count(struct rt_adc_device *dev)
+{
+    struct aic_psadc_queue *queue = &aic_psadc_queues[AIC_PSADC_QC];
+
+    return queue->nodes_num;
+}
+
+static rt_uint8_t drv_psadc_resolution(struct rt_adc_device *dev)
 {
     return 12;
 }
@@ -202,8 +232,10 @@ static rt_uint8_t drv_gpai_resolution(struct rt_adc_device *dev)
 static const struct rt_adc_ops aic_adc_ops =
 {
     .enabled = drv_psadc_enabled,
-    .convert = drv_psadc_convert,
-    .get_resolution = drv_gpai_resolution,
+    .get_resolution = drv_psadc_resolution,
+    .get_adc_values_poll = drv_psadc_get_adc_values_poll,
+    .get_adc_values = drv_psadc_get_adc_values,
+    .get_chan_count = drv_psadc_get_chan_count,
 };
 
 static int drv_psadc_init(void)
@@ -233,11 +265,13 @@ static int drv_psadc_init(void)
 
     hal_psadc_single_queue_mode(1);
 
+#ifdef AIC_PSADC_OBTAIN_DATA_BY_CPU
     ret = aicos_request_irq(PSADC_IRQn, hal_psadc_isr, 0, NULL, NULL);
       if (ret < 0) {
         LOG_E("PSADC irq enable failed!");
         return -RT_ERROR;
     }
+#endif
 
     hal_psadc_enable(1);
     hal_psadc_set_ch_num(ARRAY_SIZE(aic_psadc_chs));
@@ -259,79 +293,3 @@ static int drv_psadc_init(void)
     return 0;
 }
 INIT_DEVICE_EXPORT(drv_psadc_init);
-
-#if defined(RT_USING_FINSH)
-#include <finsh.h>
-
-static void cmd_psadc_usage(char *program)
-{
-    printf("Compile time: %s %s\n", __DATE__, __TIME__);
-    printf("Usage: %s [options]\n", program);
-    printf("\t -c, --channel\t\tSelect one channel in [0, 11],default is 0\n");
-    printf("\t -s, --status\t\tShow more hardware information\n");
-    printf("\t -h, --help \n");
-    printf("\n");
-    printf("Example: %s -c 3 -s\n", program);
-}
-
-static void cmd_psadc(int argc, char **argv)
-{
-    u32 ch = 0;
-    s32 c, val = 0;
-    rt_err_t ret = RT_EOK;
-    struct rt_adc_device *dev = NULL;
-    struct aic_psadc_ch *chan = NULL;
-    bool show_status = false;
-    const char sopts[] = "c:sh";
-    const struct option lopts[] = {
-        {"channel", required_argument, NULL, 'c'},
-        {"status",        no_argument, NULL, 's'},
-        {"help",          no_argument, NULL, 'h'},
-        {0, 0, 0, 0}
-    };
-
-    optind = 0;
-    while ((c = getopt_long(argc, argv, sopts, lopts, NULL)) != -1) {
-        switch (c) {
-        case 'c':
-            ch = atoi(optarg);
-            if ((ch < 0) || (ch >= AIC_PSADC_CH_NUM)) {
-                pr_err("Invalid channel No.%s\n", optarg);
-                return;
-            }
-            continue;
-        case 's':
-            show_status = true;
-            continue;
-        case 'h':
-        default:
-            cmd_psadc_usage(argv[0]);
-            return;
-        }
-    }
-
-    chan = hal_psadc_ch_is_valid(ch);
-    if (!chan)
-        return;
-
-    if (show_status) {
-        hal_psadc_status_show(chan);
-        return;
-    }
-
-    dev = (struct rt_adc_device *)rt_device_find(AIC_PSADC_NAME);
-    if (!dev) {
-        LOG_E("Failed to open %s device\n", AIC_PSADC_NAME);
-        return;
-    }
-    ret = rt_adc_enable(dev, ch);
-    if (!ret) {
-        val = rt_adc_read(dev, ch);
-        printf("PSADC ch%d: %d\n", ch, val);
-    }
-
-    rt_adc_disable(dev, ch);
-}
-MSH_CMD_EXPORT_ALIAS(cmd_psadc, psadc, Read the status and data of PSADC);
-
-#endif

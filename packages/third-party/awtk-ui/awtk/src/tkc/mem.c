@@ -122,7 +122,7 @@ static mem_allocator_t* mem_allocator_get(void) {
 }
 
 #if (!defined(WITH_SDL) && !defined(LINUX))
-#define EXPORT_STD_MALLOC 1
+//#define EXPORT_STD_MALLOC 0 /* aic has already been integrated with the standard C  */
 #endif
 
 #if defined(EXPORT_STD_MALLOC)

@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
@@ -397,7 +397,7 @@ int hal_ge_init(void)
     int dither_line_size_align = ALIGN_UP((MAX_WIDTH * 4), CACHE_LINE_SIZE);
     aicos_dcache_clean_invalid_range((unsigned long *)(data->dither_line_phys), dither_line_size_align);
 
-    hal_log_info("dither line phys :0X0%08x\n", data->dither_line_phys);
+    hal_log_info("dither line phys: 0x%08X\n", data->dither_line_phys);
 #endif
     data->ge_mode = GE_MODE_CMDQ;
     data->lock = aicos_mutex_create();
@@ -407,7 +407,7 @@ int hal_ge_init(void)
     ge_power_on(data);
 #endif
 
-    hal_log_info("%s() end\n", __func__);
+    hal_log_debug("%s() end\n", __func__);
 
     return 0;
 }

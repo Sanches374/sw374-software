@@ -308,7 +308,7 @@ struct aic_spinand *spinand_probe(u32 spi_bus)
     }
 
     flash->user_data = qspi;
-    flash->qspi_dl_width = 4;
+    flash->qspi_dl_width = qspi->dl_width;
 
     qspi_configure(qspi, NULL);
 

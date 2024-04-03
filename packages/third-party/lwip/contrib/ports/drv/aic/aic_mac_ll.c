@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2022, Artinchip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
@@ -60,3 +60,7 @@ void aicmac_dcache_clean_invalid(uintptr_t addr, uint32_t len)
 #endif
 }
 
+void aicmac_gdma_sync(void)
+{
+    aicos_dma_sync();
+}

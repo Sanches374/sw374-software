@@ -19,18 +19,7 @@ extern "C" {
 
 #ifdef AIC_SPINOR_DRV
 #include <sfud.h>
-struct aic_qspi_bus {
-    char *name;
-    u32 idx;
-    u32 clk_id;
-    u32 clk_in_hz;
-    u32 bus_hz;
-    u32 dma_port_id;
-    u32 irq_num;
-    qspi_master_handle handle;
-    int probe_flag;
-    sfud_flash attached_flash;
-};
+#include <spinor_port.h>
 #endif
 
 #define CMD_PROTO_QIO                       (0x1U << 0)

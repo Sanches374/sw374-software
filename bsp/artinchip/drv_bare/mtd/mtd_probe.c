@@ -35,6 +35,9 @@ static int qspi_active_id_list[] = {
 #if defined(AIC_USING_QSPI3)
     3,
 #endif
+#if defined(AIC_USING_QSPI4)
+    4,
+#endif
 #if defined(AIC_USING_SE_SPI)
     5,
 #endif

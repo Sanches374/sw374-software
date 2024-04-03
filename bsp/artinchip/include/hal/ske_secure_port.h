@@ -7,8 +7,12 @@
 extern "C" {
 #endif
 
-void ske_sec_enable_secure_port(u16 sp_key_idx);
-void ske_sec_disable_secure_port(void);
+#ifdef SKE_SECURE_PORT_FUNCTION
+__attribute__((weak)) void ske_enable_secure_port(SKE_ALG alg, uint16_t sp_key_idx);
+#endif
+
+    
+void ske_disable_secure_port(void);
 
 #ifdef __cplusplus
 }

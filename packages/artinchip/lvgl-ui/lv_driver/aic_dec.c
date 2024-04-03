@@ -405,6 +405,9 @@ static lv_res_t aic_decoder_open(lv_img_decoder_t *decoder, lv_img_decoder_dsc_t
     char* ptr = NULL;
     struct decode_config config = { 0 };
     int buf_size[3] = { 0 };
+    struct mpp_decoder *dec = NULL;
+    struct frame_allocator *allocator = NULL;
+    struct mpp_frame *alloc_frame = NULL;
 
     ptr = strrchr(dsc->src, '.');
     if ((!strcmp(ptr, ".jpg")) || (!strcmp(ptr, ".jpeg")))
@@ -425,12 +428,21 @@ static lv_res_t aic_decoder_open(lv_img_decoder_t *decoder, lv_img_decoder_dsc_t
     }
     get_file_size(&image_file, &file_len);
 
-    struct mpp_decoder* dec = mpp_decoder_create(type);
+    dec = mpp_decoder_create(type);
+    if (!dec) {
+        res = LV_RES_INV;
+        goto out;
+    }
+
     config.bitstream_buffer_size = (file_len + 1023) & (~1023);
     config.extra_frame_num = 0;
     config.packet_count = 1;
 
-    struct mpp_frame *alloc_frame = (struct mpp_frame *)malloc(sizeof(struct mpp_frame));
+    alloc_frame = (struct mpp_frame *)malloc(sizeof(struct mpp_frame));
+    if (!alloc_frame) {
+        res = LV_RES_INV;
+        goto out;
+    }
 
     memset(alloc_frame, 0, sizeof(struct mpp_frame));
     alloc_frame->id = 0;
@@ -481,7 +493,13 @@ static lv_res_t aic_decoder_open(lv_img_decoder_t *decoder, lv_img_decoder_dsc_t
         goto out;
     }
 
-    struct frame_allocator* allocator = open_allocator(alloc_frame);
+    // allocator will be released in decoder
+    allocator = open_allocator(alloc_frame);
+    if (!allocator) {
+        res = LV_RES_INV;
+        goto out;
+    }
+
     mpp_decoder_control(dec, MPP_DEC_INIT_CMD_SET_EXT_FRAME_ALLOCATOR, (void*)allocator);
     mpp_decoder_init(dec, &config);
     memset(&packet, 0, sizeof(struct mpp_packet));
@@ -493,8 +511,10 @@ static lv_res_t aic_decoder_open(lv_img_decoder_t *decoder, lv_img_decoder_dsc_t
     packet.flag = PACKET_FLAG_EOS;
 
     mpp_decoder_put_packet(dec, &packet);
-    if (mpp_decoder_decode(dec) < 0)
+    if (mpp_decoder_decode(dec) < 0) {
+        res = LV_RES_INV;
         goto out;
+    }
 
     struct mpp_frame frame;
     memset(&frame, 0, sizeof(struct mpp_frame));
@@ -512,8 +532,10 @@ out:
         mpp_decoder_destory(dec);
 
     if (res == LV_RES_INV) {
-        if (alloc_frame)
+        if (alloc_frame) {
+            frame_buf_free(alloc_frame);
             free(alloc_frame);
+        }
 
         dsc->img_data = NULL;
     }

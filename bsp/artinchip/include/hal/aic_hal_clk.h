@@ -34,7 +34,7 @@ int hal_clk_enable_deassertrst_iter(uint32_t clk_id);
 void hal_clk_pll_lowpower(void);
 
 const char *hal_clk_get_name(uint32_t clk_id);
-
+int32_t hal_clk_get_id(char *name);
 #ifdef __cplusplus
 }
 #endif

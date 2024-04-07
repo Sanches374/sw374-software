@@ -10,7 +10,6 @@ partition_table.h
 .Kconfig.prj
 *.bak
 .log/
-.vscode/
 .cscope/
 output/
 /toolchain/

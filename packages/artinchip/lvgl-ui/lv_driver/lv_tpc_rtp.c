@@ -56,7 +56,7 @@ static calibration g_cal = {
 void lv_rtp_calibrate(rt_device_t rtp_dev, int fb_width, int fb_height);
 void lv_convert_adc_to_coord(struct rt_touch_data *data);
 
-static void rtp_check_event_type(int event_type, int press_value)
+static void rtp_check_event_type(int event_type, int pressure)
 {
     static int up_flag = 0;
 
@@ -71,7 +71,7 @@ static void rtp_check_event_type(int event_type, int press_value)
         break;
     }
 
-    if (g_last_up_flag && !press_value)
+    if (g_last_up_flag && !pressure)
         rt_kprintf("Press: too light\n");
     else
         g_last_up_flag = up_flag;
@@ -156,7 +156,7 @@ static void rtp_get_valid_point(rt_device_t rtp_dev, int index, struct rt_touch_
         if (rt_device_read(rtp_dev, 0, data, 1) != 1)
             continue;
 
-        rtp_check_event_type(data->event, data->press_value);
+        rtp_check_event_type(data->event, data->pressure);
 
         if (data->event == RT_TOUCH_EVENT_UP) {
             if (press_flag)
@@ -321,7 +321,6 @@ void lv_rtp_calibrate(rt_device_t rtp_dev, int fb_width, int fb_height)
         data = (struct rt_touch_data *)rt_malloc(sizeof(struct rt_touch_data));
 
         rt_device_set_rx_indicate(rtp_dev, rtp_rx_callback);
-        rt_device_control(rtp_dev, RT_TOUCH_CTRL_PDEB_VALID_CHECK, RT_NULL);
         g_rtp_sem = rt_sem_create("rtp_cali_sem", 0, RT_IPC_FLAG_FIFO);
 
         rtp_get_fb_info();

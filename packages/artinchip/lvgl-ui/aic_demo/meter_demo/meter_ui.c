@@ -75,7 +75,7 @@ static inline  void meter_ui_set_pos(lv_obj_t * obj, lv_coord_t x, lv_coord_t y)
 
 static void point_callback(lv_timer_t *tmr)
 {
-    char data_str[128];
+    char data_str[256];
     (void)tmr;
 
     static bool first = true;
@@ -163,7 +163,7 @@ static void point_callback(lv_timer_t *tmr)
 
 static void speed_callback(lv_timer_t *tmr)
 {
-    char data_str[128];
+    char data_str[256];
     static int speed_num = 0;
 
     (void)tmr;
@@ -175,7 +175,7 @@ static void speed_callback(lv_timer_t *tmr)
 
 static void time_callback(lv_timer_t *tmr)
 {
-    char data_str[128];
+    char data_str[256];
     static int hour = 2;
     static int min = 0;
 
@@ -204,7 +204,7 @@ static void time_callback(lv_timer_t *tmr)
 
 static void trip_callback(lv_timer_t *tmr)
 {
-    char data_str[128];
+    char data_str[256];
     int num[4];
     int cur;
     static int trip = 98;
@@ -245,7 +245,7 @@ static void obj_set_clear_hidden_flag(lv_obj_t *obj)
 
 static void water_anim()
 {
-    char data_str[128];
+    char data_str[256];
     static int level = 1;
     static int direct = 0;
 
@@ -275,7 +275,7 @@ static void water_anim()
 
 static void baterry_anim()
 {
-    char data_str[128];
+    char data_str[256];
     static int level = 1;
     static int direct = 0;
 
@@ -305,7 +305,7 @@ static void baterry_anim()
 
 static void oil_anim()
 {
-    char data_str[128];
+    char data_str[256];
     static int level = 1;
     static int direct = 0;
 
@@ -335,7 +335,7 @@ static void oil_anim()
 
 static void gear_callback()
 {
-    char data_str[128];
+    char data_str[256];
     static int level = 1;
     static int direct = 0;
 
@@ -406,7 +406,7 @@ static void signal_callback(lv_timer_t *tmr)
 
 static void fps_callback(lv_timer_t *tmr)
 {
-    char data_str[128];
+    char data_str[256];
 #ifdef KERNEL_RTTHREAD
     float value;
 #endif
@@ -551,7 +551,7 @@ void meter_ui_init()
     img_point = lv_img_create(img_bg);
 #ifdef LV_METER_SIMPLE_POINT
     float rot_angle = 2373.0; // 237.3 degree
-    char data_str[128];
+    char data_str[256];
     ui_snprintf(data_str, "%spoint/point_small_blue.png", LVGL_DIR);
     lv_img_set_src(img_point, data_str);
     lv_img_set_angle(img_point, (int16_t)rot_angle);

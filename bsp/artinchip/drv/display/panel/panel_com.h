@@ -20,15 +20,46 @@ struct aic_panel *aic_find_panel(u32 connector_type);
 
 extern struct aic_panel aic_panel_rgb;
 extern struct aic_panel aic_panel_lvds;
+
+/*
+ * MIPI-DSI Panel
+ */
 extern struct aic_panel dsi_simple;
 extern struct aic_panel dsi_xm91080;
 extern struct aic_panel dsi_st7797;
+extern struct aic_panel dsi_st7703;
+extern struct aic_panel dsi_ili9881c;
+extern struct aic_panel dsi_hx8394;
+extern struct aic_panel dsi_jd9365;
+
+/*
+ * MIPI-DBI Type B I8080 Panel
+ */
 extern struct aic_panel dbi_ili9488;
+extern struct aic_panel dbi_ili9486l;
+extern struct aic_panel dbi_st7789;
+
+/*
+ * MIPI-DBI Type C SPI Panel
+ */
 extern struct aic_panel dbi_ili9341;
 extern struct aic_panel dbi_st77903;
-extern struct aic_panel dbi_ili9486l;
-extern struct aic_panel srgb_hx8238;
+
+/*
+ * RGB Panel SPI Init
+ */
 extern struct aic_panel rgb_st7701s;
+extern struct aic_panel rgb_gc9a01a;
+
+/*
+ * SRGB Panel
+ */
+extern struct aic_panel srgb_hx8238;
+
+/*
+ * Bridge Panel
+ */
+extern struct aic_panel bridge_lt8911;
 
 void panel_di_enable(struct aic_panel *panel, u32 ms);
 void panel_di_disable(struct aic_panel *panel, u32 ms);

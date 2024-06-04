@@ -17,6 +17,7 @@ echo   cout/co       : cd to build output directory.
 echo   cbuild/cb     : cd to build root directory.
 echo   ctarget/ct    : cd to target board directory.
 echo   list          : List all SDK defconfig.
+echo   list_module   : List all enabled modules.
 echo   i             : Get current project's information.
 echo   buildall      : Build all the *defconfig in target/configs
 echo   rebuildall    : Clean and build all the *defconfig in target/configs

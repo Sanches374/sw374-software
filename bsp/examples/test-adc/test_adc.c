@@ -35,6 +35,7 @@
 #define ADC_CHAN_NUM                16
 #define ADC_DM_SRAM_SIZE            512
 #define ADC_TEST_DATA_COUNT         64
+#define GPAI_FIFO_MAX_DEPTH         32
 
 static rt_adc_device_t gpai_dev;
 static const char sopts[] = "c:hv";
@@ -45,6 +46,7 @@ static const struct option lopts[] = {
     {0, 0, 0, 0}
 };
 
+static rt_sem_t g_gpai_sem = RT_NULL;
 static int g_verbose = 0;
 static int g_obtain_data_mode = 0;
 static struct aic_dma_transfer_info dma_info;
@@ -91,10 +93,12 @@ static void gen_adc_data(u32 *size)
 
 int average(int *data, u32 size, int trim)
 {
-    int sum = 0, i, min = *data, max = 0;
+    int sum = 0, i, min, max = 0;
 
     if (!data || size < 3)
         return 0;
+
+    min = *data;
 
     for (i = 0; i < size; i++) {
         if (data[i] < min)
@@ -128,46 +132,85 @@ static void gpai_check_adc_by_cpu(void)
         rt_kprintf("All data is OK. Test Successfully!\n");
     else
         rt_kprintf("%d data is incorrect. Test Failed!\n", failed_count);
-
-    aicos_msleep(10);
 }
 
-static int gpai_get_adc_by_cpu(int chan)
+static void gpai_irq_callback(void *arg)
 {
-    int ret;
-    int i;
-    int current_irq_count;
+    rt_sem_release(g_gpai_sem);
+}
+
+static int gpai_get_adc_by_cpu_single(int chan)
+{
     int count = 0;
-    int cur_data_count = 1;
-    int cur;
+    struct aic_gpai_ch_info ch_info;
 
     gpai_dev = (rt_adc_device_t)rt_device_find(AIC_GPAI_NAME);
     if (!gpai_dev) {
         rt_kprintf("Failed to open %s device\n", AIC_GPAI_NAME);
         return -RT_ERROR;
     }
-    ret = rt_adc_enable(gpai_dev, chan);
-    if (ret) {
-        rt_kprintf("Failed to enable %s device\n", AIC_GPAI_NAME);
-        return -RT_ERROR;
-    }
+    ch_info.chan_id = chan;
+    ch_info.fifo_valid_cnt = 0;
+
+    rt_adc_enable(gpai_dev, chan);
 
     while (count < ADC_TEST_DATA_COUNT) {
-        current_irq_count = rt_adc_control(gpai_dev, RT_ADC_CMD_IRQ_COUNT,
-                                           (void *)chan);
-        if (current_irq_count < 0) {
-            rt_kprintf("Failed to get irq count\n");
-            return -RT_ERROR;
-        }
-        cur = rt_adc_read(gpai_dev, chan);
-        if (current_irq_count == cur_data_count) {
-            g_cur_data[count] = cur;
+        rt_adc_control(gpai_dev, RT_ADC_CMD_GET_CH_INFO, (void *)&ch_info);
+        g_cur_data[count] = ch_info.adc_values[0];
+        count++;
+    }
+
+    for (int i = 0; i < ADC_DM_SRAM_SIZE / GPAI_AVG_SAMPLES_NUM; i++) {
+        g_expect_data[i] = average(&g_sram_data[i * GPAI_AVG_SAMPLES_NUM],
+                                   GPAI_AVG_SAMPLES_NUM, 0);
+    }
+    gpai_check_adc_by_cpu();
+
+    rt_adc_disable(gpai_dev, chan);
+
+    return 0;
+}
+
+static int gpai_get_adc_by_cpu_period(int chan)
+{
+    int count = 0;
+    rt_base_t level;
+    struct aic_gpai_irq_info irq_info;
+    struct aic_gpai_ch_info ch_info;
+
+    gpai_dev = (rt_adc_device_t)rt_device_find(AIC_GPAI_NAME);
+    if (!gpai_dev) {
+        rt_kprintf("Failed to open %s device\n", AIC_GPAI_NAME);
+        return -RT_ERROR;
+    }
+    ch_info.chan_id = chan;
+    ch_info.fifo_valid_cnt = 0;
+
+    irq_info.chan_id = chan;
+    irq_info.callback = gpai_irq_callback;
+    irq_info.callback_param = NULL;
+
+    if (!g_gpai_sem)
+        g_gpai_sem = rt_sem_create("gpai_period_sem", 0, RT_IPC_FLAG_FIFO);
+
+    rt_adc_control(gpai_dev, RT_ADC_CMD_IRQ_CALLBACK, &irq_info);
+    rt_adc_enable(gpai_dev, chan);
+
+    while (count < ADC_TEST_DATA_COUNT) {
+        if (rt_sem_take(g_gpai_sem, RT_WAITING_FOREVER)!=RT_EOK)
+            break;
+
+        level = rt_hw_interrupt_disable();
+        rt_adc_control(gpai_dev, RT_ADC_CMD_GET_CH_INFO, (void *)&ch_info);
+        rt_hw_interrupt_enable(level);
+
+        for (int i = 0; i < ch_info.fifo_valid_cnt; i++) {
+            g_cur_data[count] = ch_info.adc_values[i];
             count++;
-            cur_data_count++;
         }
     }
 
-    for (i = 0; i < ADC_DM_SRAM_SIZE / GPAI_AVG_SAMPLES_NUM; i++) {
+    for (int i = 0; i < ADC_DM_SRAM_SIZE / GPAI_AVG_SAMPLES_NUM; i++) {
         g_expect_data[i] = average(&g_sram_data[i * GPAI_AVG_SAMPLES_NUM],
                                    GPAI_AVG_SAMPLES_NUM, 0);
     }
@@ -252,6 +295,33 @@ static int gpai_get_adc_by_dma(int chan)
     return 0;
 }
 
+static int adc_check_gpai_by_cpu_mode(long ch)
+{
+    int ret = 0;
+    struct aic_gpai_ch_info ch_info = {0};
+
+    ch_info.chan_id = ch;
+    ret = rt_adc_control(gpai_dev, RT_ADC_CMD_GET_MODE, (void *)&ch_info);
+    if (ret) {
+        rt_kprintf("Failed to get GPAI mode\n");
+        return -RT_ERROR;
+    }
+
+    switch (ch_info.mode) {
+    case AIC_GPAI_MODE_SINGLE:
+        rt_kprintf("Starting gpai single mode\n");
+        gpai_get_adc_by_cpu_single(ch);
+        break;
+    case AIC_GPAI_MODE_PERIOD:
+        rt_kprintf("Starting gpai period mode\n");
+        gpai_get_adc_by_cpu_period(ch);
+        break;
+    default:
+        rt_kprintf("Unknown mode: %#x\n");
+        break;
+    }
+    return RT_EOK;
+}
 
 static int adc_dm_test(u32 chan)
 {
@@ -277,11 +347,11 @@ static int adc_dm_test(u32 chan)
         }
 
         switch (g_obtain_data_mode) {
-        case 1:
+        case AIC_GPAI_OBTAIN_DATA_BY_CPU:
             rt_kprintf("Starting CPU interrupt mode\n");
-            gpai_get_adc_by_cpu(chan);
+            adc_check_gpai_by_cpu_mode(chan);
             break;
-        case 2:
+        case AIC_GPAI_OBTAIN_DATA_BY_DMA:
             rt_kprintf("Starting DMA mode\n");
             gpai_get_adc_by_dma(chan);
             break;

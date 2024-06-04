@@ -61,6 +61,8 @@ typedef struct {
 typedef struct {
     struct netif netif;
     uint32_t port;
+    aicos_mutex_t eth_tx_mutex;
+    aicos_event_t eth_rx_event;
 }aicmac_netif_t;
 
 /* default config */

@@ -32,9 +32,9 @@ static int clk_mod_reset(char *name)
         printf("error! get clk-id failed!\n");
     printf("Reset module :%s(id:%d)\n", name, (u32)clk_id);
 
-    if(hal_clk_disable_assertrst(clk_id) < 0)
+    if (hal_clk_disable_assertrst(clk_id) < 0)
         goto __err;
-    if(hal_clk_enable_deassertrst(clk_id) < 0)
+    if (hal_clk_enable_deassertrst(clk_id) < 0)
         goto __err;
     return 0;
 __err:
@@ -51,7 +51,7 @@ static int do_clk_mod_reset(int argc, char *argv[])
     }
 
     for (next = 1; next < argc; next++) {
-        if(clk_mod_reset(argv[next]) < 0)
+        if (clk_mod_reset(argv[next]) < 0)
             printf("error! get clk failed!\n");
     }
 

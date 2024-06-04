@@ -11,13 +11,27 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <dfs_fs.h>
+#include <msh.h>
 #include "../../../../kernel/rt-thread/components/drivers/include/drivers/mtd_nand.h"
 
 #ifdef RT_USING_FINSH
 
+#ifdef AIC_NFLT_TEST
 
-//#define NFTL_CMD_DEBUG 1
-#if NFTL_CMD_DEBUG
+#define BUF_1MB_SIZE  1024 * 1024
+#define BUF_256K_SIZE (256 * 1024)
+
+typedef enum {
+    NFTL_TEST_SUCCESS = 0,
+    NFTL_TEST_FAILURE = 1,
+    NFTL_TEST_MALLOC_FAILED = 2,
+    NFTL_TEST_FILE_OPEN_FAILED = 3,
+    NFTL_TEST_DATA_CHECK_FAILED = 4,
+} _nftl_test_error;
+
 static void nftl_show_speed(char *msg, u32 len, u32 us)
 {
     u32 tmp, speed;
@@ -31,74 +45,79 @@ static void nftl_show_speed(char *msg, u32 len, u32 us)
     rt_kprintf("%s: %d byte, %d us -> %d KB/s\n", msg, len, us, speed);
 }
 
-#define BUF_1MB_SIZE 1024 * 1024
 static void write_speed(int argc, char **argv)
 {
     uint32_t start_us;
-    int size_m = 1;
+    int fd = -1;
+    int size_b = 1024;
+    int remain_size = 0;
     char file_path[128] = { 0 };
+    u32 *buf = (u32 *)0x40000000;
 
     rt_kprintf("File Write Speed Test\n");
-    rt_sprintf(file_path, "%s\n", "/ndata/temp.txt");
+    rt_sprintf(file_path, "%s\n", "/data/temp.txt");
 
     switch (argc) {
         case 3:
-            size_m = atoi(argv[2]);
+            size_b = atoi(argv[2]);
         case 2:
             rt_sprintf(file_path, "%s\n", argv[1]);
             break;
         default:
-            rt_kprintf("write_speed <file_path> <size_m>\r\n");
+            rt_kprintf("write_speed <file_path> <size_b>\r\n");
             rt_kprintf("file_path  : write files (default is %s)\r\n",
                        file_path);
-            rt_kprintf("size_m  : write size (MB)(default is %d MB)\r\n",
-                       size_m);
+            rt_kprintf("size_b  : write size (B)(default is %d B)\r\n", size_b);
             return;
     }
 
-    u32 *buf;
-    buf = (u32 *)0x40000000;
+    rt_kprintf("%s:%d buf=0x%x, size_b=%d, file_path=%s\n", __FUNCTION__,
+               __LINE__, buf, size_b, file_path);
 
-    FILE *file = fopen(file_path, "wb+");
-    if (file == NULL) {
+    fd = open(file_path, O_RDWR | O_CREAT);
+    if (fd == -1) {
         rt_kprintf("Failed to open file for write.\n");
         return;
     }
-    rt_kprintf("%s:%d file_path=%s, buf=0x%x, size_m=%d MB ...\n", __FUNCTION__,
-               __LINE__, file_path, buf, size_m);
+
+    remain_size = size_b;
 
     start_us = aic_get_time_us();
-    for (int i = 0; i < size_m; ++i) {
-        size_t bytes_written = fwrite(buf, 1, BUF_1MB_SIZE, file);
-        if (bytes_written != BUF_1MB_SIZE) {
-            rt_kprintf("Failed to write data to file.\n");
-            fclose(file);
-            return;
+
+    while (remain_size > 0) {
+        if (remain_size > BUF_1MB_SIZE) {
+            write(fd, (uint32_t *)buf, BUF_1MB_SIZE);
+            remain_size -= BUF_1MB_SIZE;
+        } else {
+            write(fd, (uint32_t *)buf, remain_size);
+            break;
         }
-        fflush(file);
     }
-    nftl_show_speed("Write speed:", size_m * BUF_1MB_SIZE,
-                    aic_get_time_us() - start_us);
-    fclose(file);
+
+    fsync(fd);
+
+    nftl_show_speed("Write speed:", size_b, aic_get_time_us() - start_us);
+    close(fd);
 }
 MSH_CMD_EXPORT(write_speed, write_speed function);
 
 static void read_speed(int argc, char **argv)
 {
     uint32_t start_us;
-    FILE *fd;
+    int fd = -1;
     char file_path[128] = { 0 };
-    int bytes_size = NFTL_SECTOR_SIZE;
-    int size_m = 1;
+
+    int size_b = 1024;
     int read_size = 0;
+    int file_size = 0;
     int remain_size = 0;
     void *addr = NULL;
 
-    rt_sprintf(file_path, "%s\n", "/ndata/temp.txt");
+    rt_sprintf(file_path, "%s\n", "/data/temp.txt");
 
     switch (argc) {
         case 4:
-            size_m = atoi(argv[3]);
+            size_b = atoi(argv[3]);
         case 3:
             rt_sprintf(file_path, "%s\n", argv[2]);
         case 2:
@@ -112,44 +131,226 @@ static void read_speed(int argc, char **argv)
             return;
     }
 
-    fd = fopen(file_path, "rb+");
-    int start_bytes_size = ftell(fd);
-    fseek(fd, 0, SEEK_END);
-    bytes_size = ftell(fd);
-    fseek(fd, start_bytes_size, SEEK_SET);
+    rt_kprintf("%s:%d addr=0x%x, size_b=%d, file_path=%s\n", __FUNCTION__,
+               __LINE__, addr, size_b, file_path);
 
-    int sector_counts =
-        bytes_size / NFTL_SECTOR_SIZE + bytes_size % NFTL_SECTOR_SIZE;
+    fd = open(file_path, O_RDONLY);
+    file_size = lseek(fd, 0, SEEK_END);
+    lseek(fd, 0, SEEK_SET);
+    read_size = size_b < file_size ? size_b : file_size;
 
-    rt_kprintf(
-        "%s:%d file_path=%s, addr=0x%x, bytes_size=%d, sector_counts=%d...\n",
-        __FUNCTION__, __LINE__, file_path, addr, bytes_size, sector_counts);
-
-    read_size = size_m * BUF_1MB_SIZE;
-    read_size =
-        (read_size > 0) && (read_size < bytes_size) ? read_size : bytes_size;
     remain_size = read_size;
 
     start_us = aic_get_time_us();
 
     while (remain_size > 0) {
         if (remain_size > BUF_1MB_SIZE) {
-            fread((uint32_t *)addr, sizeof(uint8_t), BUF_1MB_SIZE, fd);
+            read(fd, (uint32_t *)addr, BUF_1MB_SIZE);
+            remain_size -= BUF_1MB_SIZE;
         } else {
-            fread((uint32_t *)addr, sizeof(uint8_t), remain_size, fd);
+            read(fd, (uint32_t *)addr, remain_size);
+            break;
         }
-        remain_size -= BUF_1MB_SIZE;
     }
 
     nftl_show_speed("fatfs read speed", read_size,
                     aic_get_time_us() - start_us);
 
-    fclose(fd);
+    close(fd);
 }
 MSH_CMD_EXPORT(read_speed, read_speed function);
 
+static void nftl_stress_test_usage()
+{
+    rt_kprintf("Usage:\r\n");
+    rt_kprintf(
+        "nftl_stress rw <count> --- Random Read And Write Stress Test \r\n");
+    rt_kprintf("nftl_stress full <count> --- Full Write Stress Test \r\n");
+    rt_kprintf("nftl_stress api <count> --- API Stress Test \r\n");
+    rt_kprintf(
+        "nftl_stress build <start(or end)> --- Startup Build Flow Test\r\n");
+}
+
+static void nftl_stress_rw_test(int count)
+{
+    int ret = 0;
+    int i = 0, j = 0;
+    int fd = -1;
+    int rand_size = 0;
+    int buffer_size = BUF_256K_SIZE;
+    char file_path[128] = { 0 };
+    int *write_buf = NULL;
+    int *read_buf = NULL;
+
+    rt_kprintf("NFTL Stress Test Read And Write Start\n");
+    /*malloc buffer for write and read data*/
+    write_buf = aicos_malloc(MEM_CMA, buffer_size);
+    if (write_buf == RT_NULL) {
+        ret = NFTL_TEST_MALLOC_FAILED;
+        goto NFTL_STRESS_TEST_FAILED;
+    }
+
+    read_buf = aicos_malloc(MEM_CMA, buffer_size);
+    if (read_buf == RT_NULL) {
+        ret = NFTL_TEST_MALLOC_FAILED;
+        goto NFTL_STRESS_TEST_FAILED;
+    }
+
+    for (i = 0; i < count; i++) {
+        memset(file_path, 0, sizeof(file_path));
+        snprintf(file_path, sizeof(file_path), "/data/temp%d.txt\n", i);
+
+        /*write data to file*/
+        fd = open(file_path, O_RDWR | O_CREAT);
+        if (fd == -1) {
+            ret = NFTL_TEST_FILE_OPEN_FAILED;
+            perror("Error");
+            goto NFTL_STRESS_TEST_FAILED;
+        }
+        rand_size = rand() % buffer_size;
+        rand_size = rand_size >= 512 ? rand_size : 512;
+        memset(read_buf, 0, rand_size);
+
+        write(fd, (int *)write_buf, rand_size);
+        fsync(fd);
+
+        lseek(fd, 0, SEEK_SET);
+        read(fd, (int *)read_buf, rand_size);
+        close(fd);
+
+        /*remove file*/
+        unlink(file_path);
+
+        /*check read and write data*/
+        for (j = 0; j < rand_size >> 2; j++) {
+            if (read_buf[j] != write_buf[j]) {
+                ret = NFTL_TEST_DATA_CHECK_FAILED;
+                rt_kprintf("nftl test err %d(0x%x~0x%x)!\n", j, read_buf[j],
+                           write_buf[j]);
+                goto NFTL_STRESS_TEST_FAILED;
+            }
+        }
+
+        if (i%100 == 0) {
+            rt_kprintf("NFTL Stress Test Read And Write count %d\n", i);
+        }
+    }
+    aicos_free(MEM_CMA, write_buf);
+    aicos_free(MEM_CMA, read_buf);
+    rt_kprintf("NFTL Stress Test Success!\n");
+    return;
+
+NFTL_STRESS_TEST_FAILED:
+
+    if (write_buf != NULL)
+        aicos_free(MEM_CMA, write_buf);
+    if (read_buf != NULL)
+        aicos_free(MEM_CMA, read_buf);
+    rt_kprintf("NFTL Stress Test Failed(%d,%d)!\n", ret, i);
+}
+
+static void nftl_stress_full_test(int count)
+{
+    int ret = 0;
+    int i = 0, j = 0;
+    int fd = -1;
+    int rand_size = 0;
+    int buffer_size = BUF_256K_SIZE;
+    char file_path[128] = { 0 };
+    int *write_buf = NULL;
+    int last_index = 0;
+    struct statfs fs_stat;
+    unsigned long free_size;
+
+    rt_kprintf("NFTL Stress Test Full Start\n");
+    /*malloc buffer for write and read data*/
+    write_buf = aicos_malloc(MEM_CMA, buffer_size);
+    if (write_buf == RT_NULL) {
+        ret = NFTL_TEST_MALLOC_FAILED;
+        goto NFTL_STRESS_TEST_FAILED;
+    }
+
+    for (i = 0; i < count; i++) {
+        memset(file_path, 0, sizeof(file_path));
+        snprintf(file_path, sizeof(file_path), "/data/temp%d.txt\n", i);
+
+        /*write data to file*/
+        fd = open(file_path, O_RDWR | O_CREAT);
+        if (fd == -1) {
+            ret = NFTL_TEST_FILE_OPEN_FAILED;
+            rt_kprintf("open %s ", file_path);
+            perror("Error");
+            goto NFTL_STRESS_TEST_FAILED;
+        }
+        rand_size = rand() % buffer_size;
+        rand_size = rand_size >= 512 ? rand_size : 512;
+
+        write(fd, (int *)write_buf, rand_size);
+        fsync(fd);
+        close(fd);
+
+        /*get file system info and remove old file*/
+        if (statfs("/data", &fs_stat) == 0) {
+            free_size = fs_stat.f_bfree * fs_stat.f_bsize;
+            if (free_size <= BUF_256K_SIZE) {
+                rt_kprintf("FS /data Free: %lu bytes, calc times %d\n",
+                           free_size, i);
+
+                /*remove 10 files every times*/
+                for (j = 0; j < 10; j++) {
+                    memset(file_path, 0, sizeof(file_path));
+                    snprintf(file_path, sizeof(file_path), "/data/temp%d.txt\n",
+                             last_index + j);
+
+                    /*remove file*/
+                    unlink(file_path);
+                }
+                last_index += 10;
+            }
+        }
+    }
+
+    aicos_free(MEM_CMA, write_buf);
+
+    rt_kprintf("NFTL Stress Test Success!\n");
+    return;
+
+NFTL_STRESS_TEST_FAILED:
+
+    if (write_buf != NULL)
+        aicos_free(MEM_CMA, write_buf);
+    rt_kprintf("NFTL Stress Test Failed(%d,%d)!\n", ret, i);
+}
+
+static void nftl_stress_api_test(int count);
+
+static void nftl_stress_test(int argc, char **argv)
+{
+    if (argc < 3) {
+        nftl_stress_test_usage();
+        return;
+    }
+
+    if (strcmp(argv[1], "rw") == 0) {
+        nftl_stress_rw_test(atoi(argv[2]));
+    } else if (strcmp(argv[1], "full") == 0) {
+        nftl_stress_full_test(atoi(argv[2]));
+    } else if (strcmp(argv[1], "api") == 0) {
+        nftl_stress_api_test(atoi(argv[2]));
+    } else if (strcmp(argv[1], "build") == 0) {
+        if (strcmp("start", argv[2]) == 0) {
+            rt_kprintf("NFTL Build Test Start\n");
+            msh_exec("aicupg \n", 8);
+        } else if (strcmp("end", argv[2]) == 0) {
+            rt_kprintf("NFTL Stress Test Success\n");
+        }
+    } else {
+        nftl_stress_test_usage();
+    }
+}
+MSH_CMD_EXPORT(nftl_stress_test, nftl_stress_test function);
+
 //#include <dfs_posix.h>
-#include <dfs_fs.h>
 #define PATH_MAX 512
 int df_folder(const char *folder_path)
 {
@@ -189,7 +390,6 @@ static void weak_test(int argc, char **argv)
 }
 MSH_CMD_EXPORT(weak_test, weak_test function);
 
-#if 1
 #define __is_print(ch) ((unsigned int)((ch) - ' ') < 127u - ' ')
 static void rt_nftl_dump_hex(const rt_uint8_t *ptr, rt_size_t buflen)
 {
@@ -352,7 +552,100 @@ static void nftl_api_test(int argc, char **argv)
     rt_free(write_buf_512);
 }
 MSH_CMD_EXPORT(nftl_api_test, NFTL nand device nftl_api_test function);
-#endif
+
+static void nftl_stress_api_test(int count)
+{
+    if (handler == NULL) {
+        _nftl_api_init("blk_data");
+    }
+    int ret = 0;
+    int i = 0, j = 0, k = 0;
+    int rand_sector_count = 0;
+    int rand_size = 0;
+    int buffer_size = BUF_256K_SIZE;
+    int *write_buf = NULL;
+    int *read_buf = NULL;
+    int logic_sector_count = 0;
+
+    struct statfs fs_stat;
+
+    rt_kprintf("NFTL Stress Test Read And Write Start\n");
+
+    /*get logic page number */
+    if (statfs("/data", &fs_stat) == 0) {
+        logic_sector_count =
+            fs_stat.f_blocks * fs_stat.f_bsize / NFTL_SECTOR_SIZE;
+        rt_kprintf("Total sector count: %d\n", logic_sector_count);
+    }
+
+    if (logic_sector_count == 0) {
+        rt_kprintf("NFTL Stress Test Failed!\n");
+        return;
+    }
+
+    /*malloc buffer for write and read data*/
+    write_buf = aicos_malloc(MEM_CMA, buffer_size);
+    if (write_buf == RT_NULL) {
+        ret = NFTL_TEST_MALLOC_FAILED;
+        goto NFTL_STRESS_TEST_FAILED;
+    }
+
+    read_buf = aicos_malloc(MEM_CMA, buffer_size);
+    if (read_buf == RT_NULL) {
+        ret = NFTL_TEST_MALLOC_FAILED;
+        goto NFTL_STRESS_TEST_FAILED;
+    }
+
+    for (i = 0; i < count; i++) {
+        j = 0;
+        rt_kprintf("NFTL API Stress Test Times: %d\n", i);
+
+        while (j < logic_sector_count) {
+            rand_sector_count = rand() % logic_sector_count;
+            rand_size = rand_sector_count * NFTL_SECTOR_SIZE;
+
+            /*check buffer size*/
+            if (rand_size > buffer_size) {
+                rand_sector_count = buffer_size / NFTL_SECTOR_SIZE;
+                rand_size = rand_sector_count * NFTL_SECTOR_SIZE;
+            }
+
+            if (j + rand_sector_count >= logic_sector_count) {
+                break;
+            }
+
+            /*write and read logic page*/
+            nftl_api_write(handler, j, rand_sector_count,
+                           (unsigned char *)write_buf);
+            nftl_api_read(handler, j, rand_sector_count,
+                          (unsigned char *)read_buf);
+
+            /*check read and write data*/
+            for (k = 0; k < (rand_size >> 2); k++) {
+                if (read_buf[k] != write_buf[k]) {
+                    ret = NFTL_TEST_DATA_CHECK_FAILED;
+                    rt_kprintf("nftl test err page%d %d(0x%x~0x%x)!\n", j, k,
+                               read_buf[k], write_buf[k]);
+                    goto NFTL_STRESS_TEST_FAILED;
+                }
+            }
+            j += rand_sector_count;
+        }
+    }
+
+    aicos_free(MEM_CMA, write_buf);
+    aicos_free(MEM_CMA, read_buf);
+    rt_kprintf("NFTL Stress Test Success!\n");
+    return;
+
+NFTL_STRESS_TEST_FAILED:
+
+    if (write_buf != NULL)
+        aicos_free(MEM_CMA, write_buf);
+    if (read_buf != NULL)
+        aicos_free(MEM_CMA, read_buf);
+    rt_kprintf("NFTL Stress Test Failed(%d,%d)!\n", ret, i);
+}
 
 #define BUFFER_SIZE 8192
 static void cat_file(int argc, char **argv)

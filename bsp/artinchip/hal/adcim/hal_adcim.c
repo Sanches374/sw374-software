@@ -37,6 +37,7 @@
 #define ADCIM_CAL_ADC_STANDARD_VAL      0x800
 #define AIC_ADC_MAX_VAL                 0xFFF
 #define AIC_VOLTAGE_ACCURACY            10000
+#define ADCIM_CALCSR_NUM                6
 
 #ifdef AIC_CHIP_D12X
 #define ADCIM_CAL_ADC_OFFSET_MISMATCH   0x8
@@ -119,18 +120,43 @@ int hal_adcim_calibration_set(unsigned int val)
     return 0;
 }
 
+/*
+ * The calibration value is taken six times and the average value is obtained
+ * after removing the maximum and minimum values, in order to ensure the
+ * stability of calibration
+ */
 u32 hal_adcim_auto_calibration(void)
 {
     u32 flag = 1;
     u32 data = 0;
+    int max = 0;
+    int min = 0;
+    u32 cal_array[ADCIM_CALCSR_NUM];
 
-    adcim_writel(0x08002f03, ADCIM_CALCSR);//auto cal
-    do {
-        flag = adcim_readl(ADCIM_CALCSR) & 0x00000001;
-    } while (flag);
+    for (int i = 0; i < ADCIM_CALCSR_NUM; i++) {
+        adcim_writel(0x08002f03, ADCIM_CALCSR);//auto cal
+        do {
+            flag = adcim_readl(ADCIM_CALCSR) & 0x00000001;
+        } while (flag);
 
-    data = (adcim_readl(ADCIM_CALCSR) >> 16) & 0xfff;
+        cal_array[i] = (adcim_readl(ADCIM_CALCSR) >> 16) & 0xfff;
 
+        if (cal_array[i] > max)
+            max = cal_array[i];
+
+        if (i == 0) {
+            min = cal_array[0];
+        } else if (cal_array[i] < min) {
+            min = cal_array[i];
+        }
+
+        data += cal_array[i];
+        pr_debug("[%d]cal_data %d\n", i, cal_array[i]);
+    }
+
+    data = (data - min - max) / (ADCIM_CALCSR_NUM - 2);
+
+    pr_debug("max %d min %d, latest_data %d\n", max, min, data);
     return data;
 }
 

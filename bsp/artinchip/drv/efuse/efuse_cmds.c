@@ -14,17 +14,11 @@ static void cmd_efuse_help(void)
 {
     printf("efuse command usage:\n");
     printf("  efuse help                     : Get this help.\n");
-    printf("  efuse init                     : Initialize eFuse driver.\n");
     printf("  efuse dump     offset len      : Dump data from eFuse offset.\n");
     printf("  efuse read     addr offset len : Read eFuse data to RAM addr.\n");
     printf("  efuse write    addr offset len : Write data to eFuse from RAM addr.\n");
     printf("  efuse writehex offset data     : Write data to eFuse from input hex string.\n");
     printf("  efuse writestr offset data     : Write data to eFuse from input string.\n");
-}
-
-static void cmd_efuse_init(int argc, char **argv)
-{
-    drv_efuse_init();
 }
 
 static void cmd_efuse_read(int argc, char **argv)
@@ -169,10 +163,7 @@ static void cmd_efuse_do(int argc, char **argv)
     if (argc < 2) {
         return;
     }
-    if (!strcmp(argv[1], "init")) {
-        cmd_efuse_init(argc - 1, &argv[1]);
-        return;
-    }
+
     if (!strcmp(argv[1], "read")) {
         cmd_efuse_read(argc - 1, &argv[1]);
         return;

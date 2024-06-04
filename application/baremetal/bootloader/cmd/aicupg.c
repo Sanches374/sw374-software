@@ -308,6 +308,8 @@ static int do_fat_upg(int intf, char *const blktype)
             pr_err("set blk dev failed.\n");
             return ret;
         }
+#else
+        pr_err("udisk upgrade disabled.\n");
 #endif
     } else if (!strcmp(blktype, "mmc")) {
 #if defined(AICUPG_SDCARD_ENABLE)
@@ -322,6 +324,8 @@ static int do_fat_upg(int intf, char *const blktype)
             pr_err("set blk dev failed.\n");
             return ret;
         }
+#else
+        pr_err("sdcard upgrade disabled.\n");
 #endif
     } else {
         return ret;
@@ -352,9 +356,9 @@ static int do_fat_upg(int intf, char *const blktype)
             pr_warn("No protected partition.\n");
         else
             pr_info("Protected=%s\n", protection);
-        do_fat_upg_by_single_image(image_name, protection);
+        ret = do_fat_upg_by_single_image(image_name, protection);
     } else {
-        do_fat_upg_in_direct_mode(file_buf, actread);
+        ret = do_fat_upg_in_direct_mode(file_buf, actread);
     }
 
 err:

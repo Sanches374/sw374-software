@@ -127,6 +127,7 @@ static void usage(char * program)
     printf("Usage: %s [-n iter] [-d delay] [-h]\n", program);
     printf("   -n NUM   Number of updates before this program exiting.\n");
     printf("   -d NUM   Seconds to wait between update.\n");
+    printf("   -q quit mtop.\n");
     printf("   -h Display this help.\n");
     printf("\n");
 }
@@ -186,9 +187,10 @@ void test_mtop(int argc, char **argv)
     int opt;
     rt_err_t ret;
     rt_device_t pmdev;
+    static aicos_thread_t thid = NULL;
 
     optind = 0;
-    while ((opt = getopt(argc, argv, "n:d:rwh")) != -1) {
+    while ((opt = getopt(argc, argv, "n:d:qrwh")) != -1) {
         switch (opt) {
         case 'n':
             if (!optarg) {
@@ -204,6 +206,14 @@ void test_mtop(int argc, char **argv)
             }
             delay = strtoul(optarg, NULL, 10);
             break;
+        case 'q':
+            if (thid == NULL) {
+                printf("mtop is not running.\n");
+            } else {
+                aicos_thread_delete(thid);
+                thid = NULL;
+                printf("exit mtop!\n");
+            }
         case 'h':
         default:
             usage(argv[0]);
@@ -233,12 +243,12 @@ void test_mtop(int argc, char **argv)
     if (ret)
         LOG_E("mtop enable error\n");
 
-    aicos_thread_t thid = NULL;
-
-    thid = aicos_thread_create("test_mtop", 8096, 25, test_mtop_thread, NULL);
     if (thid == NULL) {
-        LOG_E("Failed to create thread\n");
-        return;
+        thid = aicos_thread_create("test_mtop", 8096, 25, test_mtop_thread, NULL);
+        if (thid == NULL) {
+            LOG_E("Failed to create thread\n");
+            return;
+        }
     }
 }
 MSH_CMD_EXPORT_ALIAS(test_mtop, mtop, test mtop function);

@@ -249,6 +249,7 @@ int rtthread_startup(void)
     rt_hw_board_init();
 
     /* show RT-Thread version */
+    rt_show_banner();
     rt_show_version();
 
     /* timer system initialization */

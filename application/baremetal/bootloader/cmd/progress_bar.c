@@ -13,10 +13,7 @@
 #include <string.h>
 #include <console.h>
 #include <artinchip_fb.h>
-
-#ifdef AIC_BOOTLOADER_CMD_FB_CONSOLE
 #include <video_font_data.h>
-#endif
 
 #undef ALIGN_DOWM
 #define ALIGN_DOWM(x, align)        ((x) & ~(align - 1))
@@ -47,6 +44,12 @@ static void progress_bar_help(void)
 {
     puts(PROGRESS_BAR_HELP);
 }
+
+#if ((AIC_BOOTLOADER_CMD_PROGRESS_BAR_ROTATE != 0) &&   \
+     (AIC_BOOTLOADER_CMD_PROGRESS_BAR_ROTATE != 90) &&  \
+     (AIC_BOOTLOADER_CMD_PROGRESS_BAR_ROTATE != 270))
+#error progress bar support rotate 0/90/270 degress
+#endif
 
 #ifdef AIC_BOOTLOADER_CMD_FB_CONSOLE
 static u32 colour_fg = 0;
@@ -153,7 +156,11 @@ void aicfb_draw_rect(struct aicfb_screeninfo *info,
                 *(fb++) = red;
                 *(fb++) = 0xFF;
             }
+#if (AIC_BOOTLOADER_CMD_PROGRESS_BAR_ROTATE == 90)
+            fb -= info->stride - width * pbytes;
+#else
             fb += info->stride - width * pbytes;
+#endif
         }
         break;
     case MPP_FMT_RGB_565:
@@ -164,7 +171,11 @@ void aicfb_draw_rect(struct aicfb_screeninfo *info,
                         | (blue >> 3);
                 fb += sizeof(uint16_t) / sizeof(*fb);
             }
+#if (AIC_BOOTLOADER_CMD_PROGRESS_BAR_ROTATE == 90)
+            fb -= info->stride + width * pbytes;
+#else
             fb += info->stride - width * pbytes;
+#endif
         }
         break;
     default:
@@ -236,8 +247,13 @@ static void aicfb_console_put_string(struct aicfb_screeninfo *info,
     int i;
 
     for (s = str, i = 0; *s; s++, i++)
+#if (AIC_BOOTLOADER_CMD_PROGRESS_BAR_ROTATE == 90)
+        aicfb_console_putc(info, x, y - (i * VIDEO_FONT_WIDTH), *s);
+#else
         aicfb_console_putc(info, x + (i * VIDEO_FONT_WIDTH), y, *s);
 #endif
+
+#endif /* AIC_BOOTLOADER_CMD_FB_CONSOLE */
 }
 
 static void console_set_default_colors(struct aicfb_screeninfo *info)
@@ -256,7 +272,8 @@ static void console_set_default_colors(struct aicfb_screeninfo *info)
 void aicfb_draw_bar(unsigned int value)
 {
     struct aicfb_screeninfo info;
-    unsigned int x, y, width, height;
+    unsigned int bar_x, bar_y, width, height;
+    unsigned int console_x, console_y;
     static bool power_on = false;
     char str[5];
 
@@ -273,30 +290,62 @@ void aicfb_draw_bar(unsigned int value)
         console_set_default_colors(&info);
     }
 
-    width  = SPLIT_WIDTH(info.width);
-    height = BAR_HEIGHT;
-    x    = (info.width - width) / 2;
-    y    = (info.height - height) / 2;
+#if (AIC_BOOTLOADER_CMD_PROGRESS_BAR_ROTATE == 90)
+    width     = BAR_HEIGHT;
+    height    = SPLIT_WIDTH(info.height);
+    bar_x     = (info.width - width) / 2;
+    bar_y     = (info.height - height) / 2 + height;
+    console_x = bar_x + BAR_HEIGHT + 5;
+    console_y = info.height / 2;
+#else
+    width     = SPLIT_WIDTH(info.width);
+    height    = BAR_HEIGHT;
+    bar_x     = (info.width - width) / 2;
+    bar_y     = (info.height - height) / 2;
+    console_x = info.width / 2;
+    console_y = bar_y + BAR_HEIGHT + 5;
+#endif
 
     if (value == 0) {
-        aicfb_draw_rect(&info, x, y, width, height, BAR_BACKGROUND_COLOR);
-        aicfb_console_put_string(&info, info.width / 2, y + BAR_HEIGHT + 5, "0%");
+#if (AIC_BOOTLOADER_CMD_PROGRESS_BAR_ROTATE != 90)
+        console_x -= VIDEO_FONT_WIDTH;
+#endif
+        aicfb_draw_rect(&info, bar_x, bar_y, width, height, BAR_BACKGROUND_COLOR);
+        aicfb_console_put_string(&info, console_x, console_y,"0%");
         return;
     }
 
     if (value < 100)
+#if (AIC_BOOTLOADER_CMD_PROGRESS_BAR_ROTATE == 90)
+        height = height * value / 100;
+#else
         width = width * value / 100;
+#endif
 
-    aicfb_draw_rect(&info, x, y, width, height, BAR_FILL_COLOR);
+    aicfb_draw_rect(&info, bar_x, bar_y, width, height, BAR_FILL_COLOR);
 
     if (value == 100) {
-        aicfb_console_put_string(&info, info.width / 2, y + BAR_HEIGHT + 5,
-                "100%,Done!");
+#if (AIC_BOOTLOADER_CMD_PROGRESS_BAR_ROTATE == 90)
+        console_y += VIDEO_FONT_WIDTH;
+#else
+        console_x -= VIDEO_FONT_WIDTH * 2;
+#endif
+        aicfb_console_put_string(&info, console_x, console_y, "100%");
         return;
     }
 
+#if (AIC_BOOTLOADER_CMD_PROGRESS_BAR_ROTATE == 90)
+    if (value >= 10)
+        console_y += (VIDEO_FONT_WIDTH >> 1);
+#else
+    if (value < 10)
+        console_x -= VIDEO_FONT_WIDTH;
+    else
+        console_x -= VIDEO_FONT_HEIGHT + (VIDEO_FONT_WIDTH >> 1);
+#endif
+
     snprintf(str, sizeof(str), "%d%%", value);
-    aicfb_console_put_string(&info, info.width / 2, y + BAR_HEIGHT + 5, str);
+    aicfb_console_put_string(&info, console_x, console_y, str);
 }
 
 static int do_progress_bar(int argc, char *argv[])

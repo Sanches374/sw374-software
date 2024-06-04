@@ -45,8 +45,8 @@ extern "C" {
 #define LCR_STOP_BIT1           0xfb    /* 1 stop bit */
 #define LCR_STOP_BIT2           0x04    /* 1.5 stop bit */
 
-#define HALT_HALT_TX_DISABLE    0x00
-#define HALT_HALT_TX_ENABLE     0x01
+#define HALT_TX_DISABLE         0x00
+#define HALT_TX_ENABLE          0x01
 #define HALT_CHCFG_AT_BUSY      0x02
 #define HALT_CHANGE_UPDATE      0x04
 
@@ -72,6 +72,7 @@ extern "C" {
 #define AIC_UART_MCR_UART       0x00
 #define AIC_UART_MCR_FUNC_MASK  0x3F
 #define AIC_UART_MCR_FLOW_CTRL  0x22    /* Auto Flow Control Enable */
+#define AIC_UART_MCR_RTS_CTRL   0x02    /* RTS Control */
 
 #define AIC_UART_EXREG          0xB8    /* RS485 DE Time */
 #define AIC_UART_RS485_CTL_MODE 0x80;
@@ -87,6 +88,7 @@ extern "C" {
 #define AIC_UART_232_RESUME_DATA    0x83
 #define AIC_UART_232_SUSPEND_DATA   0x84
 #define AIC_UART_SW_FLOW_CTRL       0x85
+#define AIC_UART_SW_RECEIVE_ON_OFF  0x86
 
 #define AIC_UART_DEV_MODE_RS485     0x1
 
@@ -123,6 +125,7 @@ typedef enum
     USART_MODE_RS232_UNAUTO_FLOW_CTRL   = 4,   ///< RS232 hardware unauto flow conctrol
     USART_MODE_RS232_SW_FLOW_CTRL       = 5,   ///< RS232 software flow conctrol
     USART_MODE_RS232_SW_HW_FLOW_CTRL    = 6,   ///< RS232 software and hardware flow conctrol
+    USART_FUNC_RS485_SIMULATION         = 7,   ///< RS485 simulation
 } usart_func_e;
 
 /****** USART specific error codes *****/

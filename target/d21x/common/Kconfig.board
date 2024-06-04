@@ -300,6 +300,11 @@ config AIC_USING_GMAC0
     default n
     select AIC_GMAC_DRV
 
+config AIC_USING_GMAC1
+    bool "Using Gmac1"
+    default n
+    select AIC_GMAC_DRV
+
 source "packages/third-party/lwip/contrib/ports/drv/aic/Kconfig.dev"
 
 #================================================
@@ -486,6 +491,24 @@ config AIC_USING_TSEN
     bool "Using TSensor"
     default n
     select AIC_TSEN_DRV
+
+menu "TSENS options"
+    depends on AIC_USING_TSEN
+
+config AIC_USING_TSEN_CPU
+    bool "Using TSEN_CPU"
+    depends on AIC_USING_TSEN
+    default n
+    select AIC_TSEN_DRV
+
+config AIC_USING_TSEN_GPAI
+    bool "Using TSEN_GPAI"
+    depends on AIC_USING_TSEN
+    default n
+    select AIC_TSEN_DRV
+
+source "bsp/artinchip/drv/tsen/Kconfig.dev"
+endmenu
 
 #---------------------------
 # GPAI device global option

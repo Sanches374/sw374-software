@@ -143,10 +143,10 @@ static const u32 dma_burst_1_8[] = {1, 8};
 /*                 ID                 burst            witdh(byte) */
 DMA_SLAVE_DEF(DMA_ID_PSADC_Q1,      dma_burst_1,    dma_width_4_bytes);
 DMA_SLAVE_DEF(DMA_ID_PSADC_Q2,      dma_burst_1,    dma_width_4_bytes);
-DMA_SLAVE_DEF(DMA_ID_SPI2,          dma_burst_1_8,  dma_width_4_bytes);
-DMA_SLAVE_DEF(DMA_ID_SPI3,          dma_burst_1_8,  dma_width_4_bytes);
-DMA_SLAVE_DEF(DMA_ID_SPI0,          dma_burst_1_8,  dma_width_4_bytes);
-DMA_SLAVE_DEF(DMA_ID_SPI1,          dma_burst_1_8,  dma_width_4_bytes);
+DMA_SLAVE_DEF(DMA_ID_SPI2,          dma_burst_1,    dma_width_1_byte);
+DMA_SLAVE_DEF(DMA_ID_SPI3,          dma_burst_1,    dma_width_1_byte);
+DMA_SLAVE_DEF(DMA_ID_SPI0,          dma_burst_1,    dma_width_1_byte);
+DMA_SLAVE_DEF(DMA_ID_SPI1,          dma_burst_1,    dma_width_1_byte);
 DMA_SLAVE_DEF(DMA_ID_I2S0,          dma_burst_1,    dma_width_2_4_bytes);
 DMA_SLAVE_DEF(DMA_ID_I2S1,          dma_burst_1,    dma_width_2_4_bytes);
 DMA_SLAVE_DEF(DMA_ID_AUDIO_DMIC,    dma_burst_1,    dma_width_2_4_bytes);
@@ -183,10 +183,10 @@ static const struct dma_slave_table *aic_dma_slave_table[AIC_DMA_PORTS] = {
 /*                 ID                   burst              witdh(byte)*/
 DMA_SLAVE_DEF(DMA_ID_PSADC_Q1,      dma_burst_1,        dma_width_4_bytes);
 DMA_SLAVE_DEF(DMA_ID_PSADC_Q2,      dma_burst_1,        dma_width_4_bytes);
-DMA_SLAVE_DEF(DMA_ID_SPI2,          dma_burst_8,        dma_width_4_bytes);
-DMA_SLAVE_DEF(DMA_ID_SPI3,          dma_burst_8,        dma_width_4_bytes);
-DMA_SLAVE_DEF(DMA_ID_SPI0,          dma_burst_8,        dma_width_4_bytes);
-DMA_SLAVE_DEF(DMA_ID_SPI1,          dma_burst_8,        dma_width_4_bytes);
+DMA_SLAVE_DEF(DMA_ID_SPI2,          dma_burst_8,        dma_width_1_4_bytes);
+DMA_SLAVE_DEF(DMA_ID_SPI3,          dma_burst_8,        dma_width_1_4_bytes);
+DMA_SLAVE_DEF(DMA_ID_SPI0,          dma_burst_8,        dma_width_1_4_bytes);
+DMA_SLAVE_DEF(DMA_ID_SPI1,          dma_burst_8,        dma_width_1_4_bytes);
 DMA_SLAVE_DEF(DMA_ID_I2S0,          dma_burst_1,        dma_width_2_4_bytes);
 DMA_SLAVE_DEF(DMA_ID_I2S1,          dma_burst_1,        dma_width_2_4_bytes);
 DMA_SLAVE_DEF(DMA_ID_AUDIO_DMIC,    dma_burst_1,        dma_width_2_4_bytes);
@@ -221,8 +221,8 @@ static const struct dma_slave_table *aic_dma_slave_table[AIC_DMA_PORTS] = {
 };
 #elif defined(AIC_DMA_DRV_V12)
 /*                 ID                   burst              witdh(byte)*/
-DMA_SLAVE_DEF(DMA_ID_SPI0,          dma_burst_8,      dma_width_4_bytes);
-DMA_SLAVE_DEF(DMA_ID_SPI1,          dma_burst_8,      dma_width_4_bytes);
+DMA_SLAVE_DEF(DMA_ID_SPI0,          dma_burst_8,      dma_width_1_4_bytes);
+DMA_SLAVE_DEF(DMA_ID_SPI1,          dma_burst_8,      dma_width_1_4_bytes);
 DMA_SLAVE_DEF(DMA_ID_AUDIO_DMIC,    dma_burst_1,      dma_width_2_4_bytes);
 DMA_SLAVE_DEF(DMA_ID_UART0,         dma_burst_1,      dma_width_1_byte);
 DMA_SLAVE_DEF(DMA_ID_UART1,         dma_burst_1,      dma_width_1_byte);

@@ -256,9 +256,7 @@ static s32 spl_build_page_table(struct aicupg_nand_spl *spl,
 
     pr_debug("%s, going to generate page table.\n", __func__);
     slice_size = spl->mtd->writesize;
-    pt->head.page_size = PAGE_SIZE_2KB;
-    if (spl->mtd->writesize == 4096)
-        pt->head.page_size = PAGE_SIZE_4KB;
+    pt->head.page_size = spl->mtd->writesize;
 
     page_per_blk = spl->mtd->erasesize / spl->mtd->writesize;
     page_data = malloc(PAGE_MAX_SIZE);
@@ -455,7 +453,7 @@ out:
 static s32 verify_page_table(struct aicupg_nand_spl *spl, u32 blkidx,
                              struct nand_page_table *pt, u32 len)
 {
-    u8 page_data[PAGE_TABLE_USE_SIZE] = { 0 };
+    u8 page_data[PAGE_MAX_SIZE] = { 0 };
     ulong offset;
     u32 sumval;
     s32 ret;
@@ -638,4 +636,16 @@ s32 nand_fwc_spl_write(u32 totalsiz, u8 *buf, s32 len)
     }
 
     return len;
+}
+
+int nand_spl_get_candidate_blocks(u32 *blks, u32 size)
+{
+    if (!blks || size < SPL_CANDIDATE_BLOCK_NUM) {
+        pr_err("Invalid parameter.\n");
+        return -1;
+    }
+
+    memcpy(blks, spl_candidate_block_table,
+           sizeof(u32) * SPL_CANDIDATE_BLOCK_NUM);
+    return 0;
 }

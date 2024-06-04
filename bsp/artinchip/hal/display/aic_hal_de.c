@@ -617,7 +617,8 @@ void de_config_timing(void *base_addr,
               u32 active_w, u32 active_h,
               u32 hfp, u32 hbp,
               u32 vfp, u32 vbp,
-              u32 hsync, u32 vsync)
+              u32 hsync, u32 vsync,
+              u32 h_pol, u32 v_pol)
 {
     reg_write(base_addr + TIMING_ACTIVE_SIZE,
           TIMING_ACTIVE_SIZE_SET(active_w, active_h));
@@ -625,6 +626,8 @@ void de_config_timing(void *base_addr,
     reg_write(base_addr + TIMING_V_PORCH, TIMING_V_PORCH_SET(vfp, vbp));
     reg_write(base_addr + TIMING_SYNC_PLUSE,
           TIMING_SYNC_PLUSE_SET_H_V(hsync, vsync));
+    reg_write(base_addr + TIMING_POL_SET,
+		  TIMING_POL_SET_H_V(h_pol, v_pol));
 }
 
 void de_set_blending_size(void *base_addr, u32 active_w, u32 active_h)

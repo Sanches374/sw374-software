@@ -9,6 +9,7 @@
 #include <rtthread.h>
 #include "rtdevice.h"
 #include <aic_core.h>
+#include "aic_hal_can.h"
 
 /*
  * This program is used to test the sending and receiving of CAN.
@@ -97,6 +98,9 @@ int test_can_rx(int argc, char *argv[])
             goto __exit;
         }
 
+        //enable CAN RX interrupt
+        rt_device_control(can_rx_dev, RT_DEVICE_CTRL_SET_INT, NULL);
+
 #if CAN_RX_FILTER_ENABLE
         /* config can rx filter */
         struct rt_can_filter_item items[1] =
@@ -165,7 +169,7 @@ void parse_msg_data(rt_can_msg_t msg, char * optarg)
         else
         {
             /* frame data */
-            msg->rtr = 0;
+            msg->rtr = CAN_FRAME_TYPE_DATA;
             msg->data[i++] = strtoul(token, NULL, 16);
             if (i >= 8)
                 break;
@@ -238,6 +242,9 @@ int test_can_tx(int argc, char *argv[])
         rt_kprintf("can dev write data failed!\n");
         ret = -RT_EIO;
     }
+
+    //enable CAN TX interrupt
+    rt_device_control(can_tx_dev, RT_DEVICE_CTRL_SET_INT, NULL);
 
 __exit:
     rt_device_close(can_tx_dev);

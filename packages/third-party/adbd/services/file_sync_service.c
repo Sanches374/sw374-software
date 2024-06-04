@@ -28,6 +28,10 @@
 #define LPKG_ADB_FILESYNC_RECV_TIMEOUT  2000
 #endif
 
+#ifndef LPKG_ADB_FILESYNC_DATA_MAX
+#define LPKG_ADB_FILESYNC_DATA_MAX 512
+#endif
+
 #define DBG_ENABLE
 #define DBG_SECTION_NAME  "ADB sync"
 #define DBG_LEVEL         DBG_INFO
@@ -155,7 +159,7 @@ static bool sync_read_path(struct adb_service *ser, char **name, int len)
     return true;
 }
 
-static bool do_lstat_v1(struct adb_service *ser, const char* path) 
+static bool do_lstat_v1(struct adb_service *ser, const char* path)
 {
     union file_syncmsg msg = {0};
     struct stat st = {0};
@@ -170,14 +174,14 @@ static bool do_lstat_v1(struct adb_service *ser, const char* path)
     return sync_write(ser, &msg.stat_v1, sizeof(msg.stat_v1), 50);
 }
 
-static bool do_recv(struct adb_service *ser, char* path, char* buffer) 
+static bool do_recv(struct adb_service *ser, char* path, char* buffer)
 {
     union file_syncmsg msg;
     int fd;
     bool ret = false;
 
     fd = open(path, O_RDONLY);
-    if (fd < 0) 
+    if (fd < 0)
     {
         SendSyncFail(ser, "open failed");
         return false;
@@ -186,10 +190,10 @@ static bool do_recv(struct adb_service *ser, char* path, char* buffer)
     msg.data.id = ID_DATA;
     while (1)
     {
-        int r = read(fd, &buffer[0], SYNC_DATA_MAX);
-        if (r <= 0) 
+        int r = read(fd, &buffer[0], LPKG_ADB_FILESYNC_DATA_MAX);
+        if (r <= 0)
         {
-            if (r == 0) 
+            if (r == 0)
                 break;
             SendSyncFail(ser, "read failed");
             close(fd);
@@ -200,7 +204,7 @@ static bool do_recv(struct adb_service *ser, char* path, char* buffer)
         ret = sync_write(ser, &msg.data, sizeof(msg.data), 400);
         if (ret)
             ret = sync_write(ser, &buffer[0], r, 100);
-        if (!ret) 
+        if (!ret)
         {
             close(fd);
             return false;
@@ -214,7 +218,7 @@ static bool do_recv(struct adb_service *ser, char* path, char* buffer)
     return sync_write(ser, &msg.data, sizeof(msg.data), 200);
 }
 
-static bool do_list(struct adb_service *ser, char* path) 
+static bool do_list(struct adb_service *ser, char* path)
 {
     union file_syncmsg msg;
     struct dirent *de;
@@ -224,10 +228,10 @@ static bool do_list(struct adb_service *ser, char* path)
     msg.dent.id = ID_DENT;
 
     d = opendir(path);
-    if (!d) 
+    if (!d)
         goto done;
 
-    while (1) 
+    while (1)
     {
         struct stat st = {0};
         char *filename;
@@ -245,7 +249,7 @@ static bool do_list(struct adb_service *ser, char* path)
             SendSyncFail(ser, "alloc memory fail");
             goto fail;
         }
-        if (stat(filename, &st) == 0) 
+        if (stat(filename, &st) == 0)
         {
             msg.dent.mode = st.st_mode;
             msg.dent.size = st.st_size;
@@ -255,7 +259,7 @@ static bool do_list(struct adb_service *ser, char* path)
             ret = sync_write(ser, &msg.dent, sizeof(msg.dent), 200);
             if (ret)
                 ret = sync_write(ser, de->d_name, d_name_length, 100);
-            if (!ret) 
+            if (!ret)
             {
                 LOG_E("sync: list write fail");
                 rt_free(filename);
@@ -302,7 +306,7 @@ static bool secure_mkdirs(char *path)
     int pos;
     int sub;
 
-    if (path[0] != '/') 
+    if (path[0] != '/')
         return false;
 
     plen = rt_strlen(path);
@@ -331,7 +335,7 @@ static bool secure_mkdirs(char *path)
     return true;
 }
 
-static bool handle_send_file(struct adb_service *ser, char* path, 
+static bool handle_send_file(struct adb_service *ser, char* path,
                              mode_t mode, char* buffer, bool do_unlink)
 {
     union file_syncmsg msg;
@@ -339,30 +343,30 @@ static bool handle_send_file(struct adb_service *ser, char* path,
 
     fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, mode);
 
-    if (fd < 0) 
+    if (fd < 0)
     {
         int eno;
 
         eno = rt_get_errno();
         if (eno == ENOENT || eno == -ENOENT)
         {
-            if (!secure_mkdirs(path)) 
+            if (!secure_mkdirs(path))
             {
                 SendSyncFail(ser, "secure_mkdirs failed");
                 goto fail;
-            }           
+            }
         }
 
         fd = open(path, O_WRONLY | O_CREAT | O_EXCL, mode);
     }
 
-    if (fd < 0) 
+    if (fd < 0)
     {
         SendSyncFail(ser, "couldn't create file");
         goto fail;
     }
 
-    while (1) 
+    while (1)
     {
         if (!sync_read(ser, &msg.data, sizeof(msg.data), LPKG_ADB_FILESYNC_RECV_TIMEOUT))
         {
@@ -370,9 +374,9 @@ static bool handle_send_file(struct adb_service *ser, char* path,
             goto fail;
         }
 
-        if (msg.data.id != ID_DATA) 
+        if (msg.data.id != ID_DATA)
         {
-            if (msg.data.id == ID_DONE) 
+            if (msg.data.id == ID_DONE)
             {
                 break;
             }
@@ -383,8 +387,8 @@ static bool handle_send_file(struct adb_service *ser, char* path,
         /* recv file data */
         while (msg.data.size > 0)
         {
-            int size = (msg.data.size > SYNC_DATA_MAX) ? 
-                   SYNC_DATA_MAX : msg.data.size;
+            int size = (msg.data.size > LPKG_ADB_FILESYNC_DATA_MAX) ?
+                   LPKG_ADB_FILESYNC_DATA_MAX : msg.data.size;
 
             if (!sync_read(ser, &buffer[0], size, LPKG_ADB_FILESYNC_RECV_TIMEOUT))
             {
@@ -392,13 +396,13 @@ static bool handle_send_file(struct adb_service *ser, char* path,
                 goto abort;
             }
 #ifndef FILESYNC_DATA_NO_WRITE /* for test */
-            if (write(fd, &buffer[0], size) != size) 
+            if (write(fd, &buffer[0], size) != size)
             {
                 SendSyncFail(ser, "write failed");
                 goto fail;
             }
 #endif
-            msg.data.size -= size;           
+            msg.data.size -= size;
         }
     }
 
@@ -410,15 +414,15 @@ static bool handle_send_file(struct adb_service *ser, char* path,
 
 fail:
 abort:
-    if (fd >= 0) 
+    if (fd >= 0)
         close(fd);
-    if (do_unlink) 
+    if (do_unlink)
         unlink(path);
 
     return false;
 }
 
-static bool do_send(struct adb_service *ser, char* spec, char *buffer) 
+static bool do_send(struct adb_service *ser, char* spec, char *buffer)
 {
     char *path;
     mode_t mode = 0;
@@ -457,7 +461,7 @@ static bool do_calcmd5(struct adb_service *ser, char* spec, char *buffer)
     tiny_md5_starts(&c);
     while (1)
     {
-        int len = read(fd, buffer, SYNC_DATA_MAX);
+        int len = read(fd, buffer, LPKG_ADB_FILESYNC_DATA_MAX);
         if (len < 0)
         {
             close(fd);
@@ -505,7 +509,7 @@ static bool handle_sync_command(struct adb_service *ser, char *buffer)
         SendSyncFail(ser, "command read failure");
         return false;
     }
- 
+
     if (!sync_read_path(ser, &name, req.path_length))
         return false;
 #ifdef LPKG_ADB_EXTERNAL_MOD_ENABLE
@@ -592,7 +596,7 @@ static void filesync_thread(void *arg)
     char *buf;
 
     LOG_D("start");
-    buf = rt_malloc(SYNC_DATA_MAX);
+    buf = rt_malloc(LPKG_ADB_FILESYNC_DATA_MAX);
 
     while (handle_sync_command(ser, buf)){}
 
@@ -613,7 +617,7 @@ static int _filesync_open(struct adb_service *ser, char *args)
     struct filesync_ext *ext;
 
     ext = (struct filesync_ext *)ser->extptr;
-    rt_mb_init(&ext->recv_que, "sync", ext->rque_buf, 
+    rt_mb_init(&ext->recv_que, "sync", ext->rque_buf,
                sizeof(ext->rque_buf)/sizeof(ext->rque_buf[0]), 0);
     rt_event_init(&ext->join, "sync", 0);
 

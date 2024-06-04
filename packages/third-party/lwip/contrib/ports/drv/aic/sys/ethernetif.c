@@ -11,11 +11,14 @@
 #include "lwip/timeouts.h"
 #include "netif/etharp.h"
 #include "lwip/err.h"
+#include "lwip/ethip6.h"
 #include <string.h>
 #include <aic_core.h>
 #include "ethernetif.h"
 #include "aic_mac.h"
 #include "aic_phy.h"
+
+#include "aicmac_macaddr.h"
 
 #define NETIF_MTU                       (1500)
 #define NETIF_RX_TASK_STACK_SIZE        (1024)
@@ -28,10 +31,6 @@
 #define ETH_EVENT_RX_COMPLETE   0x1
 #define ETH_EVENT_TX_COMPLETE   0x2
 
-aicos_mutex_t eth_tx_mutex = NULL;
-aicos_event_t eth_rx_event = NULL;
-
-extern aicmac_netif_t aic_netif;
 extern unsigned long mac_base[MAX_ETH_MAC_PORT];
 extern aicmac_dma_desc_ctl_t dctl[MAX_ETH_MAC_PORT];
 extern unsigned long mac_irq[MAX_ETH_MAC_PORT];
@@ -39,6 +38,8 @@ extern aicmac_config_t mac_config[MAX_ETH_MAC_PORT];
 #if !NO_SYS
 static void ethernetif_input_thread(void *pvParameters);
 #endif
+
+#if defined(AIC_DEV_GMAC0_MACADDR) | defined(AIC_DEV_GMAC1_MACADDR)
 static int hexchar2int(char c)
 {
     if (c >= '0' && c <= '9') return (c - '0');
@@ -59,40 +60,44 @@ static void hex2bin(unsigned char *bin, char *hex, int binlength)
             | hexchar2int(hex[i + 1]));
     }
 }
+#endif
 
-void aicmac_interrupt(void)
-//void aicmac_interrupt(void * arg)
+irqreturn_t aicmac_interrupt(int irq_num, void *data)
 {
+    aicmac_netif_t *aic_netif = (aicmac_netif_t *)data;
+
     pr_debug("%s\n", __func__);
 
     /* Frame received */
-    if (aicmac_get_dma_int_status(aic_netif.port, ETH_DMAINTSTS_RI) == SET) {
+    if (aicmac_get_dma_int_status(aic_netif->port, ETH_DMAINTSTS_RI) == SET) {
         /* Clear pending bit */
-        aicmac_clear_dma_int_pending(aic_netif.port, ETH_DMAINTSTS_RI);
+        aicmac_clear_dma_int_pending(aic_netif->port, ETH_DMAINTSTS_RI);
 
 #if !NO_SYS
         /* Disable interrupt until task complete handle */
-        aicmac_dis_dma_int(aic_netif.port, ETH_DMAINTEN_RIE);
+        aicmac_dis_dma_int(aic_netif->port, ETH_DMAINTEN_RIE);
         /* Give the semaphore to wakeup LwIP task */
-        aicos_event_send(eth_rx_event, ETH_EVENT_RX_COMPLETE);
+        aicos_event_send(aic_netif->eth_rx_event, ETH_EVENT_RX_COMPLETE);
 #endif
     }
 
     /* Frame transmit complete */
     #ifdef CONFIG_MAC_ZERO_COPY_TXBUF
-    if (aicmac_get_dma_int_status(aic_netif.port, ETH_DMAINTSTS_TI) == SET) {
+    if (aicmac_get_dma_int_status(aic_netif->port, ETH_DMAINTSTS_TI) == SET) {
         /* Disable interrupt until task complete handle */
-        aicmac_dis_dma_int(aic_netif.port, ETH_DMAINTEN_TIE);
+        aicmac_dis_dma_int(aic_netif->port, ETH_DMAINTEN_TIE);
         /* Clear pending bit */
-        aicmac_clear_dma_int_pending(aic_netif.port, ETH_DMAINTSTS_TI);
+        aicmac_clear_dma_int_pending(aic_netif->port, ETH_DMAINTSTS_TI);
         /* Give the semaphore to wakeup LwIP task */
-        aicos_event_send(eth_rx_event, ETH_EVENT_TX_COMPLETE);
+        aicos_event_send(aic_netif->eth_rx_event, ETH_EVENT_TX_COMPLETE);
     }
     #endif
 
     /* Clear the interrupt flags. */
     /* Clear the Eth DMA Rx IT pending bits */
-    aicmac_clear_dma_int_pending(aic_netif.port, ETH_DMAINTSTS_NIS);
+    aicmac_clear_dma_int_pending(aic_netif->port, ETH_DMAINTSTS_NIS);
+
+    return IRQ_HANDLED;
 }
 
 static void low_level_init(struct netif *netif)
@@ -109,6 +114,8 @@ static void low_level_init(struct netif *netif)
     netif->hwaddr[3] = (CONFIG_PORT_MAC_ADDR_LOW >> 24) & 0xFF;
     netif->hwaddr[4] = CONFIG_PORT_MAC_ADDR_HIGH & 0xFF;
     netif->hwaddr[5] = (CONFIG_PORT_MAC_ADDR_HIGH >> 8) & 0xFF;
+
+    aicmac_get_macaddr_from_chipid(aic_netif->port, netif->hwaddr);
 
 #ifdef AIC_DEV_GMAC0_MACADDR
     if (aic_netif->port == 0) {
@@ -128,9 +135,13 @@ static void low_level_init(struct netif *netif)
     /* Accept broadcast address and ARP traffic */
     netif->flags = NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP | NETIF_FLAG_IGMP;
 
+    #if LWIP_IPV6
+    netif->flags |= NETIF_FLAG_MLD6;
+    #endif
+
     /* create binary semaphore used for informing ethernetif of frame reception */
-    eth_tx_mutex = aicos_mutex_create();
-    eth_rx_event = aicos_event_create();
+    aic_netif->eth_tx_mutex = aicos_mutex_create();
+    aic_netif->eth_rx_event = aicos_event_create();
 
     /* Mac init */
     aicmac_init(aic_netif->port);
@@ -152,19 +163,15 @@ static void low_level_init(struct netif *netif)
     aicmac_set_dma_rx_desc_int(aic_netif->port, ENABLE);
 
     aicos_request_irq(mac_irq[aic_netif->port],
-                      (irq_handler_t)aicmac_interrupt, 0, NULL, NULL);
+                      (irq_handler_t)aicmac_interrupt, 0, NULL, netif);
 
     /* create the task that handles the ETH_MAC */
     aicos_thread_create("eth_rx", NETIF_RX_TASK_STACK_SIZE,
-                        NETIF_RX_TASK_PRIORITY, ethernetif_input_thread, NULL);
+                        NETIF_RX_TASK_PRIORITY, ethernetif_input_thread, netif);
 #endif
-    /* Enable MAC and DMA transmission and reception */
-    //aicmac_start(aic_netif->port);
-    /* set phy linkup */
-    //netif_set_link_up(netif);
 
     /* Phy init */
-    aicphy_init(aic_netif->port);
+    aicphy_init(aic_netif);
 }
 
 static err_t low_level_output(struct netif *netif, struct pbuf *p)
@@ -195,7 +202,7 @@ static err_t low_level_output(struct netif *netif, struct pbuf *p)
         return ERR_MEM;
     }
 
-    aicos_mutex_take(eth_tx_mutex, AICOS_WAIT_FOREVER);
+    aicos_mutex_take(aic_netif->eth_tx_mutex, AICOS_WAIT_FOREVER);
 
     pdesc = dctl[aic_netif->port].tx_desc_p;
     /* before read: invalid cache */
@@ -375,7 +382,7 @@ static err_t low_level_output(struct netif *netif, struct pbuf *p)
 
 error:
     /* Give semaphore and exit */
-    aicos_mutex_give(eth_tx_mutex);
+    aicos_mutex_give(aic_netif->eth_tx_mutex);
 
     return ret;
 }
@@ -521,17 +528,18 @@ void ethernetif_input_thread(void *pvParameters)
     struct pbuf *p;
     uint32_t event = 0;
     int ret = 0;
+    aicmac_netif_t *aic_netif = (aicmac_netif_t *)pvParameters;
 
     for (;;) {
-        ret = aicos_event_recv(eth_rx_event, ETH_EVENT_RX_COMPLETE|ETH_EVENT_TX_COMPLETE, &event, AICOS_WAIT_FOREVER);
+        ret = aicos_event_recv(aic_netif->eth_rx_event, ETH_EVENT_RX_COMPLETE|ETH_EVENT_TX_COMPLETE, &event, AICOS_WAIT_FOREVER);
         if (ret < 0)
             continue;
 
         if (event & ETH_EVENT_RX_COMPLETE) {
         TRY_GET_NEXT_FRAME:
-            p = low_level_input(&aic_netif.netif, false);
+            p = low_level_input(&aic_netif->netif, false);
             if (p != NULL) {
-                if (ERR_OK != aic_netif.netif.input(p, &aic_netif.netif)) {
+                if (ERR_OK != aic_netif->netif.input(p, &aic_netif->netif)) {
                     pbuf_free(p);
                 } else {
                     goto TRY_GET_NEXT_FRAME;
@@ -539,22 +547,22 @@ void ethernetif_input_thread(void *pvParameters)
             }
 
             #ifdef CONFIG_MAC_ZERO_COPY_TXBUF
-            while (dctl[aic_netif.port].rx_buf_underrun) {
+            while (dctl[aic_netif->port].rx_buf_underrun) {
                 aicos_msleep(100);
                 pr_info("%s try resume rx underrun!\n", __func__);
-                aicmac_release_rx_frame(aic_netif.port);
+                aicmac_release_rx_frame(aic_netif->port);
             }
             #endif
 
             /* Enable interrupt again */
-            aicmac_en_dma_int(aic_netif.port, ETH_DMAINTEN_RIE);
+            aicmac_en_dma_int(aic_netif->port, ETH_DMAINTEN_RIE);
         }
 
         if (event & ETH_EVENT_TX_COMPLETE) {
-            aicmac_confirm_tx_frame(aic_netif.port);
+            aicmac_confirm_tx_frame(aic_netif->port);
 
             /* Enable interrupt again */
-            aicmac_en_dma_int(aic_netif.port, ETH_DMAINTEN_TIE);
+            aicmac_en_dma_int(aic_netif->port, ETH_DMAINTEN_TIE);
         }
     }
 }
@@ -624,15 +632,15 @@ ethernetif_igmp_mac_filter_fun(struct netif *netif,
 }
 #endif
 
-void ethernetif_input_poll(void)
+void ethernetif_input_poll(struct netif *netif)
 {
     struct pbuf *p;
 
-    p = low_level_input(&aic_netif.netif, true);
+    p = low_level_input(netif, true);
     if (p == NULL)
         return;
 
-    if (ERR_OK != aic_netif.netif.input(p, &aic_netif.netif)) {
+    if (ERR_OK != netif->input(p, netif)) {
         pbuf_free(p);
     }
 }
@@ -651,6 +659,11 @@ err_t ethernetif_init(struct netif *netif)
 
     netif->output = etharp_output;
     netif->linkoutput = low_level_output;
+
+#if LWIP_IPV6
+    netif->output_ip6 = ethip6_output;
+#endif
+
 #if LWIP_IGMP
     netif_set_igmp_mac_filter(netif, ethernetif_igmp_mac_filter_fun);
 #endif

@@ -14,6 +14,7 @@
 #include <mmc.h>
 
 // #define SDMC_DUMP_CMD
+// #define SDMC_RPMB_TRACE
 
 void aic_sdmc_request(struct aic_sdmc *host, struct aic_sdmc_cmd *cmd,
                       struct aic_sdmc_data *data);

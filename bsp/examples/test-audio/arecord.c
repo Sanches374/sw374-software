@@ -8,6 +8,7 @@
 #include <rtdevice.h>
 #include <dfs_posix.h>
 
+#define SOUND_DEVICE_NAME   "dmic0"
 #define RECORD_TIME_MS      5000
 #define RECORD_SAMPLERATE   16000
 #define RECORD_CHANNEL      2
@@ -61,19 +62,23 @@ int test_wavrecord(int argc, char **argv)
     struct rt_audio_caps caps = {0};
     int length, total_length = 0;
 
-    if (argc != 3)
+    if (argc < 2 || argc > 3)
     {
         rt_kprintf("Usage:\n");
-        rt_kprintf("\tarecord soundCard file.wav\n");
+        rt_kprintf("\tarecord [soundCard] file.wav\n");
+        rt_kprintf("\tdefault soundCard: dmic0\n");
         rt_kprintf("\tFor example:\n");
-        rt_kprintf("\t\tarecord dmic0 test.wav\n");
+        rt_kprintf("\t\tarecord test.wav\n");
         rt_kprintf("\t\tarecord amic0 test.wav\n");
         rt_kprintf("\t\tarecord i2s0_sound test.wav\n");
         rt_kprintf("\t\tarecord i2s1_sound test.wav\n");
         return -RT_EINVAL;
     }
+    if (argc == 3)
+        fd = open(argv[2], O_WRONLY | O_CREAT);
+    else
+        fd = open(argv[1], O_WRONLY | O_CREAT);
 
-    fd = open(argv[2], O_WRONLY | O_CREAT);
     if (fd < 0)
     {
         rt_kprintf("open file for recording failed!\n");
@@ -88,7 +93,11 @@ int test_wavrecord(int argc, char **argv)
         goto __exit;
     }
 
-    mic_dev = rt_device_find(argv[1]);
+    if (argc == 3)
+        mic_dev = rt_device_find(argv[1]);
+    else
+        mic_dev = rt_device_find(SOUND_DEVICE_NAME);
+
     if (!mic_dev) {
         rt_kprintf("%s not found!\n", argv[1]);
         ret = -RT_ERROR;

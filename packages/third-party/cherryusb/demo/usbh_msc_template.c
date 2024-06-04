@@ -1,7 +1,8 @@
 ﻿/*
- * Copyright (c) 2022, Artinchip Technology Co., Ltd
+ * Copyright (c) 2022, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
+ *
  */
 
 #include <rtconfig.h>
@@ -10,6 +11,44 @@
 
 struct usbh_msc *active_msc_class;
 struct dfs_partition part0;
+
+#define USING_AIC_GET_PART
+
+#ifdef USING_AIC_GET_PART
+#include <disk_part.h>
+#include <dfs_fs.h>
+static unsigned long usb_msc_read(struct blk_desc *blk_dev, u64 start, u64 blkcnt,
+                                const void *buffer)
+{
+    int err;
+
+    err = usbh_msc_scsi_read10(active_msc_class, start, buffer, blkcnt);
+    if (err == RT_EOK)
+        return blkcnt;
+    return 0;
+}
+
+static int aic_get_part(struct dfs_partition *part)
+{
+    struct blk_desc dev_desc = {0};
+    struct disk_blk_ops ops = {0};
+    struct aic_partition *parts = NULL;
+    ops.blk_read = usb_msc_read;
+    dev_desc.blksz = active_msc_class->blocksize;
+    dev_desc.lba_count = active_msc_class->blocknum;
+
+    aic_disk_part_set_ops(&ops);
+    parts = aic_disk_get_gpt_parts(&dev_desc);
+
+    if (parts) {
+        part->type = 0;
+        part->offset = parts->start / dev_desc.blksz;
+        part->size = parts->size / dev_desc.blksz;
+        aic_part_free(parts);
+    }
+    return 0;
+}
+#endif
 
 #ifdef KERNEL_RTTHREAD
 #include <dfs_fs.h>
@@ -103,31 +142,33 @@ int udisk_init(void)
 
     /* get the first sector to read partition table */
     sector = (rt_uint8_t *)rt_malloc(512);
-    if (sector == RT_NULL)
-    {
+    if (sector == RT_NULL) {
         pr_err("allocate partition sector buffer failed!");
 
         return -RT_ENOMEM;
     }
 
     ret = usbh_msc_scsi_read10(active_msc_class, 0, sector, 1);
-    if (ret != RT_EOK)
-    {
+    if (ret != RT_EOK) {
         rt_kprintf("usb mass_storage read failed\n");
-        goto free_res;;
+        goto free_res;
     }
 
     memset(&part0, 0, sizeof(part0));
 
     for (i=0; i<16; i++) {
-        /* Get the first partition */
+        /* Get the first partition (MBR)*/
         ret = dfs_filesystem_get_partition(&part0, sector, i);
         if (ret == RT_EOK) {
-            pr_info("Found partition %d: type = %d, offet=0x%x, size=0x%x\n",
+            pr_info("Found partition %d: type = %d, offet=0x%lx, size=0x%x\n",
                      i, part0.type, part0.offset, part0.size);
             break;
         }
     }
+
+#ifdef USING_AIC_GET_PART
+    aic_get_part(&part0);
+#endif
 
     udisk_dev.type    = RT_Device_Class_Block;
 #ifdef RT_USING_DEVICE_OPS
@@ -150,12 +191,9 @@ int udisk_init(void)
 #else
     int ret = 0;
     ret = dfs_mount(udisk_dev.parent.name, "/", "elm", 0, 0);
-    if (ret == 0)
-    {
+    if (ret == 0) {
         printf("udisk mount successfully\n");
-    }
-    else
-    {
+    } else {
         printf("udisk mount failed, ret = %d\n", ret);
     }
 #endif
@@ -275,16 +313,14 @@ int udisk_init(void)
 
     /* get the first sector to read partition table */
     sector = (uint8_t *)aicos_malloc(0, 512);
-    if (sector == NULL)
-    {
+    if (sector == NULL) {
         pr_err("allocate partition sector buffer failed!");
 
         return -ENOMEM;
     }
 
     ret = usbh_msc_scsi_read10(active_msc_class, 0, sector, 1);
-    if (ret != EOK)
-    {
+    if (ret != EOK) {
         pr_err("usb mass_storage read failed\n");
         goto free_res;;
     }
@@ -300,6 +336,10 @@ int udisk_init(void)
             break;
         }
     }
+
+#ifdef USING_AIC_GET_PART
+    aic_get_part(&part0);
+#endif
 
     if (dfs_mount("udisk", "/udisk", "elm", 0, DEVICE_TYPE_USB_DISK) < 0) {
         pr_err("Failed to mount udisk with FatFS\n");

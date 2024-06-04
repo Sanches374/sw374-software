@@ -64,6 +64,7 @@ struct aic_player {
     s64 video_pts;
     s64 audio_pts;
     s32 volume;
+    s32 rotation_angle;
     s8 mute;
     s8 seeking;
 };
@@ -430,6 +431,13 @@ s32 aic_player_start(struct aic_player *player)
             goto _EXIT;
         }
 
+        if (player->disp_rect.width != 0 && player->disp_rect.height != 0) {
+            aic_player_set_disp_rect(player,&player->disp_rect);
+        }
+        if (player->rotation_angle != MPP_ROTATION_0) {
+            aic_player_set_rotation(player,player->rotation_angle);
+        }
+
         if (OMX_ErrorNone !=OMX_SetupTunnel(player->demuxer_handle, DEMUX_PORT_VIDEO_INDEX, player->vdecoder_handle, VDEC_PORT_IN_INDEX)) {
                 loge("OMX_SetupTunnel error.\n");
                 goto _EXIT;
@@ -490,6 +498,10 @@ _AUDIO:
         if (OMX_ErrorNone != OMX_SetConfig(player->audio_render_handle,OMX_IndexVendorAudioRenderInit, NULL)) {
             loge("OMX_SetConfig Error!!!!.\n");
             goto _EXIT;
+        }
+
+        if (player->volume != 0) {
+            aic_player_set_volum(player,player->volume);
         }
 
         if (OMX_ErrorNone !=OMX_SetupTunnel(player->demuxer_handle, DEMUX_PORT_AUDIO_INDEX, player->adecoder_handle, ADEC_PORT_IN_INDEX)) {
@@ -960,7 +972,7 @@ s32 aic_player_get_media_info(struct aic_player *player,struct av_media_info *me
 
 s32 aic_player_get_screen_size(struct aic_player *player,struct mpp_size *screen_size)
 {
-    OMX_PARAM_SCREEN_SIZE rect;
+    OMX_PARAM_SCREEN_SIZE rect = {0};
 
     if (!player->media_info.has_video || !player->video_render_handle) {
         loge("no video!!!!\n");
@@ -975,11 +987,11 @@ s32 aic_player_get_screen_size(struct aic_player *player,struct mpp_size *screen
 
 s32 aic_player_set_disp_rect(struct aic_player *player,struct mpp_rect *disp_rect)
 {
-    OMX_CONFIG_RECTTYPE rect;
+    OMX_CONFIG_RECTTYPE rect = {0};
 
+    player->disp_rect = *disp_rect;
     if (!player->media_info.has_video || !player->video_render_handle) {
-        loge("no video!!!!\n");
-        return -1;
+        return 0;
     }
     rect.nLeft = disp_rect->x;
     rect.nTop = disp_rect->y;
@@ -1003,6 +1015,7 @@ s32 aic_player_get_disp_rect(struct aic_player *player,struct mpp_rect *disp_rec
     disp_rect->y = rect.nTop;
     disp_rect->width = rect.nWidth;
     disp_rect->height = rect.nHeight;
+    player->disp_rect = *disp_rect;
     return 0;
 }
 
@@ -1039,13 +1052,10 @@ s32 aic_player_set_mute(struct aic_player *player)
 s32 aic_player_set_volum(struct aic_player *player,s32 vol)
 {
     OMX_PARAM_AUDIO_VOLUME sVolume;
-
-    if (!player->media_info.has_audio || !player->audio_render_handle) {
-        loge("aic_player_set_volum\n");
-        return -1;
-    }
-    logd("aic_player_set_volum\n");
     player->volume = vol;
+    if (!player->media_info.has_audio || !player->audio_render_handle) {
+        return 0;
+    }
     sVolume.nVolume = vol;
     OMX_SetParameter(player->audio_render_handle, OMX_IndexVendorAudioRenderVolume, &sVolume);
     return 0;
@@ -1053,13 +1063,14 @@ s32 aic_player_set_volum(struct aic_player *player,s32 vol)
 
 s32 aic_player_get_volum(struct aic_player *player,s32 *vol)
 {
-    OMX_PARAM_AUDIO_VOLUME sVolume;
+    OMX_PARAM_AUDIO_VOLUME sVolume = {0};
     if (!player->media_info.has_audio || !player->audio_render_handle || !vol) {
         return -1;
     }
 
     OMX_GetParameter(player->video_render_handle, OMX_IndexVendorAudioRenderVolume, &sVolume);
     *vol = sVolume.nVolume;
+    player->volume = sVolume.nVolume;
     return 0;
 }
 
@@ -1072,10 +1083,6 @@ s32 aic_player_capture(struct aic_player *player, struct aic_capture_info *captu
 s32 aic_player_set_rotation(struct aic_player *player, int rotation_angle)
 {
     OMX_CONFIG_ROTATIONTYPE rotation;
-    if (!player->media_info.has_video || !player->video_render_handle) {
-        loge("no video!!!!\n");
-        return -1;
-    }
 
     if (rotation_angle != MPP_ROTATION_0
         && rotation_angle != MPP_ROTATION_90
@@ -1083,6 +1090,10 @@ s32 aic_player_set_rotation(struct aic_player *player, int rotation_angle)
         && rotation_angle != MPP_ROTATION_270) {
             loge("param error!!!!\n");
             return -1;
+    }
+    player->rotation_angle = rotation_angle;
+    if (!player->media_info.has_video || !player->video_render_handle) {
+        return 0;
     }
     rotation.nRotation = rotation_angle;
     if (OMX_ErrorNone != OMX_SetConfig(player->video_render_handle,OMX_IndexConfigCommonRotate,&rotation)) {
@@ -1094,7 +1105,7 @@ s32 aic_player_set_rotation(struct aic_player *player, int rotation_angle)
 
 s32 aic_player_get_rotation(struct aic_player *player)
 {
-    OMX_CONFIG_ROTATIONTYPE rotation;
+    OMX_CONFIG_ROTATIONTYPE rotation = {0};
     if (!player->media_info.has_video || !player->video_render_handle) {
         loge("no video!!!!\n");
         return -1;
@@ -1104,7 +1115,7 @@ s32 aic_player_get_rotation(struct aic_player *player)
         loge("no video!!!!\n");
         return -1;
     }
-
+    player->rotation_angle = rotation.nRotation;
     return rotation.nRotation;
 }
 

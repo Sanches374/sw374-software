@@ -26,6 +26,11 @@ struct aic_dsi_comp
 };
 static struct aic_dsi_comp *g_aic_dsi_comp;
 
+#ifdef AIC_DISP_PQ_TOOL
+AIC_PQ_TOOL_PINMUX_CONFIG(disp_pinmux_config);
+AIC_PQ_TOOL_SET_DISP_PINMUX_FOPS(disp_pinmux_config)
+#endif
+
 static struct aic_dsi_comp *aic_dsi_request_drvdata(void)
 {
     return g_aic_dsi_comp;
@@ -83,7 +88,7 @@ static int aic_dsi_enable(void)
 
     dsi_set_clk_div(comp->regs, comp->sclk_rate, lp_rate);
     dsi_pkg_init(comp->regs);
-    dsi_phy_init(comp->regs, comp->sclk_rate, dsi->lane_num);
+    dsi_phy_init(comp->regs, comp->sclk_rate, dsi->lane_num, dsi->mode);
     dsi_hs_clk(comp->regs, 1);
 
     aic_dsi_release_drvdata();
@@ -242,6 +247,10 @@ static int aic_dsi_probe(void)
     comp->regs     = (void *)MIPI_DSI_BASE;
     comp->vc_num   = VIRTUAL_CHANNEL;
     g_aic_dsi_comp = comp;
+
+#ifdef AIC_DISP_PQ_TOOL
+    AIC_PQ_SET_DSIP_PINMUX;
+#endif
 
     return 0;
 }

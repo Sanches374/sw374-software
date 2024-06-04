@@ -43,6 +43,9 @@
 
 #define TSENn_CFG_DIFF_MODE_SELECT  BIT(31)
 #define TSENn_CFG_INVERTED_SELECT   BIT(27)
+#define TSENn_CFG_ADC_ACQ_VAL       0xff
+#define TSENn_CFG_ADC_ACQ_SHIFT     8
+#define TSENn_CFG_ADC_ACQ_MASK      GENMASK(15, 8)
 #define TSENn_CFG_HIGH_ADC_PRIORITY BIT(4)
 #define TSENn_CFG_PERIOD_SAMPLE_EN  BIT(1)
 #define TSENn_CFG_SINGLE_SAMPLE_EN  BIT(0)
@@ -102,6 +105,9 @@
 #define TSEN_CP_VERSION_SHIFT           20
 #define TSEN_SINGLE_POINT_CALI_K        -1151
 #elif defined(AIC_SID_DRV_V11)
+#define TSEN_CP_VERSION_OFFSET          0x1C
+#define TSEN_CP_VERSION_MASK            0x3f
+#define TSEN_CP_VERSION_SHIFT           20
 #define TSEN_THS0_ADC_VAL_LOW_OFFSET    0x2c
 #define TSEN_THS_ENV_TEMP_LOW_OFFSET    0x2c
 #define TSEN_THS0_ADC_VAL_HIGH_OFFSET   0x34
@@ -113,6 +119,9 @@
 #define TSEN_THS_ENV_TEMP_HIGH_SHIFT    24
 #define TSEN_SINGLE_POINT_CALI_K        940
 #elif defined(AIC_SID_DRV_V12)
+#define TSEN_CP_VERSION_OFFSET          0x1C
+#define TSEN_CP_VERSION_MASK            0x3f
+#define TSEN_CP_VERSION_SHIFT           20
 #define TSEN_THS0_ADC_VAL_LOW_OFFSET    0x0c
 #define TSEN_THS_ENV_TEMP_LOW_OFFSET    0x0c
 #define TSEN_THS0_ADC_VAL_LOW_MASK      0xfff
@@ -130,6 +139,8 @@
 #define TSEN_ENV_TEMP_HIGH_SIGN_MASK    BIT(7)
 
 #define TSEN_CP_VERSION_DIFF_TYPE       0xA
+static u32 aic_tsen_ch_num = 0; // the number of available sensor
+extern struct aic_tsen_ch aic_tsen_chs[AIC_TSEN_CH_NUM];
 
 static inline void tsen_writel(u32 val, int reg)
 {
@@ -181,6 +192,32 @@ u16 hal_tsen_temp2data(struct aic_tsen_ch *chan, s32 temp)
     data /= chan->slope;
     hal_log_debug("%s data: %d -> %d\n", chan->name, temp, data);
     return (u16)data;
+}
+
+void hal_tsen_set_ch_num(u32 num)
+{
+    aic_tsen_ch_num = num;
+}
+
+struct aic_tsen_ch *hal_tsen_get_valid_ch(u32 ch)
+{
+    s32 i;
+
+    if (ch >= AIC_TSEN_CH_NUM) {
+        pr_err("Invalid channel %d\n", ch);
+        return NULL;
+    }
+
+    for (i = 0; i < aic_tsen_ch_num; i++) {
+        if (!aic_tsen_chs[i].available)
+            continue;
+
+        if (aic_tsen_chs[i].id == ch)
+            return &aic_tsen_chs[i];
+    }
+
+    pr_warn("Ch%d is unavailable!\n", ch);
+    return NULL;
 }
 
 #ifdef AIC_SID_DRV
@@ -355,15 +392,18 @@ void hal_tsen_double_point_cali(struct aic_tsen_ch *chan)
 #ifdef AIC_SID_DRV
 void hal_tsen_curve_fitting(struct aic_tsen_ch *chan)
 {
-#ifdef AIC_TSEN_DRV_V10
     int cp_version;
     u32 data = 0;
 
     hal_tsen_efuse_read(TSEN_CP_VERSION_OFFSET, &data,
                         TSEN_EFUSE_STANDARD_LENGTH);
     cp_version = data >> TSEN_CP_VERSION_SHIFT & TSEN_CP_VERSION_MASK;
+    if (!cp_version)
+        return;
+
     hal_log_debug("CP version:%d\n", cp_version);
 
+#ifdef AIC_TSEN_DRV_V10
     if (cp_version >= TSEN_CP_VERSION_DIFF_TYPE) {
         hal_tsen_single_point_cali(chan);
     } else {
@@ -432,7 +472,15 @@ static void tsen_int_enable(u32 ch, u32 enable, u32 detail)
 
 static void tsen_single_mode(u32 ch)
 {
+    u32 val = 0;
+
     tsen_writel(TSENn_FIL_8_POINTS, TSENn_FIL(ch));
+
+    val = tsen_readl(TSENn_CFG(ch));
+    val &= ~TSENn_CFG_ADC_ACQ_MASK;
+    val |= TSENn_CFG_ADC_ACQ_VAL << TSENn_CFG_ADC_ACQ_SHIFT;
+    tsen_writel(val, TSENn_CFG(ch));
+
     tsen_writel(TSENn_CFG_SINGLE_SAMPLE_EN | tsen_readl(TSENn_CFG(ch)),
            TSENn_CFG(ch));
 
@@ -473,6 +521,11 @@ static void tsen_period_mode(struct aic_tsen_ch *chan, u32 pclk)
 
     val = tsen_sec2itv(pclk, chan->smp_period);
     tsen_writel(val << TSENn_ITV_SHIFT | 0xFFFF, TSENn_ITV(chan->id));
+
+    val = tsen_readl(TSENn_CFG(chan->id));
+    val &= ~TSENn_CFG_ADC_ACQ_MASK;
+    val |= TSENn_CFG_ADC_ACQ_VAL << TSENn_CFG_ADC_ACQ_SHIFT;
+    tsen_writel(val, TSENn_CFG(chan->id));
 
     tsen_writel(tsen_readl(TSENn_CFG(chan->id)) | TSENn_CFG_PERIOD_SAMPLE_EN,
            TSENn_CFG(chan->id));
@@ -556,21 +609,22 @@ void hal_tsen_status_show(struct aic_tsen_ch *chan)
 }
 
 // TODO: irq_handle() should get 'struct aic_tsen_ch *' from 'void *arg'
-extern struct aic_tsen_ch aic_tsen_chs[AIC_TSEN_CH_NUM];
 
 irqreturn_t hal_tsen_irq_handle(int irq, void *arg)
 {
     int i, status, detail = 0;
     struct aic_tsen_ch *chan = NULL;
 
-    aicos_irq_disable(TSEN_IRQn);
     status = tsen_readl(TSEN_INTR);
     hal_log_debug("Module IRQ status: %#x\n", status);
     for (i = 0; i < AIC_TSEN_CH_NUM; i++) {
         if (!(status & TSEN_INTR_CH_INT_FLAG(i)))
             continue;
 
-        chan = &aic_tsen_chs[i];
+        chan = hal_tsen_get_valid_ch(i);
+        if (!chan)
+            continue;
+
         detail = tsen_readl(TSENn_INT(i));
         tsen_writel(detail, TSENn_INT(i));
         hal_log_debug("ch%d IRQ status: %#x\n", i, detail);
@@ -602,7 +656,6 @@ irqreturn_t hal_tsen_irq_handle(int irq, void *arg)
                  hal_tsen_data2temp(chan), chan->latest_data);
     }
 
-    aicos_irq_enable(TSEN_IRQn);
     hal_log_debug("IRQ status %#x, detail %#x\n", status, detail);
 
     return IRQ_HANDLED;

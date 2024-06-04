@@ -125,9 +125,58 @@ const drv_usart_config[AIC_UART_DEV_NUM] =
 
 static  usart_handle_t uart_handle[AIC_UART_DEV_NUM];
 static struct rt_serial_device g_serial[AIC_UART_DEV_NUM];
+
+#if defined (AIC_SERIAL_USING_DMA)
 static uint32_t uart_rx_fifo[AIC_UART_RX_FIFO_SIZE] __attribute__((aligned(64)));
 static uint32_t uart_tx_fifo[AIC_UART_TX_FIFO_SIZE] __attribute__((aligned(64)));
 static uint32_t rx_size = 0;
+#endif
+
+struct uart_freq_baud
+{
+    uint32_t  baud;
+    uint32_t  freq;
+}uart_freq_baud;
+
+struct uart_freq_baud uart_freq_baud_list[] =
+{
+#if defined(AIC_CHIP_D13X) || defined(AIC_CHIP_D21X)
+    {300,   48000000},
+    {1200,  48000000},
+    {2400,  48000000},
+    {4800,  48000000},
+    {9600,  48000000},
+    {19200, 48000000},
+    {38400, 48000000},
+    {57600, 48000000},
+    {115200, 48000000},
+    {230400, 48000000},
+    {460800, 44444444},
+    {921600, 44444444},
+    {1000000, 48000000},
+    {1152000, 54545454},
+    {1500000, 48000000},
+#elif defined(AIC_CHIP_D12X)
+    {300,   53454545},
+    {1200,  53454545},
+    {2400,  53454545},
+    {4800,  53454545},
+    {9600,  53454545},
+    {19200, 53454545},
+    {38400, 53454545},
+    {57600, 53454545},
+    {115200, 53454545},
+    {230400, 58800000},
+    {460800, 58800000},
+    {921600, 58800000},
+    {1000000, 49000000},
+    {1152000, 36750000},
+    {1500000, 49000000},
+    {2000000, 65333333},
+#else
+    {0, 0},
+#endif
+};
 
 int32_t drv_usart_target_init(int32_t idx, uint32_t *base, uint32_t *irq, void **handler)
 {
@@ -154,35 +203,6 @@ int32_t drv_usart_target_init(int32_t idx, uint32_t *base, uint32_t *irq, void *
     return idx;
 }
 
-void drv_usart_flow_control_irqhandler(int irq, void * data)
-{
-    int index = irq - UART0_IRQn;
-    uint8_t status = 0;
-
-    if (index >= AIC_UART_DEV_NUM)
-        return;
-
-    status = hal_usart_get_irqstatus(index);
-
-    switch (status)
-    {
-    case AIC_IIR_RECV_DATA:
-        if (g_serial[index].config.flowcontrol == RT_SERIAL_FLOWCONTROL_CTSRTS) {
-            drv_uart_control(&(g_serial[index]), AIC_UART_232_SUSPEND_DATA, NULL);
-            g_serial[index].config.flow_ctrl_suspend = 1;
-        }
-        rt_hw_serial_isr(&g_serial[index],RT_SERIAL_EVENT_RX_IND);
-        break;
-    case AIC_IIR_CHAR_TIMEOUT:
-        rt_hw_serial_isr(&g_serial[index],RT_SERIAL_EVENT_RX_IND);
-        break;
-
-    default:
-        break;
-    }
-
-}
-
 void drv_usart_irqhandler(int irq, void * data)
 {
     int index = irq - UART0_IRQn;
@@ -194,6 +214,7 @@ void drv_usart_irqhandler(int irq, void * data)
     status = hal_usart_get_irqstatus(index);
 
     if (g_serial[index].config.flag == AIC_UART_DMA_FLAG) {
+#if defined (AIC_SERIAL_USING_DMA)
         usart_handle_t uart;
 
         RT_ASSERT(g_serial != RT_NULL);
@@ -212,6 +233,7 @@ void drv_usart_irqhandler(int irq, void * data)
         default:
             break;
         }
+#endif
     } else {
         switch (status)
         {
@@ -346,11 +368,8 @@ static rt_err_t drv_uart_control(struct rt_serial_device *serial, int cmd, void 
      case AIC_UART_232_RESUME_DATA:
         if (serial->config.function == USART_MODE_RS232_UNAUTO_FLOW_CTRL ||
             serial->config.function == USART_MODE_RS232_SW_HW_FLOW_CTRL) {
-            group = GPIO_GROUP(uart_rts_dev[uart_data->idx].uart_rts_pin);
-            pin = GPIO_GROUP_PIN(uart_rts_dev[uart_data->idx].uart_rts_pin);
-            hal_gpio_clr_output(group, pin);
+            rt_pin_write(uart_rts_dev[uart_data->idx].uart_rts_pin, PIN_LOW);
         }
-
         if (serial->config.function == USART_MODE_RS232_SW_FLOW_CTRL ||
             serial->config.function == USART_MODE_RS232_SW_HW_FLOW_CTRL) {
         #ifdef RT_USING_DEVICE_OPS
@@ -364,11 +383,8 @@ static rt_err_t drv_uart_control(struct rt_serial_device *serial, int cmd, void 
     case AIC_UART_232_SUSPEND_DATA:
         if (serial->config.function == USART_MODE_RS232_UNAUTO_FLOW_CTRL ||
             serial->config.function == USART_MODE_RS232_SW_HW_FLOW_CTRL) {
-            group = GPIO_GROUP(uart_rts_dev[uart_data->idx].uart_rts_pin);
-            pin = GPIO_GROUP_PIN(uart_rts_dev[uart_data->idx].uart_rts_pin);
-            hal_gpio_set_output(group, pin);
+            rt_pin_write(uart_rts_dev[uart_data->idx].uart_rts_pin, PIN_HIGH);
         }
-
         if (serial->config.function == USART_MODE_RS232_SW_FLOW_CTRL ||
             serial->config.function == USART_MODE_RS232_SW_HW_FLOW_CTRL) {
         #ifdef RT_USING_DEVICE_OPS
@@ -376,6 +392,14 @@ static rt_err_t drv_uart_control(struct rt_serial_device *serial, int cmd, void 
         #else
             serial->parent.write(&serial->parent, 0,  &off, 1);
         #endif
+        }
+        break;
+
+    case AIC_UART_SW_RECEIVE_ON_OFF:
+        if (*(char *)arg == AIC_UART_XOFF) {
+            hal_usart_halt_tx_enable(uart, HALT_TX_ENABLE);
+        } else if (*(char *)arg == AIC_UART_XON) {
+            hal_usart_halt_tx_enable(uart, HALT_TX_DISABLE);
         }
         break;
     }
@@ -406,23 +430,10 @@ static int drv_uart_getc(struct rt_serial_device *serial)
 
     ch = hal_uart_getchar(uart);
 
-    if (rt_strcmp(uart_cts_dev[serial->config.uart_index].uart_cts_name,"no_pin")) {
-        if (ch == AIC_UART_XOFF) {
-            hal_usart_halt_tx_enable(uart, HALT_HALT_TX_ENABLE);
-        } else if (ch == AIC_UART_XON) {
-            hal_usart_halt_tx_enable(uart, HALT_HALT_TX_DISABLE);
-        }
-    }
-
-    if (ch == -1 && (serial->config.flow_ctrl_suspend == 1)) {
-        drv_uart_control(serial, AIC_UART_232_RESUME_DATA, NULL);
-        serial->config.flow_ctrl_suspend = 0;
-    }
-
     return ch;
 }
 
-#if defined (RT_SERIAL_USING_DMA)
+#if defined (AIC_SERIAL_USING_DMA)
 #include <string.h>
 static void drv_uart_callback(aic_usart_priv_t *uart, void *arg)
 {
@@ -482,7 +493,7 @@ const struct rt_uart_ops drv_uart_ops =
     drv_uart_control,
     drv_uart_putc,
     drv_uart_getc,
-#if defined (RT_SERIAL_USING_DMA)
+#if defined (AIC_SERIAL_USING_DMA)
     drv_uart_dma_transmit,
 #endif
 };
@@ -538,65 +549,72 @@ const struct drv_uart_dev_para uart_dev_paras[] =
 #endif
 };
 
-irqreturn_t uart_halt_tx_irq_handler(int irq, void *args)
+static void uart_halt_tx_irq_handler(void *args)
 {
     usart_handle_t uart;
-    unsigned int group, pin, value = PIN_LOW;
+    unsigned int pin, value = PIN_LOW;
     struct rt_serial_device *serial  = args;
 
     uart  = (usart_handle_t)serial->parent.user_data;
-    group = GPIO_GROUP(uart_cts_dev[serial->config.uart_index].uart_cts_pin);
-    pin   = GPIO_GROUP_PIN(uart_cts_dev[serial->config.uart_index].uart_cts_pin);
-    hal_gpio_get_value(group, pin, &value);
+
+    pin = rt_pin_get(uart_cts_dev[serial->config.uart_index].uart_cts_name);
+    value = rt_pin_read(pin);
 
     if (value == PIN_HIGH) {
-        hal_usart_halt_tx_enable(uart, HALT_HALT_TX_ENABLE);
+        hal_usart_halt_tx_enable(uart, HALT_TX_ENABLE);
     } else {
-        hal_usart_halt_tx_enable(uart, HALT_HALT_TX_DISABLE);
+        hal_usart_halt_tx_enable(uart, HALT_TX_DISABLE);
     }
-
-    return IRQ_HANDLED;
 }
 
 void drv_usart_function_init(int i, int u)
 {
-    if ((uart_dev_paras[i].uart_rts_name != 0) &&
-        (uart_dev_paras[i].function == USART_FUNC_RS485 ||
+    if ((rt_strcmp(uart_dev_paras[i].uart_rts_name, "no_pin") != 0) &&
+        (uart_dev_paras[i].function == USART_FUNC_RS485_SIMULATION ||
         uart_dev_paras[i].function == USART_MODE_RS232_UNAUTO_FLOW_CTRL ||
         uart_dev_paras[i].function == USART_MODE_RS232_SW_HW_FLOW_CTRL)) {
-        unsigned int group, pin;
 
         uart_rts_dev[u].uart_rts_name = uart_dev_paras[i].uart_rts_name;
-        uart_rts_dev[u].uart_rts_pin = hal_gpio_name2pin(uart_rts_dev[u].uart_rts_name);
-        group = GPIO_GROUP(uart_rts_dev[u].uart_rts_pin);
-        pin = GPIO_GROUP_PIN(uart_rts_dev[u].uart_rts_pin);
-
-        hal_gpio_direction_output(group, pin);
-        hal_gpio_clr_output(group, pin);
+        uart_rts_dev[u].uart_rts_pin = rt_pin_get(uart_rts_dev[u].uart_rts_name);
+        rt_pin_mode(uart_rts_dev[u].uart_rts_pin, PIN_MODE_OUTPUT);
+        rt_pin_write(uart_rts_dev[u].uart_rts_pin, PIN_LOW);
+        g_serial[u].config.flowctrl_rts_enable = 1;
     }
 
     uart_cts_dev[u].uart_cts_name = uart_dev_paras[i].uart_cts_name;
 
-    if ((!rt_strcmp(uart_dev_paras[i].uart_cts_name, "no_pin")) &&
+    if ((rt_strcmp(uart_dev_paras[i].uart_cts_name, "no_pin") != 0) &&
         (uart_dev_paras[i].function == USART_MODE_RS232_UNAUTO_FLOW_CTRL ||
         uart_dev_paras[i].function == USART_MODE_RS232_SW_HW_FLOW_CTRL)) {
-        unsigned int group, pin;
 
-        uart_cts_dev[u].uart_cts_pin = hal_gpio_name2pin(uart_cts_dev[u].uart_cts_name);
-        group = GPIO_GROUP(uart_cts_dev[u].uart_cts_pin);
-        pin = GPIO_GROUP_PIN(uart_cts_dev[u].uart_cts_pin);
-
-        hal_gpio_direction_input(group, pin);
-        hal_gpio_set_irq_mode(group, pin, PIN_IRQ_MODE_EDGE_BOTH);
-        aicos_request_irq(AIC_GPIO_TO_IRQ(uart_cts_dev[u].uart_cts_pin), uart_halt_tx_irq_handler, 0, "pin", &(g_serial[u]));
-        hal_gpio_enable_irq(group, pin);
+        uart_cts_dev[u].uart_cts_pin = rt_pin_get(uart_cts_dev[u].uart_cts_name);
+        rt_pin_mode(uart_cts_dev[u].uart_cts_pin, PIN_MODE_INPUT);
+        rt_pin_attach_irq(uart_cts_dev[u].uart_cts_pin, PIN_IRQ_MODE_RISING_FALLING,
+                            uart_halt_tx_irq_handler, &(g_serial[u]));
+        rt_pin_irq_enable(uart_cts_dev[u].uart_cts_pin, PIN_IRQ_ENABLE);
+        g_serial[u].config.flowctrl_cts_enable = 1;
     }
 
-    if (uart_dev_paras[i].function == USART_MODE_RS232_SW_FLOW_CTRL ||
-        uart_dev_paras[i].function == USART_MODE_RS232_UNAUTO_FLOW_CTRL ||
-        uart_dev_paras[i].function == USART_MODE_RS232_SW_HW_FLOW_CTRL) {
-        g_serial[u].config.flowcontrol = RT_SERIAL_FLOWCONTROL_CTSRTS;
+    if (uart_dev_paras[i].function == USART_MODE_RS232_SW_FLOW_CTRL) {
+        g_serial[u].config.flowctrl_cts_enable = 1;
+        g_serial[u].config.flowctrl_rts_enable = 1;
     }
+}
+
+void drv_usart_set_freq(uint32_t baudrate, int u, int i)
+{
+    int uart_freq;
+    int config_num = sizeof(uart_freq_baud_list)/sizeof(uart_freq_baud);
+
+    for (int x = 0; x < config_num; x++) {
+        if (baudrate == uart_freq_baud_list[x].baud) {
+            uart_freq = uart_freq_baud_list[x].freq;
+            hal_clk_set_freq(CLK_UART0 + u, uart_freq);
+            return;
+        }
+    }
+    /* Use the menuconfig freq when the baud dose not match in the list */
+    hal_clk_set_freq(CLK_UART0 + u, uart_dev_paras[i].clk_freq);
 }
 
 int drv_usart_init(void)
@@ -618,7 +636,7 @@ int drv_usart_init(void)
         g_serial[u].config.flag         = uart_dev_paras[i].flag;
         g_serial[u].config.uart_index   = uart_dev_paras[i].index;
 
-        hal_clk_set_freq(CLK_UART0 + u, uart_dev_paras[i].clk_freq);
+        drv_usart_set_freq(uart_dev_paras[i].baud_rate, u, i);
         hal_clk_enable(CLK_UART0 + u);
         hal_reset_assert(RESET_UART0 + u);
         aic_udelay(10000);
@@ -627,11 +645,7 @@ int drv_usart_init(void)
 #ifdef FINSH_POLL_MODE
         uart_handle[u] = hal_usart_initialize(u, NULL, NULL);
 #else
-        if (g_serial[u].config.function >= 3) {
-            uart_handle[u] = hal_usart_initialize(u, NULL, drv_usart_flow_control_irqhandler);
-        } else {
-            uart_handle[u] = hal_usart_initialize(u, NULL, drv_usart_irqhandler);
-        }
+        uart_handle[u] = hal_usart_initialize(u, NULL, drv_usart_irqhandler);
 #endif
         rt_hw_serial_register(&g_serial[u],
                               uart_dev_paras[i].name,
@@ -641,14 +655,14 @@ int drv_usart_init(void)
                               uart_dev_paras[i].flag,
 #endif
                               uart_handle[u]);
-
+#if defined (AIC_SERIAL_USING_DMA)
         if (uart_dev_paras[i].flag == AIC_UART_DMA_FLAG) {
             hal_uart_set_fifo((aic_usart_priv_t *)g_serial[u].parent.user_data);
             hal_uart_attach_callback((aic_usart_priv_t *)g_serial[u].parent.user_data,
                                         drv_uart_callback, NULL);
             hal_usart_set_ier((aic_usart_priv_t *)g_serial[u].parent.user_data, 1);
         }
-
+#endif
         drv_usart_function_init(i, u);
     }
 

@@ -23,7 +23,7 @@
 #if PKG_SQLITE_DB_NAME_MAX_LEN < 8
 #error "the database name length is too short"
 #endif
-#define DEFAULT_DB_NAME "/rt.db"
+#define DEFAULT_DB_NAME "/data/rt.db"
 
 static rt_mutex_t db_mutex_lock = RT_NULL;
 static char db_name[PKG_SQLITE_DB_NAME_MAX_LEN + 1] = DEFAULT_DB_NAME;
@@ -76,7 +76,7 @@ static int db_bind_by_var(sqlite3_stmt *stmt, const char *fmt, va_list args)
         ++fmt;
         /* get length */
         len = 0;
-        while (isdigit(*fmt))
+        while (isdigit((unsigned char)(*fmt)))
         {
             len = len * 10 + (*fmt - '0');
             ++fmt;
@@ -85,6 +85,9 @@ static int db_bind_by_var(sqlite3_stmt *stmt, const char *fmt, va_list args)
         {
         case 'd':
             ret = sqlite3_bind_int(stmt, npara, va_arg(args, int));
+            break;
+        case 'l':
+            ret = sqlite3_bind_int64(stmt, npara, va_arg(args, int64_t));
             break;
         case 'f':
             ret = sqlite3_bind_double(stmt, npara, va_arg(args, double));
@@ -265,7 +268,7 @@ int db_nonquery_operator(const char *sqlstr, int (*bind)(sqlite3_stmt *stmt, int
         sqlite3_finalize(stmt);
         if ((rc != SQLITE_OK) && (rc != SQLITE_DONE))
         {
-            LOG_E("bind failed");
+            LOG_E("bind failed errmsg:%s", sqlite3_errmsg(db));
             goto __db_exec_fail;
         }
     }
@@ -340,7 +343,7 @@ int db_nonquery_by_varpara(const char *sql, const char *fmt, ...)
     sqlite3_finalize(stmt);
     if ((rc != SQLITE_OK) && (rc != SQLITE_DONE))
     {
-        LOG_E("bind error,rc=%d", rc);
+        LOG_E("bind error,rc=%d, errmsg:%s", rc, sqlite3_errmsg(db));
         goto __db_exec_fail;
     }
     rc = SQLITE_OK;
@@ -484,7 +487,7 @@ int db_stmt_get_text(sqlite3_stmt *stmt, int index, char *out)
     if (pdata)
     {
         int len = strlen((char *)pdata);
-        strncpy(out, (char *)pdata, len);
+        memcpy(out, (char *)pdata, len);
         return len;
     }
     return -RT_ERROR;

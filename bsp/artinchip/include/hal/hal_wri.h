@@ -28,6 +28,7 @@ enum aic_warm_reset_type {
 enum aic_warm_reset_type {
     WRI_TYPE_VDD11_SP_POR = 0,
     WRI_TYPE_VDD11_SW_POR,
+    WRI_TYPE_VDD11_C908_POR,
     WRI_TYPE_RTC_POR,
     WRI_TYPE_PIN_RST,
     WRI_TYPE_THS_RST,
@@ -53,5 +54,6 @@ enum aic_warm_reset_type {
 enum aic_warm_reset_type aic_wr_type_get(void);
 enum aic_reboot_reason aic_judge_reboot_reason(enum aic_warm_reset_type hw,
                                                u32 sw);
+void aic_clr_reboot_reason(void);
 
 #endif

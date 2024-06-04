@@ -12,6 +12,8 @@ source "bsp/peripheral/touch/gt911/Kconfig"
 source "bsp/peripheral/touch/ft7411/Kconfig"
 source "bsp/peripheral/touch/gsl1680/Kconfig"
 source "bsp/peripheral/touch/rtp/Kconfig"
+source "bsp/peripheral/touch/st16xx/Kconfig"
+source "bsp/peripheral/touch/axs15260/Kconfig"
 endmenu
 
 #--------------------------------------------

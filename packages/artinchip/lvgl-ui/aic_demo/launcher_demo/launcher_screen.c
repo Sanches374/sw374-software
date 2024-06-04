@@ -12,6 +12,7 @@
 #include "aic_ui.h"
 #include "launcher_screen.h"
 #include "launcher_ui.h"
+#include "msh.h"
 
 static void launcher_tapview_event(lv_event_t * e)
 {
@@ -34,6 +35,13 @@ static void camera_event_cb(lv_event_t *e)
     if (code == LV_EVENT_CLICKED) {
         // load camera screen
         lv_scr_load(scr_camera);
+
+#if defined(AIC_CHIP_D13X) || defined(AIC_CHIP_D21X)
+        // open dvp
+        char cmd[32] = {0};
+        snprintf(cmd, sizeof(cmd), "test_dvp -c 0 \n");
+        msh_exec(cmd, rt_strlen(cmd));
+#endif
     }
 }
 

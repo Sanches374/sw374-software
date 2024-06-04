@@ -90,6 +90,7 @@ struct aic_sdmc {
     u32 clk;
     u32 irq;
     u32 index;
+    u32 cid[4];
 
     unsigned int quirks;
     unsigned int caps;
@@ -104,6 +105,16 @@ struct aic_sdmc {
 
     struct aic_sdmc_pdata *pdata;
 };
+
+/* Maximum block size for MMC */
+#define MMC_MAX_BLOCK_LEN   512
+
+/*
+ * The number of MMC physical partitions.  These consist of:
+ * boot partitions (2), general purpose partitions (4) in MMC v4.4.
+ */
+#define MMC_NUM_BOOT_PARTITION 2
+#define MMC_PART_RPMB          3 /* RPMB partition number */
 
 #define SD_VERSION_SD       0x20000
 #define SD_VERSION_2        (SD_VERSION_SD | 0x20)
@@ -162,6 +173,7 @@ struct aic_sdmc {
 #define MMC_CMD_SET_BLOCKLEN         16
 #define MMC_CMD_READ_SINGLE_BLOCK    17
 #define MMC_CMD_READ_MULTIPLE_BLOCK  18
+#define MMC_CMD_SET_BLOCK_COUNT      23
 #define MMC_CMD_WRITE_SINGLE_BLOCK   24
 #define MMC_CMD_WRITE_MULTIPLE_BLOCK 25
 #define MMC_CMD_ERASE_GROUP_START    35
@@ -233,13 +245,14 @@ struct aic_sdmc {
 /*
  * EXT_CSD fields
  */
-#define EXT_CSD_BOOT_BUS_COND 177 /* R/W */
-#define EXT_CSD_PART_CONF     179 /* R/W */
-#define EXT_CSD_BUS_WIDTH     183 /* R/W */
-#define EXT_CSD_HS_TIMING     185 /* R/W */
-#define EXT_CSD_CARD_TYPE     196 /* RO */
-#define EXT_CSD_REV           192 /* RO */
-#define EXT_CSD_SEC_CNT       212 /* RO, 4 bytes */
+#define EXT_CSD_PARTITION_SUPPORT  160 /* RO */
+#define EXT_CSD_BOOT_BUS_COND      177 /* R/W */
+#define EXT_CSD_PART_CONF          179 /* R/W */
+#define EXT_CSD_BUS_WIDTH          183 /* R/W */
+#define EXT_CSD_HS_TIMING          185 /* R/W */
+#define EXT_CSD_CARD_TYPE          196 /* RO */
+#define EXT_CSD_REV                192 /* RO */
+#define EXT_CSD_SEC_CNT            212 /* RO, 4 bytes */
 
 /*
  * EXT_CSD field definitions
@@ -282,6 +295,12 @@ struct aic_sdmc {
 #define MMC_RSP_R6   (MMC_RSP_PRESENT | MMC_RSP_CRC | MMC_RSP_OPCODE)
 #define MMC_RSP_R7   (MMC_RSP_PRESENT | MMC_RSP_CRC | MMC_RSP_OPCODE)
 
+#define MMC_CMD_MASK (3 << 4)
+#define MMC_CMD_AC   (0 << 4)
+#define MMC_CMD_ADTC (1 << 4)
+#define MMC_CMD_BC   (2 << 4)
+#define MMC_CMD_BCR  (3 << 4)
+
 #define MMCPART_NOAVAILABLE (0xff)
 #define PART_ACCESS_MASK    (0x7)
 #define PART_SUPPORT        (0x1)
@@ -314,6 +333,7 @@ struct aic_sdmc {
 
 s32 mmc_init(int id);
 s32 mmc_deinit(int id);
+s32 mmc_switch_part(struct aic_sdmc *host, u32 part_num);
 u32 mmc_bread(void *priv, u32 start, u32 blkcnt, u8 *dst);
 u32 mmc_bwrite(struct aic_sdmc *host, u32 start, u32 blkcnt, const u8 *src);
 u32 mmc_berase(struct aic_sdmc *host, u32 start, u32 blkcnt);
@@ -322,9 +342,20 @@ struct aic_partition *mmc_new_partition(char *s, u64 start);
 void mmc_free_partition(struct aic_partition *part);
 struct aic_partition *mmc_create_gpt_part(void);
 void sdcard_hotplug_init(void);
+void sdcard_hotplug_act(void);
 int mmc_block_init(struct aic_sdmc *host);
 int mmc_block_refresh(struct aic_sdmc *host);
 int mmc_block_deinit(struct aic_sdmc *host);
+
+
+int mmc_rpmb_get_counter(struct aic_sdmc *host, unsigned long *pcounter);
+int mmc_rpmb_set_key(struct aic_sdmc *host, void *key);
+int mmc_rpmb_read(struct aic_sdmc *host, void *addr, unsigned short blk,
+		  unsigned short cnt, unsigned char *key);
+int mmc_rpmb_write(struct aic_sdmc *host, void *addr, unsigned short blk,
+		  unsigned short cnt, unsigned char *key);
+int mmc_rpmb_route_frames(struct aic_sdmc *host, void *req, unsigned long reqlen,
+			  void *rsp, unsigned long rsplen);
 
 
 #endif /* _AIC_MMC_H_ */

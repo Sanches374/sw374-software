@@ -10,10 +10,36 @@
 
 #define to_clk_pll(_hw) container_of(_hw, struct aic_clk_pll_cfg, comm)
 
+/* ALL chips:
+ * Other vco of clock not change
+ * The vco of pll_fra2 range from (768M-1560M) to (360M~1584M)
+ */
+static const struct aic_pll_vco vco_arr[] = {
+    {360000000, 1584000000, "pll_fra2"},
+    {768000000, 1560000000,    "other"},
+};
+
 static int clk_pll_wait_lock(void)
 {
     aic_udelay(200);
     return 0;
+}
+
+static void clk_vco_select(struct aic_clk_pll_cfg *pll,
+                           unsigned long *min, unsigned long *max)
+{
+    const struct aic_pll_vco *vco;
+
+    for (int i = 0; i < (ARRAY_SIZE(vco_arr) - 1); i++) {
+        vco = &vco_arr[i];
+        if (pll->id == hal_clk_get_id(vco->name)) {
+            *min = vco->vco_min;
+            *max = vco->vco_max;
+            return;
+        }
+    }
+    *max = vco_arr[ARRAY_SIZE(vco_arr) - 1].vco_max;
+    *min = vco_arr[ARRAY_SIZE(vco_arr) - 1].vco_min;
 }
 
 static inline void clk_pll_bypass(struct aic_clk_pll_cfg *pll, unsigned int bypass)
@@ -121,14 +147,19 @@ static long clk_pll_round_rate(struct aic_clk_comm_cfg *comm_cfg,
     struct aic_clk_pll_cfg *pll = to_clk_pll(comm_cfg);
     u32 factor_n, factor_m, factor_p;
     long rrate, vco_rate;
+    unsigned long pll_vco_min, pll_vco_max;
     unsigned long parent_rate = *prate;
 
     if (pll->type == AIC_PLL_FRA)
             return rate;
 
-    /* The frequency constraint of PLL_VCO is between 768M and 1560M */
-    if (rate < PLL_VCO_MIN)
-        factor_m = DIV_ROUND_UP(PLL_VCO_MIN, rate) - 1;
+    clk_vco_select(pll, &pll_vco_min, &pll_vco_max);
+
+    /* The frequency constraint of PLL_VCO is between 768M and 1560M
+     * But the PLL_VCO of pll_fra2 is between 360M and 1584M
+     */
+    if (rate < pll_vco_min)
+        factor_m = DIV_ROUND_UP(pll_vco_min, rate) - 1;
     else
         factor_m = 0;
 
@@ -136,8 +167,8 @@ static long clk_pll_round_rate(struct aic_clk_comm_cfg *comm_cfg,
         factor_m = PLL_FACTORM_MASK;
 
     vco_rate = (factor_m + 1) * rate;
-    if (vco_rate > PLL_VCO_MAX)
-        vco_rate = PLL_VCO_MAX;
+    if (vco_rate > pll_vco_max)
+        vco_rate = pll_vco_max;
 
     factor_p = (vco_rate % parent_rate) ? 1 : 0;
     if (!factor_p)
@@ -161,13 +192,15 @@ static int clk_pll_set_rate(struct aic_clk_comm_cfg *comm_cfg,
     u32 factor_n, factor_m, factor_p, reg_val;
     u64 val, fra_in = 0;
     u8 fra_en, factor_m_en;
-    unsigned long vco_rate;
+    unsigned long vco_rate, pll_vco_min, pll_vco_max;
     u32 ppm_max, sdm_amp, sdm_en = 0;
     u64 sdm_step;
     struct aic_clk_pll_cfg *pll = to_clk_pll(comm_cfg);
 
     if (pll->flag & CLK_NO_CHANGE)
         return 0;
+
+    clk_vco_select(pll, &pll_vco_min, &pll_vco_max);
 
     if (rate == CLOCK_24M) {
         val = readl(cmu_reg(pll->offset_gen));
@@ -180,11 +213,11 @@ static int clk_pll_set_rate(struct aic_clk_comm_cfg *comm_cfg,
     clk_pll_bypass(pll, 1);
 
     /* Calculate PLL parameters.
-     * The frequency constraint of PLL_VCO
-     * is between 768M and 1560M
+     * The frequency constraint of PLL_VCO is between 768M and 1560M
+     * But the PLL_VCO of pll_fra2 is between 360M and 1584M
      */
-    if (rate < PLL_VCO_MIN)
-        factor_m = DIV_ROUND_UP(PLL_VCO_MIN, rate) - 1;
+    if (rate < pll_vco_min)
+        factor_m = DIV_ROUND_UP(pll_vco_min, rate) - 1;
     else
         factor_m = 0;
 
@@ -201,8 +234,8 @@ static int clk_pll_set_rate(struct aic_clk_comm_cfg *comm_cfg,
         factor_m_en = 0;
 
     vco_rate = (factor_m + 1) * rate;
-    if (vco_rate > PLL_VCO_MAX)
-        vco_rate = PLL_VCO_MAX;
+    if (vco_rate > pll_vco_max)
+        vco_rate = pll_vco_max;
 
     factor_p = (vco_rate % parent_rate) ? 1 : 0;
     factor_n = vco_rate * (factor_p + 1) / parent_rate  - 1;

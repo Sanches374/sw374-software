@@ -65,6 +65,12 @@
 #define RT_SERIAL_EVENT_TX_DMADONE      0x04    /* Tx DMA transfer done */
 #define RT_SERIAL_EVENT_RX_TIMEOUT      0x05    /* Rx timeout    */
 
+#define RT_SERIAL_DMA_FCH_BUFFER        50      /* DMA mode flow control high level buffer */
+#define RT_SERIAL_DMA_FCL_BUFFER        100     /* DMA mode flow control low level buffer */
+
+#define RT_SERIAL_INT_FCH_BUFFER        50      /* INT mode flow control high level buffer */
+#define RT_SERIAL_INT_FCL_BUFFER        100     /* INT mode flow control low level buffer */
+
 #define RT_SERIAL_DMA_RX                0x01
 #define RT_SERIAL_DMA_TX                0x02
 
@@ -81,9 +87,26 @@
 #define RT_SERIAL_FLOWCONTROL_CTSRTS     1
 #define RT_SERIAL_FLOWCONTROL_NONE       0
 
-#define RT_SERIAL_RS485_MODE            1       /* ArtInChip Uart 485 mode flag */
+#define RT_SERIAL_RS485_MODE             1       /* ArtInChip Uart 485 mode flag */
+#define RT_SERIAL_RS485_SIMULATION_MODE  7      /* ArtInChip Uart simulation 485 mode flag */
 #define RT_SERIAL_RS485_RTS_LOW         0x80    /* ArtInChip Uart 485 RTS_Pin Low level*/
 #define RT_SERIAL_RS485_RTS_HIGH        0x81    /* ArtInChip Uart 485 RTS_Pin High Level */
+#define RT_SERIAL_232_RESUME_DATA       0x83
+#define RT_SERIAL_232_SUSPEND_DATA      0x84
+#define RT_SERIAL_SW_FLOW_CTRL          0x85
+#define RT_SERIAL_SW_RECEIVE_ON_OFF     0x86
+
+typedef enum
+{
+    RT_SERIAL_FUNC_RS232               = 0,   ///< RS232
+    RT_SERIAL_FUNC_RS485               = 1,   ///< RS485 normal
+    RT_SERIAL_FUNC_RS485_COMACT_IO     = 2,   ///< RS485 compact io
+    RT_SERIAL_RS232_AUTO_FLOW_CTRL     = 3,   ///< RS232 flow conctrol
+    RT_SERIAL_RS232_UNAUTO_FLOW_CTRL   = 4,   ///< RS232 hardware unauto flow conctrol
+    RT_SERIAL_RS232_SW_FLOW_CTRL       = 5,   ///< RS232 software flow conctrol
+    RT_SERIAL_RS232_SW_HW_FLOW_CTRL    = 6,   ///< RS232 software and hardware flow conctrol
+}rt_serial_mode;
+
 
 /* Default config for serial_configure structure */
 #define RT_SERIAL_CONFIG_DEFAULT           \
@@ -98,8 +121,10 @@
     RT_SERIAL_FLOWCONTROL_NONE, /* Off flowcontrol */ \
     0,                                     \
     259,                                   \
-    USART_FUNC_RS232,                      \
-    0,                                      \
+    0,                                     \
+    0,                                     \
+    0,                                     \
+    0,                                     \
     0x0F                                   \
 }
 
@@ -118,6 +143,8 @@ struct serial_configure
     rt_uint32_t flag;
     rt_uint32_t function                :4;
     rt_uint32_t flow_ctrl_suspend       :1;
+    rt_uint32_t flowctrl_cts_enable     :1;
+    rt_uint32_t flowctrl_rts_enable     :1;
     rt_uint32_t uart_index              :4;
 };
 
@@ -185,5 +212,8 @@ rt_err_t rt_hw_serial_register(struct rt_serial_device *serial,
                                const char              *name,
                                rt_uint32_t              flag,
                                void                    *data);
+
+void rt_flowctrl_low_detect(struct rt_serial_device *serial, rt_size_t len, rt_size_t flow_ctrl_low_flag);
+void rt_flowctrl_high_detect(struct rt_serial_device *serial, rt_size_t len, rt_size_t flow_ctrl_low_flag);
 
 #endif

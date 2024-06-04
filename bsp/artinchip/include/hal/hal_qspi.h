@@ -32,8 +32,8 @@ extern "C" {
 #define HAL_QSPI_RX_FIFO             0
 #define HAL_QSPI_TX_FIFO             1
 
-#define HAL_QSPI_WAIT_30_US          30
-#define HAL_QSPI_WAIT_PER_CYCLE      HAL_QSPI_WAIT_30_US
+#define HAL_QSPI_WAIT_DELAY_US       1
+#define HAL_QSPI_WAIT_PER_CYCLE      HAL_QSPI_WAIT_DELAY_US
 #define HAL_QSPI_DMA_DEV_MAXBURST    8
 #define HAL_QSPI_DMA_MEM_MAXBURST    16
 #define HAL_QSPI_DMA_4BYTES_LINE     4

@@ -126,6 +126,9 @@ extern "C" {
 #define  RT_SENSOR_CTRL_SET_MODE       (RT_DEVICE_CTRL_BASE(Sensor) + 4)  /* Set sensor's work mode. ex. RT_SENSOR_MODE_POLLING,RT_SENSOR_MODE_INT */
 #define  RT_SENSOR_CTRL_SET_POWER      (RT_DEVICE_CTRL_BASE(Sensor) + 5)  /* Set power mode. args type of sensor power mode. ex. RT_SENSOR_POWER_DOWN,RT_SENSOR_POWER_NORMAL */
 #define  RT_SENSOR_CTRL_SELF_TEST      (RT_DEVICE_CTRL_BASE(Sensor) + 6)  /* Take a self test */
+#ifdef AIC_TSEN_DRV
+#define  RT_SENSOR_CTRL_GET_CH_INFO    (RT_DEVICE_CTRL_BASE(Sensor) + 7)  /* Get sensor chan info */
+#endif
 
 #define  RT_SENSOR_CTRL_USER_CMD_START 0x100  /* User commands should be greater than 0x100 */
 

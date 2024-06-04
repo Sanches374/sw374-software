@@ -225,12 +225,12 @@ int spinand_check_ecc_status(struct aic_spinand *flash, u8 status)
 
 int spinand_isbusy(struct aic_spinand *flash, u8 *status)
 {
-    u32 i = 0, cnt = 300;
+    u32 i = 0, cnt = 30000;
     u8 SR = 0xFF;
     int result;
 
     do {
-        aic_udelay(30);
+        aic_udelay(1);
         i++;
         result = spinand_read_status(flash, &SR);
         if (result != SPINAND_SUCCESS)
@@ -549,6 +549,27 @@ exit_spinand_init:
     return result;
 }
 
+int spinand_check_if_do_memcpy(struct aic_spinand *flash, u8 *data,
+                               u32 data_len, u8 *spare, u32 spare_len)
+{
+    int flag = SPINAND_TRUE;
+
+    /*
+     * When the user address is aligned to CACHE_LINE_SIZE,
+     * if the user address and oob address are consecutive or the oob address is empty,
+     * then directly write into user cache to reduce copying.
+     */
+    if (((unsigned long) data & (CACHE_LINE_SIZE - 1)) == 0) {
+        if ((spare == NULL) || (spare_len == 0)) {
+            flag = SPINAND_FALSE;
+        } else if (spare == (data + flash->info->page_size)) {
+            flag = SPINAND_FALSE;
+        }
+    }
+
+    return flag;
+}
+
 int spinand_read_page(struct aic_spinand *flash, u32 page, u8 *data,
                       u32 data_len, u8 *spare, u32 spare_len)
 {
@@ -559,6 +580,8 @@ int spinand_read_page(struct aic_spinand *flash, u32 page, u8 *data,
     u16 blk = 0;
     u16 column = 0;
     u8 status;
+    u8 spare_only = SPINAND_FALSE;
+    u8 data_copy_mode = SPINAND_TRUE;
 
     if (!flash) {
         pr_err("flash is NULL\r\n");
@@ -589,12 +612,19 @@ int spinand_read_page(struct aic_spinand *flash, u32 page, u8 *data,
     if (data && data_len) {
         buf = flash->databuf;
         nbytes = flash->info->page_size;
+
+        if (!spinand_check_if_do_memcpy(flash, data, data_len,
+                                        spare, spare_len)) {
+            buf = data;
+            data_copy_mode = SPINAND_FALSE;
+        }
     }
 
     if (spare && spare_len) {
         nbytes += flash->info->oob_size;
         if (!buf) {
             buf = flash->oobbuf;
+            spare_only = SPINAND_TRUE;
             column = flash->info->page_size;
         }
     }
@@ -623,11 +653,15 @@ int spinand_read_page(struct aic_spinand *flash, u32 page, u8 *data,
 
     if (data && data_len) {
         /* Read data: 0~data_len, Read cache to data */
-        memcpy(data, flash->databuf, data_len);
+        if (data_copy_mode) {
+            memcpy(data, flash->databuf, data_len);
+        }
     }
 
     if (spare && spare_len) {
-        memcpy(spare, flash->oobbuf, spare_len);
+        if (spare_only) {
+            memcpy(spare, flash->oobbuf, spare_len);
+        }
     }
 
 exit_spinand_read_page:
@@ -788,9 +822,6 @@ int spinand_write_page(struct aic_spinand *flash, u32 page, const u8 *data,
 
     pr_debug("[W-%d]data len: %d, spare len: %d\n", page, data_len, spare_len);
 
-    memset(flash->databuf, 0xFF,
-           flash->info->page_size + flash->info->oob_size);
-
     if (flash->info->is_die_select == 1) {
         /* Select die. */
         if ((result = spinand_die_select(flash, SPINAND_DIE_ID0)) !=
@@ -799,15 +830,24 @@ int spinand_write_page(struct aic_spinand *flash, u32 page, const u8 *data,
     }
 
     if (data && data_len) {
-        memcpy(flash->databuf, data, data_len);
-        buf = flash->databuf;
+
+        if (!spinand_check_if_do_memcpy(flash, (u8 *)data, data_len,
+                                        (u8 *)spare, spare_len)) {
+            buf = (u8 *)data;
+        } else {
+            memset(flash->databuf, 0xFF,
+                   flash->info->page_size + flash->info->oob_size);
+            memcpy(flash->databuf, data, data_len);
+            buf = flash->databuf;
+        }
+
         nbytes = flash->info->page_size;
     }
 
     if (spare && spare_len) {
-        memcpy(flash->oobbuf, spare, spare_len);
         nbytes += flash->info->oob_size;
         if (!buf) {
+            memcpy(flash->oobbuf, spare, spare_len);
             buf = flash->oobbuf;
             column = flash->info->page_size;
         }
@@ -824,7 +864,8 @@ int spinand_write_page(struct aic_spinand *flash, u32 page, const u8 *data,
     }
 
 #if defined(AIC_SPIENC_DRV)
-    spienc_set_cfg(flash->info->devid, page * flash->info->page_size, cpos, data_len);
+    spienc_set_cfg(flash->info->devid, page * flash->info->page_size, cpos,
+                   data_len);
     spienc_start();
 #endif
     blk = page / flash->info->pages_per_eraseblock;
@@ -1059,9 +1100,10 @@ int spinand_write(struct aic_spinand *flash, u8 *addr, u32 offset, u32 size)
         blk = off / blk_size;
     }
     if (remaining % flash->info->page_size)
-        remaining = (flash->info->page_size + remaining)/flash->info->page_size;
+        remaining =
+            (flash->info->page_size + remaining) / flash->info->page_size;
     else
-        remaining = remaining/flash->info->page_size;
+        remaining = remaining / flash->info->page_size;
 
     while (remaining > 0) {
         page = off / flash->info->page_size;

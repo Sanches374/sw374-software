@@ -89,15 +89,15 @@ struct panel_lvds {
     enum lvds_mode mode;
     enum lvds_link_mode link_mode;
     unsigned int link_swap;
-    unsigned int pols;
-    unsigned int line;
+    unsigned int pols[2];
+    unsigned int lanes[2];
 };
 
 struct dsi_command
 {
-    unsigned char buf[1024];
-    size_t len;
+    unsigned int len;
     unsigned int command_on;
+    unsigned char *buf;
 };
 
 struct panel_dsi {

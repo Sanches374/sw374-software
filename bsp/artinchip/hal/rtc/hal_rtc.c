@@ -194,6 +194,19 @@ void aic_set_reboot_reason(enum aic_reboot_reason r)
         pr_debug("Set reboot reason %d\n", r);
 }
 
+void aic_clr_reboot_reason_rtc(void)
+{
+    u32 cur = 0;
+    cur = RTC_READB(RTC_REG_SYSBAK);
+    g_prev_reason = getbits(RTC_REBOOT_REASON_MASK, RTC_REBOOT_REASON_SHIFT,
+                            cur);
+    if (g_prev_reason) {
+        /* Clear the previous state */
+        clrbits(RTC_REBOOT_REASON_MASK, cur);
+        RTC_WRITEB(cur, RTC_REG_SYSBAK);
+    }
+}
+
 enum aic_reboot_reason aic_get_reboot_reason(void)
 {
     u32 cur = 0;
@@ -203,11 +216,6 @@ enum aic_reboot_reason aic_get_reboot_reason(void)
         cur = RTC_READB(RTC_REG_SYSBAK);
         g_prev_reason = getbits(RTC_REBOOT_REASON_MASK,
                                 RTC_REBOOT_REASON_SHIFT, cur);
-        if (g_prev_reason) {
-            /* Clear the previous state */
-            clrbits(RTC_REBOOT_REASON_MASK, cur);
-            RTC_WRITEB(cur, RTC_REG_SYSBAK);
-        }
     }
 
     return aic_judge_reboot_reason(wr, g_prev_reason);

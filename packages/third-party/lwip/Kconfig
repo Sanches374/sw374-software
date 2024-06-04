@@ -186,6 +186,7 @@ if LPKG_USING_LWIP
         menuconfig LPKG_LWIP_USING_PING
             bool "Enable ping features"
             default n
+            depends on !LPKG_USING_LWIP_IPV6
             select LPKG_LWIP_ICMP
             select LPKG_LWIP_RAW
 

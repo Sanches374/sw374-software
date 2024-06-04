@@ -555,8 +555,26 @@ static OMX_ERRORTYPE OMX_DemuxerSetParameter(
         tmp1 = ((OMX_PARAM_SKIP_TRACK*)pComponentParameterStructure)->nPortIndex;
         if (tmp1 == DEMUX_PORT_AUDIO_INDEX) {
             pDemuxerDataType->nSkipTrack |= DEMUX_SKIP_AUDIO_TRACK;
+            aic_pthread_mutex_lock(&pDemuxerDataType->sAudioPktLock);
+            if (!mpp_list_empty(&pDemuxerDataType->sOutAudioReadyPkt)) {
+                DEMUXER_OUT_PACKET  *pPktNode = NULL,*pPktNode1 = NULL;
+                mpp_list_for_each_entry_safe(pPktNode, pPktNode1, &pDemuxerDataType->sOutAudioReadyPkt, sList) {
+                    mpp_list_del(&pPktNode->sList);
+                    mpp_list_add_tail(&pPktNode->sList, &pDemuxerDataType->sOutVideoEmptyPkt);
+                }
+            }
+            aic_pthread_mutex_unlock(&pDemuxerDataType->sAudioPktLock);
         } else if (tmp1 == DEMUX_PORT_VIDEO_INDEX) {
             pDemuxerDataType->nSkipTrack |= DEMUX_SKIP_VIDEO_TRACK;
+            aic_pthread_mutex_lock(&pDemuxerDataType->sVideoPktLock);
+            if (!mpp_list_empty(&pDemuxerDataType->sOutVideoReadyPkt)) {
+                DEMUXER_OUT_PACKET  *pPktNode = NULL,*pPktNode1 = NULL;
+                mpp_list_for_each_entry_safe(pPktNode, pPktNode1, &pDemuxerDataType->sOutVideoReadyPkt, sList) {
+                    mpp_list_del(&pPktNode->sList);
+                    mpp_list_add_tail(&pPktNode->sList, &pDemuxerDataType->sOutVideoEmptyPkt);
+                }
+            }
+            aic_pthread_mutex_unlock(&pDemuxerDataType->sVideoPktLock);
         }
         break;
     default:

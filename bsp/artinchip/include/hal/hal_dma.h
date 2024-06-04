@@ -31,6 +31,15 @@ enum dma_transfer_direction {
     DMA_TRANS_NONE,
 };
 
+enum dma_transfer_type {
+    TYPE_IO_SINGLE      = 0,
+    TYPE_BURST          = 1,
+    TYPE_MEMORY         = 2,
+    TYPE_MEMORYSET      = 3,
+    TYPE_IO_FAST        = 4,
+    TYPE_IO_AUTO        = 10,
+};
+
 enum dma_slave_buswidth {
     DMA_SLAVE_BUSWIDTH_UNDEFINED = 0,
     DMA_SLAVE_BUSWIDTH_1_BYTE = 1,
@@ -137,11 +146,23 @@ int hal_dma_chan_prep_device(struct aic_dma_chan *chan,
                              u32 p_src,
                              u32 len,
                              enum dma_transfer_direction dir);
+int hal_dma_prep_mode_device(struct aic_dma_chan *chan,
+                             u32 p_dest,
+                             u32 p_src,
+                             u32 len,
+                             enum dma_transfer_direction dir,
+                             enum dma_transfer_type transfer_mode);
 int hal_dma_chan_prep_cyclic(struct aic_dma_chan *chan,
                              u32 p_buf_addr,
                              u32 buf_len,
                              u32 period_len,
                              enum dma_transfer_direction dir);
+int hal_dma_prep_mode_cyclic(struct aic_dma_chan *chan,
+                             u32 p_buf_addr,
+                             u32 buf_len,
+                             u32 period_len,
+                             enum dma_transfer_direction dir,
+                             enum dma_transfer_type transfer_mode);
 enum dma_status hal_dma_chan_tx_status(struct aic_dma_chan *chan, u32 *left_size);
 int hal_dma_chan_start(struct aic_dma_chan *chan);
 int hal_dma_chan_stop(struct aic_dma_chan *chan);

@@ -48,10 +48,11 @@ static void touch_panel_gt911_read_info(void)
 
 static void touch_entry(void *parameter) /* touch panel control entry */
 {
+#ifdef AIC_TOUCH_PANEL_GT911
     rt_device_control(dev, RT_TOUCH_CTRL_GET_INFO, &info);
+#endif
 #ifdef AIC_USING_RTP /* by default, only one point is supported */
     info.point_num = 1;
-    rt_device_control(dev, RT_TOUCH_CTRL_PDEB_VALID_CHECK, RT_NULL);
 #endif
 
     read_data = (struct rt_touch_data *)rt_malloc(sizeof(struct rt_touch_data) * info.point_num);
@@ -70,13 +71,13 @@ static void touch_entry(void *parameter) /* touch panel control entry */
                 {
                     rt_uint16_t  u16X, u16Y;
 #ifdef AIC_USING_RTP
-                    extern void lv_convert_adc_to_coord(struct rt_touch_data *data);
-                    lv_convert_adc_to_coord(&read_data[i]);
+                    extern void lv_convert_adc_to_coord(rt_device_t rtp_dev, struct rt_touch_data *data);
+                    lv_convert_adc_to_coord(dev, &read_data[i]);
 #endif
                     u16X = read_data[i].x_coordinate;
                     u16Y = read_data[i].y_coordinate;
 
-                    //rt_kprintf("[%d] %d %d\n", read_data[i].event, u16X, u16Y);
+                    // rt_kprintf("[%d] %d %d\n", read_data[i].event, u16X, u16Y);
                     aic_touch_inputevent_cb(u16X, u16Y, read_data[i].event);
                 }
             }
@@ -117,8 +118,10 @@ int tpc_run(const char *name, rt_uint16_t x, rt_uint16_t y)
 
     if (rt_device_open(dev, RT_DEVICE_FLAG_INT_RX) != RT_EOK)
     {
-        rt_kprintf("open device failed!");
+        rt_kprintf("open device failed!\n");
         return -1;
+    } else {
+        rt_kprintf("lvgl is occupying %s device\n", name);
     }
 
 #ifdef AIC_USING_RTP

@@ -334,10 +334,10 @@ static int set_ui_layer_alpha(int val)
     int ret = 0;
     struct aicfb_alpha_config alpha = {0};
 
-    alpha.layer_id = 1;
-    alpha.enable = 1;
-    alpha.mode = 1;
-    alpha.value = val;
+    alpha.layer_id = AICFB_LAYER_TYPE_UI;
+    alpha.mode     = AICFB_GLOBAL_ALPHA_MODE;
+    alpha.enable   = 1;
+    alpha.value    = val;
     ret = mpp_fb_ioctl(g_mpp_fb, AICFB_UPDATE_ALPHA_CONFIG, &alpha);
     if (ret < 0)
         ERR("ioctl update alpha config failed!\n");

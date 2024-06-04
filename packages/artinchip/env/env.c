@@ -15,6 +15,12 @@
 #include <env.h>
 #include <aic_crc32.h>
 
+#ifdef KERNEL_BAREMETAL
+#include <aic_partition.h>
+#include <disk_part.h>
+#include <mmc.h>
+#endif
+
 #ifndef KERNEL_BAREMETAL
 
 #include <rtthread.h>
@@ -635,6 +641,161 @@ static int bar_spinand_save_env_simple(void *buf, size_t size)
 #endif
 #endif
 
+#ifndef KERNEL_BAREMETAL
+static int rtt_mmc_load_env_simple(void *buf, size_t size)
+{
+    rt_device_t env_current;
+    struct rt_device_blk_geometry get_data;
+    size_t blkcnt = 0;
+
+    if (dev_current == 0) {
+        env_current = rt_device_find("mmc0p1");
+    } else if (dev_current == 1) {
+        env_current = rt_device_find("mmc0p2");
+    } else {
+        pr_err("Invalid dev_current:%d\n", dev_current);
+        return -1;
+    }
+
+    if (env_current == RT_NULL) {
+        pr_err("Not found dev_current:%d\n", dev_current);
+        return -1;
+    }
+
+    rt_device_open(env_current, RT_DEVICE_FLAG_RDWR);
+
+    rt_device_control(env_current, RT_DEVICE_CTRL_BLK_GETGEOME, (void *)&get_data);
+
+    blkcnt = size / get_data.bytes_per_sector;
+
+    if (rt_device_read(env_current, 0, buf, blkcnt) != blkcnt) {
+        pr_err("mmc read env fail\n");
+        goto rtt_mmc_load_env_simple_exit;
+    }
+
+rtt_mmc_load_env_simple_exit:
+    rt_device_close(env_current);
+
+    return 0;
+}
+
+static int rtt_mmc_save_env_simple(void *buf, size_t size)
+{
+    rt_device_t env_current;
+    struct rt_device_blk_geometry get_data;
+    unsigned long long p[2] = {0};
+    size_t blkcnt = 0;
+
+    if (dev_current == 0) {
+        env_current = rt_device_find("mmc0p2");
+    } else if (dev_current == 1) {
+        env_current = rt_device_find("mmc0p1");
+    } else {
+        pr_err("Invalid dev_current:%d\n", dev_current);
+        return -1;
+    }
+
+    if (env_current == RT_NULL) {
+        pr_err("Not found dev_current:%d\n", dev_current);
+        return -1;
+    }
+
+    rt_device_open(env_current, RT_DEVICE_FLAG_RDWR);
+
+    rt_device_control(env_current, RT_DEVICE_CTRL_BLK_GETGEOME, (void *)&get_data);
+
+    p[0] = 0;//offset is 0
+    p[1] = get_data.sector_count;
+
+    if (rt_device_control(env_current, RT_DEVICE_CTRL_BLK_ERASE, (void *)p) < 0) {
+        pr_err("Erase mmc partition failed!");
+        goto rtt_mmc_save_env_simple_exit;
+    }
+
+    blkcnt = size / get_data.bytes_per_sector;
+
+    if (rt_device_write(env_current, 0, (void *)buf, blkcnt) != blkcnt) {
+        pr_err("mmc write env fail\n");
+        goto rtt_mmc_save_env_simple_exit;
+    }
+
+rtt_mmc_save_env_simple_exit:
+    rt_device_close(env_current);
+
+    return 0;
+}
+#else
+static int bar_mmc_load_env_simple(void *buf, size_t size)
+{
+    struct aic_sdmc *host = NULL;
+    struct aic_partition *parts = NULL, *part = NULL;
+    struct blk_desc dev_desc = {0};
+
+    host = find_mmc_dev_by_index(0);
+    if (host== NULL) {
+        pr_err("can't find mmc device!");
+        return -1;
+    }
+
+    dev_desc.blksz = 512;
+    dev_desc.lba_count = host->dev->card_capacity * 2;
+    dev_desc.priv = host;
+    parts = aic_disk_get_parts(&dev_desc);
+
+    if (dev_current == 0) {
+        part = aic_part_get_byname(parts, AIC_ENV_PART_NAME);
+    } else if (dev_current == 1) {
+        part = aic_part_get_byname(parts, AIC_ENV_REDUNDAND_PART_NAME);
+    } else {
+        pr_err("Invalid dev_current:%d\n", dev_current);
+        return -1;
+    }
+
+    if (parts)
+        aic_part_free(parts);
+
+    mmc_bread(host, part->start / dev_desc.blksz, size / dev_desc.blksz, buf);
+
+    return 0;
+}
+
+static int bar_mmc_save_env_simple(void *buf, size_t size)
+{
+    struct aic_sdmc *host = NULL;
+    struct aic_partition *parts = NULL, *part = NULL;
+    struct blk_desc dev_desc = {0};
+
+    host = find_mmc_dev_by_index(0);
+    if (host== NULL) {
+        pr_err("can't find mmc device!");
+        return -1;
+    }
+
+    dev_desc.blksz = 512;
+    dev_desc.lba_count = host->dev->card_capacity * 2;
+    dev_desc.priv = host;
+    parts = aic_disk_get_parts(&dev_desc);
+
+    if (dev_current == 0) {
+        part = aic_part_get_byname(parts, AIC_ENV_REDUNDAND_PART_NAME);
+    } else if (dev_current == 1) {
+        part = aic_part_get_byname(parts, AIC_ENV_PART_NAME);
+    } else {
+        pr_err("Invalid dev_current:%d\n", dev_current);
+        return -1;
+    }
+
+    if (parts)
+        aic_part_free(parts);
+
+    mmc_berase(host, part->start / dev_desc.blksz, part->size / dev_desc.blksz);
+
+    mmc_bwrite(host, part->start / dev_desc.blksz, size / dev_desc.blksz, buf);
+
+    return 0;
+}
+#endif
+
 static int flash_env_read(void *buf, size_t size)
 {
     int ret = 0;
@@ -658,6 +819,14 @@ static int flash_env_read(void *buf, size_t size)
 #endif
             break;
 #endif
+        case BD_SDMC0:
+#ifndef KERNEL_BAREMETAL
+            ret = rtt_mmc_load_env_simple(buf, size);
+#else
+            ret = bar_mmc_load_env_simple(buf, size);
+#endif
+            break;
+
         default:
             break;
     }
@@ -721,6 +890,14 @@ static int flash_env_write(void *buf, size_t size)
 #endif
             break;
 #endif
+        case BD_SDMC0:
+#ifndef KERNEL_BAREMETAL
+            ret = rtt_mmc_save_env_simple(buf, size);
+#else
+            ret = bar_mmc_save_env_simple(buf, size);
+#endif
+            break;
+
         default:
             break;
     }

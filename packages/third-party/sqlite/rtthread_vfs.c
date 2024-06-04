@@ -378,6 +378,8 @@ static int _rtthread_vfs_open(sqlite3_vfs *pvfs, const char *file_path, sqlite3_
     p->pvfs = pvfs;
     rt_sem_init(&p->sem, "vfssem", 1, RT_IPC_FLAG_PRIO);
 
+    (void)eType;
+
     return rc;
 }
 

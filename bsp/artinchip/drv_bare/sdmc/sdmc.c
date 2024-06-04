@@ -66,9 +66,10 @@ static int aic_sdmc_data_transfer(struct aic_sdmc *host,
     for (;;) {
         mask = hal_sdmc_int_stat(&host->host);
         if (mask & (SDMC_DATA_ERR | SDMC_DATA_TOUT)) {
-            pr_err("Data error! size %d/%d, mode %s, status 0x%x\n",
+            pr_err("Data error! size %d/%d, mode %s-%s, status 0x%x\n",
                    size * 4, total,
-                   host->fifo_mode ? "FIFO" : "IDMA", mask);
+                   host->fifo_mode ? "FIFO" : "IDMA",
+                   data->flags == MMC_DATA_READ ? "Read" : "Write", mask);
             ret = -EINVAL;
             break;
         }
@@ -357,7 +358,7 @@ static int aic_sdmc_setup_bus(struct aic_sdmc *host, u32 freq)
             host->index, aic_sdmc_buswidth(host->pdata->buswidth),
             sclk / 1000, freq / 1000,
             div ? sclk / mux / div / 2 / 1000 : sclk / mux / 1000,
-            mux, div);
+            mux, div * 2);
 
     hal_sdmc_set_div(&host->host, div);
     hal_sdmc_set_cmd(&host->host,

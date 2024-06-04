@@ -145,4 +145,14 @@ int db_disconnect(char *name);
  *
  */
 char *db_get_name(void);
+
+
+/**
+ * This function will connect DB
+ *
+ * @param name the DB filename.
+ * @return RT_EOK:success
+ *         -RT_ERROR:the input name is too long
+ */
+int db_set_name(char *name);
 #endif

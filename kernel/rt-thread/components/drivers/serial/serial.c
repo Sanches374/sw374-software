@@ -304,6 +304,19 @@ rt_inline int _serial_int_rx(struct rt_serial_device *serial, rt_uint8_t *data, 
         /* otherwise there's the data: */
         ch = rx_fifo->buffer[rx_fifo->get_index];
         rx_fifo->get_index += 1;
+
+        if (serial->config.function == RT_SERIAL_RS232_UNAUTO_FLOW_CTRL ||
+            serial->config.function == RT_SERIAL_RS232_SW_FLOW_CTRL ||
+            serial->config.function == RT_SERIAL_RS232_SW_HW_FLOW_CTRL )
+        {
+            if (serial->config.flowctrl_rts_enable == 1)
+            {
+                rt_flowctrl_low_detect(serial, 1, RT_SERIAL_INT_FCL_BUFFER);
+            }
+        }
+
+
+
         if (rx_fifo->get_index >= serial->config.bufsz) rx_fifo->get_index = 0;
 
         if (rx_fifo->is_full == RT_TRUE)
@@ -397,6 +410,83 @@ static rt_size_t _serial_fifo_calc_recved_len(struct rt_serial_device *serial)
     }
 }
 #endif /* RT_USING_POSIX_STDIO || RT_SERIAL_USING_DMA */
+
+/**
+ * Flow control high level detect.
+ *
+ * @param serial serial device
+ * @param len received length for this transmit
+ * @param flow_ctrl_high_flag flow control high level buffer
+ */
+void rt_flowctrl_high_detect(struct rt_serial_device *serial, rt_size_t len,  rt_size_t flow_ctrl_high_flag)
+{
+    struct rt_serial_rx_fifo *rx_fifo = (struct rt_serial_rx_fifo *)serial->serial_rx;
+    rt_size_t  temp = 0;
+
+    RT_ASSERT(rx_fifo != RT_NULL);
+
+    if ((rx_fifo->get_index <= rx_fifo->put_index) &&
+        (serial->config.flow_ctrl_suspend == 0))
+    {
+        temp = rx_fifo->put_index + len - rx_fifo->get_index;
+        if (temp >= serial->config.bufsz - flow_ctrl_high_flag)
+        {
+            serial->ops->control(serial, RT_SERIAL_232_SUSPEND_DATA, NULL);
+            serial->config.flow_ctrl_suspend = 1;
+            LOG_D("uart rs232 suspend data!");
+        }
+    }
+    else
+    {
+        temp = rx_fifo->put_index + len + serial->config.bufsz - rx_fifo->get_index;
+        if ((temp >= serial->config.bufsz - flow_ctrl_high_flag) &&
+            (serial->config.flow_ctrl_suspend == 0))
+        {
+            serial->ops->control(serial, RT_SERIAL_232_SUSPEND_DATA, NULL);
+            serial->config.flow_ctrl_suspend = 1;
+            LOG_D("uart rs232 suspend data!");
+        }
+    }
+}
+
+/**
+ * Flow control low level detect.
+ *
+ * @param serial serial device
+ * @param len received length for this transmit
+ * @param flow_ctrl_low_flag flow control low level buffer
+ */
+void rt_flowctrl_low_detect(struct rt_serial_device *serial, rt_size_t len, rt_size_t flow_ctrl_low_flag)
+{
+    struct rt_serial_rx_fifo *rx_fifo = (struct rt_serial_rx_fifo *) serial->serial_rx;
+    rt_size_t  temp = 0;
+
+    RT_ASSERT(rx_fifo != RT_NULL);
+    RT_ASSERT(len <= rt_dma_calc_recved_len(serial));
+
+    if ((rx_fifo->get_index <= rx_fifo->put_index) &&
+        serial->config.flow_ctrl_suspend == 1)
+    {
+        temp = rx_fifo->put_index - len - rx_fifo->get_index;
+        if (temp <= serial->config.bufsz - flow_ctrl_low_flag)
+        {
+            serial->ops->control(serial, RT_SERIAL_232_RESUME_DATA, NULL);
+            serial->config.flow_ctrl_suspend = 0;
+            LOG_D("uart rs232 resume data!");
+        }
+    }
+    else if ((rx_fifo->get_index > rx_fifo->put_index) &&
+             serial->config.flow_ctrl_suspend == 1)
+    {
+        temp = rx_fifo->put_index - len + serial->config.bufsz - rx_fifo->get_index;
+        if (temp <= serial->config.bufsz - flow_ctrl_low_flag)
+        {
+            serial->ops->control(serial, RT_SERIAL_232_RESUME_DATA, NULL);
+            serial->config.flow_ctrl_suspend = 0;
+            LOG_D("uart rs232 resume data!");
+        }
+    }
+}
 
 #ifdef RT_SERIAL_USING_DMA
 /**
@@ -535,6 +625,17 @@ rt_inline int _serial_dma_rx(struct rt_serial_device *serial, rt_uint8_t *data, 
             rt_memcpy(data + serial->config.bufsz - rx_fifo->get_index, rx_fifo->buffer,
                     recv_len + rx_fifo->get_index - serial->config.bufsz);
         }
+
+        if (serial->config.function == RT_SERIAL_RS232_UNAUTO_FLOW_CTRL ||
+            serial->config.function == RT_SERIAL_RS232_SW_FLOW_CTRL ||
+            serial->config.function == RT_SERIAL_RS232_SW_HW_FLOW_CTRL)
+        {
+            if (serial->config.flowctrl_rts_enable == 1)
+            {
+                rt_flowctrl_low_detect(serial, recv_len, RT_SERIAL_DMA_FCL_BUFFER);
+            }
+        }
+
         rt_dma_recv_update_get_index(serial, recv_len);
         rt_hw_interrupt_enable(level);
         return recv_len;
@@ -857,7 +958,7 @@ static rt_size_t rt_serial_read(struct rt_device *dev,
 
     if (dev->open_flag & RT_DEVICE_FLAG_INT_RX)
     {
-        if (serial->config.function == RT_SERIAL_RS485_MODE) {
+        if (serial->config.function == RT_SERIAL_RS485_SIMULATION_MODE) {
             serial->ops->control(serial, RT_SERIAL_RS485_RTS_LOW, RT_NULL);
         }
         return _serial_int_rx(serial, (rt_uint8_t *)buffer, size);
@@ -869,7 +970,7 @@ static rt_size_t rt_serial_read(struct rt_device *dev,
     }
 #endif /* RT_SERIAL_USING_DMA */
 
-    if (serial->config.function == RT_SERIAL_RS485_MODE) {
+    if (serial->config.function == RT_SERIAL_RS485_SIMULATION_MODE) {
         serial->ops->control(serial, RT_SERIAL_RS485_RTS_LOW, RT_NULL);
     }
     return _serial_poll_rx(serial, (rt_uint8_t *)buffer, size);
@@ -889,7 +990,7 @@ static rt_size_t rt_serial_write(struct rt_device *dev,
 
     if (dev->open_flag & RT_DEVICE_FLAG_INT_TX)
     {
-        if (serial->config.function == RT_SERIAL_RS485_MODE) {
+        if (serial->config.function == RT_SERIAL_RS485_SIMULATION_MODE) {
             serial->ops->control(serial, RT_SERIAL_RS485_RTS_HIGH, RT_NULL);
         }
         return _serial_int_tx(serial, (const rt_uint8_t *)buffer, size);
@@ -902,7 +1003,7 @@ static rt_size_t rt_serial_write(struct rt_device *dev,
 #endif /* RT_SERIAL_USING_DMA */
     else
     {
-        if (serial->config.function == RT_SERIAL_RS485_MODE) {
+        if (serial->config.function == RT_SERIAL_RS485_SIMULATION_MODE) {
             serial->ops->control(serial, RT_SERIAL_RS485_RTS_HIGH, RT_NULL);
         }
         return _serial_poll_tx(serial, (const rt_uint8_t *)buffer, size);
@@ -1312,6 +1413,86 @@ rt_err_t rt_hw_serial_register(struct rt_serial_device *serial,
     return ret;
 }
 
+void rt_serial_rx_ind(struct rt_serial_device *serial)
+{
+    int ch = -1;
+    rt_base_t level;
+    struct rt_serial_rx_fifo* rx_fifo;
+
+    /* interrupt mode receive */
+    if (NULL == serial->serial_rx) {
+        while (1)
+        {
+            ch = serial->ops->getc(serial);
+            if (ch == -1) break;
+        }
+        return;
+    }
+
+    rx_fifo = (struct rt_serial_rx_fifo*)serial->serial_rx;
+    RT_ASSERT(rx_fifo != RT_NULL);
+
+    while (1)
+    {
+        ch = serial->ops->getc(serial);
+        if (ch == -1) break;
+
+
+        /* disable interrupt */
+        level = rt_hw_interrupt_disable();
+
+        rx_fifo->buffer[rx_fifo->put_index] = ch;
+        rx_fifo->put_index += 1;
+        if (rx_fifo->put_index >= serial->config.bufsz) rx_fifo->put_index = 0;
+
+        if ((serial->config.function == RT_SERIAL_RS232_UNAUTO_FLOW_CTRL ||
+            serial->config.function == RT_SERIAL_RS232_SW_FLOW_CTRL ||
+            serial->config.function == RT_SERIAL_RS232_SW_HW_FLOW_CTRL) &&
+            serial->config.flowctrl_rts_enable == 1)
+        {
+            rt_flowctrl_high_detect(serial, 1, RT_SERIAL_INT_FCH_BUFFER);
+        }
+
+        if ((serial->config.function == RT_SERIAL_RS232_SW_FLOW_CTRL ||
+            serial->config.function == RT_SERIAL_RS232_SW_HW_FLOW_CTRL) &&
+            serial->config.flowctrl_cts_enable == 1)
+        {
+            serial->ops->control(serial, RT_SERIAL_SW_RECEIVE_ON_OFF, &ch);
+        }
+
+        /* if the next position is read index, discard this 'read char' */
+        if (rx_fifo->put_index == rx_fifo->get_index)
+        {
+            rx_fifo->get_index += 1;
+            rx_fifo->is_full = RT_TRUE;
+            if (rx_fifo->get_index >= serial->config.bufsz) rx_fifo->get_index = 0;
+
+            _serial_check_buffer_size();
+        }
+
+        /* enable interrupt */
+        rt_hw_interrupt_enable(level);
+    }
+
+    /* invoke callback */
+    if (serial->parent.rx_indicate != RT_NULL)
+    {
+        rt_size_t rx_length;
+
+        /* get rx length */
+        level = rt_hw_interrupt_disable();
+        rx_length = (rx_fifo->put_index >= rx_fifo->get_index)?
+                    (rx_fifo->put_index - rx_fifo->get_index):
+                    (serial->config.bufsz - (rx_fifo->get_index - rx_fifo->put_index));
+        rt_hw_interrupt_enable(level);
+
+        if (rx_length)
+        {
+            serial->parent.rx_indicate(&serial->parent, rx_length);
+        }
+    }
+}
+
 /* ISR for serial interrupt */
 void rt_hw_serial_isr(struct rt_serial_device *serial, int event)
 {
@@ -1319,66 +1500,7 @@ void rt_hw_serial_isr(struct rt_serial_device *serial, int event)
     {
         case RT_SERIAL_EVENT_RX_IND:
         {
-            int ch = -1;
-            rt_base_t level;
-            struct rt_serial_rx_fifo* rx_fifo;
-
-            /* interrupt mode receive */
-            if (NULL == serial->serial_rx) {
-                while (1)
-                {
-                    ch = serial->ops->getc(serial);
-                    if (ch == -1) break;
-                }
-                return;
-            }
-
-            rx_fifo = (struct rt_serial_rx_fifo*)serial->serial_rx;
-            RT_ASSERT(rx_fifo != RT_NULL);
-
-            while (1)
-            {
-                ch = serial->ops->getc(serial);
-                if (ch == -1) break;
-
-
-                /* disable interrupt */
-                level = rt_hw_interrupt_disable();
-
-                rx_fifo->buffer[rx_fifo->put_index] = ch;
-                rx_fifo->put_index += 1;
-                if (rx_fifo->put_index >= serial->config.bufsz) rx_fifo->put_index = 0;
-
-                /* if the next position is read index, discard this 'read char' */
-                if (rx_fifo->put_index == rx_fifo->get_index)
-                {
-                    rx_fifo->get_index += 1;
-                    rx_fifo->is_full = RT_TRUE;
-                    if (rx_fifo->get_index >= serial->config.bufsz) rx_fifo->get_index = 0;
-
-                    _serial_check_buffer_size();
-                }
-
-                /* enable interrupt */
-                rt_hw_interrupt_enable(level);
-            }
-
-            /* invoke callback */
-            if (serial->parent.rx_indicate != RT_NULL)
-            {
-                rt_size_t rx_length;
-
-                /* get rx length */
-                level = rt_hw_interrupt_disable();
-                rx_length = (rx_fifo->put_index >= rx_fifo->get_index)? (rx_fifo->put_index - rx_fifo->get_index):
-                    (serial->config.bufsz - (rx_fifo->get_index - rx_fifo->put_index));
-                rt_hw_interrupt_enable(level);
-
-                if (rx_length)
-                {
-                    serial->parent.rx_indicate(&serial->parent, rx_length);
-                }
-            }
+            rt_serial_rx_ind(serial);
             break;
         }
         case RT_SERIAL_EVENT_TX_DONE:
@@ -1441,6 +1563,15 @@ void rt_hw_serial_isr(struct rt_serial_device *serial, int event)
             {
                 /* disable interrupt */
                 level = rt_hw_interrupt_disable();
+
+                /* flow control high level detect */
+                if ((serial->config.function == RT_SERIAL_RS232_UNAUTO_FLOW_CTRL ||
+                    serial->config.function == RT_SERIAL_RS232_SW_FLOW_CTRL  ||
+                    serial->config.function == RT_SERIAL_RS232_SW_HW_FLOW_CTRL) &&
+                    serial->config.flowctrl_rts_enable == 1)
+                {
+                    rt_flowctrl_high_detect(serial, length, RT_SERIAL_DMA_FCH_BUFFER);
+                }
                 /* update fifo put index */
                 rt_dma_recv_update_put_index(serial, length);
                 /* calculate received total length */

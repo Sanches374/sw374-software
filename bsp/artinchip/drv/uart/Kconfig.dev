@@ -56,6 +56,9 @@ menu "Uart0 Parameter"
 
         config AIC_DEV_UART0_MODE_RS485_COMPACT_IO
             bool "rs485 compact io"
+
+        config AIC_DEV_UART0_MODE_RS485_SIMULATION
+            bool "simulation rs485"
     endchoice
 
     config AIC_DEV_UART0_MODE
@@ -67,6 +70,7 @@ menu "Uart0 Parameter"
        default 4     if AIC_DEV_UART0_MODE_RS232_UNAUTO_FLOW_CTRL
        default 5     if AIC_DEV_UART0_MODE_RS232_SW_FLOW_CTRL
        default 6     if AIC_DEV_UART0_MODE_RS232_SW_HW_FLOW_CTRL
+       default 7     if AIC_DEV_UART0_MODE_RS485_SIMULATION
 
    menuconfig AIC_UART0_RTS_ENABLE
         bool
@@ -97,12 +101,15 @@ menu "Uart0 Parameter"
     config AIC_UART0_RTS_NAME
         string "uart0 rts pin"
         default "PA.3"
-        depends on AIC_DEV_UART0_MODE_RS485
+        depends on AIC_DEV_UART0_MODE_RS485_SIMULATION
 
     config AIC_UART0_DMA_ENABLE_FLAG
         bool "Enable uart0 dma mode"
         default n
-        select RT_SERIAL_USING_DMA
+
+    config AIC_SERIAL_USING_DMA
+        bool
+        default y     if AIC_UART0_DMA_ENABLE_FLAG
 
     config AIC_UART0_FLAG
        int
@@ -191,6 +198,9 @@ menu "Uart1 Parameter"
 
         config AIC_DEV_UART1_MODE_RS485_COMPACT_IO
             bool "rs485 compact io"
+
+        config AIC_DEV_UART1_MODE_RS485_SIMULATION
+            bool "simulation rs485"
     endchoice
 
     config AIC_DEV_UART1_MODE
@@ -202,6 +212,7 @@ menu "Uart1 Parameter"
        default 4     if AIC_DEV_UART1_MODE_RS232_UNAUTO_FLOW_CTRL
        default 5     if AIC_DEV_UART1_MODE_RS232_SW_FLOW_CTRL
        default 6     if AIC_DEV_UART1_MODE_RS232_SW_HW_FLOW_CTRL
+       default 7     if AIC_DEV_UART1_MODE_RS485_SIMULATION
 
     menuconfig AIC_UART1_RTS_ENABLE
         bool
@@ -232,12 +243,15 @@ menu "Uart1 Parameter"
     config AIC_UART1_RTS_NAME
         string "uart1 rts pin"
         default "PA.3"
-        depends on AIC_DEV_UART1_MODE_RS485
+        depends on AIC_DEV_UART1_MODE_RS485_SIMULATION
 
     config AIC_UART1_DMA_ENABLE_FLAG
         bool "Enable uart1 dma mode"
         default n
-        select RT_SERIAL_USING_DMA
+
+    config AIC_SERIAL_USING_DMA
+        bool
+        default y     if AIC_UART1_DMA_ENABLE_FLAG
 
     config AIC_UART1_FLAG
        int
@@ -327,7 +341,8 @@ menu "Uart2 Parameter"
         config AIC_DEV_UART2_MODE_RS485_COMPACT_IO
             bool "rs485 compact io"
 
-
+        config AIC_DEV_UART2_MODE_RS485_SIMULATION
+                bool "simulation rs485"
     endchoice
 
     config AIC_DEV_UART2_MODE
@@ -339,6 +354,7 @@ menu "Uart2 Parameter"
        default 4     if AIC_DEV_UART2_MODE_RS232_UNAUTO_FLOW_CTRL
        default 5     if AIC_DEV_UART2_MODE_RS232_SW_FLOW_CTRL
        default 6     if AIC_DEV_UART2_MODE_RS232_SW_HW_FLOW_CTRL
+       default 7     if AIC_DEV_UART2_MODE_RS485_SIMULATION
 
 
     menuconfig AIC_UART2_RTS_ENABLE
@@ -371,12 +387,15 @@ menu "Uart2 Parameter"
     config AIC_UART2_RTS_NAME
         string "uart2 rts pin"
         default "PA.3"
-        depends on AIC_DEV_UART2_MODE_RS485
+        depends on AIC_DEV_UART2_MODE_RS485_SIMULATION
 
     config AIC_UART2_DMA_ENABLE_FLAG
         bool "Enable uart2 dma mode"
         default n
-        select RT_SERIAL_USING_DMA
+
+    config AIC_SERIAL_USING_DMA
+        bool
+        default y     if AIC_UART2_DMA_ENABLE_FLAG
 
     config AIC_UART2_FLAG
        int
@@ -465,6 +484,9 @@ menu "Uart3 Parameter"
 
         config AIC_DEV_UART3_MODE_RS485_COMPACT_IO
             bool "rs485 compact io"
+
+        config AIC_DEV_UART3_MODE_RS485_SIMULATION
+                bool "simulation rs485"
     endchoice
 
     config AIC_DEV_UART3_MODE
@@ -476,6 +498,7 @@ menu "Uart3 Parameter"
        default 4     if AIC_DEV_UART3_MODE_RS232_UNAUTO_FLOW_CTRL
        default 5     if AIC_DEV_UART3_MODE_RS232_SW_FLOW_CTRL
        default 6     if AIC_DEV_UART3_MODE_RS232_SW_HW_FLOW_CTRL
+       default 7     if AIC_DEV_UART3_MODE_RS485_SIMULATION
 
    menuconfig AIC_UART3_RTS_ENABLE
         bool
@@ -506,12 +529,15 @@ menu "Uart3 Parameter"
     config AIC_UART3_RTS_NAME
         string "uart3 rts pin"
         default "PA.3"
-        depends on AIC_DEV_UART3_MODE_RS485
+        depends on AIC_DEV_UART3_MODE_RS485_SIMULATION
 
     config AIC_UART3_DMA_ENABLE_FLAG
         bool "Enable uart3 dma mode"
         default n
-        select RT_SERIAL_USING_DMA
+
+    config AIC_SERIAL_USING_DMA
+        bool
+        default y     if AIC_UART3_DMA_ENABLE_FLAG
 
     config AIC_UART3_FLAG
        int
@@ -600,6 +626,9 @@ menu "Uart4 Parameter"
 
         config AIC_DEV_UART4_MODE_RS485_COMPACT_IO
             bool "rs485 compact io"
+
+        config AIC_DEV_UART4_MODE_RS485_SIMULATION
+            bool "simulation rs485"
     endchoice
 
     config AIC_DEV_UART4_MODE
@@ -611,6 +640,7 @@ menu "Uart4 Parameter"
        default 4     if AIC_DEV_UART4_MODE_RS232_UNAUTO_FLOW_CTRL
        default 5     if AIC_DEV_UART4_MODE_RS232_SW_FLOW_CTRL
        default 6     if AIC_DEV_UART4_MODE_RS232_SW_HW_FLOW_CTRL
+       default 7     if AIC_DEV_UART4_MODE_RS485_SIMULATION
 
    menuconfig AIC_UART4_RTS_ENABLE
         bool
@@ -641,12 +671,16 @@ menu "Uart4 Parameter"
     config AIC_UART4_RTS_NAME
         string "uart4 rts pin"
         default "PC.6"
-        depends on AIC_DEV_UART4_MODE_RS485
+        depends on AIC_DEV_UART4_MODE_RS485_SIMULATION
 
     config AIC_UART4_DMA_ENABLE_FLAG
         bool "Enable uart4 dma mode"
         default n
-        select RT_SERIAL_USING_DMA
+
+    config AIC_SERIAL_USING_DMA
+        bool
+        default y     if AIC_UART4_DMA_ENABLE_FLAG
+        default n
 
     config AIC_UART4_FLAG
        int
@@ -735,6 +769,9 @@ menu "Uart5 Parameter"
 
         config AIC_DEV_UART5_MODE_RS485_COMPACT_IO
             bool "rs485 compact io"
+
+        config AIC_DEV_UART5_MODE_RS485_SIMULATION
+            bool "simulation rs485"
     endchoice
 
     config AIC_DEV_UART5_MODE
@@ -746,6 +783,7 @@ menu "Uart5 Parameter"
        default 4     if AIC_DEV_UART5_MODE_RS232_UNAUTO_FLOW_CTRL
        default 5     if AIC_DEV_UART5_MODE_RS232_SW_FLOW_CTRL
        default 6     if AIC_DEV_UART5_MODE_RS232_SW_HW_FLOW_CTRL
+       default 7     if AIC_DEV_UART5_MODE_RS485_SIMULATION
 
    menuconfig AIC_UART5_RTS_ENABLE
         bool
@@ -776,12 +814,15 @@ menu "Uart5 Parameter"
     config AIC_UART5_RTS_NAME
         string "uart5 rts pin"
         default "PA.3"
-        depends on AIC_DEV_UART5_MODE_RS485
+        depends on AIC_DEV_UART5_MODE_RS485_SIMULATION
 
     config AIC_UART5_DMA_ENABLE_FLAG
         bool "Enable uart5 dma mode"
         default n
-        select RT_SERIAL_USING_DMA
+
+    config AIC_SERIAL_USING_DMA
+        bool
+        default y     if AIC_UART5_DMA_ENABLE_FLAG
 
     config AIC_UART5_FLAG
        int
@@ -868,8 +909,11 @@ menu "Uart6 Parameter"
         config AIC_DEV_UART6_MODE_RS485
             bool "rs485"
 
-         config AIC_DEV_UART6_MODE_RS485_COMPACT_IO
+        config AIC_DEV_UART6_MODE_RS485_COMPACT_IO
             bool "rs485 compact io"
+
+        config AIC_DEV_UART6_MODE_RS485_SIMULATION
+            bool "simulation rs485"
     endchoice
 
     config AIC_DEV_UART6_MODE
@@ -881,6 +925,7 @@ menu "Uart6 Parameter"
        default 4     if AIC_DEV_UART6_MODE_RS232_UNAUTO_FLOW_CTRL
        default 5     if AIC_DEV_UART6_MODE_RS232_SW_FLOW_CTRL
        default 6     if AIC_DEV_UART6_MODE_RS232_SW_HW_FLOW_CTRL
+       default 7     if AIC_DEV_UART6_MODE_RS485_SIMULATION
 
     menuconfig AIC_UART6_RTS_ENABLE
         bool
@@ -911,12 +956,15 @@ menu "Uart6 Parameter"
     config AIC_UART6_RTS_NAME
         string "uart6 rts pin"
         default "PA.3"
-        depends on AIC_DEV_UART6_MODE_RS485
+        depends on AIC_DEV_UART6_MODE_RS485_SIMULATION
 
     config AIC_UART6_DMA_ENABLE_FLAG
         bool "Enable uart6 dma mode"
         default n
-        select RT_SERIAL_USING_DMA
+
+    config AIC_SERIAL_USING_DMA
+        bool
+        default y     if AIC_UART6_DMA_ENABLE_FLAG
 
     config AIC_UART6_FLAG
        int
@@ -1006,6 +1054,9 @@ menu "Uart7 Parameter"
         config AIC_DEV_UART7_MODE_RS485_COMPACT_IO
             bool "rs485 compact io"
 
+        config AIC_DEV_UART7_MODE_RS485_SIMULATION
+            bool "simulation rs485"
+
     endchoice
 
     config AIC_DEV_UART7_MODE
@@ -1017,6 +1068,7 @@ menu "Uart7 Parameter"
        default 4     if AIC_DEV_UART7_MODE_RS232_UNAUTO_FLOW_CTRL
        default 5     if AIC_DEV_UART7_MODE_RS232_SW_FLOW_CTRL
        default 6     if AIC_DEV_UART7_MODE_RS232_SW_HW_FLOW_CTRL
+       default 7     if AIC_DEV_UART7_MODE_RS485_SIMULATION
 
     menuconfig AIC_UART7_RTS_ENABLE
         bool
@@ -1047,12 +1099,15 @@ menu "Uart7 Parameter"
     config AIC_UART7_RTS_NAME
         string "uart7 rts pin"
         default "PA.3"
-        depends on AIC_DEV_UART7_MODE_RS485
+        depends on AIC_DEV_UART7_MODE_RS485_SIMULATION
 
     config AIC_UART7_DMA_ENABLE_FLAG
         bool "Enable uart7 dma mode"
         default n
-        select RT_SERIAL_USING_DMA
+
+    config AIC_SERIAL_USING_DMA
+        bool
+        default y     if AIC_UART7_DMA_ENABLE_FLAG
 
     config AIC_UART7_FLAG
        int

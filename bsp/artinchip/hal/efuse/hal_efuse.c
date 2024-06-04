@@ -21,6 +21,7 @@
 #define EFUSE_REG_WFRID     (SID_BASE + 0x0018)
 #define EFUSE_REG_PKGID     (SID_BASE + 0x001C)
 #define EFUSE_REG_JTAG      (SID_BASE + 0x0080)
+#define EFUSE_REG_VER       (SID_BASE + 0x00FC)
 #define EFUSE_REG_SRAM      (SID_BASE + 0x200)
 
 #define EFUSE_CTL_BROM_PRIV_LOCK (0x1 << 28)
@@ -59,6 +60,11 @@ int hal_efuse_deinit(void)
     hal_clk_disable(CLK_SID);
 
     return 0;
+}
+
+int hal_efuse_get_version(void)
+{
+    return readl(EFUSE_REG_VER);
 }
 
 int hal_efuse_wait_ready(void)

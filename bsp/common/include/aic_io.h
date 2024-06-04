@@ -22,12 +22,26 @@ extern "C" {
                              (~(0U) >> (BITS_PER_LONG - 1 - (h))))
 #define GENMASK_UL(h, l)    (((~(0UL)) - ((1UL) << (l)) + 1) & \
                              (~(0UL) >> (BITS_PER_LONG - 1 - (h))))
+#define uswap_16(x) \
+    ((((x) & 0xff00) >> 8) | \
+     (((x) & 0x00ff) << 8))
+#define uswap_32(x) \
+    ((((x) & 0xff000000) >> 24) | \
+     (((x) & 0x00ff0000) >>  8) | \
+     (((x) & 0x0000ff00) <<  8) | \
+     (((x) & 0x000000ff) << 24))
 
 #define cpu_to_le16(val) (val)
 #define cpu_to_le32(val) (val)
 
 #define le16_to_cpu(val) (val)
 #define le32_to_cpu(val) (val)
+
+#define cpu_to_be16(val) uswap_16(val)
+#define cpu_to_be32(val) uswap_32(val)
+
+#define be16_to_cpu(val) uswap_16(val)
+#define be32_to_cpu(val) uswap_32(val)
 
 #define readb_cpu(c)    ({ u8  __r = __raw_readb(c); __r; })
 #define readl_cpu(c)    ({ u32 __r = le32_to_cpu(__raw_readl(c)); __r; })

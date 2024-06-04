@@ -40,7 +40,10 @@ CONSOLE_CMD(reboot, do_reset_boot, "Reboot device.");
 static int cmd_aicupg(int argc, char **argv)
 {
 #ifdef AIC_WRI_DRV
-    aic_set_reboot_reason(REBOOT_REASON_UPGRADE);
+    if ((argc == 2) && !strcmp(argv[1], "gotobl"))
+        aic_set_reboot_reason(REBOOT_REASON_BL_UPGRADE);
+    else
+        aic_set_reboot_reason(REBOOT_REASON_UPGRADE);
 #endif
     do_reset_boot(0, NULL);
     return 0;

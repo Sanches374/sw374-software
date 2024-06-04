@@ -23,6 +23,7 @@ extern "C" {
 #define RT_I2C_DEV_CTRL_TIMEOUT      (RT_DEVICE_CTRL_BASE(I2CBUS) + 0x03)
 #define RT_I2C_DEV_CTRL_RW           (RT_DEVICE_CTRL_BASE(I2CBUS) + 0x04)
 #define RT_I2C_DEV_CTRL_CLK          (RT_DEVICE_CTRL_BASE(I2CBUS) + 0x05)
+#define RT_I2C_DEV_SLAVE_CONFIG      (RT_DEVICE_CTRL_BASE(I2CBUS) + 0x06)
 
 struct rt_i2c_priv_data
 {

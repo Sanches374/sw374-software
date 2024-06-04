@@ -134,6 +134,15 @@ static rt_err_t aic_can_control(struct rt_can_device *can, int cmd, void *arg)
 
         hal_can_ioctl(phandle, CAN_IOCTL_SET_FILTER, (void *)&filter_cfg);
         break;
+    case RT_CAN_CMD_SET_MODE:
+        phandle->mode = (unsigned long)arg;
+        if (phandle->mode == CAN_MODE_NORMAL) {
+            hal_can_ioctl(phandle, CAN_IOCTL_RELEASE_MODE,
+                          (void *)phandle->mode);
+        } else {
+            hal_can_ioctl(phandle, CAN_IOCTL_SET_MODE, (void *)phandle->mode);
+        }
+        break;
     default:
         rt_kprintf("cmd not support\n");
         break;
@@ -150,6 +159,7 @@ static int aic_can_send(struct rt_can_device *can, const void *buf,
     RT_UNUSED(boxno);
     struct aic_can *p_aic_can = (struct aic_can *)can;
     struct rt_can_msg *pmsg = (struct rt_can_msg *)buf;
+    can_handle *phandle = &p_aic_can->canHandle;
     can_msg_t msg;
     int i;
 
@@ -161,7 +171,15 @@ static int aic_can_send(struct rt_can_device *can, const void *buf,
     for (i = 0; i < msg.dlc; i++)
         msg.data[i] = pmsg->data[i];
 
-    hal_can_send_frame(&p_aic_can->canHandle, &msg, TX_REQ);
+    switch (phandle->mode)
+    {
+    case CAN_SELFTEST_MODE:
+        hal_can_send_frame(&p_aic_can->canHandle, &msg, SELF_REQ);
+        break;
+    default:
+         hal_can_send_frame(&p_aic_can->canHandle, &msg, TX_REQ);
+         break;
+    }
 
     return 0;
 }

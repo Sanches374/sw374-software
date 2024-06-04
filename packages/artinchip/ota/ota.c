@@ -510,6 +510,8 @@ int ota_shard_download_fun(char *buffer, int length)
 
         partname = aic_upgrade_get_partname(flag_cpio);
 
+        LOG_I("Start upgrade to %s, flag_cpio:%d!", partname, flag_cpio);
+
         ret = aic_ota_find_part(partname);
         if (ret)
             goto __download_exit;

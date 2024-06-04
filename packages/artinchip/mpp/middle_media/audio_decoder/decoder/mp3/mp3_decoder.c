@@ -142,7 +142,6 @@ int decode_final_frame(struct aic_audio_decoder *decoder)
     }
     unproc_data_len = mp3_decoder->stream.bufend - mp3_decoder->stream.next_frame;
     if (unproc_data_len <= 0) {
-        printf("something wrong happen\n");
         return DEC_NO_RENDER_FRAME;
     }
     memcpy(mp3_decoder->mad_buffer,mp3_decoder->stream.next_frame,unproc_data_len);
@@ -150,8 +149,7 @@ int decode_final_frame(struct aic_audio_decoder *decoder)
     mad_stream_buffer(&mp3_decoder->stream,mp3_decoder->mad_buffer,need_proc_data_len);
     ret = mad_frame_decode(&mp3_decoder->frame,&mp3_decoder->stream);
     if(ret != MAD_ERROR_NONE) {
-        printf("%s\n",mad_stream_errorstr(&mp3_decoder->stream));
-        printf("something wrong happen\n");
+        printf("%s:unproc_data_len:%d\n",mad_stream_errorstr(&mp3_decoder->stream),unproc_data_len);
         return DEC_NO_RENDER_FRAME;
     }
     mad_synth_frame(&mp3_decoder->synth,&mp3_decoder->frame);
@@ -187,7 +185,25 @@ int __mp3_decode_frame(struct aic_audio_decoder *decoder)
 
     if (audio_pm_get_ready_packet_num(mp3_decoder->decoder.pm) == 0) {
         if (mp3_decoder->final_frame == 1) {
-            return decode_final_frame(decoder);
+            struct aic_audio_frame *frame;
+
+            ret = decode_final_frame(decoder);
+            if (ret == DEC_NO_EMPTY_FRAME || ret== DEC_OK) {
+                return ret;
+            }
+
+            if(ret == DEC_ERR_NULL_PTR) {
+                mp3_decoder->final_frame = 0;
+                return ret;
+            }
+            //When decoding the end frame fails, use zero data instead.
+            printf("decoding the end frame fail,use zero data instead\n");
+            frame = audio_fm_decoder_get_frame(mp3_decoder->decoder.fm);
+            memset(frame->data,0x00,frame->size);
+            frame->flag |= PACKET_FLAG_EOS;
+            audio_fm_decoder_put_frame(mp3_decoder->decoder.fm, frame);
+            mp3_decoder->final_frame = 0;
+            return DEC_OK;
         }
         return DEC_NO_READY_PACKET;
     }

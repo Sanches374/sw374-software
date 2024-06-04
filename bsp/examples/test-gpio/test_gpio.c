@@ -15,10 +15,10 @@
 #include "aic_hal_gpio.h"
 
 #define INPUT_KEY_PIN               "PD.15"
-#define GPIO_NO_SET_MODE_FLAG       1
-#define GPIO_SET_MODE_FLAG          0
+#define GPIO_NO_SET_MODE_FLAG       0
+#define GPIO_SET_MODE_FLAG          1
 
-static int time_turnaround = 1000;
+static int time_turnaround = 10;
 static int times_enter_irq = 0;
 static const char sopts[] = "i:o:c:t:h";
 static const struct option lopts[] = {

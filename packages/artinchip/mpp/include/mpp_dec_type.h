@@ -102,16 +102,17 @@ struct mpp_dec_crop_info {
  * @output_pos_y: start pos in y for output
  */
 struct mpp_dec_output_pos {
-	int output_pos_x;
-	int output_pos_y;
+    int output_pos_x;
+    int output_pos_y;
 };
 
 enum mpp_codec_type {
-	MPP_CODEC_VIDEO_DECODER_H264 = 0x1000,         // decoder
-	MPP_CODEC_VIDEO_DECODER_MJPEG,
-	MPP_CODEC_VIDEO_DECODER_PNG,
+    MPP_CODEC_VIDEO_DECODER_H264 = 0x1000,         // decoder
+    MPP_CODEC_VIDEO_DECODER_MJPEG,
+    MPP_CODEC_VIDEO_DECODER_PNG,
+    MPP_CODEC_VIDEO_DECODER_AICP,
 
-	MPP_CODEC_VIDEO_ENCODER_H264 = 0x2000,         // encoder
+    MPP_CODEC_VIDEO_ENCODER_H264 = 0x2000,         // encoder
 };
 
 enum mpp_dec_cmd {

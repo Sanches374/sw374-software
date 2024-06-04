@@ -56,6 +56,8 @@ for /f %%i in ('dir /b "%SDK_PRJ_TOP_DIR%\target\configs\*_defconfig"') do (
 	if !errorlevel! equ 0 (
 		rem Scan the warning information in log
 		find "warning: " %LOG_DIR%\!SOLUTION!.log | find "warning: " /i | find "is shorter than expected" /v /c > %LOG_DIR%\warning.tmp
+		find "pinmux conflicts" %LOG_DIR%\!SOLUTION!.log >> %LOG_DIR%\warning.tmp
+
 		for /F %%j in ('type %LOG_DIR%\warning.tmp') do set war_cnt=%%j
 
 		echo !CNT_FMT!. !SOLUTION_FMT! is OK. Warning: !war_cnt!

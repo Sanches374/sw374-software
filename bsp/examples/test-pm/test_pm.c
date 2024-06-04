@@ -29,13 +29,11 @@ static void pm_timer_timeout(void *parameter)
 
     if (sleep_mode == PM_SLEEP_MODE_NONE)
     {
-        rt_pm_run_enter(PM_RUN_MODE_NORMAL_SPEED);
         rt_pm_module_release(PM_POWER_ID, PM_SLEEP_MODE_NONE);
         wakeup_triggered = 0;
     }
     else
     {
-        rt_pm_run_enter(PM_RUN_MODE_MEDIUM_SPEED);
         rt_pm_module_request(PM_POWER_ID, PM_SLEEP_MODE_NONE);
         wakeup_triggered = 1;
     }

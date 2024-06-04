@@ -74,7 +74,7 @@ s32 rt_audio_render_set_attr(struct aic_audio_render *render,struct aic_audio_re
 
     stream = AUDIO_STREAM_REPLAY;
     rt_device_control(rt_render->snd_dev, AUDIO_CTL_START, (void *)&stream);
-    rt_thread_mdelay(100);
+    rt_thread_mdelay(200);
     return 0;
 
 }

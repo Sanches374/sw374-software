@@ -1,4 +1,5 @@
-﻿/*
+﻿// SPDX-License-Identifier: GPL-2.0+
+/*
  * Copyright (c) 2022, Artinchip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
@@ -68,10 +69,10 @@ enum ethtool_link_mode_bit_indices {
     ETHTOOL_LINK_MODE_25000baseCR_Full_BIT = 31,
 
     /* Last allowed bit for __ETHTOOL_LINK_MODE_LEGACY_MASK is bit
-	 * 31. Please do NOT define any SUPPORTED_* or ADVERTISED_*
-	 * macro for bits > 31. The only way to use indices > 31 is to
-	 * use the new ETHTOOL_GLINKSETTINGS/ETHTOOL_SLINKSETTINGS API.
-	 */
+     * 31. Please do NOT define any SUPPORTED_* or ADVERTISED_*
+     * macro for bits > 31. The only way to use indices > 31 is to
+     * use the new ETHTOOL_GLINKSETTINGS/ETHTOOL_SLINKSETTINGS API.
+    */
 
     ETHTOOL_LINK_MODE_25000baseKR_Full_BIT = 32,
     ETHTOOL_LINK_MODE_25000baseSR_Full_BIT = 33,
@@ -329,8 +330,8 @@ enum ethtool_link_mode_bit_indices {
 #define MII_MMD_CTRL_INCR_RDWT  0x8000 /* post increment on reads & writes */
 #define MII_MMD_CTRL_INCR_ON_WT 0xC000 /* post increment on writes only */
 
-int aicphy_init(uint32_t port);
-void aic_phy_poll(void);
+int aicphy_init(aicmac_netif_t *aic_netif);
+void aic_phy_poll(struct netif *netif);
 #ifdef __cplusplus
 }
 #endif

@@ -204,7 +204,7 @@ s32 nand_fwc_uffs_write(struct fwc_info *fwc, u8 *buf, s32 len)
     int total_len = 0, remain_offset = 0;
     u8 *wbuf = NULL, *pbuf = NULL;
 
-    wbuf = malloc(ROUNDUP(len, fwc->block_size));
+    wbuf = aicos_malloc_align(0, ROUNDUP(len, fwc->block_size), CACHE_LINE_SIZE);
     if (!wbuf) {
         pr_err("malloc failed.\n");
         return 0;
@@ -291,13 +291,13 @@ s32 nand_fwc_uffs_write(struct fwc_info *fwc, u8 *buf, s32 len)
 
     pr_debug("%s, data len %d, trans len %d\n", __func__, len, fwc->trans_size);
 
-    free(wbuf);
+    aicos_free_align(0, wbuf);
 
     return len;
 
 out:
     if (wbuf)
-        free(wbuf);
+        aicos_free_align(0, wbuf);
 
     return ret;
 }

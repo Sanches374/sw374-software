@@ -37,12 +37,20 @@ int wav_read_header(struct aic_wav_parser *s)
         ret = -1;
         goto _exit;
     }
-    r_len = aic_stream_read(s->stream, &(s->wav_info.data_block), sizeof(struct wave_data));
-    if (r_len != sizeof(struct wave_data)) {
-        loge("read wave_data fail");
-        ret = -1;
-        goto _exit;
-    }
+
+   do {
+        int len = 0;
+        len = aic_stream_read(s->stream, &(s->wav_info.data_block), sizeof(struct wave_data));
+        if (len != sizeof(struct wave_data)) {
+            ret = -1;
+            goto _exit;
+        } else if (strncmp(s->wav_info.data_block.data_id, "data", 4)) {
+            aic_stream_seek(s->stream, s->wav_info.data_block.data_size, SEEK_CUR);
+        } else {
+            break;
+        }
+    } while(1);
+
     s->bits_per_sample = s->wav_info.fmt_block.wav_format.bits_per_sample;
     s->channels = s->wav_info.fmt_block.wav_format.channels;
     s->sample_rate = s->wav_info.fmt_block.wav_format.sample_rate;

@@ -123,7 +123,6 @@
 #define GPAI_SRC_RX_MAXBURST            1
 #define GPAI_DST_RX_MAXBURST            16
 
-// TODO: irq_handle() should get 'struct aic_gpai_ch *' from 'void *arg'
 extern struct aic_gpai_ch aic_gpai_chs[];
 static u32 aic_gpai_ch_num = 0; // the number of available channel
 
@@ -135,12 +134,6 @@ static inline void gpai_writel(u32 val, int reg)
 static inline u32 gpai_readl(int reg)
 {
     return readl(GPAI_BASE + reg);
-}
-
-// TODO: Add the transform algorithm, offered by SD later
-static s32 gpai_data2vol(u16 data)
-{
-    return data;
 }
 
 static u16 gpai_vol2data(s32 vol)
@@ -333,7 +326,7 @@ int aich_gpai_ch_init(struct aic_gpai_ch *chan, u32 pclk)
     return 0;
 }
 
-int aich_gpai_read(struct aic_gpai_ch *chan, u32 *val, u32 timeout)
+int aich_gpai_read(struct aic_gpai_ch *chan, u16 *val, u32 timeout)
 {
     int ret = 0;
     u32 ch = chan->id;
@@ -343,26 +336,25 @@ int aich_gpai_read(struct aic_gpai_ch *chan, u32 *val, u32 timeout)
         return -ENODATA;
     }
 
-#ifndef CONFIG_ARTINCHIP_ADCIM_DM
     if (chan->mode == AIC_GPAI_MODE_PERIOD) {
-        *val = gpai_data2vol(chan->latest_data);
+        for (int i = 0; i < chan->fifo_valid_cnt; i++) {
+            val[i] = chan->fifo_data[i];
+            pr_debug("[%d]ADC val :%d\n", i, chan->fifo_data[i]);
+        }
         return 0;
     }
-#endif
 
-    aich_gpai_ch_enable(ch, 1);
     gpai_single_mode(ch);
-
     ret = aicos_sem_take(chan->complete, timeout);
     if (ret < 0) {
         hal_log_err("Ch%d read timeout!\n", ch);
         aich_gpai_ch_enable(ch, 0);
         return -ETIMEDOUT;
     }
-    // aich_gpai_ch_enable(ch, 0);
 
     if (val)
-        *val = gpai_data2vol(chan->latest_data);
+        for (int i = 0; i < chan->fifo_valid_cnt; i++)
+            val[i] = chan->fifo_data[i];
 
     return 0;
 }
@@ -407,13 +399,13 @@ static int aic_gpai_read_ch(struct aic_gpai_ch *chan)
         return -1;
     }
 
-    /* Just record the last data as to now */
-    for (i = 0; i < cnt; i++) {
-        chan->latest_data = gpai_readl(GPAI_CHnDATA(ch));
-        // pr_debug("ch%d data%d %d\n", ch, i, chan->latest_data);
-    }
-    pr_debug("There are %d data ready in ch%d, last %d\n", cnt,
-        ch, chan->latest_data);
+    for (i = 0; i < cnt; i++)
+        chan->fifo_data[i] = gpai_readl(GPAI_CHnDATA(ch));
+
+    chan->fifo_valid_cnt = cnt;
+    chan->latest_data = chan->fifo_data[cnt];
+    pr_debug("There are %d data ready in ch%d, last %d\n", cnt, ch,
+             chan->latest_data);
 
     return 0;
 }
@@ -474,6 +466,8 @@ irqreturn_t aich_gpai_isr(int irq, void *arg)
             chan->irq_count++;
             if (chan->mode == AIC_GPAI_MODE_SINGLE)
                 aicos_sem_give(chan->complete);
+            if (chan->irq_info.callback)
+                chan->irq_info.callback(chan->irq_info.callback_param);
         }
 
         if (ch_int & GPAI_CHnINT_LLA_VALID_FLAG)

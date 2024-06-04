@@ -350,8 +350,9 @@ int show_color_block(int fd)
             memcpy(&line1[j * pixel_size], &color, pixel_size);
 
             if (pixel_size == 2) {
-                if (j && (j % 4 == 0)) /* Enlarge the step range for RGB564 */
-                    color -= step;
+                    /* Enlarge the step range for RGB565 */
+                    if (j && !(j % (blk_line == 1 ? 4 : 8)))
+                        color -= step;
             } else {
                 color -= step;
             }
@@ -359,7 +360,7 @@ int show_color_block(int fd)
             if (color == 0) {
                 color = colors[blk_line];
                 if (pixel_size == 2)
-                    j += 4;
+                    j += (blk_line == 1 ? 4 : 8);
                 else
                     j++;
             }
@@ -370,15 +371,15 @@ int show_color_block(int fd)
     /* Draw the location line */
 
     line1 = &fb_buf[width * pixel_size] + pixel_size;
-    line2 = &fb_buf[width * (height - 2) * pixel_size - 101 * pixel_size];
-    for (i = 0; i < 100; i++) {
+    line2 = &fb_buf[width * (height - 2) * pixel_size - ((width >> 3) + 1) * pixel_size];
+    for (i = 0; i < (width >> 3); i++) {
         memcpy(&line1[i * pixel_size], &colors[3], pixel_size);
         memcpy(&line2[i * pixel_size], &colors[3], pixel_size);
     }
 
     line1 = &fb_buf[width * pixel_size] + pixel_size;
-    line2 = &fb_buf[width * (height - 101) * pixel_size - pixel_size];
-    for (i = 0; i < 100; i++) {
+    line2 = &fb_buf[width * (height - (width >> 3) - 1) * pixel_size - pixel_size];
+    for (i = 0; i < (width >> 3); i++) {
         memcpy(&line1[0], &colors[3], pixel_size);
         line1 += width * pixel_size;
         memcpy(&line2[0], &colors[3], pixel_size);

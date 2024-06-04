@@ -1,3 +1,9 @@
+/*
+  SoftwareI2C.cpp
+  2012 Copyright (c) Seeed Technology Inc.  All right reserved.
+  Author:Loovee
+*/
+
 #include "i2c_utils.h"
 
 #ifdef I2C_TOOLS_USE_SW_I2C
@@ -68,6 +74,29 @@ int i2c_probe(char addr)
     unsigned char cmd[1];
     cmd[0] = 0;
 
+#ifdef AIC_I2C_INTERRUPT_MODE
+    rt_uint8_t buffer[1];
+    struct rt_i2c_msg msgs[2];
+
+    msgs[0].addr = addr;
+    msgs[0].flags = RT_I2C_WR;
+    msgs[0].buf = cmd;
+    msgs[0].len = 1;
+
+    msgs[1].addr = addr;
+    msgs[1].flags = RT_I2C_RD;
+    msgs[1].buf = buffer;
+    msgs[1].len = 1;
+
+    if (rt_i2c_transfer(i2c_bus, msgs, 2) == 2)
+    {
+        return GET_ACK;
+    }
+    else
+    {
+        return GET_NACK;
+    }
+#else
     struct rt_i2c_msg msgs;
     msgs.addr = addr;
     msgs.flags = RT_I2C_WR;
@@ -75,6 +104,7 @@ int i2c_probe(char addr)
     msgs.len = 0;
 
     return rt_i2c_transfer(i2c_bus, &msgs, 1);
+#endif
 #endif
 }
 
@@ -98,7 +128,7 @@ rt_bool_t i2c_write(char addr, rt_uint8_t* data, int len)
 rt_uint8_t i2c_read(rt_uint8_t addr, rt_uint8_t reg, rt_uint8_t* buffer, rt_uint8_t len)
 {
     #ifdef I2C_TOOLS_USE_SW_I2C
-        rt_uint8_t ret = 0; 
+        rt_uint8_t ret = 0;
         softwarei2c.requestFrom(addr, len);
         while (softwarei2c.available()) {
             buffer[ret] = softwarei2c.read();
@@ -144,7 +174,7 @@ void i2c_scan(rt_uint8_t start_addr, rt_uint8_t stop_addr)
             rt_kputs("   ");
             continue;
         }
-        if( i2c_probe(pos) == 1)
+        if(i2c_probe(pos) == 1)
         {
             rt_kprintf("%02X", pos);
         }

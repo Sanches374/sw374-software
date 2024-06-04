@@ -186,12 +186,12 @@ static int ccm_gamma_test(int argc, char **argv)
     if (flags & FLAGS_GAMMA)
         gamma.enable = 1;
 
-    mpp_fb_ioctl(fb, AICFB_SET_GAMMA_CONFIG, &gamma);
+    mpp_fb_ioctl(fb, AICFB_UPDATE_GAMMA_CONFIG, &gamma);
 
     if (flags & FLAGS_CCM)
         ccm.enable = 1;
 
-    mpp_fb_ioctl(fb, AICFB_SET_CCM_CONFIG, &ccm);
+    mpp_fb_ioctl(fb, AICFB_UPDATE_CCM_CONFIG, &ccm);
 
     mpp_fb_close(fb);
     return 0;

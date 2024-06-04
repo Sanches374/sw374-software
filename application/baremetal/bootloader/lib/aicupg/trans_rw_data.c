@@ -26,8 +26,10 @@
 #endif
 
 #define RECV_SIZE_USE_DMA 512
-#define TRANS_DATA_BUFF_SIZE (64 * 1024)
+#define TRANS_DATA_BUFF_MAX_SIZE (64 * 1024)
+#define TRANS_DATA_BUFF_MIN_SIZE (20 * 1024)
 static u8 *trans_pkt_buf = NULL;
+static u32 trans_pkt_siz = 0;
 
 static void trans_send_csw(struct phy_data_rw *rw, u32 tag, u8 status, u32 rest)
 {
@@ -56,10 +58,15 @@ s32 trans_layer_rw_proc(struct phy_data_rw *rw, u8 *buffer, u32 len)
     }
 
     if (!trans_pkt_buf) {
-        trans_pkt_buf = aicos_malloc_align(0, TRANS_DATA_BUFF_SIZE, CACHE_LINE_SIZE);
+        trans_pkt_siz = TRANS_DATA_BUFF_MAX_SIZE;
+        trans_pkt_buf = aicos_malloc_align(0, trans_pkt_siz, CACHE_LINE_SIZE);
         if (!trans_pkt_buf) {
-            pr_err("malloc trans pkt buf failed.\n");
-            return -1;
+            trans_pkt_siz = TRANS_DATA_BUFF_MIN_SIZE;
+            trans_pkt_buf = aicos_malloc_align(0, trans_pkt_siz, CACHE_LINE_SIZE);
+            if (!trans_pkt_buf) {
+                pr_err("malloc trans pkt buf(%u) failed.\n", trans_pkt_siz);
+                return -1;
+            }
         }
     }
 
@@ -87,8 +94,8 @@ s32 trans_layer_rw_proc(struct phy_data_rw *rw, u8 *buffer, u32 len)
             rest = data_len;
             total = 0;
             while (rest > 0) {
-                if (rest >= TRANS_DATA_BUFF_SIZE)
-                    slice = TRANS_DATA_BUFF_SIZE;
+                if (rest >= trans_pkt_siz)
+                    slice = trans_pkt_siz;
                 else
                     slice = rest;
 
@@ -121,8 +128,8 @@ s32 trans_layer_rw_proc(struct phy_data_rw *rw, u8 *buffer, u32 len)
             rest = data_len;
             total = 0;
             while (rest > 0) {
-                if (rest >= TRANS_DATA_BUFF_SIZE)
-                    slice = TRANS_DATA_BUFF_SIZE;
+                if (rest >= trans_pkt_siz)
+                    slice = trans_pkt_siz;
                 else
                     slice = rest;
 

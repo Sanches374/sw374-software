@@ -425,6 +425,8 @@ void hal_audio_dmic_start(aic_audio_ctrl *codec)
     hal_audio_flush_dmic_fifo(codec);
     /* Enable RX global */
     hal_audio_enable_rx_global(codec);
+    /* Enable DMIC ADOUT SHIFT */
+    hal_audio_enable_dmic_adout_shift(codec);
     /* Enable DMIC DRQ */
     hal_audio_dmic_enable_drq(codec);
 }

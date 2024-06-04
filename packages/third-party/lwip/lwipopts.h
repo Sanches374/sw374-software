@@ -76,7 +76,7 @@ MEM_SIZE and MEMP_NUM_XXX will be invalid */
 #define MEMP_NUM_TCP_SEG                TCP_SND_QUEUELEN
 #endif
 #define MEMP_NUM_ALTCP_PCB              MEMP_NUM_TCP_PCB
-#define MEMP_NUM_REASSDATA              5
+//#define MEMP_NUM_REASSDATA              5
 #define MEMP_NUM_FRAG_PBUF              15
 #define MEMP_NUM_ARP_QUEUE              30
 #define MEMP_NUM_IGMP_GROUP             8
@@ -467,6 +467,7 @@ MEM_SIZE and MEMP_NUM_XXX will be invalid */
 #define LWIP_IPV6_NUM_ADDRESSES         3
 #define LWIP_IPV6_FORWARD               0
 #define LWIP_IPV6_FRAG                  1
+#define IPV6_FRAG_COPYHEADER            1
 #define LWIP_IPV6_REASS                 (LWIP_IPV6)
 #define LWIP_IPV6_SEND_ROUTER_SOLICIT   1
 #define LWIP_IPV6_AUTOCONFIG            (LWIP_IPV6)
@@ -493,7 +494,7 @@ MEM_SIZE and MEMP_NUM_XXX will be invalid */
 #define LWIP_ND6_ALLOW_RA_UPDATES       1
 #define LWIP_ND6_TCP_REACHABILITY_HINTS 1
 #define LWIP_ND6_RDNSS_MAX_DNS_SERVERS  0
-#define LWIP_IPV6_DHCP6                 0
+#define LWIP_IPV6_DHCP6                 (LWIP_IPV6 && LWIP_DHCP)
 #define LWIP_IPV6_DHCP6_STATEFUL        0
 #define LWIP_IPV6_DHCP6_STATELESS       LWIP_IPV6_DHCP6
 #define LWIP_DHCP6_GET_NTP_SRV          0

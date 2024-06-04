@@ -20,10 +20,6 @@
 #define MAX_MMC_DEV_NUM  3
 #define CONFIG_SYS_MMC_MAX_BLK_COUNT    300
 
-#define be32_to_cpu(x)                                        \
-    ((0x000000ff & ((x) >> 24)) | (0x0000ff00 & ((x) >> 8)) | \
-     (0x00ff0000 & ((x) << 8)) | (0xff000000 & ((x) << 24)))
-
 static void *mmc_dev[MAX_MMC_DEV_NUM];
 static struct aic_sdmc_pdata sdmc_pdata[] = {
 #if defined(AIC_USING_SDMC0)
@@ -299,8 +295,59 @@ static int mmc_send_ext_csd(struct aic_sdmc *host, u8 *ext_csd)
     return err;
 }
 
+static int mmc_switch(struct aic_sdmc *host, u8 set, u8 index, u8 value)
+{
+    struct aic_sdmc_cmd cmd = {0};
+    int err;
+
+    cmd.cmd_code = MMC_CMD_SWITCH;
+    cmd.arg = (MMC_SWITCH_MODE_WRITE_BYTE << 24) |
+    (index << 16) | (value << 8) | set;
+
+    err = mmc_send_cmd(host, &cmd, NULL);
+    if (err)
+      return err;
+
+    return 0;
+}
+
+static int mmc_select_bus_width(struct aic_sdmc *host)
+{
+    int err = 0;
+    u32 ext_csd_bus_width;
+
+    /* buswidth 1 not need to switch */
+    if (host->pdata->buswidth == SDMC_CTYPE_1BIT)
+        return 0;
+    else if (host->dev->card_caps & MMC_MODE_4BIT &&
+                host->pdata->buswidth == SDMC_CTYPE_4BIT)
+        /* Set the card to use 4 bit*/
+        ext_csd_bus_width = EXT_CSD_BUS_WIDTH_4;
+    else if (host->dev->card_caps & MMC_MODE_8BIT &&
+               host->pdata->buswidth == SDMC_CTYPE_8BIT)
+        /* Set the card to use 8 bit*/
+        ext_csd_bus_width = EXT_CSD_BUS_WIDTH_8;
+    else
+        /* Default use 1 bit */
+        ext_csd_bus_width = EXT_CSD_BUS_WIDTH_1;
+
+    /* card configuration */
+    err = mmc_switch(host, EXT_CSD_CMD_SET_NORMAL,
+                     EXT_CSD_BUS_WIDTH,
+                     ext_csd_bus_width);
+    if (err)
+      return err;
+
+    /* host configuration */
+    aic_sdmc_set_cfg(host);
+
+    return 0;
+}
+
 static int mmc_get_capabilities(struct aic_sdmc *host, u8 *ext_csd)
 {
+    char cardtype = ext_csd[EXT_CSD_CARD_TYPE];
+
     host->dev->card_caps = 0;
 
     /* Only version 4 supports high-speed */
@@ -308,8 +355,13 @@ static int mmc_get_capabilities(struct aic_sdmc *host, u8 *ext_csd)
         return 0;
 
     /* Default is 4-line mode */
-    host->dev->card_caps |= MMC_MODE_4BIT;
-    host->dev->card_caps |= MMC_MODE_HS;
+    host->dev->card_caps |= MMC_MODE_4BIT | MMC_MODE_HC;
+
+    if (cardtype & EXT_CSD_CARD_TYPE_26)
+        host->dev->card_caps |= MMC_MODE_HS;
+
+    if (cardtype & EXT_CSD_CARD_TYPE_52)
+        host->dev->card_caps |= MMC_MODE_HS_52MHz;
 
     return 0;
 }
@@ -535,9 +587,12 @@ static int mmc_get_csd(struct aic_sdmc *host)
     erase_gmul = (cmd.resp[2] & 0x000003e0) >> 5;
     host->dev->erase_grp_size = (erase_gsz + 1) * (erase_gmul + 1);
 
-	capacity = (csize + 1) << (cmult + 2);
-	capacity *= host->dev->read_bl_len;
+    capacity = (csize + 1) << (cmult + 2);
+    capacity *= host->dev->read_bl_len;
     host->dev->card_capacity = (u32)(capacity >> 10); /* in KB */
+
+    if (host->dev->read_bl_len > MMC_MAX_BLOCK_LEN)
+        host->dev->read_bl_len = MMC_MAX_BLOCK_LEN;
 
     return 0;
 }
@@ -569,6 +624,10 @@ static int sd_startup(struct aic_sdmc *host)
         host->pdata->buswidth == SDMC_CTYPE_4BIT) {
         sd_select_bus_width(host, 4);
         aic_sdmc_set_cfg(host);
+    } else {
+        host->pdata->buswidth = SDMC_CTYPE_1BIT;
+        sd_select_bus_width(host, 1);
+        aic_sdmc_set_cfg(host);
     }
 
     if (host->dev->card_caps & MMC_MODE_HS) {
@@ -592,7 +651,7 @@ static int emmc_startup(struct aic_sdmc *host)
         /* check  ext_csd version and capacity */
         err = mmc_send_ext_csd(host, ext_csd);
         /* update mmcdev version */
-        switch (ext_csd[192]) {
+        switch (ext_csd[EXT_CSD_REV]) {
         case 0:
             host->dev->version = MMC_VERSION_4;
             break;
@@ -620,8 +679,8 @@ static int emmc_startup(struct aic_sdmc *host)
         }
 
         /* Check Read only ext_csd[160] whether support partition.  */
-        if (ext_csd[160] & PART_SUPPORT)
-            host->dev->part_config = ext_csd[179];
+        if (ext_csd[EXT_CSD_PARTITION_SUPPORT] & PART_SUPPORT)
+            host->dev->part_config = ext_csd[EXT_CSD_PART_CONF];
     }
 
     if (host->dev->version >= MMC_VERSION_4_2) {
@@ -648,16 +707,12 @@ static int emmc_startup(struct aic_sdmc *host)
     /* Restrict card's capabilities by what the host can do */
     host->dev->card_caps &= host->dev->host_caps;
 
-    if (host->dev->card_caps & MMC_MODE_4BIT &&
-        host->pdata->buswidth == SDMC_CTYPE_4BIT) {
-        /* Set the card to use 4 bit*/
-        aic_sdmc_set_cfg(host);
-    } else if (host->dev->card_caps & MMC_MODE_8BIT &&
-               host->pdata->buswidth == SDMC_CTYPE_8BIT) {
-        /* Set the card to use 8 bit*/
-        aic_sdmc_set_cfg(host);
-    }
+    /* Select bus width */
+    err = mmc_select_bus_width(host);
+    if (err != 0)
+        return err;
 
+    /* Select clock */
     if (host->dev->card_caps & MMC_MODE_HS) {
         if (host->dev->card_caps & MMC_MODE_HS_52MHz)
             host->dev->clock = 52000000;
@@ -685,6 +740,8 @@ static int mmc_go_identify_mode(struct aic_sdmc *host)
     cmd.flags = 0;
 
     err = mmc_send_cmd(host, &cmd, NULL);
+
+    memcpy(host->cid, cmd.resp, 16);
 
     return err;
 }
@@ -971,10 +1028,10 @@ u32 mmc_berase(struct aic_sdmc *host, u32 start, u32 blkcnt)
     int err = 0;
     u32 blk = 0, blk_r = 0;
     u64 timeout = 1000000;
-    u64 start_us = aic_get_time_us();
+    u64 start_us = 0;
 
-    pr_err("host->dev->erase_grp_size:%d\n", host->dev->erase_grp_size);
     while (blk < blkcnt) {
+        start_us = aic_get_time_us();
         blk_r = ((blkcnt - blk) > host->dev->erase_grp_size) ?
                     host->dev->erase_grp_size :
                     (blkcnt - blk);
@@ -1000,7 +1057,7 @@ void mmc_setup_cfg(struct aic_sdmc *host)
 {
     host->dev->freq_min = SDMC_CLOCK_MIN;
     host->dev->freq_max = SDMC_CLOCK_MAX;
-    host->dev->host_caps = MMC_MODE_HC;
+    host->dev->host_caps = MMC_MODE_HC | MMC_MODE_HS | MMC_MODE_HS_52MHz | MMC_MODE_4BIT;
     host->dev->valid_ocr = MMC_VDD_32_33 | MMC_VDD_33_34;
     host->dev->voltages = MMC_VDD_29_30 | MMC_VDD_30_31 | MMC_VDD_31_32 |
                           MMC_VDD_32_33 | MMC_VDD_33_34 | MMC_VDD_34_35 |
@@ -1091,6 +1148,23 @@ struct aic_sdmc *find_mmc_dev_by_index(int id)
     }
 
     return NULL;
+}
+
+s32 mmc_switch_part(struct aic_sdmc *host, u32 part_num)
+{
+    int err;
+
+    if (part_num == MMC_PART_RPMB)
+        err = mmc_switch(host, EXT_CSD_CMD_SET_NORMAL, EXT_CSD_PART_CONF, part_num);
+    else
+        err = mmc_select_bus_width(host);
+
+    if (err) {
+        pr_err("mmc switch part %d failed.\n", part_num);
+        return err;
+    }
+
+    return 0;
 }
 
 s32 mmc_init(int id)

@@ -23,6 +23,92 @@
 #include "mpp_log.h"
 #include "mpp_ge.h"
 
+static struct aicfb_screeninfo g_screen_info = {0};
+
+#ifdef AIC_CHIP_D13X
+#define USE_VE_FILL_FB
+#endif
+
+#ifdef USE_VE_FILL_FB
+struct ext_frame_allocator {
+    struct frame_allocator allocator;
+    dma_addr_t             buf;
+    struct mpp_rect        rect;
+};
+
+static int frame_buf_alloc(struct frame_allocator *p, struct mpp_frame* frame,
+                           int stride, int height, enum mpp_pixel_format format)
+{
+    struct ext_frame_allocator *ext = (struct ext_frame_allocator *)p;
+    struct aicfb_screeninfo *info = &g_screen_info;
+    u32 offset_x, offset_y = ext->rect.y;
+    u32 offset = 0;
+
+    if (format > MPP_FMT_BGRA_4444) {
+        loge("The decode format 0x%x is not RGB!\n", format);
+        return -1;
+    }
+
+    frame->buf.format = info->format;
+    frame->buf.size.width = info->width;
+    frame->buf.size.height = info->height;
+    frame->buf.stride[0] = info->stride;
+    frame->buf.buf_type = MPP_PHY_ADDR;
+
+    if (offset_y + height > info->height)
+        offset_y = info->height - height;
+
+    if (ext->rect.x * (info->bits_per_pixel / 8) + stride > info->stride)
+        offset_x = info->stride - stride;
+    else
+        offset_x = (ext->rect.x - 1) * (info->bits_per_pixel / 8);
+
+    offset = info->stride * (offset_y - 1) + offset_x;
+    if (offset % 8) {
+        logi("The offset of (%d, %d) is not 8-byte aligned\n",
+             ext->rect.x, ext->rect.y);
+        offset = offset - offset % 8;
+    }
+
+    frame->buf.phy_addr[0] = (unsigned long)(ext->buf + offset);
+    return 0;
+}
+
+static int frame_buf_free(struct frame_allocator *p, struct mpp_frame *frame)
+{
+    // Use the UI layer framebuffer directly, do not need to free
+    return 0;
+}
+
+static int allocator_close(struct frame_allocator *p)
+{
+    struct ext_frame_allocator *ext = (struct ext_frame_allocator*)p;
+    mpp_free(ext);
+    return 0;
+}
+
+static struct alloc_ops def_ops = {
+    .alloc_frame_buffer = frame_buf_alloc,
+    .free_frame_buffer = frame_buf_free,
+    .close_allocator = allocator_close,
+};
+
+static struct frame_allocator *allocator_open(u8 *buf, u32 x, u32 y)
+{
+    struct ext_frame_allocator *ext = (struct ext_frame_allocator*)mpp_alloc(sizeof(struct ext_frame_allocator));
+    if (ext == NULL) {
+        return NULL;
+    }
+
+    memset(ext, 0, sizeof(struct ext_frame_allocator));
+    ext->allocator.ops = &def_ops;
+    ext->buf = (dma_addr_t)buf;
+    ext->rect.x = min(x, g_screen_info.width);
+    ext->rect.y = min(y, g_screen_info.height);
+    return &ext->allocator;
+}
+#endif
+
 static void print_help(char *program)
 {
     printf("Compile time: %s %s\n", __DATE__, __TIME__);
@@ -84,46 +170,60 @@ static u32 *g_vlayer_addr = NULL;
 static u32 g_fb_buf_index = 0;
 #endif
 
+static struct aicfb_screeninfo *get_screen_info(void)
+{
+    struct mpp_fb *fb = NULL;
+    int ret;
+
+    if (g_screen_info.width)
+        return &g_screen_info;
+
+    fb = mpp_fb_open();
+    if (!fb)
+        return NULL;
+
+    ret = mpp_fb_ioctl(fb, AICFB_GET_SCREENINFO, &g_screen_info);
+    if (ret) {
+        loge("get screen info failed\n");
+        return NULL;
+    }
+
+    mpp_fb_close(fb);
+    return &g_screen_info;
+}
+
 static void ui_layer_buf_sync(void)
 {
 #ifdef AIC_PAN_DISPLAY
     struct ge_bitblt blt = {0};
-    struct mpp_fb *fb = mpp_fb_open();
-    struct aicfb_screeninfo info = {0};
+    struct aicfb_screeninfo *info = NULL;
     uint8_t *src_buf = NULL, *dst_buf = NULL;
 
-    if (!fb)
+    info = get_screen_info();
+    if (info == NULL)
         return;
 
-    if (mpp_fb_ioctl(fb, AICFB_GET_SCREENINFO, &info)) {
-        loge("get screen info failed\n");
-        goto out;
-    }
-
     if (g_fb_buf_index) {
-        src_buf = info.framebuffer + info.smem_len;
-        dst_buf = info.framebuffer;
+        src_buf = info->framebuffer + info->smem_len;
+        dst_buf = info->framebuffer;
     } else {
-        src_buf = info.framebuffer;
-        dst_buf = info.framebuffer + info.smem_len;
+        src_buf = info->framebuffer;
+        dst_buf = info->framebuffer + info->smem_len;
     }
 
     blt.src_buf.buf_type    = MPP_PHY_ADDR;
     blt.src_buf.phy_addr[0] = (u32)(long)src_buf;
-    blt.src_buf.format      = info.format;
-    blt.src_buf.stride[0]   = info.stride;
-    blt.src_buf.size.width  = info.width;
-    blt.src_buf.size.height = info.height;
+    blt.src_buf.format      = info->format;
+    blt.src_buf.stride[0]   = info->stride;
+    blt.src_buf.size.width  = info->width;
+    blt.src_buf.size.height = info->height;
     blt.dst_buf.buf_type    = MPP_PHY_ADDR;
     blt.dst_buf.phy_addr[0] = (u32)(long)dst_buf;
-    blt.dst_buf.format      = info.format;
-    blt.dst_buf.stride[0]   = info.stride;
-    blt.dst_buf.size.width  = info.width;
-    blt.dst_buf.size.height = info.height;
+    blt.dst_buf.format      = info->format;
+    blt.dst_buf.stride[0]   = info->stride;
+    blt.dst_buf.size.width  = info->width;
+    blt.dst_buf.size.height = info->height;
     ge_bitblt(&blt);
-
-out:
-    mpp_fb_close(fb);
 #endif
 }
 
@@ -132,7 +232,7 @@ static void render_frame(struct mpp_fb* fb, struct mpp_frame* frame,
                          u32 layer_id)
 {
     struct ge_bitblt blt;
-    struct aicfb_screeninfo info = {0};
+    struct aicfb_screeninfo *info = NULL;
     struct aicfb_layer_data layer = {0};
 #ifdef AIC_PAN_DISPLAY
     u32 disp_buf_addr;
@@ -140,11 +240,9 @@ static void render_frame(struct mpp_fb* fb, struct mpp_frame* frame,
 #endif
     u32 dst_buf_addr;
 
-    int ret = mpp_fb_ioctl(fb, AICFB_GET_SCREENINFO, &info);
-    if (ret) {
-        loge("get screen info failed\n");
+    info = get_screen_info();
+    if (info == NULL)
         return;
-    }
 
     if (layer_id == AICFB_LAYER_TYPE_UI) {
         layer.layer_id = AICFB_LAYER_TYPE_UI;
@@ -156,10 +254,10 @@ static void render_frame(struct mpp_fb* fb, struct mpp_frame* frame,
 
 #ifdef AIC_PAN_DISPLAY
         disp_buf_addr = (u32)layer.buf.phy_addr[0];
-        fb0_buf_addr = (u32)(unsigned long)info.framebuffer;
+        fb0_buf_addr = (u32)(unsigned long)info->framebuffer;
         /* Switch the double-buffer */
         if (disp_buf_addr == fb0_buf_addr) {
-            dst_buf_addr = fb0_buf_addr + info.smem_len;
+            dst_buf_addr = fb0_buf_addr + info->smem_len;
             g_fb_buf_index = 1;
         } else {
             dst_buf_addr = fb0_buf_addr;
@@ -183,10 +281,10 @@ static void render_frame(struct mpp_fb* fb, struct mpp_frame* frame,
 
     blt.dst_buf.buf_type = MPP_PHY_ADDR;
     blt.dst_buf.phy_addr[0] = dst_buf_addr;
-    blt.dst_buf.format = info.format;
-    blt.dst_buf.stride[0] = info.stride;
-    blt.dst_buf.size.width = info.width;
-    blt.dst_buf.size.height = info.height;
+    blt.dst_buf.format = info->format;
+    blt.dst_buf.stride[0] = info->stride;
+    blt.dst_buf.size.width = info->width;
+    blt.dst_buf.size.height = info->height;
     blt.dst_buf.crop_en = 1;
 
     blt.dst_buf.crop.x = offset_x;
@@ -233,19 +331,16 @@ void ui_alpha_config(u32 val)
 void video_layer_init(void)
 {
     struct mpp_fb *fb = mpp_fb_open();
-    struct aicfb_screeninfo info = { 0 };
+    struct aicfb_screeninfo *info = NULL;
     struct aicfb_layer_data vlayer = {0};
     u32 *addr;
-    int ret;
 
     if (!fb)
         return;
 
-    ret = mpp_fb_ioctl(fb, AICFB_GET_SCREENINFO, &info);
-    if (ret) {
-        loge("get screen info failed\n");
+    info = get_screen_info();
+    if (info == NULL)
         goto out;
-    }
 
     vlayer.layer_id = AICFB_LAYER_TYPE_VIDEO;
     if (mpp_fb_ioctl(fb, AICFB_GET_LAYER_CONFIG, &vlayer) < 0) {
@@ -253,24 +348,24 @@ void video_layer_init(void)
         goto out;
     }
 
-    addr = aicos_malloc_align(0, info.smem_len, CACHE_LINE_SIZE);
+    addr = aicos_malloc_align(0, info->smem_len, CACHE_LINE_SIZE);
     if (!addr) {
-        loge("malloc video buf failde\n");
+        loge("malloc video buf failed\n");
         goto out;
     }
     g_vlayer_addr = addr;
     pr_info("The buf for video layer: 0x%08x\n", g_vlayer_addr);
 
-    memset(addr, 0x00, info.smem_len);
-    aicos_dcache_clean_invalid_range(addr, info.smem_len);
+    memset(addr, 0x00, info->smem_len);
+    aicos_dcache_clean_invalid_range(addr, info->smem_len);
 
     vlayer.enable = 1;
     vlayer.buf.buf_type = MPP_PHY_ADDR;
-    vlayer.buf.size.width = info.width;
-    vlayer.buf.size.height = info.height;
-    vlayer.buf.format = info.format;
+    vlayer.buf.size.width = info->width;
+    vlayer.buf.size.height = info->height;
+    vlayer.buf.format = info->format;
     vlayer.buf.phy_addr[0] = (uintptr_t)addr;
-    vlayer.buf.stride[0] = info.stride;
+    vlayer.buf.stride[0] = info->stride;
 
     if (mpp_fb_ioctl(fb, AICFB_UPDATE_LAYER_CONFIG, &vlayer) < 0) {
         loge("set video layer config failed\n");
@@ -321,9 +416,12 @@ void video_layer_release(void)
 int decode_pic(uint8_t* pic, int len, u32 offset_x, u32 offset_y,
                u32 width, u32 height, u32 layer_id)
 {
-    struct mpp_fb *fb = NULL;
+    struct mpp_fb *fb = mpp_fb_open();
     int ret = 0;
-    fb = mpp_fb_open();
+#ifdef USE_VE_FILL_FB
+    struct frame_allocator *allocator = NULL;
+    struct aicfb_screeninfo *info = get_screen_info();
+#endif
 
     if (pic == NULL || len <= 0) {
         loge("Invalid parameter. pic 0x%lx, len %d\n", (ptr_t)pic, len);
@@ -337,17 +435,31 @@ int decode_pic(uint8_t* pic, int len, u32 offset_x, u32 offset_y,
     config.bitstream_buffer_size = (len + 1023) & (~1023);
     config.extra_frame_num = 0;
     config.packet_count = 1;
+#ifdef USE_VE_FILL_FB
+    config.pix_fmt = info->format;
+#else
     config.pix_fmt = MPP_FMT_NV12;
+#endif
 
-    if (pic[0] == 0xff && pic[1] == 0xd8)
+    if (pic[0] == 0xff && pic[1] == 0xd8) {
         dec = mpp_decoder_create(MPP_CODEC_VIDEO_DECODER_MJPEG);
-    else if (pic[1] == 'P' && pic[2] == 'N' && pic[3] == 'G')
+    } else if (pic[1] == 'P' && pic[2] == 'N' && pic[3] == 'G') {
+        if (config.pix_fmt == MPP_FMT_RGB_565 || config.pix_fmt == MPP_FMT_BGR_565) {
+            loge("PNG decode does nor support RGB565\n");
+            return -1;
+        }
         dec = mpp_decoder_create(MPP_CODEC_VIDEO_DECODER_PNG);
-    else
+    } else {
          loge("Invaild pic data\n");
+    }
 
     if (!dec)
         return -1;
+
+#ifdef USE_VE_FILL_FB
+    allocator = allocator_open(info->framebuffer, offset_x, offset_y);
+    mpp_decoder_control(dec, MPP_DEC_INIT_CMD_SET_EXT_FRAME_ALLOCATOR, (void*)allocator);
+#endif
 
     // 2. init mpp_decoder
     mpp_decoder_init(dec, &config);
@@ -380,8 +492,10 @@ int decode_pic(uint8_t* pic, int len, u32 offset_x, u32 offset_y,
     memset(&frame, 0, sizeof(struct mpp_frame));
     mpp_decoder_get_frame(dec, &frame);
 
+#ifndef USE_VE_FILL_FB
     // 8. compare data
     render_frame(fb, &frame, offset_x, offset_y, width, height, layer_id);
+#endif
 
     // 9. return this frame
     mpp_decoder_put_frame(dec, &frame);
@@ -401,6 +515,93 @@ int decode_jpeg(uint8_t* pic, int len, u32 offset_x, u32 offset_y,
                 u32 width, u32 height, u32 layer_id)
 {
     return decode_pic(pic, len, offset_x, offset_y, width, height, layer_id);
+}
+
+static int parse_rotation(char *str)
+{
+    if (!strcmp(optarg, "90"))
+        return MPP_ROTATION_90;
+
+    if (!strcmp(optarg, "180"))
+        return MPP_ROTATION_180;
+
+    if (!strcmp(optarg, "270"))
+        return MPP_ROTATION_270;
+
+    return MPP_ROTATION_0;
+}
+
+static int parse_flip(char *str)
+{
+    if (!strcmp(optarg, "1"))
+        return MPP_FLIP_H;
+
+    if (!strcmp(optarg, "2"))
+        return MPP_FLIP_V;
+
+    if (!strcmp(optarg, "3"))
+        return MPP_FLIP_H | MPP_FLIP_V;
+
+    return 0;
+}
+
+static int str_to_format(char *str)
+{
+    /* str to format table struct */
+    struct StrToFormat {
+        char *str;
+        int format;
+    };
+
+    /* format conversion */
+    static int table_size = 0;
+    static struct StrToFormat table[] = {
+        {"argb8888", MPP_FMT_ARGB_8888},
+        {"abgr8888", MPP_FMT_ABGR_8888},
+        {"rgba8888", MPP_FMT_RGBA_8888},
+        {"bgra8888", MPP_FMT_BGRA_8888},
+        {"xrgb8888", MPP_FMT_XRGB_8888},
+        {"xbgr8888", MPP_FMT_XBGR_8888},
+        {"rgbx8888", MPP_FMT_RGBX_8888},
+        {"bgrx8888", MPP_FMT_BGRX_8888},
+        {"argb4444", MPP_FMT_ARGB_4444},
+        {"abgr4444", MPP_FMT_ABGR_4444},
+        {"rgba4444", MPP_FMT_RGBA_4444},
+        {"bgra4444", MPP_FMT_BGRA_4444},
+        {"rgb565", MPP_FMT_RGB_565},
+        {"bgr565", MPP_FMT_BGR_565},
+        {"argb1555", MPP_FMT_ARGB_1555},
+        {"abgr1555", MPP_FMT_ABGR_1555},
+        {"rgba5551", MPP_FMT_RGBA_5551},
+        {"bgra5551", MPP_FMT_BGRA_5551},
+        {"rgb888", MPP_FMT_RGB_888},
+        {"bgr888", MPP_FMT_BGR_888},
+        {"yuv420", MPP_FMT_YUV420P},
+        {"nv12", MPP_FMT_NV12},
+        {"nv21", MPP_FMT_NV21},
+        {"yuv422", MPP_FMT_YUV422P},
+        {"nv16", MPP_FMT_NV16},
+        {"nv61", MPP_FMT_NV61},
+        {"yuyv", MPP_FMT_YUYV},
+        {"yvyu", MPP_FMT_YVYU},
+        {"uyvy", MPP_FMT_UYVY},
+        {"vyuy", MPP_FMT_VYUY},
+        {"yuv400", MPP_FMT_YUV400},
+        {"yuv444", MPP_FMT_YUV444P},
+    };
+    int i = 0;
+
+    table_size = sizeof(table) / sizeof(table[0]);
+    for (i = 0; i < table_size; i++) {
+        if (!strncmp(str, table[i].str, strlen(table[i].str)))
+            return table[i].format;
+    }
+    return -1;
+}
+
+static int parse_format(char *str)
+{
+    return str_to_format(str);
 }
 
 void pic_test(int argc, char **argv)
@@ -434,6 +635,9 @@ void pic_test(int argc, char **argv)
             if (!strcmp(ptr, ".png")) {
                 type = MPP_CODEC_VIDEO_DECODER_PNG;
             }
+            if (!strcmp(ptr, ".aicp")) {
+                type = MPP_CODEC_VIDEO_DECODER_AICP;
+            }
             logd("decode type: 0x%02X", type);
             logd("optarg: %s", optarg);
 
@@ -458,51 +662,17 @@ void pic_test(int argc, char **argv)
         case 'z':
             file_len = atoi(optarg);
             continue;
-
         case 'f':
-            logd("optarg: %s", optarg);
-            if (!strcmp(optarg, "argb8888")) {
-                out_format = MPP_FMT_ARGB_8888;
-            } else if(!strcmp(optarg, "abgr8888")) {
-                out_format = MPP_FMT_ABGR_8888;
-            } else if(!strcmp(optarg, "abgr8888")) {
-                out_format = MPP_FMT_ABGR_8888;
-            } else if(!strcmp(optarg, "bgra8888")) {
-                out_format = MPP_FMT_BGRA_8888;
-            } else if(!strcmp(optarg, "rgba8888")) {
-                out_format = MPP_FMT_RGBA_8888;
-            } else if(!strcmp(optarg, "bgr565")) {
-                out_format = MPP_FMT_BGR_565;
-            } else if(!strcmp(optarg, "rgb565")) {
-                out_format = MPP_FMT_RGB_565;
-            } else if(!strcmp(optarg, "nv12")) {
-                out_format = MPP_FMT_NV12;
-            }
-
+            out_format = parse_format(optarg);
             continue;
         case 'r':
-            if (!strcmp(optarg, "0")) {
-                rot_flip_flag |= MPP_ROTATION_0;
-            } else if(!strcmp(optarg, "90")) {
-                rot_flip_flag |= MPP_ROTATION_90;
-            } else if(!strcmp(optarg, "180")) {
-                rot_flip_flag |= MPP_ROTATION_180;
-            } else if(!strcmp(optarg, "270")) {
-                rot_flip_flag |= MPP_ROTATION_270;
-            }
+            rot_flip_flag |= parse_rotation(optarg);
             continue;
         case 'l':
-            if (!strcmp(optarg, "1")) {
-                rot_flip_flag |= MPP_FLIP_H;
-            } else if(!strcmp(optarg, "2")) {
-                rot_flip_flag |= MPP_FLIP_V;
-            } else if(!strcmp(optarg, "3")) {
-                rot_flip_flag |= (MPP_FLIP_H | MPP_FLIP_V);
-            }
+            rot_flip_flag |= parse_flip(optarg);
             continue;
         case 's':
             ver_scale = atoi(optarg);
-
             hor_scale = ver_scale = ver_scale > 3 ? 3: ver_scale;
             continue;
         case 'h':
@@ -557,7 +727,7 @@ void pic_test(int argc, char **argv)
     }
     packet.size = r_len;
     packet.flag = PACKET_FLAG_EOS;
-    logi("read len: %d", r_len);
+    logi("read len: %d, file_len: %d\n", r_len, file_len);
 
     // 5. put the packet to mpp_decoder
     mpp_decoder_put_packet(dec, &packet);

@@ -1,3 +1,62 @@
+# V1.0.5 #
+## 新增 ##
+- 调屏：支持和 AiPQ V1.1.1 工具配合使用
+- 新增LVGL Demo：
+- 支持VSCode 模拟器的工程导入
+- 增加压力测试、独立控件、Gif、slide、lv_ffmpeg、DVP回显等参考实现
+- MPP Player：支持avi封装格式
+- USB Device：增加MTP支持
+- USB Host：支持GPT分区格式
+- PM：支持休眠时进入DDR自刷新
+- aicupg：
+  -支持和AiBurn工具配合完成Flash擦写功能
+  -支持通过USB/UART获取设备侧的运行log
+  -支持用命令进入U-Boot 升级模式
+  -烧写时的进度条界面支持90/270度的旋转
+- OTA：支持NFTL格式的Data分区升级；支持NOR、MMC介质
+- TSen：增加对不同CP测试数据的兼容
+- UART：增加流控功能支持；增加时钟分频的最佳匹配算法；增加软件模拟485的模式
+- FS：支持生成 stripped FatFS 镜像，减小镜像文件大小
+- DFS：SD0设备节点支持GPT分区格式
+- GMAC：支持基于CHIP ID生成MAC地址；增加IPv6支持
+- I2C：增加中断模式的处理流程；增加slave模式支持
+- 新增SPI NAND：F35SQB004G、GD5F1GM7xUExxG、ZB35Q04A
+- 新增屏幕：
+  - RGB：gc9a01a
+  - LVDS：LT8911
+  -MIPI DSI：hx8394/ili9881c/st7703
+  - i8080：st7789
+- 新增CTP：st16xx、axs15260
+- 新增第三方包：cJSON-1.7.16、mbedtls
+- 新增aicp图片压缩库，压缩率更高
+- 新增示例：test-twinkle、spi_flash、test_tsen_htp
+- 新增工具支持：elf的size分析、编译时自动检测pinmux冲突、镜像文件大小匹配检查、version命令显示SoC型号
+- OneStep：新增list-module命令，可查看当前方案中已打开的模块信息
+
+## 优化 ##
+- ADC：优化校准参数的算法
+- Audio：优化关闭播放时的噪声；减少处理延迟
+- DE：LVDS的双link可以单独配置参数
+- PSRAM：优化初始化参数，提升稳定性
+- USB：优化ADB写FatFS分区的性能
+- SPI NAND：优化Page buf的内存拷贝流程；减少数据传输中的delay；
+- SPI：优化DMA传输的结束状态判断
+- SFUD：优化参数配置，提升工作频率
+- D21x：优化DDR参数提升稳定性和兼容性
+- aicupg：提升U盘烧录的兼容性
+
+## 修改 ##
+- MPP player：修正多个兼容性问题
+- OTA：修正HTTP中的一处内存泄漏
+- D12x：修改LDO1x电压为1.2V，稳定性更好
+- D12x demo68：显示格式改为RGB565，和LVGL匹配
+- aicupg：修正4K page size的处理
+- GPAI：周期模式的默认周期改为 18ms
+- UART：修正485模式的数据传输错误
+
+
+
+
 # V1.0.4 #
 ## 新增 ##
 - MPP：支持WAV文件解析；支持超短音频的播放

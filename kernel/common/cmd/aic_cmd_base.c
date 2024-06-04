@@ -15,7 +15,7 @@ void gettimespec(struct timespec *t)
     if (!t)
         return;
 
-    clock_gettime(CLOCK_MONOTONIC, t);
+    clock_gettime(CLOCK_REALTIME, t);
 }
 
 float timespec_diff(struct timespec *start, struct timespec *end)

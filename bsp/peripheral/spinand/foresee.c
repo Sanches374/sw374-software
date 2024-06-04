@@ -26,6 +26,9 @@ const struct aic_spinand_info foresee_spinand_table[] = {
     /*FS35ND04G*/
     { DEVID(0xEC), PAGESIZE(2048), OOBSIZE(64), BPL(4096), PPB(64), PLANENUM(1),
       DIE(0), "foresee 512MB: 2048+64@64@4096", cmd_cfg_table },
+    /*F35SQB004G*/
+    { DEVID(0x53), PAGESIZE(4096), OOBSIZE(128), BPL(2048), PPB(64), PLANENUM(1),
+      DIE(0), "foresee 512MB: 4096+128@64@2048", cmd_cfg_table },
 };
 
 const struct aic_spinand_info *foresee_spinand_detect(struct aic_spinand *flash)

@@ -52,6 +52,7 @@ struct aic_sdmc {
     u32 clk;
     u32 irq;
     u32 index;
+    u32 cid[4];
 
     unsigned int quirks;
     unsigned int caps;

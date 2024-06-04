@@ -1,5 +1,6 @@
 set(BASE_MSG
     message/aic_message.c
+    comm/aic_tag.c
 )
 
 set(BASE_STREAM
@@ -7,12 +8,20 @@ set(BASE_STREAM
     stream/file/aic_file_stream.c
 )
 
+if (AVI_DEMUX)
+set(DEMUX_AVI
+    parser/avi/aic_avi_parser.c
+    parser/avi/avi.c
+)
+endif()
+
 set(BASE_PARSER
     parser/aic_parser.c
     parser/mov/aic_mov_parser.c
     parser/mov/mov_tags.c
     parser/mov/mov.c
     parser/rawdata/aic_raw_parser.c
+    ${DEMUX_AVI}
 )
 
 set(BASE_RENDER
@@ -33,9 +42,12 @@ add_library(openmax_base SHARED
 
 target_link_libraries(openmax_base base asound)
 
+
 target_include_directories(openmax_base PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/comm"
     "${CMAKE_CURRENT_SOURCE_DIR}/parser/mov"
+    "${CMAKE_CURRENT_SOURCE_DIR}/parser/avi"
     "${CMAKE_CURRENT_SOURCE_DIR}/parser/rawdata"
     "${CMAKE_CURRENT_SOURCE_DIR}/stream/file"
 )

@@ -297,7 +297,7 @@ static int do_mtd_oobdump(int argc, char *argv[])
 
     size = mtd->oobsize + mtd->writesize;
 
-    data = malloc(size);
+    data = aicos_malloc_align(0, size, CACHE_LINE_SIZE);
     if (data == NULL) {
         printf("Out of memory.\n");
         return -1;
@@ -309,7 +309,9 @@ static int do_mtd_oobdump(int argc, char *argv[])
                        mtd->oobsize);
     if (!err)
         hexdump((void *)data, size, 1);
-    free(data);
+    else
+        printf("mtd read oob err:%d.\n", err);
+    aicos_free_align(0, data);
     return err;
 }
 

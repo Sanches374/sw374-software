@@ -58,6 +58,7 @@ function hmm()
 	_hline "ctarget|ct" "" "cd to target board directory."
 	_hline "godir|gd" "[keyword]" "Go/jump to selected directory."
 	_hline "list" "" "List all SDK defconfig."
+	_hline "list_module" "" "List all enabled modules."
 	_hline "i" "" "Get current project's information."
 	_hline "buildall"   "" "Build all the *defconfig in target/configs"
 	_hline "rebuildall" "" "Clean and build all the *defconfig in target/configs"
@@ -249,14 +250,14 @@ build_one_solution()
 
 	BUILD_CNT=`expr $BUILD_CNT + 1`
 	SUCCESS=`grep "Luban-Lite is built successfully" $LOG_FILE -wc`
-	WAR_CNT=`grep "warning:" $LOG_FILE -i | grep "is shorter than expected" -vc`
+	WAR_CNT=`grep -E "warning:|pinmux conflicts" $LOG_FILE -i | grep "is shorter than expected" -vc`
 
 	if [ $SUCCESS -ne 0 ]; then
 		printf "%2s. %-40s is OK. Warning: %s \n" \
 			$BUILD_CNT $SOLUTION_NAME $WAR_CNT >> $RESULT_FILE
 		if [ $WAR_CNT -gt 0 ]; then
 			echo [$SOLUTION_NAME]: >> $WARNING_FILE
-			grep "warning:" $LOG_FILE -i | grep "is shorter than expected" -v >> $WARNING_FILE
+			grep -E "warning:|pinmux conflicts" $LOG_FILE -i | grep "is shorter than expected" -v >> $WARNING_FILE
 			echo >> $WARNING_FILE
 		fi
 		return 0
@@ -534,6 +535,11 @@ alias ab=addboard
 function aicupg()
 {
 	scons --aicupg -C $SDK_PRJ_TOP_DIR
+}
+
+function list_module()
+{
+	scons --list-module -C $SDK_PRJ_TOP_DIR
 }
 
 function _lunch_check()

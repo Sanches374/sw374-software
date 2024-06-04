@@ -298,7 +298,7 @@ struct rt_touch_info ft_info =
     (rt_int32_t)AIC_TOUCH_PANEL_GSL1680_Y_RANGE,
 };
 
-int rt_hw_gsl1680_init(const char *name, struct rt_touch_config *cfg,  rt_base_t pin)
+int rt_hw_gsl1680_init(const char *name, struct rt_touch_config *cfg)
 {
     rt_touch_t touch_device = RT_NULL;
     struct rt_i2c_bus_device * i2c_bus = RT_NULL;
@@ -315,7 +315,7 @@ int rt_hw_gsl1680_init(const char *name, struct rt_touch_config *cfg,  rt_base_t
         return -RT_EIO;
     }
 
-    gsl1680_init(i2c_bus, pin);
+    gsl1680_init(i2c_bus, (*(rt_uint8_t *)cfg->user_data));
 
     rt_memcpy(&touch_device->config, cfg, sizeof(struct rt_touch_config));
 
@@ -330,15 +330,85 @@ int rt_hw_gsl1680_init(const char *name, struct rt_touch_config *cfg,  rt_base_t
     return RT_EOK;
 }
 
+static int rt_gsl1680_gpio_cfg()
+{
+    unsigned int g, p;
+    long pin;
+
+    // RST
+    pin = drv_pin_get(GSL1680_RST_PIN);
+    g = GPIO_GROUP(pin);
+    p = GPIO_GROUP_PIN(pin);
+    hal_gpio_direction_input(g, p);
+
+    // INT
+    pin = drv_pin_get(GSL1680_INT_PIN);
+    g = GPIO_GROUP(pin);
+    p = GPIO_GROUP_PIN(pin);
+    hal_gpio_direction_input(g, p);
+    hal_gpio_set_irq_mode(g, p, 0);
+
+    return 0;
+}
+
+void gsl1680_power_down(void)
+{
+    rt_uint8_t rst_pin;
+
+    rt_gsl1680_gpio_cfg();
+    rst_pin = drv_pin_get(GSL1680_RST_PIN);
+    /* power down the reset pin */
+    rt_pin_mode(rst_pin, PIN_MODE_OUTPUT);
+    rt_pin_write(rst_pin, 0);
+}
+
+void gsl1680_power_up(struct rt_i2c_bus_device *bus)
+{
+    rt_uint8_t rst_pin;
+    int ret = 0;
+
+    rt_gsl1680_gpio_cfg();
+    rst_pin = drv_pin_get(GSL1680_RST_PIN);
+
+    /* power up the reset pin */
+    rt_pin_mode(rst_pin, PIN_MODE_OUTPUT);
+    rt_pin_write(rst_pin, 1);
+    rt_thread_mdelay(20);
+
+    /* reset chip */
+    gsl1680_reset_chip(bus);
+    /* restart chip */
+    gsl1680_startup_chip(bus);
+    rt_thread_mdelay(20);
+    /* check the state of chip */
+    ret = gsl1680_check_mem_data(bus);
+    if (ret) {
+        rt_pin_write(rst_pin, 0);
+        rt_thread_mdelay(20);
+        rt_pin_write(rst_pin, 1);
+        rt_thread_mdelay(20);
+        gsl1680_clr_reg(bus);
+        gsl1680_reset_chip(bus);
+        gsl1680_load_fw(bus);
+        gsl1680_startup_chip(bus);
+    }
+
+}
+
 static int rt_hw_gsl1680_port(void)
 {
     struct rt_touch_config cfg;
-    rt_base_t rst_pin;
+    rt_uint8_t rst_pin;
 
-    cfg.dev_name = AIC_TOUCH_PANEL_GSL1680_I2C_CHA;
-    rst_pin = hal_gpio_name2pin(AIC_TOUCH_PANEL_GSL1680_RST_PIN);
+    rt_gsl1680_gpio_cfg();
 
-    rt_hw_gsl1680_init("gsl1680", &cfg, rst_pin);
+    rst_pin = drv_pin_get(GSL1680_RST_PIN);
+    cfg.dev_name = GSL1680_I2C_CHAN;
+    cfg.irq_pin.pin = drv_pin_get(GSL1680_INT_PIN);
+    cfg.irq_pin.mode = PIN_MODE_INPUT;
+    cfg.user_data = &rst_pin;
+
+    rt_hw_gsl1680_init("gsl1680", &cfg);
 
     return 0;
 }

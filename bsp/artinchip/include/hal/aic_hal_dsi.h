@@ -12,11 +12,12 @@
 #include "aic_hal_disp_reg_util.h"
 
 enum dsi_mode {
-    DSI_MOD_VID_PULSE = 0,
-    DSI_MOD_VID_EVENT = 1,
-    DSI_MOD_VID_BURST = 2,
-    DSI_MOD_CMD_MODE = 3,
-    DSI_MOD_MAX
+    DSI_MOD_VID_PULSE        = BIT(0),
+    DSI_MOD_VID_EVENT        = BIT(1),
+    DSI_MOD_VID_BURST        = BIT(2),
+    DSI_MOD_CMD_MODE         = BIT(3),
+
+    DSI_CLOCK_NON_CONTINUOUS = BIT(4),
 };
 
 enum dsi_format {
@@ -75,7 +76,7 @@ enum dsi_format {
 #define DSI_VID_MODE_CFG_LP_EN_VBP      BIT(9)
 #define DSI_VID_MODE_CFG_LP_EN_VSA      BIT(8)
 #define DSI_VID_MODE_CFG_TYPE_MASK      GENMASK(1, 0)
-#define DSI_VID_MODE_CFG_TYPE(x)        (((x) & 0x3) << 0)
+#define DSI_VID_MODE_CFG_TYPE(x)        ((((x) >> 1) & 0x3) << 0)
 
 #define DSI_VID_HBP_TIME_MASK           GENMASK(27, 16)
 #define DSI_VID_HBP_TIME(x)         (((x) & 0xFFF) << 16)
@@ -319,7 +320,7 @@ void dsi_set_data_clk_polrs(void *base, u32 dc_inv);
 
 void dsi_set_clk_div(void *base, ulong mclk, ulong lp_rate);
 void dsi_pkg_init(void *base);
-void dsi_phy_init(void *base, ulong mclk, u32 lane);
+void dsi_phy_init(void *base, ulong mclk, u32 lane, enum dsi_mode mode);
 void dsi_hs_clk(void *base, u32 enable);
 void dsi_set_vm(void *base, enum dsi_mode mode, enum dsi_format format,
         u32 lane, u32 vc, const struct display_timing *timing);

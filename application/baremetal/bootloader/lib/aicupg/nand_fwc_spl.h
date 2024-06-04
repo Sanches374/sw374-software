@@ -27,10 +27,6 @@ extern "C" {
 
 #define ROUNDUP(a, b) ((((a)-1) / (b) + 1) * (b))
 
-#define PAGE_SIZE_1KB 1
-#define PAGE_SIZE_2KB 2
-#define PAGE_SIZE_4KB 4
-
 #define MAX_DUPLICATED_PART 4
 
 #ifdef AIC_NFTL_SUPPORT
@@ -51,8 +47,8 @@ struct aicupg_nand_priv {
 struct nand_page_table_head {
     char magic[4]; /* AICP: AIC Page table */
     u32 entry_cnt;
-    u8 page_size; /* 0: No page size info; 1: 1KB; 2: 2KB; 4: 4KB */
-    u8 pad[11];   /* Padding it to fit size 20 bytes */
+    u16 page_size;
+    u8 pad[10];   /* Padding it to fit size 20 bytes */
 };
 
 /*
@@ -90,6 +86,7 @@ s32 nand_fwc_spl_reserve_blocks(struct aicupg_nand_priv *priv);
 s32 nand_fwc_spl_prepare(struct aicupg_nand_priv *priv, u32 datasiz,
                          u32 blksiz);
 s32 nand_fwc_spl_write(u32 totalsiz, u8 *buf, s32 len);
+int nand_spl_get_candidate_blocks(u32 *blks, u32 size);
 
 #ifdef __cplusplus
 }

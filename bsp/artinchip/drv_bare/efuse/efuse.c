@@ -61,6 +61,27 @@ int efuse_read(u32 addr, void *data, u32 size)
     return (int)(size - rest);
 }
 
+int efuse_read_chip_id(void *data)
+{
+    int version = 0;
+
+    version = hal_efuse_get_version();
+    switch (version) {
+        case 0x100:
+        case 0x101:
+        case 0x102:
+        case 0x103:
+        case 0x105:
+            efuse_read(0x10, data, 0x10);
+            break;
+        default:
+            pr_err("not support read chip id");
+            return -1;
+    }
+
+    return 0;
+}
+
 int efuse_program(u32 addr, const void *data, u32 size)
 {
     u32 wid, wval, rest, cnt;

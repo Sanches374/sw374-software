@@ -133,7 +133,9 @@ int main(void)
 
 #ifdef AIC_SDMC_DRV
     mmc_init(1);
+#ifdef AIC_SD_USING_HOTPLUG
     sdcard_hotplug_init();
+#endif
 #endif
 
 #if defined(LPKG_USING_DFS_ELMFAT) && defined(AIC_SDMC_DRV)
@@ -210,6 +212,12 @@ int main(void)
     aicos_mdelay(2000);
     while (1) {
         do_pic_dec_test(0,NULL);
+    }
+#endif
+
+#ifdef AIC_SD_USING_HOTPLUG
+    while (1) {
+        sdcard_hotplug_act();
     }
 #endif
 

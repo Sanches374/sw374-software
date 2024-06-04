@@ -1,4 +1,4 @@
-﻿#include <stdio.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
@@ -42,6 +42,16 @@ struct tiny_console {
 };
 
 static struct tiny_console *g_console = NULL;
+
+void show_version(void)
+{
+    char ver[] = PRJ_CHIP;
+
+    ver[0] = toupper(ver[0]);
+    printf("Welcome to ArtInChip Luban-Lite %d.%d.%d [Baremetal %s Inside]\n",
+           LL_VERSION, LL_SUBVERSION, LL_REVISION, ver);
+    printf("Built on %s %s\n", __DATE__, __TIME__);
+}
 
 static int putnchar(const char *str, int n)
 {
@@ -150,6 +160,12 @@ static int console_history(MAYBE_UNUSED(int argc), MAYBE_UNUSED(char *argv[]))
             printf("%3d. %s\n", i, cons->history[i]);
     }
 
+    return CONSOLE_OK;
+}
+
+static int console_version(MAYBE_UNUSED(int argc), MAYBE_UNUSED(char *argv[]))
+{
+    show_version();
     return CONSOLE_OK;
 }
 
@@ -963,6 +979,7 @@ void console_init(void)
 
     console_register_cmd("help", console_help, "Show all commands.");
     console_register_cmd("history", console_history, "Show history.");
+    console_register_cmd("version", console_version, "Show version.");
 
 	for (p = cmd_start; p < cmd_end; p++) {
 		if (p->initialized)
@@ -990,4 +1007,29 @@ int console_get_ctrlc(void)
         return c;
 
     return -1;
+}
+
+int console_confirm_yesno(void)
+{
+    int i;
+    char str_input[5];
+
+    i = 0;
+    while (i < sizeof(str_input)) {
+        str_input[i] = getchar();
+        if (str_input[i] != 0xff) {
+            printf("%c", str_input[i]);
+            if (str_input[i] == '\r')
+                break;
+            i++;
+        }
+    }
+    printf("\n\n");
+
+    if (strncmp(str_input, "y\r", 2) == 0 ||
+        strncmp(str_input, "Y\r", 2) == 0 ||
+        strncmp(str_input, "yes\r", 4) == 0 ||
+        strncmp(str_input, "YES\r", 4) == 0)
+        return 1;
+    return 0;
 }

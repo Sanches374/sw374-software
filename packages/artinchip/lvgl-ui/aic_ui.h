@@ -22,11 +22,12 @@ extern "C" {
 #define CONN(x, y) x#y
 #define LVGL_PATH(y) CONN(LVGL_DIR, y)
 #define LVGL_FILE_LIST_PATH(y) CONN(FILE_LIST_PATH, y)
+#define LVGL_PATH_ORI(y) CONN(LVGL_STORAGE_PATH"/", y)
 
 /* use fake image to fill color */
-#define FAKE_IMAGE_DECLARE(name) char fake_##name[128];
+#define FAKE_IMAGE_DECLARE(name) char fake_##name[256];
 #define FAKE_IMAGE_INIT(name, w, h, blend, color) \
-                snprintf(fake_##name, 127, "L:/%dx%d_%d_%08x.fake",\
+                snprintf(fake_##name, 255, "L:/%dx%d_%d_%08x.fake",\
                  w, h, blend, color);
 #define FAKE_IMAGE_NAME(name) (fake_##name)
 
@@ -50,7 +51,7 @@ static inline void fake_image_parse(char *fake_name, int *width,
     return;
 }
 
-#define ui_snprintf(fmt, arg...) snprintf(fmt, 127, ##arg)
+#define ui_snprintf(fmt, arg...) snprintf(fmt, 255, ##arg)
 
 void aic_ui_init();
 

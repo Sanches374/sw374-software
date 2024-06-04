@@ -150,10 +150,38 @@ if LPKG_USING_CHERRYUSB
                 config MSC_STORAGE_PATH
                     string "MSC_STORAGE_PATH"
                     default "/sdcard"
+                config CONFIG_USBDEV_MSC_MAX_BUFSIZE
+                    int "USBDEV_MSC_MAX_BUFSIZE"
+                    default 204800
             endmenu
         endif
 
+        menuconfig LPKG_CHERRYUSB_DEVICE_MTP
+            bool
+            prompt "Enable usb mtp device"
+            default n
 
+        if LPKG_CHERRYUSB_DEVICE_MTP
+            config LPKG_CHERRYUSB_DEVICE_MTP_TEMPLATE
+                bool
+                prompt "Use mtp template"
+                default y
+            menu "MTP Parameter"
+                depends on LPKG_CHERRYUSB_DEVICE_MTP_TEMPLATE
+                if KERNEL_RTTHREAD
+                    config USBDEV_MTP_THREAD
+                        bool "USBDEV_MTP_THREAD"
+                        default n
+                endif
+                config ROOT_PATH
+                    string "ROOT_PATH"
+                    default "/sdcard"
+
+                config MTP_OBJECT_HANDLES_MAX_NUM
+                    int "MTP_OBJECT_HANDLES_MAX_NUM"
+                    default 512
+            endmenu
+        endif
 
         menuconfig LPKG_CHERRYUSB_DEVICE_AUDIO
             bool

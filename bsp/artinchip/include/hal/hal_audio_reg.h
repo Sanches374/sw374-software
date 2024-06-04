@@ -13,6 +13,7 @@
 #define RX_DMIC_IF_CTRL_REG					(0x00)
 #define RX_DMIC_IF_ADOUT_SHIFT_EN				BIT(15)
 #define RX_DMIC_IF_ADOUT_SHIFT_MASK				GENMASK(14, 12)
+#define RX_DMIC_IF_ADOUT_SHIFT(fs)                              ((fs) << 12)
 #define RX_DMIC_IF_DLT_LENGTH					(10)
 #define RX_DMIC_IF_DMIC_RX_DLT_EN				(9)
 #define RX_DMIC_IF_DEC2_FLT					BIT(7)

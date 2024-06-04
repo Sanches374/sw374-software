@@ -73,7 +73,8 @@ static void cmd_gpai_set(int argc, char **argv)
 
 static int cmd_gpai_read(int argc, char **argv)
 {
-    u32 value, ch;
+    u16 value;
+    u32 ch;
     u32 cal_param;
     int cnt = 0;
     int voltage = 0;

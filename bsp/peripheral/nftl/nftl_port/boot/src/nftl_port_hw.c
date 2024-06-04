@@ -18,8 +18,6 @@
 #define PORT_HW_LOG(...)
 #endif
 
-static u8 read_oob[64] = { 0 };
-static u8 write_oob[64] = { 0 };
 
 void *nftl_memcpy(void *str1, const void *str2, int size)
 {
@@ -36,12 +34,12 @@ void *nftl_malloc(u32 size)
     if (size > 0x180000)
         PORT_HW_LOG("[NE]malloc size too large %d!\n", size);
 
-    return aicos_malloc(MEM_CMA, size);
+    return aicos_malloc_align(MEM_CMA, size, CACHE_LINE_SIZE);
 }
 
 void nftl_free(const void *ptr)
 {
-    aicos_free(MEM_CMA, (void *)ptr);
+    aicos_free_align(MEM_CMA, (void *)ptr);
 }
 
 int _nftl_port_hw_erase_block(void *device, struct physical_op_info *p)
@@ -64,9 +62,10 @@ int _nftl_port_hw_read_page(void *device, struct physical_op_info *p)
     //NFTL_INFO("%s:%d ...p->physical_page.block_num=%d, p->physical_page.page_num=%d page=%d\n", __FUNCTION__, __LINE__, p->physical_page.block_num, p->physical_page.page_num, page);
     int offset = page * nand->writesize;
     ret = mtd_read_oob(nand, offset, p->user_data_addr, nand->writesize,
-                       read_oob, 64);
-    memcpy(p->spare_data_addr, read_oob, 8);
-    memcpy(p->spare_data_addr + 8, read_oob + 16, 8);
+                           p->spare_data_addr, 64);
+    memcpy(p->spare_data_addr + 8, p->spare_data_addr + 16, 8);
+    memset(p->spare_data_addr + 16, 0xFF, 8);
+
 
     PORT_HW_LOG("%s:%d ...\n", __FUNCTION__, __LINE__);
     return ret;
@@ -82,12 +81,12 @@ int _nftl_port_hw_write_page(void *device, struct physical_op_info *p)
     int offset = page * nand->writesize;
     PORT_HW_LOG("%s:%d ...\n", __FUNCTION__, __LINE__);
 
-    memset(write_oob, 0xff, 64);
-    memcpy(write_oob, p->spare_data_addr, 8);
-    memcpy(write_oob + 16, p->spare_data_addr + 8, 8);
+    memcpy(p->spare_data_addr + 16, p->spare_data_addr + 8, 8);
+    memset(p->spare_data_addr + 8, 0xFF, 8);
+
 
     ret = mtd_write_oob(nand, offset, p->user_data_addr, nand->writesize,
-                        write_oob, 64);
+                        p->spare_data_addr, 64);
 
     return ret;
 }

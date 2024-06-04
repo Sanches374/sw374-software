@@ -26,6 +26,8 @@ static struct display_timing panel_timing = {
     .vback_porch  = PANEL_VBP,
     .vfront_porch = PANEL_VFP,
     .vsync_len    = PANEL_VSW,
+
+    .flags        = AIC_DISPLAY_FLAGS,
 };
 
 #ifdef AIC_DISP_RGB
@@ -51,8 +53,8 @@ static struct panel_lvds lvds = {
     .mode      = AIC_LVDS_MODE,
     .link_mode = AIC_LVDS_LINK_MODE,
     .link_swap = AIC_LVDS_LINK_SWAP_EN,
-    .line      = AIC_LVDS_LINES,
-    .pols      = AIC_LVDS_POL,
+    .lanes     = { AIC_LVDS_LINK0_LANES, AIC_LVDS_LINK1_LANES },
+    .pols      = { AIC_LVDS_LINK0_POL, AIC_LVDS_LINK1_POL },
 };
 
 struct aic_panel aic_panel_lvds = {

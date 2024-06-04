@@ -24,10 +24,11 @@
 #define AIC_PSADC_QC_MODE            0
 
 static rt_adc_device_t psadc_dev;
-static const char sopts[] = "rt:sh";
+static const char sopts[] = "t:n:rsh";
 static const struct option lopts[] = {
-    {"read",          no_argument, NULL, 'r'},
     {"voltage", required_argument, NULL, 't'},
+    {"number",  required_argument, NULL, 'n'},
+    {"read",          no_argument, NULL, 'r'},
     {"status",        no_argument, NULL, 's'},
     {"help",          no_argument, NULL, 'h'},
     {0, 0, 0, 0}
@@ -42,9 +43,10 @@ static void cmd_psadc_usage(char *program)
     printf("\t -r, --read\t\tRead the adc value\n");
     printf("\t -t, --voltage\t\tInput standard voltage, default is 3\n");
     printf("\t -s, --status\t\tShow more hardware information\n");
+    printf("\t -n, --number\t\tSet the number of samples, default is 10\n");
     printf("\t -h, --help \n");
     printf("\n");
-    printf("Example: %s -r -t 3\n", program);
+    printf("Example: %s -r -t 3 -n 10\n", program);
 }
 
 static void adc2voltage(float st_voltage, int adc_value)
@@ -56,7 +58,7 @@ static void adc2voltage(float st_voltage, int adc_value)
     return;
 }
 
-int psadc_get_adc(float st_voltage)
+int psadc_get_adc(float st_voltage, int sample_num)
 {
     int ret = 0;
     u32 adc_values[AIC_PSADC_CH_NUM];
@@ -72,9 +74,10 @@ int psadc_get_adc(float st_voltage)
 
     rt_adc_enable(psadc_dev, AIC_PSADC_QC_MODE);
     chan_cnt = rt_adc_control(psadc_dev, RT_ADC_CMD_GET_CHAN_COUNT, NULL);
-    rt_kprintf("Starting sampling for %d channels\n", chan_cnt);
+    rt_kprintf("Start samplng %d samples for %d channels\n", sample_num,
+               chan_cnt);
 
-    while (cnt < 10) {
+    while (cnt < sample_num) {
         cnt++;
 
         start_us = aic_get_time_us();
@@ -88,11 +91,11 @@ int psadc_get_adc(float st_voltage)
         }
         // aic_udelay(10);
 
-        rt_kprintf("[%d] PSADC: ", cnt);
+        rt_kprintf("[%d] PSADC:", cnt);
         for (int i = 0; i < chan_cnt; i++) {
             rt_kprintf(" %d", adc_values[i]);
         }
-        rt_kprintf("\nvoltage: ");
+        rt_kprintf("\nvoltage:");
         for (int i = 0; i < chan_cnt; i++) {
             adc2voltage(st_voltage, adc_values[i]);
         }
@@ -108,8 +111,10 @@ int psadc_get_adc(float st_voltage)
 static void cmd_test_psadc(int argc, char **argv)
 {
     int c;
+    int sample_num = 10;
     float st_voltage = AIC_PSADC_DEFAULT_VOLTAGE;
     bool show_status = false;
+    int read_enable = 0;
 
     if (argc < 2) {
         cmd_psadc_usage(argv[0]);
@@ -120,13 +125,16 @@ static void cmd_test_psadc(int argc, char **argv)
     while ((c = getopt_long(argc, argv, sopts, lopts, NULL)) != -1) {
         switch (c) {
         case 'r':
-            psadc_get_adc(st_voltage);
+            read_enable = 1;
             break;
         case 't':
             st_voltage = atof(optarg);
             break;
         case 's':
             show_status = true;
+            break;
+        case 'n':
+            sample_num = atoi(optarg);
             break;
         case 'h':
         default:
@@ -145,6 +153,14 @@ static void cmd_test_psadc(int argc, char **argv)
         rt_kprintf("Please input standard voltage\n");
         return;
     }
+
+    if (sample_num < 0) {
+        rt_kprintf("Please set vaild sample count\n");
+        return;
+    }
+
+    if (read_enable)
+        psadc_get_adc(st_voltage, sample_num);
 
     return;
 }

@@ -30,7 +30,11 @@
 #include <usbhost.h>
 #include <usbdevice.h>
 #include <boot_rom.h>
+#include <ram_param.h>
 #include <hal_axicfg.h>
+#ifdef AICUPG_LOG_BUFFER_SUPPORT
+#include <log_buf.h>
+#endif
 
 extern size_t __heap_start;
 extern size_t __heap_end;
@@ -54,9 +58,33 @@ struct hal_axicfg_table axi_cfg_table[HAL_AXICFG_PORT_MAX] = {
 };
 #endif
 
+static void aic_board_heap_init(enum boot_device bd)
+{
+    size_t heap_size, heap_start, real_ram_size = 0, config_ram_size = 0;
+
+#ifdef AIC_PSRAM_SIZE
+    config_ram_size = AIC_PSRAM_SIZE;
+#elif AIC_DRAM_TOTAL_SIZE
+    config_ram_size = AIC_DRAM_TOTAL_SIZE;
+#endif
+
+    real_ram_size = aic_get_ram_size();
+    if (config_ram_size != real_ram_size)
+        pr_warn("config ram size(0x%x) is not equal real ram size(0x%x)\n", (u32)config_ram_size, (u32)real_ram_size);
+
+    heap_size = ((size_t)&__heap_end) - ((size_t)&__heap_start);
+
+    /* Limit bootloader's heap to 2MB */
+    if (bd != BD_UDISK && bd != BD_SDFAT32 && bd != BD_USB && heap_size > 0x200000)
+            heap_size = 0x200000;
+
+    heap_start = (size_t)&__heap_end - heap_size;
+
+    heap_init((void *)heap_start, heap_size);
+}
+
 static int board_init(enum boot_device bd)
 {
-    size_t heap_size, heap_start;
     int cons_uart;
 
     /* target/<chip>/<board>/board.c */
@@ -73,20 +101,13 @@ static int board_init(enum boot_device bd)
     }
 #endif
 
-    heap_size = ((size_t)&__heap_end) - ((size_t)&__heap_start);
-
-    if (bd != BD_UDISK && bd != BD_SDFAT32 && heap_size > 0x200000)
-            heap_size = 0x200000;
-
-    heap_start = (size_t)&__heap_end - heap_size;
-
-    heap_init((void *)heap_start, heap_size);
-    boot_time_trace("Heap init done");
-
     cons_uart = AIC_BOOTLOADER_CONSOLE_UART;
     uart_init(cons_uart);
     stdio_set_uart(cons_uart);
     boot_time_trace("Console UART ready");
+
+    aic_board_heap_init(bd);
+    boot_time_trace("Heap init done");
 
     return 0;
 }
@@ -94,6 +115,17 @@ static int board_init(enum boot_device bd)
 void show_banner(void)
 {
     printf("\ntinySPL [Built on %s %s]\n", __DATE__, __TIME__);
+}
+
+int bl_upgmode_detect(void)
+{
+    enum aic_reboot_reason r;
+
+    r = aic_get_reboot_reason();
+    if (r == REBOOT_REASON_BL_UPGRADE)
+        return 1;
+
+    return 0;
 }
 
 int main(void)
@@ -113,6 +145,13 @@ int main(void)
 #endif
 
     bd = aic_get_boot_device();
+    if (bl_upgmode_detect())
+        bd = BD_USB;
+
+#ifdef AICUPG_LOG_BUFFER_SUPPORT
+    log_buf_init();
+#endif
+
     board_init(bd);
 #ifdef AIC_DMA_DRV
     drv_dma_init();

@@ -27,6 +27,47 @@ struct aic_i2c_msg
     uint8_t  *buf;
 };
 
+enum aic_msg_status {
+    MSG_IDLE        = 0,
+    MSG_IN_PROCESS  = 1,
+};
+
+struct slave_param
+{
+    uint32_t cmd;
+    uint8_t *arg;
+};
+
+typedef int (*i2c_slave_cb_t) (void *callback_param);
+
+struct aic_i2c_slave_info
+{
+    void *callback_param;
+    i2c_slave_cb_t slave_cb;
+};
+
+typedef struct aic_i2c_ctrl aic_i2c_ctrl;
+
+struct aic_i2c_ctrl
+{
+    int32_t index;
+    char *device_name;
+    unsigned long reg_base;
+    uint32_t addr_bit;
+    uint32_t speed_mode;
+    uint32_t bus_mode;
+    struct aic_i2c_msg *msg;
+    struct aic_i2c_slave_info slave;
+    enum aic_msg_status msg_status;
+    uint32_t slave_addr;
+    uint32_t abort_source;
+    uint32_t msg_err;
+    uint32_t buf_write_idx;
+    uint32_t buf_read_idx;
+    bool is_first_message;
+    bool is_last_message;
+};
+
 typedef enum {
     I2C_OK = 0,
     I2C_ERR = -1,
@@ -34,6 +75,14 @@ typedef enum {
     I2C_TIMEOUT = -3,
     I2C_UNSPUPPORTED = -4,
 } i2c_error_t;
+
+enum i2c_slave_event {
+    I2C_SLAVE_READ_REQUESTED,
+    I2C_SLAVE_WRITE_REQUESTED,
+    I2C_SLAVE_READ_PROCESSED,
+    I2C_SLAVE_WRITE_RECEIVED,
+    I2C_SLAVE_STOP,
+};
 
 #define I2C_DEFALT_CLOCK      24000000
 
@@ -144,281 +193,251 @@ typedef enum {
 
 #define I2C_ENABLE_MASTER_DISABLE_SLAVE (0x3)
 
-#define I2C_FIFO_DEPTH       8
-#define I2C_TXFIFO_THRESHOLD (I2C_FIFO_DEPTH / 2 - 1)
-#define I2C_RXFIFO_THRESHOLD (I2C_FIFO_DEPTH / 2)
+#define I2C_FIFO_DEPTH          8
+#define I2C_TXFIFO_THRESHOLD    (I2C_FIFO_DEPTH / 2 - 1)
+#define I2C_RXFIFO_THRESHOLD    0
 
-#define I2C_INTR_MASTER_TX_MASK \
-    (I2C_INTR_TX_EMPTY | I2C_INTR_TX_ABRT | I2C_INTR_STOP_DET)
+#define FS_MIN_SCL_HIGH         600
+#define FS_MIN_SCL_LOW          1300
+#define SS_MIN_SCL_HIGH         4200
+#define SS_MIN_SCL_LOW          5210
 
-#define I2C_INTR_MASTER_RX_MASK \
-    (I2C_INTR_RX_UNDER | I2C_INTR_RX_FULL | I2C_INTR_STOP_DET)
+#define I2C_TIMEOUT_DEF_VAL     1000
+#define I2C_INTR_ERROR_RX       0x0001
+#define I2C_INTR_ERROR_ABRT     0x0002
 
-#define I2C_INTR_SLAVE_TX_MASK \
-    (I2C_INTR_RD_REQ | I2C_INTR_RX_DONE | I2C_INTR_STOP_DET)
+#define I2C_MASTER_MODE         0
+#define I2C_SLAVE_MODE          1
+#define I2C_400K_SPEED          0
+#define I2C_100K_SPEED          1
+#define I2C_7BIT_ADDR           0
+#define I2C_10BIT_ADDR          1
 
-#define I2C_INTR_SLAVE_RX_MASK \
-    (I2C_INTR_RX_FULL | I2C_INTR_RX_UNDER | I2C_INTR_STOP_DET)
+#define I2C_INTR_MASTER_MASK    (I2C_INTR_RX_UNDER |\
+                        I2C_INTR_RX_FULL |\
+                        I2C_INTR_TX_EMPTY |\
+                        I2C_INTR_TX_ABRT |\
+                        I2C_INTR_STOP_DET)
 
-#define FS_MIN_SCL_HIGH 600
-#define FS_MIN_SCL_LOW  1300
-#define SS_MIN_SCL_HIGH 4000
-#define SS_MIN_SCL_LOW  4700
+#define I2C_INTR_SLAVE_MASK     (I2C_INTR_RX_UNDER |\
+                        I2C_INTR_RX_FULL |\
+                        I2C_INTR_RD_REQ |\
+                        I2C_INTR_TX_ABRT |\
+                        I2C_INTR_RX_DONE |\
+                        I2C_INTR_START_DET)
 
-#define I2C_TIMEOUT_DEF_VAL 1000
-
-static inline void aic_i2c_module_enable(unsigned long reg_base)
+static inline void hal_i2c_module_enable(aic_i2c_ctrl *i2c_dev)
 {
     uint32_t reg_val;
 
-    reg_val = readl(reg_base + I2C_ENABLE);
+    reg_val = readl(i2c_dev->reg_base + I2C_ENABLE);
     reg_val |= I2C_ENABLE_BIT;
-    writel(reg_val, reg_base + I2C_ENABLE);
+    writel(reg_val, i2c_dev->reg_base + I2C_ENABLE);
 }
 
-static inline void aic_i2c_module_disable(unsigned long reg_base)
+static inline void hal_i2c_module_disable(aic_i2c_ctrl *i2c_dev)
 {
     uint32_t reg_val;
 
-    writel(0x100, reg_base + I2C_INTR_CLR);
-    reg_val = readl(reg_base + I2C_ENABLE);
+    writel(0x100, i2c_dev->reg_base + I2C_INTR_CLR);
+    reg_val = readl(i2c_dev->reg_base + I2C_ENABLE);
     reg_val &= ~I2C_ENABLE_BIT;
-    writel(reg_val, reg_base + I2C_ENABLE);
+    writel(reg_val, i2c_dev->reg_base + I2C_ENABLE);
 }
 
-static inline unsigned long aic_i2c_module_status(unsigned long reg_base)
+static inline unsigned long hal_i2c_module_status(aic_i2c_ctrl *i2c_dev)
 {
-    return readl(reg_base + I2C_ENABLE_STATUS) & 1;
+    return readl(i2c_dev->reg_base + I2C_ENABLE_STATUS) & 1;
 }
 
-static inline void aic_i2c_transmit_data(unsigned long reg_base, uint16_t data)
+static inline void hal_i2c_transmit_data(aic_i2c_ctrl *i2c_dev, uint8_t data)
 {
-    writel(data, reg_base + I2C_DATA_CMD);
+    writel(data, i2c_dev->reg_base + I2C_DATA_CMD);
 }
 
-static inline void aic_i2c_transmit_data_with_cmd(unsigned long reg_base,
+static inline void hal_i2c_transmit_data_with_cmd(aic_i2c_ctrl *i2c_dev,
                                                   unsigned long data)
 {
-    writel(data, reg_base + I2C_DATA_CMD);
+    writel(data, i2c_dev->reg_base + I2C_DATA_CMD);
 }
 
-static inline void aic_i2c_transmit_data_with_stop_bit(unsigned long reg_base,
+static inline void hal_i2c_transmit_data_with_stop_bit(aic_i2c_ctrl *i2c_dev,
                                                        uint8_t data)
 {
     uint32_t reg_val;
 
     reg_val = I2C_DATA_CMD_STOP | data;
-    writel(reg_val, reg_base + I2C_DATA_CMD);
+    writel(reg_val, i2c_dev->reg_base + I2C_DATA_CMD);
 }
 
 static inline unsigned long
-aic_i2c_get_transmit_fifo_num(unsigned long reg_base)
+hal_i2c_get_transmit_fifo_num(aic_i2c_ctrl *i2c_dev)
 {
-    return readl(reg_base + I2C_TXFLR);
+    return readl(i2c_dev->reg_base + I2C_TXFLR);
 }
 
-static inline void aic_i2c_transfer_stop_bit(unsigned long reg_base)
+static inline void hal_i2c_transfer_stop_bit(aic_i2c_ctrl *i2c_dev)
 {
-    writel(I2C_DATA_CMD_STOP, reg_base + I2C_DATA_CMD);
+    writel(I2C_DATA_CMD_STOP, i2c_dev->reg_base + I2C_DATA_CMD);
 }
 
-static inline void aic_i2c_read_data_cmd(unsigned long reg_base)
+static inline void hal_i2c_read_data_cmd(aic_i2c_ctrl *i2c_dev)
 {
-    writel(I2C_DATA_CMD_READ, reg_base + I2C_DATA_CMD);
+    writel(I2C_DATA_CMD_READ, i2c_dev->reg_base + I2C_DATA_CMD);
 }
 
-static inline void aic_i2c_read_data_cmd_with_stop_bit(unsigned long reg_base)
+static inline void hal_i2c_read_data_cmd_with_stop_bit(aic_i2c_ctrl *i2c_dev)
 {
-    writel(I2C_DATA_CMD_READ | I2C_DATA_CMD_STOP, reg_base + I2C_DATA_CMD);
+    writel(I2C_DATA_CMD_READ | I2C_DATA_CMD_STOP, i2c_dev->reg_base + I2C_DATA_CMD);
 }
 
-static inline unsigned long aic_i2c_get_receive_fifo_num(unsigned long reg_base)
+static inline unsigned long hal_i2c_get_receive_fifo_num(aic_i2c_ctrl *i2c_dev)
 {
-    return readl(reg_base + I2C_RXFLR);
+    return readl(i2c_dev->reg_base + I2C_RXFLR);
 }
 
-static inline uint8_t aic_i2c_get_receive_data(unsigned long reg_base)
+static inline uint8_t hal_i2c_get_receive_data(aic_i2c_ctrl *i2c_dev)
 {
-    return readb(reg_base + I2C_DATA_CMD);
+    return readb(i2c_dev->reg_base + I2C_DATA_CMD);
 }
 
 static inline void
-aic_i2c_read_data_cmd_with_restart_stop_bit(unsigned long reg_base)
+hal_i2c_read_data_cmd_with_restart_stop_bit(aic_i2c_ctrl *i2c_dev)
 {
     writel(I2C_DATA_CMD_READ | I2C_DATA_CMD_STOP | I2C_DATA_CMD_RESTART,
-           reg_base + I2C_DATA_CMD);
+           i2c_dev->reg_base + I2C_DATA_CMD);
 }
 
 static inline void
-aic_i2c_read_data_cmd_with_restart_bit(unsigned long reg_base)
+hal_i2c_read_data_cmd_with_restart_bit(aic_i2c_ctrl *i2c_dev)
 {
     uint32_t reg_val;
 
-    reg_val = readl(reg_base + I2C_CTL);
+    reg_val = readl(i2c_dev->reg_base + I2C_CTL);
     reg_val |= I2C_CTL_RESTART_ENABLE;
-    writel(reg_val, reg_base + I2C_CTL);
-    writel(I2C_DATA_CMD_READ | I2C_DATA_CMD_RESTART, reg_base + I2C_DATA_CMD);
+    writel(reg_val, i2c_dev->reg_base + I2C_CTL);
+    writel(I2C_DATA_CMD_READ | I2C_DATA_CMD_RESTART, i2c_dev->reg_base + I2C_DATA_CMD);
 }
 
-static inline unsigned long aic_i2c_set_read_cmd(unsigned long reg_val)
+static inline unsigned long hal_i2c_set_read_cmd(unsigned long reg_val)
 {
     return (reg_val | I2C_DATA_CMD_READ);
 }
 
-static inline unsigned long aic_i2c_set_stop_bit(unsigned long reg_val)
+static inline unsigned long hal_i2c_set_stop_bit(unsigned long reg_val)
 {
     return (reg_val | I2C_DATA_CMD_STOP);
 }
 
-static inline unsigned long aic_i2c_set_restart_bit(unsigned long reg_val)
+static inline unsigned long hal_i2c_set_restart_bit(unsigned long reg_val)
 {
     return (reg_val | I2C_DATA_CMD_RESTART);
 }
 
-static inline void aic_i2c_set_restart_bit_with_data(unsigned long reg_base,
+static inline void hal_i2c_set_restart_bit_with_data(aic_i2c_ctrl *i2c_dev,
                                                      uint8_t data)
 {
     uint32_t reg_val;
 
-    reg_val = readl(reg_base + I2C_CTL);
+    reg_val = readl(i2c_dev->reg_base + I2C_CTL);
     reg_val |= I2C_CTL_RESTART_ENABLE;
-    writel(reg_val, reg_base + I2C_CTL);
-    writel(data | I2C_DATA_CMD_RESTART, reg_base + I2C_DATA_CMD);
+    writel(reg_val, i2c_dev->reg_base + I2C_CTL);
+    writel(data | I2C_DATA_CMD_RESTART, i2c_dev->reg_base + I2C_DATA_CMD);
 }
 
 static inline unsigned long
-aic_i2c_get_raw_interrupt_state(unsigned long reg_base)
+hal_i2c_get_raw_interrupt_state(aic_i2c_ctrl *i2c_dev)
 {
-    return readl(reg_base + I2C_INTR_RAW_STAT);
+    return readl(i2c_dev->reg_base + I2C_INTR_RAW_STAT);
 }
 
-static inline unsigned long aic_i2c_get_interrupt_state(unsigned long reg_base)
+static inline unsigned long hal_i2c_get_interrupt_state(aic_i2c_ctrl *i2c_dev)
 {
-    return readl(reg_base + I2C_INTR_CLR);
+    return readl(i2c_dev->reg_base + I2C_INTR_CLR);
 }
 
-static inline void aic_i2c_disable_all_irq(unsigned long reg_base)
+static inline void hal_i2c_disable_all_irq(aic_i2c_ctrl *i2c_dev)
 {
-    writel(0, reg_base + I2C_INTR_MASK);
+    writel(0, i2c_dev->reg_base + I2C_INTR_MASK);
 }
 
-static inline void aic_i2c_clear_irq_flags(unsigned long reg_base,
+static inline void hal_i2c_clear_irq_flags(aic_i2c_ctrl *i2c_dev,
                                            unsigned long flags)
 {
-    writel(flags, reg_base + I2C_INTR_CLR);
+    writel(flags, i2c_dev->reg_base + I2C_INTR_CLR);
 }
 
-static inline void aic_i2c_clear_all_irq_flags(unsigned long reg_base)
+static inline void hal_i2c_clear_all_irq_flags(aic_i2c_ctrl *i2c_dev)
 {
-    writel(0xffff, reg_base + I2C_INTR_CLR);
+    writel(0xffff, i2c_dev->reg_base + I2C_INTR_CLR);
 }
 
-static inline void aic_i2c_clear_rx_full_flag(unsigned long reg_base)
+static inline void hal_i2c_clear_rx_full_flag(aic_i2c_ctrl *i2c_dev)
 {
-    writel(I2C_INTR_RX_FULL, reg_base + I2C_INTR_CLR);
+    writel(I2C_INTR_RX_FULL, i2c_dev->reg_base + I2C_INTR_CLR);
 }
 
-static inline void aic_i2c_clear_tx_empty_flag(unsigned long reg_base)
+static inline void hal_i2c_clear_tx_empty_flag(aic_i2c_ctrl *i2c_dev)
 {
-    writel(I2C_INTR_TX_EMPTY, reg_base + I2C_INTR_CLR);
+    writel(I2C_INTR_TX_EMPTY, i2c_dev->reg_base + I2C_INTR_CLR);
 }
 
-static inline void aic_i2c_master_enable_transmit_irq(unsigned long reg_base)
+static inline void hal_i2c_master_enable_irq(aic_i2c_ctrl *i2c_dev)
 {
-    writel(I2C_INTR_MASTER_TX_MASK, reg_base + I2C_INTR_MASK);
+    writel(I2C_INTR_MASTER_MASK, i2c_dev->reg_base + I2C_INTR_MASK);
 }
 
-static inline void aic_i2c_master_enable_receive_irq(unsigned long reg_base)
+static inline void hal_i2c_slave_enable_irq(aic_i2c_ctrl *i2c_dev)
 {
-    writel(I2C_INTR_MASTER_RX_MASK, reg_base + I2C_INTR_MASK);
+    writel(I2C_INTR_SLAVE_MASK, i2c_dev->reg_base + I2C_INTR_MASK);
 }
 
-static inline void aic_i2c_slave_enable_transmit_irq(unsigned long reg_base)
+static inline void hal_i2c_set_transmit_fifo_threshold(aic_i2c_ctrl *i2c_dev)
 {
-    writel(I2C_INTR_SLAVE_TX_MASK, reg_base + I2C_INTR_MASK);
+    writel(I2C_TXFIFO_THRESHOLD, i2c_dev->reg_base + I2C_TX_TL);
 }
 
-static inline void aic_i2c_slave_enable_receive_irq(unsigned long reg_base)
-{
-    writel(I2C_INTR_SLAVE_RX_MASK, reg_base + I2C_INTR_MASK);
-}
-
-static inline void aic_i2c_set_transmit_fifo_threshold(unsigned long reg_base)
-{
-    writel(I2C_TXFIFO_THRESHOLD, reg_base + I2C_TX_TL);
-}
-
-static inline void aic_i2c_set_receive_fifo_threshold(unsigned long reg_base,
+static inline void hal_i2c_set_receive_fifo_threshold(aic_i2c_ctrl *i2c_dev,
                                                       uint8_t level)
 {
-    writel(level - 1, reg_base + I2C_RX_TL);
+    writel(level - 1, i2c_dev->reg_base + I2C_RX_TL);
 }
 
-/**
-  \brief       I2C initialization: clock enable and release reset signal
-  \param[in]   i2c_idx     i2c index number
-  \return      0, if success, error code if failed
-*/
-int aic_i2c_init(int32_t i2c_idx);
+static inline void hal_i2c_config_fifo_slave(aic_i2c_ctrl *i2c_dev)
+{
+    writel(0, i2c_dev->reg_base + I2C_TX_TL);
+    writel(0, i2c_dev->reg_base + I2C_RX_TL);
+}
+
+static inline int hal_i2c_bus_status(aic_i2c_ctrl *i2c_dev)
+{
+    uint32_t status;
+
+    status = (readl(i2c_dev->reg_base + I2C_STATUS) & I2C_STATUS_ACTIVITY);
+    return status;
+}
+
+static inline void hal_i2c_flags_mask(aic_i2c_ctrl *i2c_dev, unsigned long flags)
+{
+    writel(flags, i2c_dev->reg_base + I2C_INTR_MASK);
+}
 
 
-void hal_i2c_set_hold(unsigned long reg_base, u32 val);
-
-/**
-  \brief       Configure i2c master mode or slave mode
-  \param[in]   reg_base     iic controller register base
-  \param[in]   mode         if true, master mode; if false, slave mode
-  \return      0, if success, error code if failed
-*/
-int aic_i2c_set_master_slave_mode(unsigned long reg_base, uint8_t mode);
-
-/**
-  \brief       Configure i2c master address mode
-  \param[in]   reg_base     iic controller register base
-  \param[in]   enable       if true, 10bit address mode;
-  			    if false, 7bit address mode
-  \return      0, if success, error code if failed
-*/
-int aic_i2c_master_10bit_addr(unsigned long reg_base, uint8_t enable);
-
-/**
-  \brief       Configure i2c slave address mode
-  \param[in]   reg_base     iic controller register base
-  \param[in]   enable       if true, 10bit address mode;
-  			    if false, 7bit address mode
-  \return      0, if success, error code if failed
-*/
-int aic_i2c_slave_10bit_addr(unsigned long reg_base, uint8_t enable);
-
-/**
-  \brief       Configure i2c speed mode
-  \param[in]   reg_base     iic controller register base
-  \param[in]   mode         if true, fast mode; if false, standard mode
-  \return      0, if success, error code if failed
-*/
-int aic_i2c_speed_mode_select(unsigned long reg_base, uint32_t clk_freq,
-                              uint8_t mode);
-
-/**
-  \brief       Configure target device address
-  \param[in]   reg_base     iic controller register base
-  \param[in]   addr         target address
-  \return      0, if success, error code if failed
-*/
-void aic_i2c_target_addr(unsigned long reg_base, uint32_t addr);
-
-/**
-  \brief       Configure i2c own address in slave mode
-  \param[in]   reg_base     iic controller register base
-  \param[in]   addr         i2c own address
-  \return      0, if success, error code if failed
-*/
-int aic_i2c_slave_own_addr(unsigned long reg_base, uint32_t addr);
-
-int32_t aic_i2c_master_send_msg(unsigned long reg_base,
+int hal_i2c_init(aic_i2c_ctrl *i2c_dev);
+int hal_i2c_clk_init(aic_i2c_ctrl *i2c_dev);
+int hal_i2c_set_master_slave_mode(aic_i2c_ctrl *i2c_dev);
+int hal_i2c_master_10bit_addr(aic_i2c_ctrl *i2c_dev);
+int hal_i2c_slave_10bit_addr(aic_i2c_ctrl *i2c_dev);
+int hal_i2c_slave_own_addr(aic_i2c_ctrl *i2c_dev, uint32_t addr);
+void hal_i2c_target_addr(aic_i2c_ctrl *i2c_dev, uint32_t addr);
+void hal_i2c_set_hold(aic_i2c_ctrl *i2c_dev, u32 val);
+int hal_i2c_speed_mode_select(aic_i2c_ctrl *i2c_dev,
+                                uint32_t clk_freq, uint8_t mode);
+int32_t hal_i2c_wait_bus_free(aic_i2c_ctrl *i2c_dev, uint32_t timeout);
+int32_t hal_i2c_master_send_msg(aic_i2c_ctrl *i2c_dev,
                                 struct aic_i2c_msg *msg, uint8_t is_last_message);
-int32_t aic_i2c_master_receive_msg(unsigned long reg_base,
-                                   struct aic_i2c_msg *msg, uint8_t is_last_message);
+int32_t hal_i2c_master_receive_msg(aic_i2c_ctrl *i2c_dev,
+                                struct aic_i2c_msg *msg, uint8_t is_last_message);
 
 #ifdef __cplusplus
 }

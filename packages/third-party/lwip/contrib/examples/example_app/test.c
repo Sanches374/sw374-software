@@ -116,11 +116,6 @@
 #define USE_DEFAULT_ETH_NETIF 1
 #endif
 
-/** Define this to 1 to enable a PPP interface. */
-#ifndef USE_PPP
-#define USE_PPP 0
-#endif
-
 /** Define this to 1 or 2 to support 1 or 2 SLIP interfaces. */
 #ifndef USE_SLIPIF
 #define USE_SLIPIF 0
@@ -158,112 +153,6 @@ struct dhcp netif_dhcp;
 struct autoip netif_autoip;
 #endif /* LWIP_AUTOIP */
 #endif /* USE_ETHERNET */
-#if USE_PPP
-/* THE PPP PCB */
-ppp_pcb *ppp;
-/* THE PPP interface */
-struct netif ppp_netif;
-/* THE PPP descriptor */
-u8_t sio_idx = 0;
-sio_fd_t ppp_sio;
-#endif /* USE_PPP */
-#if USE_SLIPIF
-struct netif slipif1;
-#if USE_SLIPIF > 1
-struct netif slipif2;
-#endif /* USE_SLIPIF > 1 */
-#endif /* USE_SLIPIF */
-
-
-#if USE_PPP
-static void
-pppLinkStatusCallback(ppp_pcb *pcb, int errCode, void *ctx)
-{
-  struct netif *pppif = ppp_netif(pcb);
-  LWIP_UNUSED_ARG(ctx);
-
-  switch(errCode) {
-    case PPPERR_NONE: {             /* No error. */
-      printf("pppLinkStatusCallback: PPPERR_NONE\n");
-#if LWIP_IPV4
-      printf("   our_ipaddr  = %s\n", ip4addr_ntoa(netif_ip4_addr(pppif)));
-      printf("   his_ipaddr  = %s\n", ip4addr_ntoa(netif_ip4_gw(pppif)));
-      printf("   netmask     = %s\n", ip4addr_ntoa(netif_ip4_netmask(pppif)));
-#endif /* LWIP_IPV4 */
-#if LWIP_DNS
-      printf("   dns1        = %s\n", ipaddr_ntoa(dns_getserver(0)));
-      printf("   dns2        = %s\n", ipaddr_ntoa(dns_getserver(1)));
-#endif /* LWIP_DNS */
-#if PPP_IPV6_SUPPORT
-      printf("   our6_ipaddr = %s\n", ip6addr_ntoa(netif_ip6_addr(pppif, 0)));
-#endif /* PPP_IPV6_SUPPORT */
-      break;
-    }
-    case PPPERR_PARAM: {           /* Invalid parameter. */
-      printf("pppLinkStatusCallback: PPPERR_PARAM\n");
-      break;
-    }
-    case PPPERR_OPEN: {            /* Unable to open PPP session. */
-      printf("pppLinkStatusCallback: PPPERR_OPEN\n");
-      break;
-    }
-    case PPPERR_DEVICE: {          /* Invalid I/O device for PPP. */
-      printf("pppLinkStatusCallback: PPPERR_DEVICE\n");
-      break;
-    }
-    case PPPERR_ALLOC: {           /* Unable to allocate resources. */
-      printf("pppLinkStatusCallback: PPPERR_ALLOC\n");
-      break;
-    }
-    case PPPERR_USER: {            /* User interrupt. */
-      printf("pppLinkStatusCallback: PPPERR_USER\n");
-      break;
-    }
-    case PPPERR_CONNECT: {         /* Connection lost. */
-      printf("pppLinkStatusCallback: PPPERR_CONNECT\n");
-      break;
-    }
-    case PPPERR_AUTHFAIL: {        /* Failed authentication challenge. */
-      printf("pppLinkStatusCallback: PPPERR_AUTHFAIL\n");
-      break;
-    }
-    case PPPERR_PROTOCOL: {        /* Failed to meet protocol. */
-      printf("pppLinkStatusCallback: PPPERR_PROTOCOL\n");
-      break;
-    }
-    case PPPERR_PEERDEAD: {        /* Connection timeout */
-      printf("pppLinkStatusCallback: PPPERR_PEERDEAD\n");
-      break;
-    }
-    case PPPERR_IDLETIMEOUT: {     /* Idle Timeout */
-      printf("pppLinkStatusCallback: PPPERR_IDLETIMEOUT\n");
-      break;
-    }
-    case PPPERR_CONNECTTIME: {     /* Max connect time reached */
-      printf("pppLinkStatusCallback: PPPERR_CONNECTTIME\n");
-      break;
-    }
-    case PPPERR_LOOPBACK: {        /* Loopback detected */
-      printf("pppLinkStatusCallback: PPPERR_LOOPBACK\n");
-      break;
-    }
-    default: {
-      printf("pppLinkStatusCallback: unknown errCode %d\n", errCode);
-      break;
-    }
-  }
-}
-
-#if PPPOS_SUPPORT
-static u32_t
-ppp_output_cb(ppp_pcb *pcb, u8_t *data, u32_t len, void *ctx)
-{
-  LWIP_UNUSED_ARG(pcb);
-  LWIP_UNUSED_ARG(ctx);
-  return sio_write(ppp_sio, data, len);
-}
-#endif /* PPPOS_SUPPORT */
-#endif /* USE_PPP */
 
 #if LWIP_NETIF_STATUS_CALLBACK
 static void
@@ -292,51 +181,14 @@ link_callback(struct netif *state_netif)
   }
 }
 #endif /* LWIP_NETIF_LINK_CALLBACK */
-
+#include "lwip/mld6.h"
 /* This function initializes all network interfaces */
 static void
 test_netif_init(void)
 {
-#if USE_SLIPIF
-  u8_t num_slip1 = 0;
-#if LWIP_IPV4
-  ip4_addr_t ipaddr_slip1, netmask_slip1, gw_slip1;
-#endif
-#if USE_SLIPIF > 1
-  u8_t num_slip2 = 1;
-#if LWIP_IPV4
-  ip4_addr_t ipaddr_slip2, netmask_slip2, gw_slip2;
-#endif
-#endif /* USE_SLIPIF > 1 */
-#endif /* USE_SLIPIF */
 #if USE_DHCP || USE_AUTOIP
   err_t err;
 #endif
-
-#if USE_PPP
-  const char *username = NULL, *password = NULL;
-#ifdef PPP_USERNAME
-  username = PPP_USERNAME;
-#endif
-#ifdef PPP_PASSWORD
-  password = PPP_PASSWORD;
-#endif
-  printf("ppp_connect: COM%d\n", (int)sio_idx);
-#if PPPOS_SUPPORT
-  ppp_sio = sio_open(sio_idx);
-  if (ppp_sio == NULL) {
-    printf("sio_open error\n");
-  } else {
-    ppp = pppos_create(&ppp_netif, ppp_output_cb, pppLinkStatusCallback, NULL);
-    if (ppp == NULL) {
-      printf("pppos_create error\n");
-    } else {
-      ppp_set_auth(ppp, PPPAUTHTYPE_ANY, username, password);
-      ppp_connect(ppp, 0);
-    }
-  }
-#endif /* PPPOS_SUPPORT */
-#endif  /* USE_PPP */
 
 #if USE_ETHERNET
   netif_startup();
@@ -348,6 +200,7 @@ test_netif_init(void)
 #endif
   printf("ip6 linklocal address: %s\n", ip6addr_ntoa(netif_ip6_addr(netif_default, 0)));
 #endif /* LWIP_IPV6 */
+
 #if LWIP_NETIF_STATUS_CALLBACK
   netif_set_status_callback(netif_default, status_callback);
 #endif /* LWIP_NETIF_STATUS_CALLBACK */
@@ -376,101 +229,8 @@ test_netif_init(void)
   netif.flags |= NETIF_FLAG_ETHERNET; /* but pure ethernet */
 #endif /* USE_ETHERNET_TCPIP */
 
-#if USE_PPP && PPPOE_SUPPORT
-  /* start PPPoE after ethernet netif is added! */
-  ppp = pppoe_create(&ppp_netif, netif_default, NULL, NULL, pppLinkStatusCallback, NULL);
-  if (ppp == NULL) {
-    printf("pppoe_create error\n");
-  } else {
-    ppp_set_auth(ppp, PPPAUTHTYPE_ANY, username, password);
-    ppp_connect(ppp, 0);
-  }
-#endif /* USE_PPP && PPPOE_SUPPORT */
-
 #endif /* USE_ETHERNET */
-#if USE_SLIPIF
-#if LWIP_IPV4
-#define SLIP1_ADDRS &ipaddr_slip1, &netmask_slip1, &gw_slip1,
-  LWIP_PORT_INIT_SLIP1_IPADDR(&ipaddr_slip1);
-  LWIP_PORT_INIT_SLIP1_GW(&gw_slip1);
-  LWIP_PORT_INIT_SLIP1_NETMASK(&netmask_slip1);
-  printf("Starting lwIP slipif, local interface IP is %s\n", ip4addr_ntoa(&ipaddr_slip1));
-#else
-#define SLIP1_ADDRS
-  printf("Starting lwIP slipif\n");
-#endif
-#if defined(SIO_USE_COMPORT) && SIO_USE_COMPORT
-  num_slip1++; /* COM ports cannot be 0-based */
-#endif
-  netif_add(&slipif1, SLIP1_ADDRS &num_slip1, slipif_init, ip_input);
-#if !USE_ETHERNET
-  netif_set_default(&slipif1);
-#endif /* !USE_ETHERNET */
-#if LWIP_IPV6
-  netif_create_ip6_linklocal_address(&slipif1, 1);
-  printf("SLIP ip6 linklocal address: %s\n", ip6addr_ntoa(netif_ip6_addr(&slipif1, 0)));
-#endif /* LWIP_IPV6 */
-#if LWIP_NETIF_STATUS_CALLBACK
-  netif_set_status_callback(&slipif1, status_callback);
-#endif /* LWIP_NETIF_STATUS_CALLBACK */
-#if LWIP_NETIF_LINK_CALLBACK
-  netif_set_link_callback(&slipif1, link_callback);
-#endif /* LWIP_NETIF_LINK_CALLBACK */
-  netif_set_up(&slipif1);
-
-#if USE_SLIPIF > 1
-#if LWIP_IPV4
-#define SLIP2_ADDRS &ipaddr_slip2, &netmask_slip2, &gw_slip2,
-  LWIP_PORT_INIT_SLIP2_IPADDR(&ipaddr_slip2);
-  LWIP_PORT_INIT_SLIP2_GW(&gw_slip2);
-  LWIP_PORT_INIT_SLIP2_NETMASK(&netmask_slip2);
-  printf("Starting lwIP SLIP if #2, local interface IP is %s\n", ip4addr_ntoa(&ipaddr_slip2));
-#else
-#define SLIP2_ADDRS
-  printf("Starting lwIP SLIP if #2\n");
-#endif
-#if defined(SIO_USE_COMPORT) && SIO_USE_COMPORT
-  num_slip2++; /* COM ports cannot be 0-based */
-#endif
-  netif_add(&slipif2, SLIP2_ADDRS &num_slip2, slipif_init, ip_input);
-#if LWIP_IPV6
-  netif_create_ip6_linklocal_address(&slipif1, 1);
-  printf("SLIP2 ip6 linklocal address: ");
-  ip6_addr_debug_print(0xFFFFFFFF & ~LWIP_DBG_HALT, netif_ip6_addr(&slipif2, 0));
-  printf("\n");
-#endif /* LWIP_IPV6 */
-#if LWIP_NETIF_STATUS_CALLBACK
-  netif_set_status_callback(&slipif2, status_callback);
-#endif /* LWIP_NETIF_STATUS_CALLBACK */
-#if LWIP_NETIF_LINK_CALLBACK
-  netif_set_link_callback(&slipif2, link_callback);
-#endif /* LWIP_NETIF_LINK_CALLBACK */
-  netif_set_up(&slipif2);
-#endif /* USE_SLIPIF > 1*/
-#endif /* USE_SLIPIF */
 }
-
-#if LWIP_DNS_APP && LWIP_DNS
-static void
-dns_found(const char *name, const ip_addr_t *addr, void *arg)
-{
-  LWIP_UNUSED_ARG(arg);
-  printf("%s: %s\n", name, addr ? ipaddr_ntoa(addr) : "<not found>");
-}
-
-static void
-dns_dorequest(void *arg)
-{
-  const char* dnsname = "3com.com";
-  ip_addr_t dnsresp;
-  LWIP_UNUSED_ARG(arg);
-
-  if (dns_gethostbyname(dnsname, &dnsresp, dns_found, 0) == ERR_OK) {
-    dns_found(dnsname, &dnsresp, 0);
-  }
-}
-#endif /* LWIP_DNS_APP && LWIP_DNS */
-
 
 /* This function initializes this lwIP test. When NO_SYS=1, this is done in
  * the main_loop context (there is no other one), when NO_SYS=0, this is done
@@ -485,9 +245,6 @@ test_init(void * arg)
   LWIP_ASSERT("arg != NULL", arg != NULL);
   init_sem = (sys_sem_t*)arg;
 #endif /* NO_SYS */
-
-  /* init randomizer again (seed per thread) */
-  //srand((unsigned int)time(0));
 
   /* init network interfaces */
   test_netif_init();
@@ -507,13 +264,6 @@ void lwip_test_example_main_loop(void * data)
   err_t err;
   sys_sem_t init_sem;
 #endif /* NO_SYS */
-#if USE_PPP
-#if !USE_ETHERNET
-  int count;
-  u8_t rxbuf[1024];
-#endif
-  volatile int callClosePpp = 0;
-#endif /* USE_PPP */
 
   /* initialize lwIP stack, network interfaces and applications */
 #if NO_SYS
@@ -530,114 +280,16 @@ void lwip_test_example_main_loop(void * data)
   sys_sem_free(&init_sem);
 #endif /* NO_SYS */
 
-#if (LWIP_SOCKET || LWIP_NETCONN) && LWIP_NETCONN_SEM_PER_THREAD
-  netconn_thread_init();
-#endif
-
+#if NO_SYS
   /* MAIN LOOP for driver update (and timers if NO_SYS) */
   while (!LWIP_EXAMPLE_APP_ABORT()) {
-#if NO_SYS
     /* handle timers (already done in tcpip.c when NO_SYS=0) */
     sys_check_timeouts();
 
     netif_baremetal_poll();
+  }
 #endif /* NO_SYS */
-
-#if USE_ETHERNET
-    sys_msleep(5000);
-#else /* USE_ETHERNET */
-    /* try to read characters from serial line and pass them to PPPoS */
-    count = sio_read(ppp_sio, (u8_t*)rxbuf, 1024);
-    if(count > 0) {
-      pppos_input(ppp, rxbuf, count);
-    } else {
-      /* nothing received, give other tasks a chance to run */
-      sys_msleep(1);
-    }
-
-#endif /* USE_ETHERNET */
-#if USE_SLIPIF
-    slipif_poll(&slipif1);
-#if USE_SLIPIF > 1
-    slipif_poll(&slipif2);
-#endif /* USE_SLIPIF > 1 */
-#endif /* USE_SLIPIF */
-#if ENABLE_LOOPBACK && !LWIP_NETIF_LOOPBACK_MULTITHREADING
-    /* check for loopback packets on all netifs */
-    netif_poll_all();
-#endif /* ENABLE_LOOPBACK && !LWIP_NETIF_LOOPBACK_MULTITHREADING */
-#if USE_PPP
-    {
-    int do_hup = 0;
-    if(do_hup) {
-      ppp_close(ppp, 1);
-      do_hup = 0;
-    }
-    }
-    if(callClosePpp && ppp) {
-      /* make sure to disconnect PPP before stopping the program... */
-      callClosePpp = 0;
-#if NO_SYS
-      ppp_close(ppp, 0);
-#else
-      pppapi_close(ppp, 0);
-#endif
-      ppp = NULL;
-    }
-#endif /* USE_PPP */
-  }
-
-#if USE_PPP
-    if(ppp) {
-      u32_t started;
-      printf("Closing PPP connection...\n");
-      /* make sure to disconnect PPP before stopping the program... */
-#if NO_SYS
-      ppp_close(ppp, 0);
-#else
-      pppapi_close(ppp, 0);
-#endif
-      ppp = NULL;
-      /* Wait for some time to let PPP finish... */
-      started = sys_now();
-      do
-      {
-#if USE_ETHERNET
-        default_netif_poll();
-#endif
-        /* @todo: need a better check here: only wait until PPP is down */
-      } while(sys_now() - started < 5000);
-    }
-#endif /* USE_PPP */
-#if (LWIP_SOCKET || LWIP_NETCONN) && LWIP_NETCONN_SEM_PER_THREAD
-  netconn_thread_cleanup();
-#endif
-#if USE_ETHERNET
-//  default_netif_shutdown();
-#endif /* USE_ETHERNET */
 }
-
-#if 0
-#if USE_PPP && PPPOS_SUPPORT
-int main(int argc, char **argv)
-#else /* USE_PPP && PPPOS_SUPPORT */
-int main(void)
-#endif /* USE_PPP && PPPOS_SUPPORT */
-{
-#if USE_PPP && PPPOS_SUPPORT
-  if(argc > 1) {
-    sio_idx = (u8_t)atoi(argv[1]);
-  }
-  printf("Using serial port %d for PPP\n", sio_idx);
-#endif /* USE_PPP && PPPOS_SUPPORT */
-  /* no stdio-buffering, please! */
-  setvbuf(stdout, NULL,_IONBF, 0);
-
-  main_loop();
-
-  return 0;
-}
-#endif
 
 #if defined(KERNEL_RTTHREAD)
 #include <rtthread.h>

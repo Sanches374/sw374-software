@@ -11,99 +11,102 @@
 extern "C" {
 #endif
 
-/* Fixed rate clock */
-#define CLK_DUMMY  0
-#define CLK_OSC24M 1
-#define CLK_OSC32K 2
-#define CLK_RC1M   3
-/* PLL clock */
-#define CLK_PLL_INT0 4
-#define CLK_PLL_INT1 5
-#define CLK_PLL_FRA0 6
-#define CLK_PLL_FRA1 7
-#define CLK_PLL_FRA2 8
-/* fixed factor clock */
-#define CLK_AXI0_SRC1 9
-#define CLK_AHB0_SRC1 10
-#define CLK_APB0_SRC1 11
-#define CLK_APB1_SRC1 12
-#define CLK_CPU_SRC1  13
-#define CLK_DM_SRC1   14
-/* system clock */
-#define CLK_AXI0 15
-#define CLK_AHB0 16
-#define CLK_APB0 17
-#define CLK_APB1 18
-#define CLK_CPU  19
-/* Peripheral clock */
-#define CLK_DMA      20
-#define CLK_CE       21
-#define CLK_USBD     22
-#define CLK_USBH0    23
-#define CLK_USBH1    24
-#define CLK_USB_PHY0 25
-#define CLK_USB_PHY1 26
-#define CLK_GMAC0    27
-#define CLK_GMAC1    28
-#define CLK_QSPI0     29
-#define CLK_QSPI1     30
-#define CLK_QSPI2     31
-#define CLK_QSPI3     32
-#define CLK_SDMC0    33
-#define CLK_SDMC1    34
-#define CLK_SDMC2    35
-#define CLK_SYSCFG   36
-#define CLK_RTC      37
-#define CLK_SPIENC   38
-#define CLK_I2S0     39
-#define CLK_I2S1     40
-#define CLK_CODEC    41
-#define CLK_RGB      42
-#define CLK_LVDS     43
-#define CLK_MIPIDSI  44
-#define CLK_DE       45
-#define CLK_GE       46
-#define CLK_VE       47
-#define CLK_WDT      48
-#define CLK_SID      49
-#define CLK_GTC      50
-#define CLK_GPIO     51
-#define CLK_UART0    52
-#define CLK_UART1    53
-#define CLK_UART2    54
-#define CLK_UART3    55
-#define CLK_UART4    56
-#define CLK_UART5    57
-#define CLK_UART6    58
-#define CLK_UART7    59
-#define CLK_I2C0     60
-#define CLK_I2C1     61
-#define CLK_I2C2     62
-#define CLK_I2C3     63
-#define CLK_CAN0     64
-#define CLK_CAN1     65
-#define CLK_PWM      66
-#define CLK_ADCIM    67
-#define CLK_GPAI     68
-#define CLK_RTP      69
-#define CLK_TSEN     70
-#define CLK_CIR      71
-#define CLK_DVP      72
-#define CLK_PBUS     73
-#define CLK_MTOP     74
-#define CLK_DM       75
-#define CLK_PWMCS    76
-#define CLK_PSADC    77
-/* Display clock */
-#define CLK_PIX  78
-#define CLK_SCLK 79
-/* Output clock */
-#define CLK_OUT0    80
-#define CLK_OUT1    81
-#define CLK_OUT2    82
-#define CLK_OUT3    83
-#define AIC_CLK_END 84
-
+enum clk_id {
+    /* Fixed rate clock */
+    CLK_DUMMY,
+    CLK_OSC24M,
+    CLK_OSC32K,
+    CLK_RC1M,
+    /* PLL clock */
+    CLK_PLL_INT0,
+    CLK_PLL_INT1,
+    CLK_PLL_FRA0,
+    CLK_PLL_FRA1,
+    CLK_PLL_FRA2,
+    /* fixed factor clock */
+    CLK_AXI0_SRC1,
+    CLK_AHB0_SRC1,
+    CLK_APB0_SRC1,
+#ifdef FPGA_BOARD_ARTINCHIP
+    CLK_APB1_SRC1,
+#endif
+    CLK_CPU_SRC1,
+    CLK_DM_SRC1,
+    /* system clock */
+    CLK_AXI0,
+    CLK_AHB0,
+    CLK_APB0,
+    CLK_APB1,
+    CLK_CPU,
+    /* Peripheral clock */
+    CLK_DMA,
+    CLK_CE,
+    CLK_USBD,
+    CLK_USBH0,
+    CLK_USBH1,
+    CLK_USB_PHY0,
+    CLK_USB_PHY1,
+    CLK_GMAC0,
+    CLK_GMAC1,
+    CLK_QSPI0,
+    CLK_QSPI1,
+    CLK_QSPI2,
+    CLK_QSPI3,
+    CLK_SDMC0,
+    CLK_SDMC1,
+    CLK_SDMC2,
+    CLK_SYSCFG,
+    CLK_RTC,
+    CLK_SPIENC,
+    CLK_I2S0,
+    CLK_I2S1,
+    CLK_CODEC,
+    CLK_RGB,
+    CLK_LVDS,
+    CLK_MIPIDSI,
+    CLK_DE,
+    CLK_GE,
+    CLK_VE,
+    CLK_WDT,
+    CLK_SID,
+    CLK_GTC,
+    CLK_GPIO,
+    CLK_UART0,
+    CLK_UART1,
+    CLK_UART2,
+    CLK_UART3,
+    CLK_UART4,
+    CLK_UART5,
+    CLK_UART6,
+    CLK_UART7,
+    CLK_I2C0,
+    CLK_I2C1,
+    CLK_I2C2,
+    CLK_I2C3,
+    CLK_CAN0,
+    CLK_CAN1,
+    CLK_PWM,
+    CLK_ADCIM,
+    CLK_GPAI,
+    CLK_RTP,
+    CLK_TSEN,
+    CLK_CIR,
+    CLK_DVP,
+    CLK_PBUS,
+    CLK_MTOP,
+    CLK_DM,
+    CLK_PWMCS,
+    CLK_PSADC,
+    /* Display clock */
+    CLK_PIX,
+    CLK_SCLK,
+    /* Output clock */
+    CLK_OUT0,
+    CLK_OUT1,
+    CLK_OUT2,
+    CLK_OUT3,
+    AIC_CLK_NUM,
+};
 
 /* frequence */
 

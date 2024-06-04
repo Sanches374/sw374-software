@@ -1024,6 +1024,7 @@ void usbd_event_ep0_setup_complete_handler(uint8_t *psetup)
     /* handle class request when all the data is received */
     if (setup->wLength && ((setup->bmRequestType & USB_REQUEST_DIR_MASK) == USB_REQUEST_DIR_OUT)) {
         USB_LOG_DBG("[2]: Control write transfer start reading %d bytes from ep0\r\n", setup->wLength);
+        aicos_udelay(200);
         usbd_ep_start_read(USB_CONTROL_OUT_EP0, g_usbd_core.ep0_data_buf, setup->wLength);
         return;
     }

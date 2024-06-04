@@ -476,7 +476,7 @@ config AIC_TSEN_DRV_VER
 
 config AIC_TSEN_CH_NUM
     int
-    default 1 if AIC_TSEN_DRV_V20
+    default 2 if AIC_TSEN_DRV_V20
 
 #--------------------------------------------
 # GPAI driver global option

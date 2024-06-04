@@ -17,6 +17,7 @@ extern "C" {
 
 int efuse_init(void);
 int efuse_read(u32 addr, void *data, u32 size);
+int efuse_read_chip_id(void *data);
 int efuse_program(u32 addr, const void *data, u32 size);
 
 #ifdef __cplusplus

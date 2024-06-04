@@ -45,6 +45,7 @@ struct console_cmd *console_register_cmd(const char *cmd,
 int console_unregister_cmd(const char *cmd);
 int console_set_bootcmd(const char *cmdstr);
 int console_get_ctrlc(void);
+int console_confirm_yesno(void);
 
 #ifdef __cplusplus
 }

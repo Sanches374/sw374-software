@@ -764,6 +764,109 @@ def list_mem_cmd(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defconf
         exit(0)
 
 
+# cmd-option: list module
+def list_module_cmd(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defconfig):
+    AddOption('--list-module', dest='list_module', action='store_true',
+              default=False, help='list all opened module info')
+    list_module = GetOption('list_module')
+    if list_module:
+        prj_out_dir = os.path.join(aic_root, 'target/configs/' + prj_defconfig)
+        prj_name = prj_defconfig.replace('_defconfig', '')
+        print('Load modules information from ' + prj_name)
+
+        list_tit = ["Module", "Version", "Device"]
+        list_item = []
+
+        with open(prj_out_dir, 'r') as file:
+            # get opened modules name and version
+            pattern = 'CONFIG_AIC_.*_DRV_V.*=y'
+            for f in file:
+                match = re.search(pattern, f)
+                if match:
+                    matched_str = f.split('_DRV_V')
+                    mod = matched_str[0].split('CONFIG_AIC_')[1]
+                    ver = matched_str[1].split('=y\n')[0]
+                    version = 'V' + ver[0] + '.' + ver[1]
+                    list_item.append([mod, version])
+
+            file.seek(0)
+            # get opened device
+            pattern = r'CONFIG_AIC_USING_[^_]+\d+=y'
+            list_items_dev = [[] for _ in range(len(list_item))]
+            items_mod = [x[0] for x in list_item]
+
+            for f in file:
+                match = re.search(pattern, f)
+                if not match:
+                    continue
+                dev_str = f.split('CONFIG_AIC_USING_')[1].split('=y\n')[0]
+                for i in range(len(items_mod)):
+                    match = re.search(items_mod[i], dev_str)
+                    if not match:
+                        continue
+                    list_items_dev[i].append(dev_str)
+
+            for i, item in enumerate(list_items_dev):
+                list_item[i] += (item,)
+
+            # Sort in ascending order based on the first value of each element
+            sorted_list_items = sorted(list_item, key=lambda x: x[0])
+            file.close()
+
+        items_mod = [x[0] for x in sorted_list_items]
+        items_ver = [x[1] for x in sorted_list_items]
+        items_dev = [x[2] for x in sorted_list_items]
+
+        len_mod = max(len(s) for s in items_mod)
+        len_ver = max(len(s) for s in items_ver)
+        # step: Interval between each title
+        step = 1
+        len_total = 0
+        min_len_item = max(len(s) for s in list_tit)
+        max_len_dev_strs = 0
+        len_dev_strs = 0
+        num_dev = 0
+
+        # get the length of the longest bit array in a two-dimensional array
+        # and the longest element of the longest bit array
+        for i in range(len(items_dev)):
+            num_dev = len(items_dev[i])
+            for dev_str in items_dev[i]:
+                len_dev_strs += len(dev_str) + step
+            if (len_dev_strs > max_len_dev_strs):
+                max_len_dev_strs = len_dev_strs
+                max_num_dev = num_dev
+            len_dev_strs = 0
+
+        len_dev = max_len_dev_strs - step
+        list_len = [len_mod, len_ver, len_dev]
+        num_tit = len(list_len)
+
+        for i in range(num_tit):
+            if list_len[i] < min_len_item:
+                list_len[i] = min_len_item
+            len_total += list_len[i]
+
+        print("=" * (len_total + (num_tit - 1) * step))
+        for i in range(num_tit):
+            print("{:<{}}".format(list_tit[i], list_len[i])),
+
+        print("")
+        for i in range(num_tit):
+            print("-" * list_len[i]),
+
+        for i in range(len(items_mod)):
+            print("")
+            print("{:<{}}{:<{}}".format(items_mod[i], list_len[0] + step,
+                                        items_ver[i], list_len[1])),
+            for item in items_dev[i]:
+                if len(item):
+                    print("" + item),
+        print("")
+        print("=" * (len_total + (num_tit - 1) * step))
+        exit(0)
+
+
 # cmd-option: distclean
 def distclean_cmd(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defconfig):
     AddOption('--distclean', dest='distclean', action='store_true',
@@ -1509,6 +1612,9 @@ def get_prj_config(aic_root):
 
     # cmd-option: list mem
     list_mem_cmd(aic_root, PRJ_CHIP, PRJ_BOARD, PRJ_KERNEL, PRJ_APP, PRJ_DEFCONFIG_NAME)
+
+    # cmd-option: list module
+    list_module_cmd(aic_root, PRJ_CHIP, PRJ_BOARD, PRJ_KERNEL, PRJ_APP, PRJ_DEFCONFIG_NAME)
 
     # cmd-option: list size
     list_size_cmd(aic_root, PRJ_CHIP, PRJ_BOARD, PRJ_KERNEL, PRJ_APP, PRJ_DEFCONFIG_NAME)

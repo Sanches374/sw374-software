@@ -30,8 +30,12 @@ const struct fal_partition *dl_part = RT_NULL;
 
 #ifdef AIC_SPINAND_DRV
 struct rt_mtd_nand_device *nand_mtd;
+u8 g_nftl_flag = 0;
 rt_device_t nand_dev;
 #endif
+
+rt_device_t mmc_dev;
+u32 block_size;
 
 int aic_ota_find_part(char *partname)
 {
@@ -55,9 +59,41 @@ int aic_ota_find_part(char *partname)
                 return -RT_ERROR;
             }
 
-            nand_mtd = (struct rt_mtd_nand_device *)nand_dev;
+            if ((strncmp(partname, "blk_data", 9) == 0) || (strncmp(partname, "blk_data_r", 11) == 0)) {
+                g_nftl_flag = 1;
+            } else {
+                nand_mtd = (struct rt_mtd_nand_device *)nand_dev;
+                g_nftl_flag = 0;
+            }
             break;
 #endif
+        case BD_SDMC0:
+            if (!strncmp(partname, "os", 3)) {
+                mmc_dev = rt_device_find("mmc0p3");
+                if (mmc_dev == RT_NULL) {
+                    LOG_E("can't find mmc0p3 device!");
+                    return RT_ERROR;
+                }
+            } else if (!strncmp(partname, "os_r", 5)) {
+                mmc_dev =rt_device_find("mmc0p4");
+                if (mmc_dev == RT_NULL) {
+                    LOG_E("can't find mmc0p4 device!");
+                    return RT_ERROR;
+                }
+            } else if (!strncmp(partname, "rodata", 7)) {
+                mmc_dev =rt_device_find("mmc0p5");
+                if (mmc_dev == RT_NULL) {
+                    LOG_E("can't find mmc0p5 device!");
+                    return RT_ERROR;
+                 }
+            } else if (!strncmp(partname, "rodata_r", 9)) {
+                mmc_dev =rt_device_find("mmc0p6");
+                if (mmc_dev == RT_NULL) {
+                    LOG_E("can't find mmc0p6 device!");
+                    return RT_ERROR;
+                }
+            }
+            break;
         default:
             return -RT_ERROR;
             break;
@@ -87,6 +123,11 @@ int aic_ota_nand_erase_part(void)
 {
     unsigned long blk_offset = 0;
 
+    if (g_nftl_flag) {
+        LOG_I("NFTL partition not need to erase!");
+        return 0;
+    }
+
     LOG_I("Start erase nand flash partition!");
 
     while (nand_mtd->block_total > blk_offset) {
@@ -108,9 +149,9 @@ int aic_ota_nand_erase_part(void)
 
 int aic_ota_nand_write(uint32_t addr, const uint8_t *buf, size_t size)
 {
-    unsigned long blk = 0, offset = 0, page = 0;
+    unsigned long blk = 0, offset = 0, page = 0, sector = 0, sector_total = 0;
     static unsigned long bad_block_off = 0;
-    unsigned long blk_size = nand_mtd->pages_per_block * nand_mtd->page_size;
+    unsigned long blk_size = 0, page_size = 0;
     rt_err_t ret = 0;
 
     if (size > 2048) {
@@ -118,39 +159,112 @@ int aic_ota_nand_write(uint32_t addr, const uint8_t *buf, size_t size)
         return -RT_ERROR;
     }
 
-    ret = rt_device_open(nand_dev, RT_DEVICE_OFLAG_RDWR);
-    if (ret) {
-        LOG_E("Open MTD device failed.!\n");
+    if (g_nftl_flag == 0) {
+        ret = rt_device_open(nand_dev, RT_DEVICE_OFLAG_RDWR);
+        if (ret) {
+            LOG_E("Open MTD device failed.!\n");
+            return ret;
+        }
+
+        blk_size = nand_mtd->pages_per_block * nand_mtd->page_size;
+
+        offset = addr + bad_block_off;
+
+        /* Search for the first good block after the given offset */
+        if (offset % blk_size == 0) {
+            blk = offset / blk_size;
+            while (rt_mtd_nand_check_block(nand_mtd, blk) != RT_EOK) {
+                LOG_W("find a bad block(%d), off adjust to the next block\n", blk);
+                bad_block_off += nand_mtd->pages_per_block;
+                offset = addr + bad_block_off;
+                blk = offset / blk_size;
+            }
+        }
+
+        page = offset / nand_mtd->page_size;
+        ret = rt_mtd_nand_write(nand_mtd, page, buf, size, RT_NULL, 0);
+        if (ret) {
+            LOG_E("Failed to write data to NAND.\n");
+            ret = -RT_ERROR;
+        }
+
+        rt_device_close(nand_dev);
+
+    } else {
+
+        ret = rt_device_open(nand_dev, RT_DEVICE_OFLAG_RDWR);
+        if (ret) {
+            LOG_E("Open MTD device failed.!\n");
+            return ret;
+        }
+        page_size = 2048;//default size:nand_blk->mtd_device->page_size;
+
+        page = addr / page_size;
+        sector = page * 4;
+       sector_total = (size / page_size) * 4;
+
+        ret = rt_device_write(nand_dev, sector, buf, sector_total);
+        if (ret < 0) {
+            LOG_E("Failed to write data to NAND.\n");
+            ret = -RT_ERROR;
+        } else {
+            ret = 0;
+        }
+
+        rt_device_close(nand_dev);
+    }
+
+    return ret;
+}
+#endif
+
+int aic_ota_mmc_erase_part(void)
+{
+    struct rt_device_blk_geometry get_data;
+    unsigned long long p[2] = {0};
+    rt_err_t ret = 0;
+
+    LOG_I("Start erase mmc partition!");
+
+    rt_device_open(mmc_dev, RT_DEVICE_FLAG_RDWR);
+
+    rt_device_control(mmc_dev, RT_DEVICE_CTRL_BLK_GETGEOME, (void *)&get_data);
+
+    p[0] = 0;//offset is 0
+    p[1] = get_data.sector_count;
+    block_size = get_data.block_size;
+
+    ret = rt_device_control(mmc_dev, RT_DEVICE_CTRL_BLK_ERASE, (void *)p);
+    if (ret != RT_EOK) {
+        LOG_I("Erase mmc partition failed!");
         return ret;
     }
 
-    offset = addr + bad_block_off;
-
-    /* Search for the first good block after the given offset */
-    if (offset % blk_size == 0) {
-        blk = offset / blk_size;
-        while (rt_mtd_nand_check_block(nand_mtd, blk) != RT_EOK) {
-            LOG_W("find a bad block(%d), off adjust to the next block\n", blk);
-            bad_block_off += nand_mtd->pages_per_block;
-            offset = addr + bad_block_off;
-            blk = offset / blk_size;
-        }
-    }
-
-    page = offset / nand_mtd->page_size;
-    ret = rt_mtd_nand_write(nand_mtd, page, buf, size, RT_NULL, 0);
-    if (ret) {
-        LOG_E("Failed to write data to NAND.\n");
-        ret = -RT_ERROR;
-        goto aic_ota_nand_write_exit;
-    }
-
-aic_ota_nand_write_exit:
-    rt_device_close(nand_dev);
+    LOG_I("Erase mmc partition success!");
 
     return 0;
 }
-#endif
+
+int aic_ota_mmc_write(uint32_t addr, const uint8_t *buf, size_t size)
+{
+    unsigned long blkcnt, blkoffset;
+
+    if (size > 2048) {
+        LOG_E("OTA_BURN_LEN need set 2048! size = %d", size);
+        return -RT_ERROR;
+    }
+
+    blkcnt = size / block_size;
+    blkoffset = addr / block_size;
+
+    rt_device_open(mmc_dev, RT_DEVICE_FLAG_RDWR);
+
+    rt_device_write(mmc_dev, blkoffset, (void *)buf, blkcnt);
+
+    rt_device_close(mmc_dev);
+
+    return 0;
+}
 
 int aic_ota_erase_part(void)
 {
@@ -167,6 +281,9 @@ int aic_ota_erase_part(void)
             ret = aic_ota_nand_erase_part();
             break;
 #endif
+        case BD_SDMC0:
+            ret = aic_ota_mmc_erase_part();
+            break;
         default:
             break;
     }
@@ -202,6 +319,14 @@ int aic_ota_part_write(uint32_t addr, const uint8_t *buf, size_t size)
             }
             break;
 #endif
+        case BD_SDMC0:
+            ret = aic_ota_mmc_write(addr, buf, size);
+            if (ret < 0) {
+                LOG_E(
+                    "Firmware download failed! mmc partition write data error!");
+                return -RT_ERROR;
+            }
+            break;
         default:
             return -RT_ERROR;
             break;

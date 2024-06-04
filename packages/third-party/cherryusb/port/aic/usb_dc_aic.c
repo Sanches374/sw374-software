@@ -948,12 +948,14 @@ int usbd_npinep_rewrite(const uint8_t ep)
     /* (1.4) Clear Global In NP NAK in Shared FIFO for non periodic ep */
     AIC_UDC_REG->usbdevfunc |= USBDEVFUNC_CGNPINNAK;
 
-    /* (2) reopen current ep */
-    usbd_ep_open(&g_aic_udc.in_ep_desc[ep]);
+    if (pending_map & (1 << ep)) {
+        /* (2) reopen current ep */
+        usbd_ep_open(&g_aic_udc.in_ep_desc[ep]);
 
-    /* (3) rewrite current ep */
-    usbd_ep_start_write(ep, g_aic_udc.in_ep[ep].xfer_buf,
-                            g_aic_udc.in_ep[ep].xfer_len);
+        /* (3) rewrite current ep */
+        usbd_ep_start_write(ep, g_aic_udc.in_ep[ep].xfer_buf,
+                                g_aic_udc.in_ep[ep].xfer_len);
+    }
 
     /* (4) reopen & rewrite other ep, let's receive ep mismtach interrupt */
     for (i = 0U; i < USB_NUM_BIDIR_ENDPOINTS; i++) {

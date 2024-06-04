@@ -23,7 +23,7 @@ struct aic_pinmux aic_pinmux_config[] = {
     /* uart0 */
     {5, PIN_PULL_DIS, 3, "PA.0"},
     {5, PIN_PULL_DIS, 3, "PA.1"},
-#ifdef AIC_DEV_UART0_MODE_RS485
+#ifdef AIC_DEV_UART0_MODE_RS485_SIMULATION
     {1, PIN_PULL_DIS, 3, AIC_UART0_RTS_NAME},
 #endif
 #ifdef AIC_DEV_UART0_MODE_RS232_UNAUTO_FLOW_CTRL
@@ -47,7 +47,7 @@ struct aic_pinmux aic_pinmux_config[] = {
     /* uart1 */
     {5, PIN_PULL_DIS, 3, "PD.2"},
     {5, PIN_PULL_DIS, 3, "PD.3"},
-#ifdef AIC_DEV_UART1_MODE_RS485
+#ifdef AIC_DEV_UART1_MODE_RS485_SIMULATION
     {1, PIN_PULL_DIS, 3, AIC_UART1_RTS_NAME},
 #endif
 #ifdef AIC_DEV_UART1_MODE_RS232_UNAUTO_FLOW_CTRL
@@ -72,7 +72,7 @@ struct aic_pinmux aic_pinmux_config[] = {
     /* uart2 */
     {5, PIN_PULL_DIS, 3, "PD.4"},   // BT_UART2_TX
     {5, PIN_PULL_DIS, 3, "PD.5"},   // BT_UART2_RX
-#ifdef AIC_DEV_UART2_MODE_RS485
+#ifdef AIC_DEV_UART2_MODE_RS485_SIMULATION
     {1, PIN_PULL_DIS, 3, AIC_UART2_RTS_NAME},
 #elif defined AIC_DEV_UART2_MODE_RS232_UNAUTO_FLOW_CTRL
     #ifdef AIC_UART2_RTS_ENABLE
@@ -282,12 +282,6 @@ struct aic_pinmux aic_pinmux_config[] = {
     {2, PIN_PULL_DIS, 3, "PO.0"},   // USB-DM
     {2, PIN_PULL_DIS, 3, "PO.1"},   // USB-DP
     {1, PIN_PULL_DIS, 3, "PD.8"},   // USB-ID
-#endif
-#ifdef AIC_USING_RTP
-    {2, PIN_PULL_DIS, 3, "PA.8"},
-    {2, PIN_PULL_DIS, 3, "PA.9"},
-    {2, PIN_PULL_DIS, 3, "PA.10"},
-    {2, PIN_PULL_DIS, 3, "PA.11"},
 #endif
 #ifdef AIC_USING_PSADC0
     {7, PIN_PULL_DIS, 3, "PA.0"},

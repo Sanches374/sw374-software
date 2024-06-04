@@ -15,18 +15,24 @@
 #include <env.h>
 #include <absystem.h>
 
-#define HTTP_OTA_FILE_CNT           2
-#define HTTP_OTA_FILE_REDUNDAND_CNT HTTP_OTA_FILE_CNT * 2
+#define OTA_FILE_CNT           3
+#define OTA_FILE_REDUNDAND_CNT OTA_FILE_CNT * 2
 
-char partname[HTTP_OTA_FILE_REDUNDAND_CNT][32] = {
+char partname[OTA_FILE_REDUNDAND_CNT][32] = {
     "os",
     "rodata",
+    "blk_data",
     "os_r",
     "rodata_r",
+    "blk_data_r",
 };
 
-#define APPLICATION_PART           "blk_rodata"
-#define APPLICATION_PART_REDUNDAND "blk_rodata_r"
+#define APPLICATION_RO_PART           "blk_rodata"
+#define APPLICATION_RO_PART_REDUNDAND "blk_rodata_r"
+#define APPLICATION_WR_PART           "blk_data"
+#define APPLICATION_WR_PART_REDUNDAND "blk_data_r"
+#define APPLICATION_MMC_RO_PART           "mmc0p5"
+#define APPLICATION_MMC_RO_PART_REDUNDAND "mmc0p6"
 
 static unsigned char target_offset = 0;
 
@@ -44,7 +50,7 @@ int aic_upgrade_start(void)
     LOG_I("osAB_now = %s", now);
     if (strncmp(now, "A", 1) == 0) {
         LOG_I("Upgrade B system");
-        target_offset = HTTP_OTA_FILE_CNT;
+        target_offset = OTA_FILE_CNT;
     } else if (strncmp(now, "B", 1) == 0) {
         LOG_I("Upgrade A system");
         target_offset = 0;
@@ -108,9 +114,7 @@ aic_upgrade_end_out:
 int aic_ota_status_update(void)
 {
     char *status = NULL;
-    char *next;
     int ret = 0;
-    char *now = NULL;
 
     if (fw_env_open()) {
         pr_err("Open env failed\n");
@@ -122,35 +126,6 @@ int aic_ota_status_update(void)
     printf("upgrade_available = %s\n", status);
 #endif
     if (strncmp(status, "1", 2) == 0) {
-        next = fw_getenv("osAB_next");
-        now = fw_getenv("osAB_now");
-#ifdef AIC_ENV_DEBUG
-        printf("osAB_next = %s\n", next);
-        printf("osAB_now = %s\n", now);
-#endif
-
-        if (strncmp(next, now, 2) != 0) {
-            if (strncmp(next, "A", 2) == 0) {
-                ret = fw_env_write("osAB_now", "A");
-            } else if (strncmp(next, "B", 2) == 0) {
-                ret = fw_env_write("osAB_now", "B");
-            } else {
-                ret = -1;
-                pr_err("Invalid osAB_next\n");
-                goto aic_get_upgrade_status_err;
-            }
-
-            if (ret) {
-                pr_err("Env write fail\n");
-                goto aic_get_upgrade_status_err;
-            }
-
-            pr_info("OTA Upgrade success\n");
-        } else {
-            pr_info("OTA upgrade failed\n");
-            ret = -1;
-            goto aic_get_upgrade_status_err;
-        }
 
         ret = fw_env_write("upgrade_available", "0");
         if (ret) {
@@ -188,10 +163,68 @@ int aic_get_rodata_to_mount(char *target_rodata)
     printf("osAB_now = %s\n", now);
 #endif
     if (strncmp(now, "A", 2) == 0) {
-        memcpy(target_rodata, APPLICATION_PART, strlen(APPLICATION_PART));
+        memcpy(target_rodata, APPLICATION_RO_PART, strlen(APPLICATION_RO_PART));
     } else if (strncmp(now, "B", 2) == 0) {
-        memcpy(target_rodata, APPLICATION_PART_REDUNDAND,
-               strlen(APPLICATION_PART_REDUNDAND));
+        memcpy(target_rodata, APPLICATION_RO_PART_REDUNDAND,
+               strlen(APPLICATION_RO_PART_REDUNDAND));
+    } else {
+        ret = -1;
+        pr_err("invalid osAB_now\n");
+    }
+
+    fw_env_close();
+
+    return ret;
+}
+
+int aic_get_mmc_rodata_to_mount(char *target_rodata)
+{
+    char *now = NULL;
+    int ret = 0;
+
+    if (fw_env_open()) {
+        pr_err("Open env failed\n");
+        return -1;
+    }
+
+    now = fw_getenv("osAB_now");
+#ifdef AIC_ENV_DEBUG
+    printf("osAB_now = %s\n", now);
+#endif
+    if (strncmp(now, "A", 2) == 0) {
+        memcpy(target_rodata, APPLICATION_MMC_RO_PART, strlen(APPLICATION_MMC_RO_PART));
+    } else if (strncmp(now, "B", 2) == 0) {
+        memcpy(target_rodata, APPLICATION_MMC_RO_PART_REDUNDAND,
+               strlen(APPLICATION_MMC_RO_PART_REDUNDAND));
+    } else {
+        ret = -1;
+        pr_err("invalid osAB_now\n");
+    }
+
+    fw_env_close();
+
+    return ret;
+}
+
+int aic_get_data_to_mount(char *target_data)
+{
+    char *now = NULL;
+    int ret = 0;
+
+    if (fw_env_open()) {
+        pr_err("Open env failed\n");
+        return -1;
+    }
+
+    now = fw_getenv("osAB_now");
+#ifdef AIC_ENV_DEBUG
+    printf("osAB_now = %s\n", now);
+#endif
+    if (strncmp(now, "A", 2) == 0) {
+        memcpy(target_data, APPLICATION_WR_PART, strlen(APPLICATION_WR_PART));
+    } else if (strncmp(now, "B", 2) == 0) {
+        memcpy(target_data, APPLICATION_WR_PART_REDUNDAND,
+               strlen(APPLICATION_WR_PART_REDUNDAND));
     } else {
         ret = -1;
         pr_err("invalid osAB_now\n");

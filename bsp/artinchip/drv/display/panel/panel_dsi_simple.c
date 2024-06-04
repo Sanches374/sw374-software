@@ -17,11 +17,11 @@ static int panel_enable(struct aic_panel *panel)
     panel_get_gpio(&reset, AIC_PANEL_RESET_GPIO);
 
     panel_gpio_set_value(&reset, 1);
-    aic_delay_us(120);
+    aic_delay_ms(120);
     panel_gpio_set_value(&reset, 0);
-    aic_delay_us(120);
+    aic_delay_ms(120);
     panel_gpio_set_value(&reset, 1);
-    aic_delay_us(120);
+    aic_delay_ms(120);
 #endif
 
     panel_di_enable(panel, 0);

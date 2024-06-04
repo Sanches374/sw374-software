@@ -23,7 +23,7 @@ extern "C" {
 #define OTA_BURN_BUFF_LEN (2048 * 2)
 #define OTA_BURN_LEN      2048
 #define OTA_HEAD_LEN      (2048 * 2)
-#define OTA_BUFF_LEN      (4096 / 2)
+#define OTA_BUFF_LEN      2048
 
 int ota_init(void);
 void ota_deinit(void);

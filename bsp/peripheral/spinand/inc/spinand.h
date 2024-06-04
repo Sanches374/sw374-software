@@ -15,6 +15,8 @@
 #define SPINAND_ERR         1 /**< not found or not supported */
 #define SPINAND_ERR_TIMEOUT 2 /**< timeout error */
 #define SPINAND_ERR_ECC     3 /**< ecc check error */
+#define SPINAND_TRUE        1
+#define SPINAND_FALSE       0
 
 #define SPINAND_DIE_ID0 (0)
 #define SPINAND_DIE_ID1 (1)

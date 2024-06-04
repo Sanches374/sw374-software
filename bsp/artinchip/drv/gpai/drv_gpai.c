@@ -245,15 +245,26 @@ static rt_err_t drv_gpai_enabled(struct rt_adc_device *dev,
     return RT_EOK;
 }
 
-static rt_err_t drv_gpai_convert(struct rt_adc_device *dev,
-                                 rt_uint32_t ch, rt_uint32_t *value)
+static rt_err_t drv_gpai_convert(struct rt_adc_device *dev, rt_uint32_t ch,
+                                 rt_uint32_t *value)
 {
     struct aic_gpai_ch *chan = hal_gpai_ch_is_valid(ch);
 
     if (!chan)
         return -RT_EINVAL;
 
-    return aich_gpai_read(chan, (u32 *)value, AIC_GPAI_TIMEOUT);
+    return aich_gpai_read(chan, (u16 *)value, AIC_GPAI_TIMEOUT);
+}
+
+static rt_err_t drv_gpai_get_ch_info(struct rt_adc_device *dev, void *chan_info)
+{
+    struct aic_gpai_ch_info *info = (struct aic_gpai_ch_info *)chan_info;
+    struct aic_gpai_ch *chan = hal_gpai_ch_is_valid(info->chan_id);
+
+    aich_gpai_read(chan, info->adc_values, AIC_GPAI_TIMEOUT);
+    info->fifo_valid_cnt = chan->fifo_valid_cnt;
+
+    return RT_EOK;
 }
 
 static rt_uint8_t drv_gpai_resolution(struct rt_adc_device *dev)
@@ -261,15 +272,18 @@ static rt_uint8_t drv_gpai_resolution(struct rt_adc_device *dev)
     return 12;
 }
 
-static rt_uint32_t drv_gpai_get_irq_count(struct rt_adc_device *dev,
-                                          rt_uint32_t channel)
+static rt_err_t drv_gpai_get_mode(struct rt_adc_device *dev,
+                                     void *chan_info)
 {
-    struct aic_gpai_ch *chan = hal_gpai_ch_is_valid(channel);
+    struct aic_gpai_ch_info *info = (struct aic_gpai_ch_info *)chan_info;
+    struct aic_gpai_ch *chan = hal_gpai_ch_is_valid(info->chan_id);
 
-    if (!chan || chan->obtain_data_mode == AIC_GPAI_OBTAIN_DATA_BY_DMA)
+    if (!chan)
         return -RT_EINVAL;
 
-    return chan->irq_count;
+    info->mode = chan->mode;
+
+    return RT_EOK;
 }
 
 static rt_uint32_t drv_gpai_obtain_data_mode(struct rt_adc_device *dev,
@@ -281,6 +295,19 @@ static rt_uint32_t drv_gpai_obtain_data_mode(struct rt_adc_device *dev,
         return -RT_EINVAL;
 
     return chan->obtain_data_mode;
+}
+
+static rt_err_t drv_gpai_irq_callback(struct rt_adc_device *dev,
+                                      void *chan_irq_info)
+{
+    struct aic_gpai_irq_info *irq_info;
+    irq_info = (struct aic_gpai_irq_info *)chan_irq_info;
+    struct aic_gpai_ch *chan = hal_gpai_ch_is_valid(irq_info->chan_id);
+
+    chan->irq_info.callback = irq_info->callback;
+    chan->irq_info.callback_param = irq_info->callback_param;
+
+    return RT_EOK;
 }
 
 #if defined(AIC_GPAI_DRV_V20) && defined(AIC_DMA_DRV)
@@ -325,8 +352,10 @@ static const struct rt_adc_ops aic_adc_ops =
     .get_dma_data = drv_gpai_get_dma_data,
 #endif
     .get_resolution = drv_gpai_resolution,
-    .get_irq_count = drv_gpai_get_irq_count,
     .get_obtaining_data_mode = drv_gpai_obtain_data_mode,
+    .irq_callback = drv_gpai_irq_callback,
+    .get_ch_info = drv_gpai_get_ch_info,
+    .get_mode = drv_gpai_get_mode,
 };
 
 static int drv_gpai_init(void)
@@ -356,79 +385,3 @@ static int drv_gpai_init(void)
     return 0;
 }
 INIT_BOARD_EXPORT(drv_gpai_init);
-
-#if defined(RT_USING_FINSH)
-#include <finsh.h>
-
-static void cmd_gpai_usage(char *program)
-{
-    printf("Compile time: %s %s\n", __DATE__, __TIME__);
-    printf("Usage: %s [options]\n", program);
-    printf("\t -c, --channel\t\tSelect one channel in [0, 7], default is 0\n");
-    printf("\t -s, --status\t\tShow more hardware information\n");
-    printf("\t -h, --help \n");
-    printf("\n");
-    printf("Example: %s -c 3 -s\n", program);
-}
-
-static void cmd_gpai(int argc, char **argv)
-{
-    u32 ch = 0;
-    s32 c, val = 0;
-    rt_err_t ret = RT_EOK;
-    struct rt_adc_device *dev = NULL;
-    struct aic_gpai_ch *chan = NULL;
-    bool show_status = false;
-    const char sopts[] = "c:sh";
-    const struct option lopts[] = {
-        {"channel", required_argument, NULL, 'c'},
-        {"status",        no_argument, NULL, 's'},
-        {"help",          no_argument, NULL, 'h'},
-        {0, 0, 0, 0}
-    };
-
-    optind = 0;
-    while ((c = getopt_long(argc, argv, sopts, lopts, NULL)) != -1) {
-        switch (c) {
-        case 'c':
-            ch = atoi(optarg);
-            if ((ch < 0) || (ch >= AIC_GPAI_CH_NUM)) {
-                pr_err("Invalid channel No.%s\n", optarg);
-                return;
-            }
-            continue;
-        case 's':
-            show_status = true;
-            continue;
-        case 'h':
-        default:
-            cmd_gpai_usage(argv[0]);
-            return;
-        }
-    }
-
-    chan = hal_gpai_ch_is_valid(ch);
-    if (!chan)
-        return;
-
-    if (show_status) {
-        aich_gpai_status_show(chan);
-        return;
-    }
-
-    dev = (struct rt_adc_device *)rt_device_find(AIC_GPAI_NAME);
-    if (!dev) {
-        LOG_E("Failed to open %s device\n", AIC_GPAI_NAME);
-        return;
-    }
-    ret = rt_adc_enable(dev, ch);
-    if (!ret) {
-        val = rt_adc_read(dev, ch);
-        printf("GPAI ch%d: %d\n", ch, val);
-    }
-
-    rt_adc_disable(dev, ch);
-}
-MSH_CMD_EXPORT_ALIAS(cmd_gpai, gpai, Read the status and data of GPAI);
-
-#endif

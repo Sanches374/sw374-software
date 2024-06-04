@@ -137,7 +137,7 @@ enum syscfg_ldo18_cfg_ldo18_en_t {
 #if defined(AIC_SYSCFG_DRV_V11) || defined(AIC_SYSCFG_DRV_V12)
 #define SYSCFG_LDO1X_CFG                 0x28
 #define SYSCFG_LDO1X_CFG_LDO1X_VAL_SHIFT 0
-#define SYSCFG_LDO1X_CFG_LDO1X_VAL_MASK  GENMASK(2, 0)
+#define SYSCFG_LDO1X_CFG_LDO1X_VAL_MASK  GENMASK(3, 0)
 #define SYSCFG_LDO1X_CFG_LDO1X_EN_SHIFT  4
 #define SYSCFG_LDO1X_CFG_LDO1X_EN_MASK   BIT(4)
 #define SYSCFG_LDO1X_CFG_LDO1X_PD_FAST_SHIFT  5
@@ -352,20 +352,19 @@ static s32 syscfg_usb_init(void)
 #endif
 
 #if defined(AIC_USING_USB0_HOST) || defined(AIC_USING_USB0_OTG)
-    cfg_reg =  SYSCFG_USB0_REXT;
+    cfg_reg = SYSCFG_USB0_REXT;
     cfg = syscfg_readl(cfg_reg);
-    cfg &= SYSCFG_USB_RES_CAL_VAL_MASK;
-    cfg += SYSCFG_USB_RES_CAL_BIAS_DEF;
-    cfg &= SYSCFG_USB_RES_CAL_VAL_MASK;
+    cfg &= ~SYSCFG_USB_RES_CAL_VAL_MASK;
+    cfg |= SYSCFG_USB_RES_CAL_VAL_DEF;
     cfg |= (1 << SYSCFG_USB_RES_CAL_EN_SHIFT);
     syscfg_writel(cfg, cfg_reg);
 #endif
 
 #if defined(AIC_USING_USB1_HOST) || defined(AIC_USING_USB1_OTG)
-    cfg_reg =  SYSCFG_USB1_REXT;
-    cfg &= SYSCFG_USB_RES_CAL_VAL_MASK;
-    cfg += SYSCFG_USB_RES_CAL_BIAS_DEF;
-    cfg &= SYSCFG_USB_RES_CAL_VAL_MASK;
+    cfg_reg = SYSCFG_USB1_REXT;
+    cfg = syscfg_readl(cfg_reg);
+    cfg &= ~SYSCFG_USB_RES_CAL_VAL_MASK;
+    cfg |= SYSCFG_USB_RES_CAL_VAL_DEF;
     cfg |= (1 << SYSCFG_USB_RES_CAL_EN_SHIFT);
     syscfg_writel(cfg, cfg_reg);
 #endif
@@ -479,10 +478,9 @@ static void syscfg_ldo25_xspi_init(void)
 #endif
 
 #if defined(AIC_SYSCFG_DRV_V11) || defined(AIC_SYSCFG_DRV_V12)
-#define LDO1X_DISABLE_BIT4_6_VAL_STEP1   0x30
-#define LDO1X_DISABLE_BIT4_6_VAL_STEP2   0x70
-#define LDO1X_DISABLE_BIT4_6_VAL_STEP3   0x60
-#define LDO1X_DISABLE_BIT4_6_VAL_STEP4   0x40
+#define LDO1X_DISABLE_BIT4_6_VAL_STEP1   0x00
+#define LDO1X_DISABLE_BIT4_6_VAL_STEP2   0x50
+#define LDO1X_DISABLE_BIT4_6_VAL_STEP3   0x40
 static void syscfg_ldo1x_init(u8 status, u8 v_level)
 {
     u32 val = 0;
@@ -506,12 +504,8 @@ static void syscfg_ldo1x_init(u8 status, u8 v_level)
         val = 0;
         val |= (LDO1X_DISABLE_BIT4_6_VAL_STEP3 | v_level);
         syscfg_writel(val, SYSCFG_LDO1X_CFG);
-
-        val = 0;
-        val |= (LDO1X_DISABLE_BIT4_6_VAL_STEP4 | v_level);
-        syscfg_writel(val, SYSCFG_LDO1X_CFG);
     }
-    aicos_udelay(10);
+    aicos_udelay(100);
 }
 #endif
 

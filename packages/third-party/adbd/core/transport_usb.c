@@ -75,7 +75,6 @@ static const struct adb_tr_ops _ops =
 
 static int _waitfor_devready(int *fd)
 {
-    rt_thread_mdelay(2000);
     if (adb_transport_isexist())
         return 0;
 
@@ -101,7 +100,9 @@ static void usb_daemon(void *arg)
     is_running = 1;
 
 _wait:
-    while (!_waitfor_devready(&fd));
+    while (!_waitfor_devready(&fd)) {
+        rt_thread_mdelay(2000);
+    }
 
     adb_transport_unregister(0);
     if (adb_transport_register(TR_USB, fd, &_ops) != 0)
@@ -111,6 +112,7 @@ _wait:
         goto _wait;
     }
 
+    LOG_I("ADB init success !");
     _closefd = -1;
     while (is_running)
     {

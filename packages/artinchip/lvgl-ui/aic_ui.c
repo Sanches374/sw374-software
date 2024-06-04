@@ -7,14 +7,13 @@
 #include "aic_ui.h"
 #include "aic_osal.h"
 
-// #define AIC_LVGL_QC_TEST_DEMO
-
 void aic_ui_init()
 {
 /* qc test demo is only for aic internal qc testing, please ignore it. */
-#ifdef AIC_LVGL_QC_TEST_DEMO
-    extern void qc_test_init();
-    qc_test_init();
+
+#ifdef LPKG_USING_LVGL_VSCODE
+    extern void vscode_ui_init();
+    vscode_ui_init();
     return;
 #endif
 
@@ -42,5 +41,26 @@ void aic_ui_init()
     extern void dashboard_ui_init(void);
     dashboard_ui_init();
 #endif
+
+#ifdef AIC_LVGL_SHOWCASE_DEMO
+    extern void showcase_demo_init(void);
+    showcase_demo_init();
+#endif
+
+#ifdef AIC_LVGL_ELEVATOR_DEMO
+#include "elevator_ui.h"
+    elevator_ui_init();
+#endif
+
+#ifdef AIC_LVGL_SLIDE_DEMO
+    extern void slide_ui_init(void);
+    slide_ui_init();
+#endif
+
+#ifdef AIC_LVGL_SIMPLE_PLAYER_DEMO
+    extern void simple_player_ui_init(void);
+    simple_player_ui_init();
+#endif
+
     return;
 }

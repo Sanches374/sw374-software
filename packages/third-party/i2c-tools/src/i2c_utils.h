@@ -1,3 +1,9 @@
+/*
+  SoftwareI2C.cpp
+  2012 Copyright (c) Seeed Technology Inc.  All right reserved.
+  Author:Loovee
+*/
+
 #ifndef _I2C_UTILS_H_
 #define _I2C_UTILS_H_
 
@@ -14,6 +20,8 @@
 #define I2C_TOOLS_BUFFER_SIZE 64
 
 #define ARG_CMD_POS             1
+#define GET_ACK                 1
+#define GET_NACK                0
 
 #ifdef I2C_TOOLS_USE_SW_I2C
     #define ARG_SDA_POS         2

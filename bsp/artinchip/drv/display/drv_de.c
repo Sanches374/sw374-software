@@ -244,17 +244,19 @@ static int aic_de_timing_enable(void)
     u32 vbp = comp->timing->vback_porch;
     u32 hsync = comp->timing->hsync_len;
     u32 vsync = comp->timing->vsync_len;
+    bool h_pol = !!(comp->timing->flags & DISPLAY_FLAGS_HSYNC_HIGH);
+    bool v_pol = !!(comp->timing->flags & DISPLAY_FLAGS_VSYNC_HIGH);
 
     de_config_timing(comp->regs, active_w, active_h, hfp, hbp,
-            vfp, vbp, hsync, vsync);
+            vfp, vbp, hsync, vsync, h_pol, v_pol);
 
     de_set_blending_size(comp->regs, active_w, active_h);
     de_set_ui_layer_size(comp->regs, active_w, active_h, 0, 0);
 
     comp->alpha[1].layer_id = AICFB_LAYER_TYPE_UI;
-    comp->alpha[1].enable = 1;
-    comp->alpha[1].mode = 0;
-    comp->alpha[1].value = 0xff;
+    comp->alpha[1].mode     = AICFB_PIXEL_ALPHA_MODE;
+    comp->alpha[1].enable   = 1;
+    comp->alpha[1].value    = 0x0;
 
     de_config_prefetch_line_set(comp->regs, 2);
     de_soft_reset_ctrl(comp->regs, 1);

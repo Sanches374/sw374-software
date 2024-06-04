@@ -243,6 +243,24 @@ config AIC_USING_TSEN
     default n
     select AIC_TSEN_DRV
 
+menu "TSENS options"
+    depends on AIC_USING_TSEN
+
+config AIC_USING_TSEN_CPU
+    bool "Using TSEN_CPU"
+    depends on AIC_USING_TSEN
+    default n
+    select AIC_TSEN_DRV
+
+config AIC_USING_TSEN_GPAI
+    bool "Using TSEN_GPAI"
+    depends on AIC_USING_TSEN
+    default n
+    select AIC_TSEN_DRV
+
+source "bsp/artinchip/drv/tsen/Kconfig.dev"
+endmenu
+
 #---------------------------
 # GPAI device global option
 #---------------------------

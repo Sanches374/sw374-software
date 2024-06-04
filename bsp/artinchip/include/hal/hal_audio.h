@@ -246,6 +246,16 @@ static inline void hal_audio_disable_fade(aic_audio_ctrl *codec)
     writel(0, codec->reg_base + FADE_CTRL0_REG);
 }
 
+static inline void hal_audio_enable_dmic_adout_shift(aic_audio_ctrl *codec)
+{
+    uint32_t reg_val;
+
+    reg_val = readl(codec->reg_base + RX_DMIC_IF_CTRL_REG);
+    reg_val &= ~(RX_DMIC_IF_ADOUT_SHIFT_MASK);
+    reg_val |= (RX_DMIC_IF_ADOUT_SHIFT_EN | RX_DMIC_IF_ADOUT_SHIFT(3));
+    writel(reg_val, codec->reg_base + RX_DMIC_IF_CTRL_REG);
+}
+
 int hal_audio_init(aic_audio_ctrl *codec);
 int hal_audio_uninit(aic_audio_ctrl *codec);
 void hal_audio_set_samplerate(aic_audio_ctrl *codec, uint32_t samplerate);

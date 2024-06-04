@@ -54,7 +54,7 @@ static calibration g_cal = {
 };
 
 void lv_rtp_calibrate(rt_device_t rtp_dev, int fb_width, int fb_height);
-void lv_convert_adc_to_coord(struct rt_touch_data *data);
+void lv_convert_adc_to_coord(rt_device_t rtp_dev, struct rt_touch_data *data);
 
 static void rtp_check_event_type(int event_type, int pressure)
 {
@@ -166,6 +166,8 @@ static void rtp_get_valid_point(rt_device_t rtp_dev, int index, struct rt_touch_
 
         if (data->x_coordinate > 0 || data->y_coordinate > 0) {
             press_flag = 1;
+            rt_device_control(rtp_dev, RT_TOUCH_CTRL_SET_X_TO_Y,
+                              (void *)data);
             x = data->x_coordinate;
             y = data->y_coordinate;
             sum_x += x;
@@ -357,11 +359,13 @@ void lv_rtp_calibrate(rt_device_t rtp_dev, int fb_width, int fb_height)
     rt_device_control(rtp_dev, RT_TOUCH_CTRL_ENABLE_INT, RT_NULL);
 }
 
-void lv_convert_adc_to_coord(struct rt_touch_data *data)
+void lv_convert_adc_to_coord(rt_device_t rtp_dev, struct rt_touch_data *data)
 {
     int panel_x = 0;
     int panel_y = 0;
     int a[7] = {0};
+
+    rt_device_control(rtp_dev, RT_TOUCH_CTRL_SET_X_TO_Y, (void *)data);
 
     panel_x = AIC_RTP_MAX_VAL - data->x_coordinate;
     panel_y = AIC_RTP_MAX_VAL - data->y_coordinate;

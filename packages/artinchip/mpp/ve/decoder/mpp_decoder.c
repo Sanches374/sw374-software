@@ -12,21 +12,24 @@
 extern struct mpp_decoder* create_jpeg_decoder();
 extern struct mpp_decoder* create_png_decoder();
 extern struct mpp_decoder* create_h264_decoder();
+extern struct mpp_decoder* create_aicp_decoder();
 
 struct mpp_decoder* mpp_decoder_create(enum mpp_codec_type type)
 {
-	if(type == MPP_CODEC_VIDEO_DECODER_MJPEG)
-		return create_jpeg_decoder();
-	else if(type == MPP_CODEC_VIDEO_DECODER_H264)
-		return create_h264_decoder();
-	else if(type == MPP_CODEC_VIDEO_DECODER_PNG)
-		return create_png_decoder();
-	return NULL;
+    if(type == MPP_CODEC_VIDEO_DECODER_MJPEG)
+        return create_jpeg_decoder();
+    else if (type == MPP_CODEC_VIDEO_DECODER_H264)
+        return create_h264_decoder();
+    else if (type == MPP_CODEC_VIDEO_DECODER_PNG)
+        return create_png_decoder();
+    else if (type == MPP_CODEC_VIDEO_DECODER_AICP)
+        return create_aicp_decoder();
+    return NULL;
 }
 
 void mpp_decoder_destory(struct mpp_decoder* decoder)
 {
-	decoder->ops->destory(decoder);
+    decoder->ops->destory(decoder);
 }
 
 int mpp_decoder_init(struct mpp_decoder *decoder, struct decode_config *config)

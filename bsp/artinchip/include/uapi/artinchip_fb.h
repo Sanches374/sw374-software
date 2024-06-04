@@ -30,6 +30,13 @@ extern "C" {
 
 #define AICFB_ACTIVATE_ROTATE_PANDISP    (1 << 3)
 
+enum display_flags {
+	DISPLAY_FLAGS_HSYNC_LOW		= (1 << 0),
+	DISPLAY_FLAGS_HSYNC_HIGH	= (1 << 1),
+	DISPLAY_FLAGS_VSYNC_LOW		= (1 << 2),
+	DISPLAY_FLAGS_VSYNC_HIGH	= (1 << 3),
+};
+
 struct display_timing {
     unsigned int pixelclock;
 
@@ -144,6 +151,10 @@ struct aicfb_config_lists {
     unsigned int num;
     struct aicfb_layer_data layers[];
 };
+
+#define AICFB_PIXEL_ALPHA_MODE      0
+#define AICFB_GLOBAL_ALPHA_MODE     1
+#define AICFB_MIXDER_ALPHA_MODE     2
 
 /**
  * struct aicfb_alpha_config - aicfb layer alpha blending config
@@ -293,14 +304,14 @@ struct aicfb_screeninfo {
 /** get display property */
 #define AICFB_GET_DISP_PROP _IOR(IOC_TYPE_FB, 0x61, struct aicfb_disp_prop)
 
-/** set ccm config */
-#define AICFB_SET_CCM_CONFIG _IOR(IOC_TYPE_FB, 0x65, struct aicfb_ccm_config)
+/** update ccm config */
+#define AICFB_UPDATE_CCM_CONFIG _IOR(IOC_TYPE_FB, 0x65, struct aicfb_ccm_config)
 
 /** get ccm config */
 #define AICFB_GET_CCM_CONFIG _IOR(IOC_TYPE_FB, 0x66, struct aicfb_ccm_config)
 
-/** set gamma config */
-#define AICFB_SET_GAMMA_CONFIG _IOR(IOC_TYPE_FB, 0x67, struct aicfb_gamma_config)
+/** update gamma config */
+#define AICFB_UPDATE_GAMMA_CONFIG _IOR(IOC_TYPE_FB, 0x67, struct aicfb_gamma_config)
 
 /** get gamma config */
 #define AICFB_GET_GAMMA_CONFIG _IOR(IOC_TYPE_FB, 0x68, struct aicfb_gamma_config)

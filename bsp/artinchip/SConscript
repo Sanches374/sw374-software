@@ -234,30 +234,63 @@ if GetDepend('AIC_SIMPLE_PANEL'):
 
 if GetDepend('AIC_DSI_SIMPLE_PANEL'):
     src += Glob('drv/display/panel/panel_dsi_simple.c')
-
+#
+# MIPI-DSI Panel Driver
+#
 if GetDepend('AIC_PANEL_DSI_XM91080'):
     src += Glob('drv/display/panel/panel_dsi_xm91080.c')
 
 if GetDepend('AIC_PANEL_DSI_ST7797'):
     src += Glob('drv/display/panel/panel_dsi_st7797.c')
 
+if GetDepend('AIC_PANEL_DSI_ST7703'):
+    src += Glob('drv/display/panel/panel_dsi_st7703.c')
+
+if GetDepend('AIC_PANEL_DSI_ILI9881C'):
+    src += Glob('drv/display/panel/panel_dsi_ili9881c.c')
+
+if GetDepend('AIC_PANEL_DSI_HX8394'):
+    src += Glob('drv/display/panel/panel_dsi_hx8394.c')
+
+if GetDepend('AIC_PANEL_DSI_JD9365'):
+    src += Glob('drv/display/panel/panel_dsi_jd9365.c')
+#
+# MIPI-DBI Type B I8080 Panel Driver
+#
 if GetDepend('AIC_PANEL_DBI_ILI9488'):
     src += Glob('drv/display/panel/panel_dbi_ili9488.c')
 
+if GetDepend('AIC_PANEL_DBI_ILI9486L'):
+    src += Glob('drv/display/panel/panel_dbi_ili9486l.c')
+
+if GetDepend('AIC_PANEL_DBI_ST7789'):
+    src += Glob('drv/display/panel/panel_dbi_st7789.c')
+#
+# MIPI-DBI Type C SPI Panel Driver
+#
 if GetDepend('AIC_PANEL_DBI_ILI9341'):
     src += Glob('drv/display/panel/panel_dbi_ili9341.c')
 
 if GetDepend('AIC_PANEL_DBI_ST77903'):
     src += Glob('drv/display/panel/panel_dbi_st77903.c')
-
-if GetDepend('AIC_PANEL_DBI_ILI9486L'):
-    src += Glob('drv/display/panel/panel_dbi_ili9486l.c')
-
+#
+# RGB Panel Driver SPI Init
+#
 if GetDepend('AIC_PANEL_RGB_ST7701S'):
     src += Glob('drv/display/panel/panel_rgb_st7701s.c')
 
+if GetDepend('AIC_PANEL_RGB_GC9A01A'):
+    src += Glob('drv/display/panel/panel_rgb_gc9a01a.c')
+#
+# SRGB Panel Driver
+#
 if GetDepend('AIC_PANEL_SRGB_HX8238'):
     src += Glob('drv/display/panel/panel_srgb_hx8238.c')
+#
+# Bridge Panel Driver
+#
+if GetDepend('AIC_PANEL_BRIDGE_LT8911'):
+    src += Glob('drv/display/panel/panel_edp_lt8911.c')
 
 # GE driver
 if GetDepend('AIC_GE_DRV'):
@@ -404,8 +437,7 @@ if GetDepend('AIC_PM_DRV'):
         ver = GetConfigValue('AIC_PM_DRV_VER')
         ver = ver.replace('"', '')
         src += Glob('drv/pm/drv_pm_v%s.c' % ver)
-        src += Glob('drv/pm/sp_suspend_resume.S')
-        src += Glob('drv/pm/sc_save_context.S')
+        src += Glob('drv/pm/suspend_v%s.S' % ver)
         if GetDepend('AIC_PM_POWER_KEY'):
             src += Glob('drv/pm/pm_key.c')
         if GetDepend('AIC_PM_POWER_TOUCH_WAKEUP'):

@@ -162,6 +162,8 @@ config AIC_FB_DRV_DEBUG
     bool "Enable Display driver debug"
     default n
     depends on AIC_DISPLAY_DRV
+    select AIC_MPP_FB_TEST
+    select AIC_DISPLAY_TEST
 
 config AIC_DISP_MIPI_DBI_DEBUG
     bool "Enable MIPI-DBI driver debug"
@@ -183,6 +185,11 @@ config AIC_CMU_DRV_TEST
 
 config AIC_GPIO_DRV_TEST
     bool "Enable GPIO driver test command"
+    default n
+    depends on AIC_GPIO_DRV
+
+config AIC_GPIO_TWINKLE_TEST
+    bool "Enable GPIO TWINKLE test command"
     default n
     depends on AIC_GPIO_DRV
 
@@ -231,15 +238,20 @@ config AIC_SDMC_DRV_TEST
     default n
     depends on AIC_SDMC_DRV
 
+config AIC_MMC_TEST
+    bool "Enable MMC test command"
+    default n
+    depends on AIC_SDMC_DRV && !DRIVER_BARE_DRV_EN
+
+config AIC_MMC_BARE_TEST
+    bool "Enable MMC bare test command"
+    default n
+    depends on DRIVER_BARE_DRV_EN
+
 config AIC_MTD_BARE_TEST
     bool "Enable MTD driver test command"
     default n
     depends on AIC_MTD_BARE_DRV
-
-config AIC_MMC_BARE_TEST
-    bool "Enable MMC driver test command"
-    default n
-    depends on AIC_MMC_BARE_DRV
 
 config AIC_FILE_CRC32_TEST
     bool "Enable file CRC32 test command"
@@ -255,6 +267,11 @@ config AIC_DISPLAY_TEST
     bool "Enable Display driver test command"
     default n
     depends on AIC_DISPLAY_DRV
+
+config AIC_GE_TEST
+    bool "Enable GE driver test command"
+    default n
+    depends on AIC_GE_DRV
 
 config AIC_VE_TEST
     bool "Enable VE driver test command"
@@ -301,7 +318,9 @@ config AIC_DVP_TEST
 config AIC_TP_DRV_TEST
     bool "Enable touch panel driver test command"
     default n
-    depends on AIC_TOUCH_PANEL_GT911 || AIC_TOUCH_PANEL_FT7411 || AIC_TOUCH_PANEL_GSL1680
+    depends on AIC_TOUCH_PANEL_GT911 || AIC_TOUCH_PANEL_FT7411 \
+                || AIC_TOUCH_PANEL_GSL1680 || AIC_TOUCH_PANEL_ST16XX \
+                || AIC_TOUCH_PANEL_AXS15260
 
 config AIC_WDT_DRV_TEST
     bool "Enable WDT driver test command"
@@ -322,6 +341,17 @@ config AIC_TSEN_TEST
     bool "Enable TSEN driver test command"
     default n
     depends on AIC_TSEN_DRV
+
+config AIC_TSEN_HIGH_TEMP_ALARM_TEST
+    bool "Enable HIGH TEMPERATURE ALARM test command"
+    default n
+    depends on AIC_TSEN_DRV
+    menu "HIGH TEMPERATURE Parameter"
+        depends on AIC_TSEN_HIGH_TEMP_ALARM_TEST
+        config AIC_TSEN_HIGH_TEMP_ALARM_THD
+            int "High temperature threshold"
+            default 75
+    endmenu
 
 config AIC_PSADC_TEST
     bool "Enable PSADC driver test command"
@@ -388,6 +418,10 @@ config AIC_CE_DRV_TEST
     default n
     depends on AIC_CE_DRV
 
+config AIC_SOFT_AES_TEST
+    bool "Enable Soft AES ECB test command"
+    default n
+
 config AIC_SID_BARE_TEST
     bool "Enable SID driver test command"
     default n
@@ -402,6 +436,23 @@ config AIC_USERID_BARE_TEST
     bool "Enable userid test command"
     default n
     depends on LPKG_USING_USERID
+
+config AIC_MEM_API_TEST
+    bool "Enable memory API test command"
+    default n
+
+config AIC_SE_PM_DRV_TEST
+    bool "Enable SE PM driver test command"
+    default n
+    depends on AIC_PM_DRV
+
+config AIC_FILE_SYSTEM_TEST
+    bool "Enable filesystem test command"
+    default n
+
+config AIC_PM_DRV_TEST
+    bool "Enable PM stability test command"
+    depends on AIC_PM_DRV
 
 endmenu
 endmenu

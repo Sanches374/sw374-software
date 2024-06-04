@@ -62,7 +62,7 @@ void aic_memheap_init(void)
     rt_ubase_t end_align;
     int i = 0;
 
-    for (i=0; i<sizeof(aic_memheaps)/sizeof(struct aic_memheap); i++){
+    for (i=0; i<sizeof(aic_memheaps)/sizeof(struct aic_memheap); i++) {
         begin_align = RT_ALIGN((rt_ubase_t)aic_memheaps[i].begin_addr, RT_ALIGN_SIZE);
         end_align   = RT_ALIGN_DOWN((rt_ubase_t)aic_memheaps[i].end_addr, RT_ALIGN_SIZE);
         RT_ASSERT(end_align > begin_align);
@@ -78,7 +78,7 @@ void *aic_memheap_malloc(int type, size_t size)
     void *ptr;
     int i = 0;
 
-    for (i=0; i<sizeof(aic_memheaps)/sizeof(struct aic_memheap); i++){
+    for (i=0; i<sizeof(aic_memheaps)/sizeof(struct aic_memheap); i++) {
         if (aic_memheaps[i].type == type)
             break;
     }
@@ -102,7 +102,7 @@ void aic_memheap_free(int type, void *rmem)
     if (rmem == RT_NULL)
         return;
 
-    for (i=0; i<sizeof(aic_memheaps)/sizeof(struct aic_memheap); i++){
+    for (i=0; i<sizeof(aic_memheaps)/sizeof(struct aic_memheap); i++) {
         if (aic_memheaps[i].type == type)
             break;
     }
@@ -180,8 +180,10 @@ const struct dfs_mount_tbl mount_table[] = {
 #ifdef LPKG_RAMDISK_TYPE_INITDATA
     {"ramdisk0", "/ram", "elm", 0, 0, 0},
 #endif
+#ifndef AIC_AB_SYSTEM_INTERFACE
 #if (defined(AIC_USING_FS_IMAGE_TYPE_FATFS_FOR_0) || defined(AIC_USING_FS_IMAGE_TYPE_FATFS_FOR_1))
     {"blk_rodata", "/rodata", "elm", 0, 0, 0},
+#endif
 #endif
 #ifdef LPKG_USING_LITTLEFS
     {"data", "/data", "lfs", 0, 0, 0},

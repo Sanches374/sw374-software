@@ -34,12 +34,12 @@ struct aicfb_info
     struct rt_device device;
 #endif
 
-    u32 width;
-    u32 height;
-
+    bool power_on;
     u32 fb_rotate;
 
     void *fb_start;
+    u32 width;
+    u32 height;
     u32 stride;
     size_t fb_size;
     u32 bits_per_pixel;
@@ -192,8 +192,6 @@ aicfb_pq_set_config(struct aicfb_info *fbi, struct aicfb_pq_config *config)
 {
     struct aic_panel *panel = fbi->panel;
 
-    memcpy(panel->timings, config->timing, sizeof(struct display_timing));
-
     switch (panel->connector_type)
     {
     case AIC_RGB_COM:
@@ -212,7 +210,14 @@ aicfb_pq_set_config(struct aicfb_info *fbi, struct aicfb_pq_config *config)
 
         if (dsi->command.command_on == MIPI_DSI_UPDATE_COMMAND)
         {
-            memcpy(&panel->dsi->command, &dsi->command, sizeof(struct dsi_command));
+
+            if (!panel->dsi->command.buf)
+                panel->dsi->command.buf = aicos_malloc(MEM_CMA, 4096);
+
+            panel->dsi->command.command_on = 1;
+            panel->dsi->command.len = dsi->command.len;
+            memcpy(panel->dsi->command.buf, dsi->command.buf, dsi->command.len);
+
             return;
         }
         if (dsi->command.command_on == MIPI_DSI_DISABLE_COMMAND)
@@ -222,15 +227,20 @@ aicfb_pq_set_config(struct aicfb_info *fbi, struct aicfb_pq_config *config)
         }
         else
         {
-            panel->dsi->mode = dsi->mode;
-            panel->dsi->format = dsi->format;
-            panel->dsi->lane_num = dsi->lane_num;
+            panel->dsi->mode      = dsi->mode;
+            panel->dsi->format    = dsi->format;
+            panel->dsi->lane_num  = dsi->lane_num;
+            panel->dsi->dc_inv    = dsi->dc_inv;
+            panel->dsi->vc_num    = dsi->vc_num;
+            panel->dsi->ln_polrs  = dsi->ln_polrs;
+            panel->dsi->ln_assign = dsi->ln_assign;
         }
         break;
     }
     default:
         break;
     }
+    memcpy(panel->timings, config->timing, sizeof(struct display_timing));
 
     aicfb_reset(fbi);
 }
@@ -252,7 +262,17 @@ aicfb_pq_get_config(struct aicfb_info *fbi, struct aicfb_pq_config *config)
             memcpy(config->data, fbi->panel->lvds, sizeof(struct panel_lvds));
             break;
         case AIC_MIPI_COM:
-            memcpy(config->data, fbi->panel->dsi, sizeof(struct panel_dsi));
+        {
+            struct panel_dsi *dsi = config->data;
+
+            dsi->mode      = fbi->panel->dsi->mode;
+            dsi->format    = fbi->panel->dsi->format;
+            dsi->lane_num  = fbi->panel->dsi->lane_num;
+            dsi->dc_inv    = fbi->panel->dsi->dc_inv;
+            dsi->vc_num    = fbi->panel->dsi->vc_num;
+            dsi->ln_polrs  = fbi->panel->dsi->ln_polrs;
+            dsi->ln_assign = fbi->panel->dsi->ln_assign;
+        }
             break;
         default:
             break;
@@ -300,6 +320,9 @@ int aicfb_ioctl(int cmd, void *args)
         struct aicfb_layer_data layer = {0};
         struct platform_driver *de = fbi->de;
 
+        if (fbi->power_on)
+            break;
+
         aicfb_enable_clk(fbi, AICFB_ON);
 
         layer.layer_id = AICFB_LAYER_TYPE_UI;
@@ -310,12 +333,16 @@ int aicfb_ioctl(int cmd, void *args)
         de->de_funcs->update_layer_config(&layer);
 
         aicfb_enable_panel(fbi, AICFB_ON);
+        fbi->power_on = true;
         break;
     }
     case AICFB_POWEROFF:
     {
         struct aicfb_layer_data layer = {0};
         struct platform_driver *de = fbi->de;
+
+        if (!fbi->power_on)
+            break;
 
         aicfb_enable_panel(fbi, AICFB_OFF);
 
@@ -327,6 +354,7 @@ int aicfb_ioctl(int cmd, void *args)
         de->de_funcs->update_layer_config(&layer);
 
         aicfb_enable_clk(fbi, AICFB_OFF);
+        fbi->power_on = false;
         break;
     }
     case AICFB_GET_LAYER_CONFIG:
@@ -368,10 +396,10 @@ int aicfb_ioctl(int cmd, void *args)
     case AICFB_GET_CCM_CONFIG:
         return fbi->de->de_funcs->get_ccm_config(args);
 
-    case AICFB_SET_CCM_CONFIG:
+    case AICFB_UPDATE_CCM_CONFIG:
         return fbi->de->de_funcs->set_ccm_config(args);
 
-    case AICFB_SET_GAMMA_CONFIG:
+    case AICFB_UPDATE_GAMMA_CONFIG:
         return fbi->de->de_funcs->set_gamma_config(args);
 
     case AICFB_GET_GAMMA_CONFIG:
@@ -962,12 +990,14 @@ int aicfb_probe(void)
 #endif
 
     aicfb_probed = true;
+    fbi->power_on = false;
     aicfb_set_drvdata(fbi);
 
     aicfb_enable_clk(fbi, AICFB_ON);
     aicfb_update_alpha(fbi);
     aicfb_update_layer(fbi);
 #if defined(AIC_DISP_COLOR_BLOCK)
+    fbi->power_on = true;
     aicfb_enable_panel(fbi, AICFB_ON);
 #endif
     return 0;

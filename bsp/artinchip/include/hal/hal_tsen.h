@@ -19,6 +19,17 @@ enum aic_tsen_mode {
     AIC_TSEN_MODE_PERIOD = 1
 };
 
+enum aic_tsen_soft_mode {
+    AIC_TSEN_SOFT_MODE_SINGLE = 0,
+    AIC_TSEN_SOFT_MODE_PERIOD = 1,
+    AIC_TSEN_SOFT_MODE_POLLING = 2
+};
+
+enum aic_tsen_sensor {
+    AIC_TSEN_SENSOR_CPU = 0,
+    AIC_TSEN_SENSOR_GPAI = 1
+};
+
 #define AIC_TSEN_USE_DIFFERENT_MODE  1
 #define AIC_TSEN_USE_INVERTED        1
 
@@ -27,6 +38,7 @@ struct aic_tsen_ch {
     bool available;
     char name[16];
     enum aic_tsen_mode mode;
+    enum aic_tsen_soft_mode soft_mode;
     bool diff_mode;
     bool inverted;
     u16  latest_data; // 10 * actual temperature value
@@ -61,5 +73,7 @@ irqreturn_t hal_tsen_irq_handle(int irq, void *arg);
 s32 hal_tsen_clk_init(void);
 void hal_tsen_pclk_get(struct aic_tsen_ch *chan);
 void hal_tsen_curve_fitting(struct aic_tsen_ch *chan);
+void hal_tsen_set_ch_num(u32 num);
+struct aic_tsen_ch *hal_tsen_get_valid_ch(u32 ch);
 
 #endif // end of _ARTINCHIP_HAL_TSEN_H_

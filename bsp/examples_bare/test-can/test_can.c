@@ -32,7 +32,7 @@ void can_usage(void)
 
 void can_rx_callback(can_handle * phandle, void *arg)
 {
-    if ((u32)arg == CAN_EVENT_RX_IND)
+    if ((long)arg == CAN_EVENT_RX_IND)
         rx_done = 1;
 }
 

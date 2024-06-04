@@ -11,8 +11,9 @@
 
 #include "aic_osal.h"
 
-#define AIC_GPAI_NUM_BITS   12
-#define AIC_GPAI_TIMEOUT    1000 /* 1000 ms */
+#define AIC_GPAI_NUM_BITS           12
+#define AIC_GPAI_TIMEOUT            1000 /* 1000 ms */
+#define AIC_GPAI_FIFO_MAX_DEPTH     32
 
 enum aic_gpai_mode {
     AIC_GPAI_MODE_SINGLE = 0,
@@ -26,6 +27,7 @@ enum aic_gpai_obtain_data_mode {
 };
 
 typedef void (*dma_callback)(void *dma_param);
+typedef void (*irq_callback)(void *cb_param);
 
 struct aic_dma_transfer_info
 {
@@ -38,6 +40,21 @@ struct aic_dma_transfer_info
     dma_callback callback;
 };
 
+struct aic_gpai_irq_info
+{
+    u32 chan_id;
+    void *callback_param;
+    irq_callback callback;
+};
+
+struct aic_gpai_ch_info
+{
+    u32 chan_id;
+    u16 adc_values[AIC_GPAI_FIFO_MAX_DEPTH];
+    u8 fifo_valid_cnt;
+    enum aic_gpai_mode mode;
+};
+
 struct aic_gpai_ch {
     u8 id;
     u8 available;
@@ -47,6 +64,8 @@ struct aic_gpai_ch {
     u32 smp_period;
     u32 pclk_rate;
     u16 latest_data;
+    u16 fifo_data[AIC_GPAI_FIFO_MAX_DEPTH];
+    u8 fifo_valid_cnt;
     u8 fifo_depth;
     u8 fifo_thd;
 
@@ -60,6 +79,7 @@ struct aic_gpai_ch {
     u8 irq_count;
     u8 dma_port_id;
     struct aic_dma_transfer_info dma_rx_info;
+    struct aic_gpai_irq_info irq_info;
 
     aicos_sem_t complete;
 };
@@ -70,7 +90,7 @@ int aich_gpai_ch_init(struct aic_gpai_ch *chan, u32 pclk);
 
 irqreturn_t aich_gpai_isr(int irq, void *arg);
 
-int aich_gpai_read(struct aic_gpai_ch *chan, u32 *val, u32 timeout);
+int aich_gpai_read(struct aic_gpai_ch *chan, u16 *val, u32 timeout);
 s32 aich_gpai_data2vol(u16 data);
 
 struct aic_gpai_ch *hal_gpai_ch_is_valid(u32 ch);

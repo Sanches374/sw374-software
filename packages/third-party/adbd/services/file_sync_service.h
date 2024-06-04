@@ -89,6 +89,4 @@ union file_syncmsg
 };
 #pragma pack()
 
-#define SYNC_DATA_MAX (512)
-
 #endif

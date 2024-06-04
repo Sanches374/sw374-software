@@ -23,6 +23,9 @@
     "  spinor read  <addr> <offset> <size>\n" \
     "  spinor erase <offset> <size>\n"        \
     "  spinor write <addr> <offset> <size>\n" \
+    "  spinor regs\n"                         \
+    "  spinor regwrite reg val\n"             \
+    "  spinor regread  reg\n"                 \
     "e.g.: \n"                                \
     "  spinor read 0x40000000 0 256\n"
 
@@ -161,6 +164,71 @@ static int do_spinor_write(int argc, char *argv[])
     return err;
 }
 
+static int do_spinor_reg_dump(int argc, char *argv[])
+{
+    sfud_err err;
+    sfud_flash *flash;
+    u8 data;
+
+    flash = g_spinor_flash;
+    if (flash == NULL) {
+        printf("spinor init first.\n");
+        return 0;
+    }
+    err = sfud_read_status(flash, &data);
+    if (err)
+        printf("Read SR1 failure.\n");
+    else
+        printf("SR1: 0x%x\n", data);
+    err = sfud_read_cr(flash, &data);
+    if (err)
+        printf("Read SR2/CR failure.\n");
+    else
+        printf("SR2/CR: 0x%x\n", data);
+    return err;
+}
+
+static int do_spinor_reg_write(int argc, char *argv[])
+{
+    sfud_err err;
+    sfud_flash *flash;
+    u8 reg, val;
+
+    reg = (u8)strtol(argv[1], NULL, 0);
+    val = (u8)strtol(argv[2], NULL, 0);
+
+    flash = g_spinor_flash;
+    if (flash == NULL) {
+        printf("spinor init first.\n");
+        return 0;
+    }
+    err = sfud_write_reg(flash, reg, &val);
+    if (err)
+        printf("Write Register failure.\n");
+    printf("Reg 0x%x, Value: 0x%x\n", reg, val);
+    return err;
+}
+
+static int do_spinor_reg_read(int argc, char *argv[])
+{
+    sfud_err err;
+    sfud_flash *flash;
+    u8 reg, val;
+
+    reg = (u8)strtol(argv[1], NULL, 0);
+
+    flash = g_spinor_flash;
+    if (flash == NULL) {
+        printf("spinor init first.\n");
+        return 0;
+    }
+    err = sfud_write_reg(flash, reg, &val);
+    if (err)
+        printf("Read Register failure.\n");
+    printf("Reg 0x%x, Value: 0x%x\n", reg, val);
+    return err;
+}
+
 /*
  * spinor init 0
  * spinor dump offset size
@@ -184,6 +252,12 @@ static int do_spinor(int argc, char *argv[])
         return do_spinor_write(argc - 1, &argv[1]);
     else if (!strncmp(argv[1], "erase", 5))
         return do_spinor_erase(argc - 1, &argv[1]);
+    else if (!strncmp(argv[1], "regs", 4))
+        return do_spinor_reg_dump(argc - 1, &argv[1]);
+    else if (!strncmp(argv[1], "regwrite", 8))
+        return do_spinor_reg_write(argc - 1, &argv[1]);
+    else if (!strncmp(argv[1], "regread", 7))
+        return do_spinor_reg_read(argc - 1, &argv[1]);
 
     spinor_help();
     return 0;

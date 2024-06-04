@@ -57,15 +57,15 @@ int test_cap(int argc, char **argv)
     /* set callback function */
     rt_device_set_rx_indicate(cap_dev, cap_cb);
 
-    ret = rt_device_control(cap_dev, INPUTCAPTURE_CMD_SET_WATERMARK, &watermark);
-    if (ret != RT_EOK) {
-        rt_kprintf("Failed to set %s device watermark!\n", device_name);
-        return ret;
-    }
-
     ret = rt_device_open(cap_dev, RT_DEVICE_OFLAG_RDWR);
     if (ret != RT_EOK) {
         rt_kprintf("Failed to open %s device!\n", device_name);
+        return ret;
+    }
+
+    ret = rt_device_control(cap_dev, INPUTCAPTURE_CMD_SET_WATERMARK, &watermark);
+    if (ret != RT_EOK) {
+        rt_kprintf("Failed to set %s device watermark!\n", device_name);
         return ret;
     }
 

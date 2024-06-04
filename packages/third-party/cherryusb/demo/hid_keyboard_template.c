@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2022, sakumisu
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 #include "usbd_core.h"
 #include "usbd_hid.h"
 
@@ -204,9 +210,15 @@ void usbd_event_handler(uint8_t event)
 
 /*!< hid state ! Data can be sent only when state is idle  */
 static volatile uint8_t hid_state = HID_STATE_IDLE;
+USB_NOCACHE_RAM_SECTION USB_MEM_ALIGNX uint8_t write_buffer[64];
 
 void usbd_hid_int_callback(uint8_t ep, uint32_t nbytes)
 {
+    if (hid_state == HID_STATE_BUSY) {
+        memset(write_buffer, 0, 8);
+        usbd_ep_start_write(HID_INT_EP, write_buffer, 8);
+    }
+
     hid_state = HID_STATE_IDLE;
 }
 
@@ -225,8 +237,6 @@ void hid_keyboard_init(void)
 
     usbd_initialize();
 }
-
-USB_NOCACHE_RAM_SECTION USB_MEM_ALIGNX uint8_t write_buffer[64];
 
 void hid_keyboard_test(void)
 {

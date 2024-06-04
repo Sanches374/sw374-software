@@ -238,6 +238,9 @@ struct mtd_partition *mtd_parts_parse(char *parts)
     char *p;
     p = parts;
 
+    if (!p)
+        return NULL;
+
     while ((*p != '\0') && (*p != ':'))
         p++;
     if (*p != ':') {

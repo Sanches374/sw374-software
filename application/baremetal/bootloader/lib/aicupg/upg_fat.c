@@ -19,11 +19,45 @@
 static u32 image_size = 0;
 static u64 write_size = 0;
 
+static void *upg_fat_malloc_align(struct fwc_info *fwc, u32 *size, size_t align)
+{
+    void *ptr = NULL;
+
+    switch (*size) {
+        case DATA_WRITE_ONCE_MAX_SIZE:
+            *size = ALIGN_DOWN(DATA_WRITE_ONCE_MAX_SIZE, fwc->block_size);
+            ptr = aicos_malloc_align(0, *size, align);
+            if (ptr)
+                break;
+        case DATA_WRITE_ONCE_MID_SIZE:
+            *size = ALIGN_DOWN(DATA_WRITE_ONCE_MID_SIZE, fwc->block_size);
+            ptr = aicos_malloc_align(0, *size, align);
+            if (ptr)
+                break;
+        case DATA_WRITE_ONCE_MIN_SIZE:
+            *size = ALIGN_DOWN(DATA_WRITE_ONCE_MIN_SIZE, fwc->block_size);
+            ptr = aicos_malloc_align(0, *size, align);
+            if (ptr)
+                break;
+        default:
+            ptr = aicos_malloc_align(0, *size, align);
+            if (ptr)
+                break;
+    }
+
+    return ptr;
+}
+
+static void upg_fat_free_align(void *mem)
+{
+    aicos_free_align(0, mem);
+}
+
 #define FRAME_LIST_SIZE 4096
 static s32 media_device_write(char *image_name, struct fwc_meta *pmeta)
 {
     struct fwc_info *fwc;
-    int offset, write_once_size, len, remaining_size;
+    u32 offset, write_once_size, len, remaining_size;
     u8 *buf;
     s32 ret;
     ulong actread, total_len = 0;
@@ -48,18 +82,18 @@ static s32 media_device_write(char *image_name, struct fwc_meta *pmeta)
     /*start write data*/
     start_us = aic_get_time_us();
     media_data_write_start(fwc);
+
     /*config write size once*/
-    write_once_size = DATA_WRITE_ONCE_SIZE;
-    if (write_once_size % fwc->block_size)
-        write_once_size = (write_once_size / fwc->block_size) * fwc->block_size;
+    write_once_size = DATA_WRITE_ONCE_MAX_SIZE;
 
     /*malloc buf memory*/
-    buf = aicos_malloc_align(0, write_once_size, FRAME_LIST_SIZE);
+    buf = upg_fat_malloc_align(fwc, &write_once_size, FRAME_LIST_SIZE);
     if (!buf) {
         pr_err("Error: malloc buf failed.\n");
         ret = -1;
         goto err;
     }
+
     memset((void *)buf, 0, write_once_size);
 
     offset = 0;
@@ -99,13 +133,13 @@ static s32 media_device_write(char *image_name, struct fwc_meta *pmeta)
             (total_len * 1000000 / start_us) / 1024 / 1024,
             (total_len * 1000000 / start_us) / 1024 % 1024);
 
-    aicos_free_align(0, buf);
+    upg_fat_free_align(buf);
     aicos_free_align(0, fwc);
 
     return total_len;
 err:
     if (buf)
-        aicos_free_align(0, buf);
+        upg_fat_free_align(buf);
     if (fwc)
         aicos_free_align(0, fwc);
     return 0;

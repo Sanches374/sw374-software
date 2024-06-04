@@ -163,7 +163,7 @@ void aich_psadc_status_show(void)
     int version = psadc_readl(PSADC_VERSION);
 
     printf("In PSADC V%d.%02d\n"
-           "enabled %d chans: ",
+           "enabled %d channels: ",
            version >> 8, version & 0xff,
            aic_psadc_ch_num);
 
@@ -216,7 +216,7 @@ int hal_psadc_read(u32 *val, u32 timeout)
     psadc_reg_enable(PSADC_MCR, PSADC_MCR_Q1_TRIGS, 1);
     ret = aicos_sem_take(queue->complete, timeout);
     if (ret < 0) {
-        hal_log_err("Queue%d read timeout!\n");
+        hal_log_err("Queue%d read timeout!\n", queue->id);
         hal_psadc_qc_irq_enable(0);
 
         return -ETIMEDOUT;
@@ -224,7 +224,7 @@ int hal_psadc_read(u32 *val, u32 timeout)
     if (val)
         memcpy(val, aic_psadc_ch_data, sizeof(aic_psadc_ch_data));
 
-    return RT_EOK;
+    return 0;
 }
 
 int hal_psadc_read_poll(u32 *val, u32 timeout)
@@ -262,7 +262,7 @@ int hal_psadc_read_poll(u32 *val, u32 timeout)
         memcpy(val, aic_psadc_ch_data,
                sizeof(aic_psadc_ch_data[0]) * queue->nodes_num);
 
-    return RT_EOK;
+    return 0;
 }
 
 irqreturn_t hal_psadc_isr(int irq, void *arg)

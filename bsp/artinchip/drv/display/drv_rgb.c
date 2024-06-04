@@ -20,6 +20,11 @@ struct aic_rgb_comp
 };
 static struct aic_rgb_comp *g_aic_rgb_comp;
 
+#ifdef AIC_DISP_PQ_TOOL
+AIC_PQ_TOOL_PINMUX_CONFIG(disp_pinmux_config);
+AIC_PQ_TOOL_SET_DISP_PINMUX_FOPS(disp_pinmux_config)
+#endif
+
 static struct aic_rgb_comp *aic_rgb_request_drvdata(void)
 {
     return g_aic_rgb_comp;
@@ -29,6 +34,65 @@ static void aic_rgb_release_drvdata(void)
 {
 
 }
+
+#ifdef AIC_DISP_RGB_DRV_V12
+struct rgb_bits_valid {
+    u32 mode;
+    u32 format;
+    u32 bits_valid;
+};
+
+static const struct rgb_bits_valid rgb_valid[] = {
+    {
+        .mode       = PRGB,
+        .format     = PRGB_24BIT,
+        .bits_valid = 0x777,
+    },
+    {
+        .mode       = PRGB,
+        .format     = PRGB_18BIT_LD,
+        .bits_valid = 0x555,
+    },
+    {
+        .mode       = PRGB,
+        .format     = PRGB_18BIT_HD,
+        .bits_valid = 0x555,
+    },
+    {
+        .mode       = PRGB,
+        .format     = PRGB_16BIT_LD,
+        .bits_valid = 0x454,
+    },
+    {
+        .mode       = PRGB,
+        .format     = PRGB_16BIT_HD,
+        .bits_valid = 0x454,
+    },
+    {
+        .mode       = SRGB,
+        .format     = SRGB_8BIT,
+        .bits_valid = 0x777,
+    },
+    {
+        .mode       = SRGB,
+        .format     = SRGB_6BIT,
+        .bits_valid = 0x555,
+    },
+};
+
+static int aic_rgb_data_valid(u32 mode, u32 format, u32 *bits_valid)
+{
+    unsigned int i;
+
+    for (i = 0; i < ARRAY_SIZE(rgb_valid); ++i)
+        if (rgb_valid[i].mode == mode && rgb_valid[i].format == format) {
+            *bits_valid = rgb_valid[i].bits_valid;
+            return 0;
+        }
+
+    return -EINVAL;
+}
+#endif
 
 static int aic_rgb_clk_enable(void)
 {
@@ -63,33 +127,19 @@ static void aic_rgb_swap(void)
 {
     struct aic_rgb_comp *comp = aic_rgb_request_drvdata();
     struct panel_rgb *rgb = comp->panel->rgb;
+    u32 bits_valid = 0;
 
-#if defined (AIC_DISP_RGB_DRV_V10) || defined (AIC_DISP_RGB_DRV_V11)
-    if (rgb->data_mirror)
-        reg_set_bits(comp->regs + RGB_DATA_SEQ_SEL,
-            RGB_DATA_OUT_SEL_MASK, RGB_DATA_OUT_SEL(7));
-#endif
-
-#ifdef AIC_DISP_RGB_DRV_V12
     if (rgb->data_mirror) {
         reg_set_bits(comp->regs + RGB_DATA_SEQ_SEL,
             RGB_DATA_OUT_SEL_MASK, RGB_DATA_OUT_SEL(7));
-        switch(rgb->format) {
-        case SRGB_6BIT:
-            reg_set_bits(comp->regs + RGB_DATA_SEQ_SEL,
-                RGB_DATA_OUT_SEL_VALID_MASK, RGB_DATA_OUT_SEL_VALID_6BITS);
-            break;
-        case SRGB_8BIT:
-            reg_set_bits(comp->regs + RGB_DATA_SEQ_SEL,
-                RGB_DATA_OUT_SEL_VALID_MASK, RGB_DATA_OUT_SEL_VALID_8BITS);
-            break;
-        default:
-            pr_err("Invalid mode\n");
-            break;
-        }
-    }
 
+#ifdef AIC_DISP_RGB_DRV_V12
+        if (aic_rgb_data_valid(rgb->mode, rgb->format, &bits_valid))
+            pr_err("rgb data mirror failed, disable data mirror\n");
 #endif
+        reg_set_bits(comp->regs + RGB_DATA_SEQ_SEL,
+            RGB_DATA_OUT_SEL_VALID_MASK, RGB_DATA_OUT_SEL_VALID(bits_valid));
+    }
 
     if (rgb->data_order)
         reg_write(comp->regs + RGB_DATA_SEL, rgb->data_order);
@@ -202,6 +252,10 @@ static int aic_rgb_probe(void)
 
     comp->regs = (void *)LCD_BASE;
     g_aic_rgb_comp = comp;
+
+#ifdef AIC_DISP_PQ_TOOL
+    AIC_PQ_SET_DSIP_PINMUX;
+#endif
 
     return 0;
 }

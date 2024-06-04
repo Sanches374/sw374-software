@@ -138,3 +138,22 @@ objs = PrepareBuilding(env, RTT_ROOT, has_libcpu=False)
 
 # make a building
 DoBuilding(TARGET, objs)
+
+# Convert the pinmux.c file into a preprocessed file for pin conflict analysis
+cpp_defines = ' '
+cpp_path = ' '
+
+for i in env['CPPDEFINES']:
+    cpp_defines = cpp_defines + env['CPPDEFPREFIX'] + str(i[:][0]) + ' '
+for path in env['CPPPATH']:
+    related_cpppath = os.path.normpath(path).replace(AIC_ROOT + os.path.sep, '')
+    cpp_path = cpp_path + ' -I' + related_cpppath
+
+output_path = os.path.join(env['PRJ_OUT_DIR'], '.pinmux.i ')
+toolchain_path = os.path.join('toolchain', 'bin', rtconfig.CC)
+pinmux_src_path = os.path.join('target', env['PRJ_CHIP'],
+                               env['PRJ_BOARD'], 'pinmux.c')
+
+if os.path.exists(pinmux_src_path):
+    precess_pinmux = toolchain_path + ' -E -o '+ output_path + '-c ' + env['CFLAGS'] + cpp_defines + cpp_path + ' ' + pinmux_src_path
+    os.system(precess_pinmux)

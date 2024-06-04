@@ -21,6 +21,24 @@ META_ALIGNED_SIZE = 512
 BURNER = False
 VERBOSE = False
 
+COLOR_BEGIN = "\033["
+COLOR_RED = COLOR_BEGIN + "41;37m"
+COLOR_YELLOW = COLOR_BEGIN + "43;30m"
+COLOR_WHITE = COLOR_BEGIN + "47;30m"
+COLOR_END = "\033[0m"
+
+
+def pr_err(string):
+    print(COLOR_RED + '*** ' + string + COLOR_END)
+
+
+def pr_info(string):
+    print(COLOR_WHITE + '>>> ' + string + COLOR_END)
+
+
+def pr_warn(string):
+    print(COLOR_YELLOW + '!!! ' + string + COLOR_END)
+
 
 def parse_image_cfg(cfgfile):
     """ Load image configuration file
@@ -828,6 +846,12 @@ def int_to_uint8_bytes(n):
     return n.to_bytes(1, byteorder='little', signed=False)
 
 
+def int_to_uint16_bytes(n):
+    """ Int value to uint8 bytes
+    """
+    return n.to_bytes(2, byteorder='little', signed=False)
+
+
 def int_from_uint32_bytes(s):
     """ Int value from uint32 bytes
     """
@@ -949,7 +973,27 @@ def img_gen_fwc_meta(name, part, offset, size, crc, ram, attr, filename):
 
 PAGE_TABLE_MAX_ENTRY = 101
 
+"""
+struct nand_page_table_head {
+    char magic[4]; /* AICP: AIC Page table */
+    u32 entry_cnt;
+    u16 page_size;
+    u8 pad[10];   /* Padding it to fit size 20 bytes */
+};
 
+struct nand_page_table_entry {
+    u32 pageaddr1;
+    u32 pageaddr2;
+    u32 checksum2;
+    u32 reserved;
+    u32 checksum1;
+};
+
+struct nand_page_table {
+    struct nand_page_table_head head;
+    struct nand_page_table_entry entry[PAGE_TABLE_MAX_ENTRY];
+};
+"""
 def img_gen_page_table(binfile, cfg, datadir):
     """ Generate page table data
     Args:
@@ -966,9 +1010,13 @@ def img_gen_page_table(binfile, cfg, datadir):
             block_size = int(re.sub(r"[^0-9]", "", item["block"]))
 
     spl_file = cfg["image"]["target"]["spl"]["file"]
-    filesize = round_up(cfg["image"]["target"]["spl"]["filesize"], DATA_ALIGNED_SIZE);
+    filesize = round_up(cfg["image"]["target"]["spl"]["filesize"], DATA_ALIGNED_SIZE)
     page_per_blk = block_size // page_size
     page_cnt = filesize // (page_size * 1024)
+    if (page_cnt + 1 > (2 * PAGE_TABLE_MAX_ENTRY)):
+        print("SPL too large, more than 400K.")
+        sys.exit(1)
+
     path = get_file_path(spl_file, datadir)
     if path is None:
         sys.exit(1)
@@ -977,19 +1025,13 @@ def img_gen_page_table(binfile, cfg, datadir):
 
     entry_page = page_cnt + 1
     buff = str_to_nbytes("AICP", 4)
-    buff = buff + int_to_uint32_bytes(entry_page) # The first SPL hold start 65 page
-    buff = buff + int_to_uint8_bytes(page_size)
-    buff = buff + gen_bytes(0xFF, 11)
+    buff = buff + int_to_uint32_bytes(entry_page)
+    buff = buff + int_to_uint16_bytes(page_size * 1024)
+    buff = buff + gen_bytes(0xFF, 10)
 
     with open(path, "rb") as fwcfile:
         pageaddr1 = 0
         pageaddr2 = PAGE_TABLE_MAX_ENTRY
-
-        offset2 = (pageaddr2) * (page_size * 1024)
-
-        fwcfile.seek(offset2, 0)
-        bindata = fwcfile.read(step)
-        checksum2 = aic_calc_checksum(bindata, page_size * 1024)
 
         if (pageaddr1 < PAGE_TABLE_MAX_ENTRY):
             buff = buff + int_to_uint32_bytes(pageaddr1)
@@ -997,6 +1039,11 @@ def img_gen_page_table(binfile, cfg, datadir):
             buff = buff + int_to_uint32_bytes(0xFFFFFFFF)
 
         if (pageaddr2 < (2 * PAGE_TABLE_MAX_ENTRY) and pageaddr2 <= (page_cnt + 1)):
+            offset2 = (pageaddr2 - 1) * (page_size * 1024)
+            fwcfile.seek(offset2, 0)
+            bindata = fwcfile.read(step)
+            checksum2 = aic_calc_checksum(bindata, page_size * 1024)
+
             buff = buff + int_to_uint32_bytes(pageaddr2)
             buff = buff + int_to_uint32_bytes(checksum2)
             buff = buff + int_to_uint32_bytes(0xFFFFFFFF)
@@ -1010,31 +1057,21 @@ def img_gen_page_table(binfile, cfg, datadir):
         else:
             buff = buff + int_to_uint32_bytes(0xFFFFFFFF)
 
-        for i in range(1, page_cnt + 1):
+        for i in range(1, PAGE_TABLE_MAX_ENTRY):
             pageaddr1 = i
             pageaddr2 = PAGE_TABLE_MAX_ENTRY + i
 
-            offset1 = (pageaddr1 - 1) * (page_size * 1024)
-            offset2 = (pageaddr2 - 1) * (page_size * 1024)
-
-            fwcfile.seek(offset1, 0)
-            bindata = fwcfile.read(step)
-            checksum1 = aic_calc_checksum(bindata, page_size * 1024)
-
-            fwcfile.seek(offset2, 0)
-            bindata = fwcfile.read(step)
-            checksum2 = aic_calc_checksum(bindata, page_size * 1024)
-
-            if (page_cnt + 1 > PAGE_TABLE_MAX_ENTRY):
-                print("SPL too large")
-                sys.exit(1)
-
-            if (pageaddr1 < PAGE_TABLE_MAX_ENTRY):
+            if (pageaddr1 < PAGE_TABLE_MAX_ENTRY and pageaddr1 <= (page_cnt + 1)):
                 buff = buff + int_to_uint32_bytes(pageaddr1)
             else:
                 buff = buff + int_to_uint32_bytes(0xFFFFFFFF)
 
             if (pageaddr2 < (2 * PAGE_TABLE_MAX_ENTRY) and pageaddr2 <= (page_cnt + 1)):
+                offset2 = (pageaddr2 - 1) * (page_size * 1024)
+                fwcfile.seek(offset2, 0)
+                bindata = fwcfile.read(step)
+                checksum2 = aic_calc_checksum(bindata, page_size * 1024)
+
                 buff = buff + int_to_uint32_bytes(pageaddr2)
                 buff = buff + int_to_uint32_bytes(checksum2)
                 buff = buff + int_to_uint32_bytes(0xFFFFFFFF)
@@ -1044,9 +1081,15 @@ def img_gen_page_table(binfile, cfg, datadir):
                 buff = buff + int_to_uint32_bytes(0xFFFFFFFF)
 
             if (pageaddr1 < PAGE_TABLE_MAX_ENTRY):
+                offset1 = (pageaddr1 - 1) * (page_size * 1024)
+                fwcfile.seek(offset1, 0)
+                bindata = fwcfile.read(step)
+                checksum1 = aic_calc_checksum(bindata, page_size * 1024)
+
                 buff = buff + int_to_uint32_bytes(checksum1)
             else:
                 buff = buff + int_to_uint32_bytes(0xFFFFFFFF)
+
     buff = buff + gen_bytes(0xFF, page_size * 1024 - len(buff))
     checksum = aic_calc_checksum(buff, page_size * 1024)
     buff = buff[0:36] + int_to_uint32_bytes(checksum) + buff[40:]
@@ -1104,6 +1147,12 @@ def img_write_fwc_meta_section(imgfile, cfg, sect, meta_off, file_off, datadir):
     partitions = cfg[media_type]["partitions"]
     for fwc in fwcset:
         file_size = fwcset[fwc]["filesize"]
+        if sect == "target":
+            part_size = fwcset[fwc]["part_size"]
+            if file_size > part_size:
+                print("{} file_size: {} is over much than part_size: {}"
+                        .format(fwcset[fwc]["file"], hex(file_size), hex(part_size)))
+                return (-1, -1)
         if file_size <= 0:
             continue
         imgfile.seek(meta_off, 0)
@@ -1797,6 +1846,142 @@ def fixup_spinand_ubi_fwc_name(cfg, paramstr, orgitem):
     cfg["image"]["info"]["media"]["array_organization"] = [orgitem]
 
 
+def build_pinmux_check():
+    # FPGA-type boards may not have an aicboot key, in which case the pinmux
+    # conflict checking exited directly.
+    if cfg["temporary"].get("aicboot", 1) == 1:
+        return 0
+
+    cwd = os.getcwd()
+
+    image_path = cfg["temporary"]["aicboot"]["bootloader.aic"]["keydir"]
+    target_path = image_path.replace('images', 'target')
+    precess_path = os.path.join(cwd, 'output', image_path, '.pinmux.i')
+    if not os.path.exists(precess_path):
+        return 0
+
+    if (cfg["image"]["info"].get("product.backup")):
+        prduct = cfg["image"]["info"]["product.backup"].replace("_", "-")
+        rel_pinmux_path = os.path.join('target',
+                                       cfg["image"]["info"]["platform"],
+                                       prduct, 'pinmux.c')
+    else:
+        prduct = cfg["image"]["info"]["product"].replace("_", "-")
+        rel_pinmux_path = os.path.join('target',
+                                       cfg["image"]["info"]["platform"],
+                                       prduct, 'pinmux.c')
+    pinmux_path = os.path.join(cwd, rel_pinmux_path)
+    root_path = target_path.replace(os.path.join(cwd, 'output'), '')
+    defconfig_name = root_path.replace('target', '').replace(os.path.sep, '') + '_defconfig'
+    defconfig_path = os.path.join(cwd, 'target', 'configs', defconfig_name)
+
+    list_preproc_pins = []
+    list_conflict_pins = []
+    dict_pinmux = {}
+
+    # Get all configured pins and multiplexed functions in the pre-processed file pinmux.i
+    with open(precess_path, 'r') as file:
+        pin_pattern = r'\{(\d+),\s*([^,]+),\s*(\d+),\s*("[^"]+"|[^,]+)\}'
+        for f in file:
+            match = re.search(pin_pattern, f)
+            if match:
+                list_preproc_pins.append([match.groups()[0], match.groups()[3]])
+    file.close()
+
+    # Get the dictionary key as pin_name and the value as an array containing
+    # all the currently multiplexed functions.
+    # Tips: When the length of the value in the dictionary is greater than 1,
+    # it indicates that the pin is multiplexed with multiple functions.
+    for row in list_preproc_pins:
+        if row[1] not in dict_pinmux:
+            dict_pinmux[row[1]] = [row[0]]
+        else:
+            dict_pinmux[row[1]].append(row[0])
+    for pin_name, pin_func in dict_pinmux.items():
+        if len(pin_func) > 1:
+            list_conflict_pins.append(pin_name)
+
+    if not list_conflict_pins:
+        return 0
+
+    # Print macro definitions based on pins of conflict
+    pr_warn("Current pinmux conflicts! The conflicting pin:")
+    lines_num = 0
+    max_pin_name = max(len(s) for s in list_conflict_pins)
+    pin_name_total_len = max_pin_name + 2
+    enabled_macro = {}
+
+    with open(defconfig_path, 'r') as file:
+        matched_num = 0
+        for f in file:
+            for i in range(len(list_conflict_pins)):
+                match = re.search(list_conflict_pins[i], f)
+                if not match:
+                    continue
+                matched_num += 1
+                if matched_num == 1:
+                    print("\n{:<{}}".format('PIN', pin_name_total_len), end='')
+                    print('MACROS (' + defconfig_name + ')')
+                print("{:<{}}".format(list_conflict_pins[i].replace("\"",
+                      "") + ': ', pin_name_total_len), end='')
+                print(f.split('=')[0])
+                key_pin_name = f.split('=')[1].split('\n')[0]
+                val_macro = f.split('=')[0].replace('CONFIG_', '')
+                if key_pin_name in enabled_macro:
+                    enabled_macro[key_pin_name].append(val_macro)
+                else:
+                    enabled_macro[key_pin_name] = [val_macro]
+    file.close()
+    print("\n{:<{}}".format('PIN', pin_name_total_len), end='')
+    print('LINES (' + rel_pinmux_path + ')')
+
+    # Print the line number of conflicting pins in pinmux.c file
+    with open(pinmux_path, 'r') as file:
+        lines = file.readlines()
+        total_lines = len(str(len(lines))) + 2
+        file.seek(0)
+        for i in range(len(list_conflict_pins)):
+            print("{:<{}}".format(list_conflict_pins[i].replace("\"",
+                  "") + ': ', pin_name_total_len), end='')
+            pin_func = dict_pinmux.get(list_conflict_pins[i])
+            matched_num = 0
+
+            for f in file:
+                lines_num += 1
+                match = re.search(list_conflict_pins[i], f)
+                if not match:
+                    continue
+
+                fun = f.split('{')[1].split(',')[0]
+                if fun in pin_func:
+                    matched_num += 1
+                    if matched_num > 1:
+                        print(' ' * pin_name_total_len, end='')
+                    line_str = str(lines_num) + ': '
+                    print("{:<{}}".format(line_str, total_lines), end='')
+                    print(f.replace(' ', ''), end='')
+            file.seek(0)
+            lines_num = 0
+
+            # Search backwards from the macro to the line where the pin
+            # function configuration is
+            if list_conflict_pins[i] in enabled_macro:
+                for pin_name_index in enabled_macro[list_conflict_pins[i]]:
+                    lines_num_macro = 0
+                    for f in file:
+                        lines_num_macro += 1
+                        match = re.search(pin_name_index + '}', f)
+                        line_str = str(lines_num_macro) + ': '
+                        if not match:
+                            continue
+                        print(' ' * pin_name_total_len, end='')
+                        print("{:<{}}".format(line_str, total_lines), end='')
+                        print(f.replace(' ', ''), end='')
+                    file.seek(0)
+                    lines_num_macro = 0
+    file.close()
+
+
 def build_firmware_image(cfg, datadir, outdir):
     """ Build firmware image
     Args:
@@ -1895,7 +2080,9 @@ def build_firmware_image(cfg, datadir, outdir):
             generate_bootcfg(bcfgfile, cfg)
             bcfgfile.flush()
 
+    build_pinmux_check()
     return 0
+
 
 if __name__ == "__main__":
     default_bin_root = os.path.dirname(sys.argv[0])

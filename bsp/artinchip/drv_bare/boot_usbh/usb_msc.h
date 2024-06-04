@@ -70,7 +70,7 @@ struct CSW {
 
 /*Length of template descriptor: 23 bytes*/
 #define MSC_DESCRIPTOR_LEN         (9 + 7 + 7)
-#define CONFIG_USBHOST_MSC_TIMEOUT 2000
+#define CONFIG_USBHOST_MSC_TIMEOUT 2000000
 
 #define SET_BE32(field, value)            \
     do {                                  \

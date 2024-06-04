@@ -11,64 +11,66 @@
 extern "C" {
 #endif
 
-/* Fixed rate clock */
-#define CLK_DUMMY               0
-#define CLK_OSC24M              1
-#define CLK_OSC32K              2
-/* PLL clock */
-#define CLK_PLL_INT0            3
-#define CLK_PLL_INT1            4
-#define CLK_PLL_FRA0            5
-#define CLK_PLL_FRA2            6
-/* fixed factor clock */
-#define CLK_AXI_AHB_SRC1        7
-#define CLK_APB0_SRC1           8
-#define CLK_CPU_SRC1            9
-/* system clock */
-#define CLK_AXI0                10
-#define CLK_AHB0                11
-#define CLK_APB0                12
-#define CLK_APB1                13
-#define CLK_CPU                 14
-/* Peripheral clock */
-#define CLK_WDT                 15
-#define CLK_DMA                 16
-#define CLK_DCE                 17
-#define CLK_XSPI                22
-#define CLK_QSPI0               23
-#define CLK_QSPI1               24
-#define CLK_SDMC0               27
-#define CLK_SDMC1               28
-#define CLK_SYSCFG              30
-#define CLK_SPIENC              31
-#define CLK_MTOP                32
-#define CLK_AUDIO_SCLK          33
-#define CLK_CODEC               34
-#define CLK_GPIO                35
-#define CLK_UART0               36
-#define CLK_UART1               37
-#define CLK_UART2               38
-#define CLK_UART3               39
-#define CLK_RGB                 44
-#define CLK_DE                  48
-#define CLK_GE                  49
-#define CLK_VE                  50
-#define CLK_SID                 51
-#define CLK_GTC                 53
-#define CLK_I2C0                54
-#define CLK_I2C1                55
-#define CLK_CAN0                57
-#define CLK_CAN1                58
-#define CLK_PWM                 59
-#define CLK_ADCIM               60
-#define CLK_GPAI                61
-#define CLK_RTP                 62
-#define CLK_TSEN                63
-#define CLK_CIR                 65
-/* Display clock */
-#define CLK_PIX                 66
-#define CLK_SCLK                67
-#define AIC_CLK_END             68
+enum clk_id {
+    /* Fixed rate clock */
+    CLK_DUMMY,
+    CLK_OSC24M,
+    CLK_OSC32K,
+    /* PLL clock */
+    CLK_PLL_INT0,
+    CLK_PLL_INT1,
+    CLK_PLL_FRA0,
+    CLK_PLL_FRA2,
+    /* fixed factor clock */
+    CLK_AXI_AHB_SRC1,
+    CLK_APB0_SRC1,
+    CLK_CPU_SRC1,
+    /* system clock */
+    CLK_AXI0,
+    CLK_AHB0,
+    CLK_APB0,
+    CLK_APB1,
+    CLK_CPU,
+    /* Peripheral clock */
+    CLK_DMA,
+    CLK_DCE,
+    CLK_XSPI,
+    CLK_QSPI0,
+    CLK_QSPI1,
+    CLK_SDMC0,
+    CLK_SDMC1,
+    CLK_SYSCFG,
+    CLK_SPIENC,
+    CLK_AUDIO_SCLK,
+    CLK_CODEC,
+    CLK_RGB,
+    CLK_DE,
+    CLK_GE,
+    CLK_VE,
+    CLK_WDT,
+    CLK_SID,
+    CLK_GTC,
+    CLK_GPIO,
+    CLK_UART0,
+    CLK_UART1,
+    CLK_UART2,
+    CLK_UART3,
+    CLK_I2C0,
+    CLK_I2C1,
+    CLK_CAN0,
+    CLK_CAN1,
+    CLK_PWM,
+    CLK_ADCIM,
+    CLK_GPAI,
+    CLK_RTP,
+    CLK_TSEN,
+    CLK_CIR,
+    CLK_MTOP,
+    /* Display clock */
+    CLK_PIX,
+    CLK_SCLK,
+    AIC_CLK_NUM,
+};
 
 /* frequence */
 

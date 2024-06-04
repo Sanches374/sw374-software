@@ -118,7 +118,10 @@ static gd_gif * gif_open(gd_gif * gif_base)
     gif = GIF_IMG_ALLOC(sizeof(gd_gif) + 2 * stride * height + width * height);
 #endif
 
-    if (!gif) goto fail;
+    if (!gif) {
+        PRINTF("alloc mem fail\n");
+        goto fail;
+    }
     memcpy(gif, gif_base, sizeof(gd_gif));
     gif->width  = width;
     gif->height = height;

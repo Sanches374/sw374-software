@@ -47,6 +47,9 @@ struct rt_i2c_bus_device_ops
     rt_err_t (*i2c_bus_control)(struct rt_i2c_bus_device *bus,
                                 rt_uint32_t,
                                 rt_uint32_t);
+    rt_err_t (*i2c_slave_control)(struct rt_i2c_bus_device *bus,
+                                rt_uint32_t,
+                                void *);
 };
 
 /*for i2c bus driver*/
@@ -76,6 +79,9 @@ rt_size_t rt_i2c_transfer(struct rt_i2c_bus_device *bus,
 rt_err_t rt_i2c_control(struct rt_i2c_bus_device *bus,
                         rt_uint32_t               cmd,
                         rt_uint32_t               arg);
+rt_err_t rt_i2c_slave_control(struct rt_i2c_bus_device *bus,
+                        rt_uint32_t               cmd,
+                        void                     *arg);
 rt_size_t rt_i2c_master_send(struct rt_i2c_bus_device *bus,
                              rt_uint16_t               addr,
                              rt_uint16_t               flags,

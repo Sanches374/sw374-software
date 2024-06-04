@@ -19,7 +19,7 @@ extern "C" {
 /* Luban-Lite version information */
 #define LL_VERSION      1               /**< major version number */
 #define LL_SUBVERSION   0               /**< minor version number */
-#define LL_REVISION     1               /**< revise version number */
+#define LL_REVISION     5               /**< revise version number */
 
 typedef __signed__ char     s8;
 typedef unsigned char       u8;
@@ -241,6 +241,8 @@ typedef unsigned long ptr_t;
 #define __ALIGN_MASK(x,mask)    (((x)+(mask))&~(mask))
 #define ALIGN_UP(x,a)           __ALIGN_MASK((x),(typeof(x))(a)-1)
 #define ALIGN_DOWN(x, a)        ((x) & (~((typeof(x))(a)-1)))
+
+#define IS_ALIGNED(x, a) (((x) & ((typeof(x))(a)-1)) == 0)
 
 #define PAD_COUNT(s, pad)   (((s) - 1) / (pad) + 1)
 #define PAD_SIZE(s, pad)    (PAD_COUNT(s, pad) * pad)

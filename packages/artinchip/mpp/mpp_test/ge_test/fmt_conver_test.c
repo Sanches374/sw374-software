@@ -18,8 +18,6 @@
 #include "./public/ge_fb.h"
 #include "./public/ge_mem.h"
 
-#define DITHER_IMAGE    "/sdcard/ge_test/image/singer_alpha.bmp"
-
 /* format conversion type */
 #define RGB_TO_RGB  0
 #define RGB_TO_YUV  1
@@ -42,13 +40,19 @@ struct StrToFormat {
 static int table_size = 0;
 static struct StrToFormat *format_table = NULL;
 
+static char g_src_input[128] = {"/sdcard/ge_test/image/singer_alpha.bmp"};
+
 static void usage(char *app)
 {
     printf("Usage: %s [Options]: \n", app);
     printf("\t-m, --mode, select format conversion type (default rgbtorgb), \n"
            "\tFormat conversion supports rgbtorgb, yuvtoyuv, yuvtorgb and rgbtoyuv.\n");
+    printf("\t-i  --input_src, input src\n");
     printf("\t-u, --usage\n");
     printf("\t-h, --help to see more\n\n");
+
+    printf("\tfor example:\n");
+    printf("\tge_format -i singer_alpha.bmp\n");
 }
 
 static void help(void)
@@ -374,16 +378,20 @@ int ge_format_test(int argc, char **argv)
     struct ge_fb_info *fb_info = NULL;
 
     /* parameter supports settings */
-    const char sopts[] = "uhm:";
+    const char sopts[] = "uhm:i:";
     const struct option lopts[] = {
         {"usage",   no_argument,       NULL, 'u'},
         {"help",    no_argument,       NULL, 'h'},
         {"mode",    required_argument, NULL, 'm'},
+        {"src_input" ,  required_argument, NULL, 'i'},
         {0, 0, 0, 0}
     };
     optind = 0;
     while ((ret = getopt_long(argc, argv, sopts, lopts, NULL)) != -1) {
         switch (ret) {
+        case 'i':
+            strncpy(g_src_input, optarg, sizeof(g_src_input) - 1);
+            break;
         case 'm':
             mode = str_to_mode(optarg);
             if (mode < 0) {
@@ -411,9 +419,9 @@ int ge_format_test(int argc, char **argv)
 
     fb_info = fb_open();
 
-    bmp_fd = bmp_open(DITHER_IMAGE, &bmp_head);
+    bmp_fd = bmp_open(g_src_input, &bmp_head);
     if (bmp_fd < 0) {
-        LOGE("open bmp error, path = %s\n", DITHER_IMAGE);
+        LOGE("open bmp error, path = %s\n", g_src_input);
         goto EXIT;
     }
 
@@ -437,6 +445,8 @@ int ge_format_test(int argc, char **argv)
         LOGE("format_conver_run task failed\n");
         goto EXIT;
     }
+
+    printf("ge fmt converse test success\n");
 EXIT:
     if (bmp_fd > 0)
         bmp_close(bmp_fd);

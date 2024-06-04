@@ -25,7 +25,7 @@
 
 static int student_insert_bind(sqlite3_stmt *stmt, int index, void *arg)
 {
-    int rc;
+    int rc = 0;
     rt_list_t *h = arg, *pos, *n;
     student_t *s = RT_NULL;
     rt_list_for_each_safe(pos, n, h)
@@ -58,7 +58,7 @@ int student_del_all(void)
 
 static int student_update_bind(sqlite3_stmt *stmt, int index, void *arg)
 {
-    int rc;
+    int rc = 0;
     student_t *s = arg;
     sqlite3_bind_text(stmt, 1, s->name, strlen(s->name), NULL);
     sqlite3_bind_int(stmt, 2, s->score);
@@ -341,7 +341,8 @@ MSH_CMD_EXPORT(stu, student add del update query);
 static int create_student_tbl(void)
 {
     int fd = 0;
-    db_set_name("/stu_info.db");
+
+    db_set_name("/data/stu_info.db");
     fd = open(db_get_name(), O_RDONLY);
     rt_kprintf(db_get_name());
     if (fd < 0)

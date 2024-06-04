@@ -1,7 +1,15 @@
+/*
+ * Copyright (c) 2023, Artinchip Technology Co., Ltd
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
 #include <stdio.h>
 #include <stddef.h>
 #include <unistd.h>
 #include <uart.h>
+#ifdef AICUPG_LOG_BUFFER_SUPPORT
+#include <log_buf.h>
+#endif
 
 #define PORT console_uart_id
 static int console_uart_id;
@@ -21,6 +29,10 @@ void stdio_unset_uart(int id)
 
 int putchar_port(int c)
 {
+#ifdef AICUPG_LOG_BUFFER_SUPPORT
+    log_buf_write((char *)&c, 1);
+#endif
+
     if (enable_uart_id == console_uart_id) {
         if (c == '\n')
             uart_putchar(PORT, '\r');

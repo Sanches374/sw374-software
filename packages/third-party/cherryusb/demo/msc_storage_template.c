@@ -210,11 +210,14 @@ int usbd_msc_sector_read(uint32_t sector, uint8_t *buffer, uint32_t length)
     int ret = -1;
     struct usbd_storage_p *usbd_storage = get_usbd_storage();
 #if defined(KERNEL_RTTHREAD)
-    ret = rt_device_read(usbd_storage->dev, sector, buffer, 1);
+    ret = rt_device_read(usbd_storage->dev,
+                         sector, buffer,
+                         length / usbd_storage->block_size);
     if (ret == length / usbd_storage->block_size)
         return 0;
 #else
-    ret = disk_read(usbd_storage->pdrv, buffer, sector, 1);
+    ret = disk_read(usbd_storage->pdrv, buffer, sector,
+                    length / usbd_storage->block_size);
 #endif
     return ret;
 }
@@ -224,11 +227,14 @@ int usbd_msc_sector_write(uint32_t sector, uint8_t *buffer, uint32_t length)
     int ret = -1;
     struct usbd_storage_p *usbd_storage = get_usbd_storage();
 #if defined(KERNEL_RTTHREAD)
-    ret = rt_device_write(usbd_storage->dev, sector, buffer, 1);
+    ret = rt_device_write(usbd_storage->dev,
+                          sector, buffer,
+                          length / usbd_storage->block_size);
     if (ret == length / usbd_storage->block_size)
         return 0;
 #else
-    ret = disk_write(usbd_storage->pdrv, buffer, sector, 1);
+    ret = disk_write(usbd_storage->pdrv, buffer, sector,
+                     length / usbd_storage->block_size);
 #endif
     return ret;
 }
@@ -355,7 +361,8 @@ static void usbd_msc_detection_thread(void *parameter)
 int usbd_msc_detection(void)
 {
     usbd_msc_tid = rt_thread_create("usbd_msc_detection", usbd_msc_detection_thread, RT_NULL,
-                           1536, RT_THREAD_PRIORITY_MAX - 2, 20);
+                                    1024 + CONFIG_USBDEV_MSC_MAX_BUFSIZE,
+                                    RT_THREAD_PRIORITY_MAX - 2, 20);
     if (usbd_msc_tid != RT_NULL)
         rt_thread_startup(usbd_msc_tid);
     else

@@ -14,13 +14,14 @@
 #include "mpp_log.h"
 
 #ifdef __cplusplus
-extern "C"{
+extern "C" {
 #endif /* __cplusplus */
 
 enum aic_parser_type {
 	PARSER_TYPE_UNKNOW = -1,
 	PARSER_TYPE_MOV,
 	PARSER_TYPE_RAW,
+	PARSER_TYPE_AVI,
 };
 
 enum aic_parser_stream_type {
@@ -34,9 +35,17 @@ enum parse_status {
 	PARSER_ERROR = -1,
 	PARSER_OK = 0,
 	PARSER_EOS = 1,
+	PARSER_NOMEM = 2,
+	PARSER_NODATA = 3,
+	PARSER_INVALIDDATA = 4,
+	PARSER_INVALIDPARAM = 5,
 };
 
 #define PACKET_EOS (1)
+#define TIME_BASE 1000000LL
+#define MPP_MAX(a, b) ((a)>(b)? (a) : (b))
+#define MPP_MIN(a, b) ((a)<(b)? (a) : (b))
+
 struct aic_parser_packet {
 	enum aic_parser_stream_type type;
 	void *data;

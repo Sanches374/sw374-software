@@ -469,7 +469,8 @@ void de_config_timing(void *base_addr,
               u32 active_w, u32 active_h,
               u32 hfp, u32 hbp,
               u32 vfp, u32 vbp,
-              u32 hsync, u32 vsync);
+              u32 hsync, u32 vsync,
+              u32 h_pol, u32 v_pol);
 
 void de_set_blending_size(void *base_addr,
               u32 active_w, u32 active_h);

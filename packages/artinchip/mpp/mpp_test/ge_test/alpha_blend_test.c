@@ -18,22 +18,22 @@
 #include "./public/ge_fb.h"
 #include "./public/ge_mem.h"
 
-#define ALPHA_SRC_IMAGE         "/sdcard/ge_test/image/alpha_src.bmp"
-#define ALPHA_DST_IMAGE         "/sdcard/ge_test/image/alpha_dst.bmp"
-#define ALPHA_BACK_GROUND_IMAGE "/sdcard/ge_test/image/alpha_back_ground.bmp"
-
 /* ge alpha bending test */
 #define ALPHA_RULE_NUM    14
 
-#define LOGE(fmt, ...) aic_log(AIC_LOG_ERR, "E", fmt, ##__VA_ARGS__)
+#define LOGE(fmt, ...) aic_log(AIC_LOG_ERR,  "E", fmt, ##__VA_ARGS__)
 #define LOGW(fmt, ...) aic_log(AIC_LOG_WARN, "W", fmt, ##__VA_ARGS__)
 #define LOGI(fmt, ...) aic_log(AIC_LOG_INFO, "I", fmt, ##__VA_ARGS__)
 
+static char g_src_input[128] = {"/sdcard/ge_test/image/alpha_src.bmp"};
+static char g_dst_input[128] = {"/sdcard/ge_test/image/alpha_dst.bmp"};
+static char g_bg_input[128] = {"/sdcard/ge_test/image/alpha_back_ground.bmp"};
+
 /* alpha blending */
-static unsigned int src_alpha_mode = 0;
-static unsigned int src_global_alpha = 0;
-static unsigned int dst_alpha_mode = 0;
-static unsigned int dst_global_alpha = 0;
+static unsigned int g_src_alpha_mode = 0;
+static unsigned int g_src_global_alpha = 0;
+static unsigned int g_dst_alpha_mode = 0;
+static unsigned int g_dst_global_alpha = 0;
 
 static void usage_alpha(char *app)
 {
@@ -51,7 +51,13 @@ static void usage_alpha(char *app)
     "\t-p, --dst_global_alpha, Select dst_global_alpha value (default 0), "
     "destination global alpha value (0~255)"
     "\n"
+    "\t-i, --input_src\n"
+    "\t-o, --input_dst\n"
+    "\t-b, --bg_dst\n"
     "\t-u, --usage\n");
+
+    printf("\tfor example:\n");
+    printf("\tge_alpha_blending -i alpha_src.bmp -o alpha_dst.bmp -b alpha_back_ground.bmp\n");
 }
 
 static long long int str2int(char *_str)
@@ -194,14 +200,14 @@ static void porter_duff_set(struct ge_bitblt *blt, struct ge_buf *src_buffer,
     /* src layer settings  */
     memcpy(&blt->src_buf, &src_buffer->buf, sizeof(struct mpp_buf));
     blt->src_buf.crop_en = 0;
-    blt->ctrl.src_alpha_mode = src_alpha_mode;
-    blt->ctrl.src_global_alpha = src_global_alpha;
+    blt->ctrl.src_alpha_mode = g_src_alpha_mode;
+    blt->ctrl.src_global_alpha = g_src_global_alpha;
 
     /* dst layer settings */
     memcpy(&blt->dst_buf, &dst_buffer->buf, sizeof(struct mpp_buf));
     blt->dst_buf.crop_en = 0;
-    blt->ctrl.dst_alpha_mode = dst_alpha_mode;
-    blt->ctrl.dst_global_alpha = dst_global_alpha;
+    blt->ctrl.dst_alpha_mode = g_dst_alpha_mode;
+    blt->ctrl.dst_global_alpha = g_dst_global_alpha;
 
     blt->ctrl.alpha_en = 1;
     blt->ctrl.alpha_rules = alpha_rule;
@@ -230,9 +236,12 @@ static int ge_alpha_blending_test(int argc, char **argv)
     struct ge_bitblt blt = {0};
     struct ge_fb_info *fb_info = NULL;
 
-    const char sopts[] = "us:d:g:p:";
+    const char sopts[] = "us:d:g:p:i:o:b:";
     const struct option lopts[] = {
         {"usage",               no_argument,       NULL, 'u'},
+        {"src_input" ,          required_argument, NULL, 'i'},
+        {"dst_input" ,          required_argument, NULL, 'o'},
+        {"bg_input" ,           required_argument, NULL, 'b'},
         {"src_alpha_mode" ,     required_argument, NULL, 's'},
         {"dst_alpha_mode",      required_argument, NULL, 'd'},
         {"src_global_alpha",    required_argument, NULL, 'g'},
@@ -241,30 +250,39 @@ static int ge_alpha_blending_test(int argc, char **argv)
     optind = 0;
     while ((ret = getopt_long(argc, argv, sopts, lopts, NULL)) != -1) {
         switch (ret) {
+        case 'i':
+            strncpy(g_src_input, optarg, sizeof(g_src_input) - 1);
+            break;
+        case 'o':
+            strncpy(g_dst_input, optarg, sizeof(g_dst_input) - 1);
+            break;
+        case 'b':
+            strncpy(g_bg_input, optarg, sizeof(g_bg_input) - 1);
+            break;
         case 's':
-            src_alpha_mode = str2int(optarg);
-            if ((src_alpha_mode > 3) || (src_alpha_mode < 0)) {
+            g_src_alpha_mode = str2int(optarg);
+            if ((g_src_alpha_mode > 3) || (g_src_alpha_mode < 0)) {
                 printf("src_alpha_mode invalid, please input against\n");
                 return 0;
             }
             break;
         case 'd':
-            dst_alpha_mode = str2int(optarg);
-            if ((dst_alpha_mode > 3) || (dst_alpha_mode < 0)) {
+            g_dst_alpha_mode = str2int(optarg);
+            if ((g_dst_alpha_mode > 3) || (g_dst_alpha_mode < 0)) {
                 printf("dst_alpha_mode invalid, please input against\n");
                 return 0;
             }
             break;
         case 'g':
-            src_global_alpha = str2int(optarg);
-            if ((src_global_alpha > 255) || (src_global_alpha < 0)) {
+            g_src_global_alpha = str2int(optarg);
+            if ((g_src_global_alpha > 255) || (g_src_global_alpha < 0)) {
                 printf("src_global_alpha invalid, please input against\n");
                 return 0;
             }
             break;
         case 'p':
-            dst_global_alpha = str2int(optarg);
-            if ((dst_global_alpha > 255) || (dst_global_alpha < 0)) {
+            g_dst_global_alpha = str2int(optarg);
+            if ((g_dst_global_alpha > 255) || (g_dst_global_alpha < 0)) {
                 printf("dst_global_alpha invalid, please input against\n");
                 return 0;
             }
@@ -286,21 +304,21 @@ static int ge_alpha_blending_test(int argc, char **argv)
 
     fb_info = fb_open();
 
-    bg_fd = bmp_open(ALPHA_BACK_GROUND_IMAGE, &bg_head);
+    bg_fd = bmp_open(g_bg_input, &bg_head);
     if (bg_fd < 0) {
-        LOGE("open bmp error, path = %s\n", ALPHA_BACK_GROUND_IMAGE);
+        LOGE("open bmp error, path = %s\n", g_bg_input);
         goto EXIT;
     }
 
-    src_fd = bmp_open(ALPHA_SRC_IMAGE, &src_head);
+    src_fd = bmp_open(g_src_input, &src_head);
     if (src_fd < 0) {
-        LOGE("open bmp error, path = %s\n", ALPHA_SRC_IMAGE);
+        LOGE("open bmp error, path = %s\n", g_src_input);
         goto EXIT;
     }
 
-    dst_fd = bmp_open(ALPHA_DST_IMAGE, &dst_head);
+    dst_fd = bmp_open(g_dst_input, &dst_head);
     if (dst_fd < 0) {
-        LOGE("open bmp error, path = %s\n", ALPHA_DST_IMAGE);
+        LOGE("open bmp error, path = %s\n", g_dst_input);
         goto EXIT;
     }
 
@@ -377,6 +395,8 @@ static int ge_alpha_blending_test(int argc, char **argv)
             goto EXIT;
         }
     }
+
+    printf("ge alpha blend test success\n");
 EXIT:
     if (bg_fd > 0)
         bmp_close(bg_fd);

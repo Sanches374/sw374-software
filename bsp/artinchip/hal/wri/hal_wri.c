@@ -45,7 +45,8 @@
 #define WRI_FLAG_SP_WDOG_SYS_RST    BIT(16)
 #define WRI_FLAG_THS_RST            BIT(9)
 #define WRI_FLAG_PIN_RST            BIT(8)
-#define WRI_FLAG_RTC_POR            BIT(2)
+#define WRI_FLAG_RTC_POR            BIT(3)
+#define WRI_FLAG_VDD11_C908_POR     BIT(2)
 #define WRI_FLAG_VDD11_SW_POR       BIT(1)
 #define WRI_FLAG_VDD11_SP_POR       BIT(0)
 #endif
@@ -78,7 +79,6 @@ enum aic_warm_reset_type aic_wr_type_get(void)
     if (!val)
         return WRI_TYPE_POR;
 
-    writel(val, WRI_RST_FLAG); /* clear the flag */
     for (i = WRI_TYPE_MAX - 1; i >= 0; i--) {
         if (val & wr_bit[i]) {
             g_last_reboot.hw_reason = (enum aic_warm_reset_type)i;
@@ -100,8 +100,11 @@ enum aic_reboot_reason aic_judge_reboot_reason(enum aic_warm_reset_type hw,
         printf("Reboot action: Watchdog-Reset, reason: ");
 
         switch (sw) {
+        case REBOOT_REASON_BL_UPGRADE:
+            printf("Bootloader Upgrade-Mode\n");
+            break;
         case REBOOT_REASON_UPGRADE:
-            printf("Upgrade-Mode\n");
+            printf("BROM Upgrade-Mode\n");
             break;
         case REBOOT_REASON_CMD_REBOOT:
             printf("Command-Reboot\n");
@@ -182,6 +185,7 @@ enum aic_warm_reset_type aic_wr_type_get(void)
     u32 val = 0;
     u32 wr_bit[WRI_TYPE_MAX] = {WRI_FLAG_VDD11_SP_POR,
                                 WRI_FLAG_VDD11_SW_POR,
+                                WRI_FLAG_VDD11_C908_POR,
                                 WRI_FLAG_RTC_POR,
                                 WRI_FLAG_PIN_RST,
                                 WRI_FLAG_THS_RST,
@@ -210,7 +214,6 @@ enum aic_warm_reset_type aic_wr_type_get(void)
     if (!val)
         return WRI_TYPE_VDD11_SP_POR;
 
-    writel(val, WRI_RST_FLAG); /* clear the flag */
     for (i = WRI_TYPE_MAX - 1; i >= 0; i--) {
         if (val & wr_bit[i]) {
             g_last_reboot.hw_reason = (enum aic_warm_reset_type)i;
@@ -316,6 +319,11 @@ enum aic_reboot_reason aic_judge_reboot_reason(enum aic_warm_reset_type hw,
             return (enum aic_reboot_reason)sw;
         }
 
+        if (hw == WRI_TYPE_VDD11_C908_POR) {
+            printf("Startup reason: C908 Power-On-Reset\n");
+            return (enum aic_reboot_reason)sw;
+        }
+
         printf("Reboot action: Warm-Reset, reason: ");
         switch (hw) {
         case WRI_TYPE_RTC_POR:
@@ -370,6 +378,26 @@ enum aic_reboot_reason aic_judge_reboot_reason(enum aic_warm_reset_type hw,
 }
 #endif
 
+void aic_clr_reboot_reason()
+{
+    u32 val = 0;
+
+    val = readl(WRI_RST_FLAG);
+    writel(val, WRI_RST_FLAG); /* clear the flag */
+
+#if defined(AIC_WRI_DRV_V12)
+    val = readl_bits(WRI_REBOOT_REASON_MASK, WRI_REBOOT_REASON_SHIFT,
+                     WRI_BOOT_INFO);
+    if (val) {
+        clrbits(WRI_BOOT_INFO, val);
+        writel(val, WRI_BOOT_INFO);
+    }
+#else
+    aic_clr_reboot_reason_rtc();
+#endif
+    return;
+}
+
 #if defined(AIC_WRI_DRV_V12)
 
 void aic_set_reboot_reason(enum aic_reboot_reason r)
@@ -403,11 +431,6 @@ enum aic_reboot_reason aic_get_reboot_reason(void)
     pr_debug("Last reboot info: hw %d, sw %d\n", hw, val);
     g_last_reboot.reason = aic_judge_reboot_reason(hw, val);
     g_last_reboot.inited = 1;
-
-    if (val) {
-        clrbits(WRI_BOOT_INFO, val);
-        writel(val, WRI_BOOT_INFO);
-    }
 
     return g_last_reboot.reason;
 }

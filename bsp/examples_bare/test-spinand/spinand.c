@@ -147,15 +147,12 @@ static int do_spinand_oobdump(int argc, char *argv[])
     }
 
     offset = strtol(argv[1], NULL, 0);
-
-    data = malloc(g_spinand_flash->info->page_size +
-                  g_spinand_flash->info->oob_size);
+    size = g_spinand_flash->info->page_size + g_spinand_flash->info->oob_size;
+    data = aicos_malloc_align(0, size, CACHE_LINE_SIZE);
     if (data == NULL) {
         printf("Out of memory.\n");
         return -1;
     }
-
-    size = g_spinand_flash->info->page_size + g_spinand_flash->info->oob_size;
 
     err =
         spinand_read_page(g_spinand_flash,
@@ -164,6 +161,10 @@ static int do_spinand_oobdump(int argc, char *argv[])
                           (uint8_t *)(data + g_spinand_flash->info->page_size),
                           g_spinand_flash->info->oob_size);
     hexdump((void *)data, size, 1);
+
+    if (data)
+        aicos_free_align(0, data);
+
     return err;
 }
 

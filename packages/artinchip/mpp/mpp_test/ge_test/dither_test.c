@@ -22,8 +22,6 @@
 #define SRC_DISP_REGION 0
 #define DST_DISP_REGION 1
 
-#define DITHER_IMAGE    "/sdcard/ge_test/image/singer_alpha.bmp"
-
 #define LOGE(fmt, ...) aic_log(AIC_LOG_ERR, "E", fmt, ##__VA_ARGS__)
 #define LOGW(fmt, ...) aic_log(AIC_LOG_WARN, "W", fmt, ##__VA_ARGS__)
 #define LOGI(fmt, ...) aic_log(AIC_LOG_INFO, "I", fmt, ##__VA_ARGS__)
@@ -38,15 +36,22 @@ struct StrToFormat {
 static int table_size = 0;
 static struct StrToFormat *format_table = NULL;
 
+static char g_src_input[128] = {"/sdcard/ge_test/image/singer_alpha.bmp"};
+
 static void usage(char *app)
 {
     printf("Usage: %s [Options]: \n", app);
     printf("\t-o, --dither_on,  Select open dither (default 0), 0 :close  1 :open\n");
     printf("\t-s, --src_format, Select src format  (default argb8888)\n");
     printf("\t-d, --dst_format, Select dst format  (default argb4444)\n");
+    printf("\t-i  --input_src, input src\n");
     printf("\t-u, --usage\n");
     printf("\t-h, --help, list the supported format and the test instructions\n\n");
+
+    printf("\tfor example:\n");
+    printf("\tge_dither -i /data/singer_alpha.bmp -o 1\n");
 }
+
 static void help(void)
 {
     printf("\r--This is ge bitblt operation using dither function.\n");
@@ -232,10 +237,11 @@ static void ge_dither_test(int argc, char **argv)
     struct ge_buf *dst_buffer = NULL;
     struct bmp_header bmp_head = {0};
 
-    const char sopts[] = "uhs:d:o:";
+    const char sopts[] = "uhs:d:o:i:";
     const struct option lopts[] = {
         {"usage",       no_argument,       NULL, 'u'},
         {"help",        no_argument,       NULL, 'h'},
+        {"src_input" ,  required_argument, NULL, 'i'},
         {"src_format",  required_argument, NULL, 's'},
         {"dst_format",  required_argument, NULL, 'd'},
         {"dither_on",   required_argument, NULL, 'o'},
@@ -246,6 +252,9 @@ static void ge_dither_test(int argc, char **argv)
     optind = 0;
     while ((ret = getopt_long(argc, argv, sopts, lopts, NULL)) != -1) {
         switch (ret) {
+        case 'i':
+            strncpy(g_src_input, optarg, sizeof(g_src_input) - 1);
+            break;
         case 's':
             src_format = str_to_format(optarg);
             if (src_format < 0) {
@@ -287,9 +296,9 @@ static void ge_dither_test(int argc, char **argv)
 
     fb_info = fb_open();
 
-    bmp_fd = bmp_open(DITHER_IMAGE, &bmp_head);
+    bmp_fd = bmp_open(g_src_input, &bmp_head);
     if (bmp_fd < 0) {
-        LOGE("open bmp error, path = %s\n", DITHER_IMAGE);
+        LOGE("open bmp error, path = %s\n", g_src_input);
         goto EXIT;
     }
 
@@ -346,6 +355,7 @@ static void ge_dither_test(int argc, char **argv)
     fb_start_and_wait(fb_info);
     fb_swap_frame(fb_info);
 
+    printf("ge dither test success\n");
 EXIT:
     if (bmp_fd > 0)
         bmp_close(bmp_fd);

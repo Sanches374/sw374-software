@@ -6,7 +6,10 @@ cwd = GetCurrentDir()
 CPPPATH = []
 src = []
 if GetDepend('AIC_TSEN_TEST') and GetDepend('RT_USING_FINSH'):
-    src = Glob('*.c')
+    src = Glob('*test_tsen.c')
+
+if GetDepend('AIC_TSEN_HIGH_TEMP_ALARM_TEST') and GetDepend('RT_USING_FINSH'):
+    src = Glob('*test_tsen_htp.c')
 
 group = DefineGroup('test-tsen', src, depend = [''], CPPPATH = CPPPATH)
 

@@ -253,6 +253,7 @@ lwipaicgmac_SRCS = Split("""
 contrib/ports/drv/aic/aic_mac.c
 contrib/ports/drv/aic/aic_mac_ll.c
 contrib/ports/drv/aic/aic_phy.c
+contrib/ports/drv/aic/aicmac_macaddr.c
 contrib/ports/drv/aic/sys/ethernetif.c
 """)
 

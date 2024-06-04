@@ -85,6 +85,18 @@ static void show_speed(char *msg, u32 len, u32 us)
     printf("%s: %d byte, %d us -> %d KB/s\n", msg, len, us, speed);
 }
 
+static void hex_dump(uint8_t *data, unsigned long len)
+{
+    unsigned long i = 0;
+    printf("\n");
+    for (i = 0; i < len; i++) {
+        if (i && (i % 16) == 0)
+            printf("\n");
+        printf("%02x ", data[i]);
+    }
+    printf("\n");
+}
+
 static int test_qspi_attach(int argc, char **argv)
 {
     char *bus_name, *dev_name;
@@ -265,12 +277,18 @@ static void test_qspi_sendlen(int argc, char **argv)
     data_len = 0;
     data_len = strtoul(argv[2], NULL, 0);
     data = RT_NULL;
-    printf("data len %ld\n", data_len);
     if (data_len) {
         align_len = roundup(data_len, CACHE_LINE_SIZE);
+        align_len = 64;
         data = aicos_malloc_align(0, align_len, CACHE_LINE_SIZE);
     }
-    rt_memset(&msg, 0, sizeof(msg));
+    if (data == NULL) {
+        printf("Low memory!\n");
+        return;
+    } else {
+        printf("data len %ld\n", data_len);
+        rt_memset(&msg, 0, sizeof(msg));
+    }
     msg.instruction.content = cmd;
     msg.instruction.qspi_lines = 0;
 
@@ -286,7 +304,7 @@ static void test_qspi_sendlen(int argc, char **argv)
 
     start_us = aic_get_time_us();
     ret = rt_qspi_transfer_message(g_qspi, &msg);
-    show_speed("mtd_read speed", data_len, aic_get_time_us() - start_us);
+    show_speed("qspi send speed", data_len, aic_get_time_us() - start_us);
     if (ret != data_len) {
         printf("Send data failed. ret 0x%x\n", (int)ret);
     }
@@ -299,14 +317,12 @@ static void test_qspi_recvhex(int argc, char **argv)
 {
     char *pl;
     uint32_t line = 0, addrsiz = 0, addr = 0, dmycyc = 0;
-    unsigned long i, data_len, align_len;
+    unsigned long data_len, align_len;
     uint8_t *data, cmd;
     struct rt_qspi_message msg;
 
-    if (!g_qspi) {
-        printf("QSPI device is not init yet.\n");
-        return;
-    }
+    RT_ASSERT(g_qspi);
+
     if (argc < 3) {
         printf("Argument is not correct, please see help for more information.\n");
         return;
@@ -318,27 +334,20 @@ static void test_qspi_recvhex(int argc, char **argv)
         return;
     }
     cmd = (uint8_t)strtoul(argv[2], NULL, 16);
-    addrsiz = 0;
-    if (argc >= 4) {
-        if (rt_memcmp(argv[3], "-", 1)) {
-            addrsiz = (strlen(argv[3]) + 1) >> 1;
-            addr = strtoul(argv[3], NULL, 16);
-        } else {
-            addrsiz = 0;
-            addr = 0;
-        }
+
+    if (argc >= 4 && rt_memcmp(argv[3], "-", 1)) {
+        addrsiz = (strlen(argv[3]) + 1) >> 1;
+        addr = strtoul(argv[3], NULL, 16);
     }
-    dmycyc = 0;
-    if (argc >= 5) {
-        if (rt_memcmp(argv[4], "-", 1))
-            dmycyc = strtoul(argv[4], NULL, 16);
+
+    if (argc >= 5 && rt_memcmp(argv[4], "-", 1)) {
+        dmycyc = strtoul(argv[4], NULL, 16);
     }
+
     data_len = 0;
-    if (argc >= 6) {
-        data_len = strtoul(argv[5], NULL, 16);
-    }
     data = RT_NULL;
-    if (data_len > 0) {
+    if (argc >= 6 && strtoul(argv[5], NULL, 0) > 0) {
+        data_len = strtoul(argv[5], NULL, 0);
         align_len = roundup(data_len, CACHE_LINE_SIZE);
         data = aicos_malloc_align(0, align_len, CACHE_LINE_SIZE);
         if (data == NULL) {
@@ -366,13 +375,7 @@ static void test_qspi_recvhex(int argc, char **argv)
     rt_spi_release_bus((struct rt_spi_device *)g_qspi);
 
     if (data) {
-        printf("\n");
-        for (i = 0; i < data_len; i++) {
-            if (i && (i % 16) == 0)
-                printf("\n");
-            printf("%02x ", data[i]);
-        }
-        printf("\n");
+        hex_dump(data, data_len);
         aicos_free_align(0, data);
     }
 }
@@ -560,7 +563,7 @@ static void cmd_test_qspi(int argc, char **argv)
         test_qspi_recv(argc - 1, &argv[1]);
         return;
     } else if (!rt_strcmp(argv[1], "slaverw")) {
-#ifdef AIC_QSPI_DRV_V11
+#ifdef AIC_CHIP_D13X
         if (!g_qspi) {
             printf("QSPI device is not init yet.\n");
             return;
@@ -569,7 +572,7 @@ static void cmd_test_qspi(int argc, char **argv)
         return;
 #endif
     } else if (!rt_strcmp(argv[1], "send2slave")) {
-#ifdef AIC_QSPI_DRV_V11
+#ifdef AIC_CHIP_D13X
         if (!g_qspi) {
             printf("QSPI device is not init yet.\n");
             return;

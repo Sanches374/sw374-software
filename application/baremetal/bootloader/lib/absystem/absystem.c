@@ -134,14 +134,25 @@ int aic_get_os_to_startup(char *target_os)
 #endif
     if (strncmp(next, "A", 2) == 0) {
         memcpy(target_os, APPLICATION_PART, strlen(APPLICATION_PART));
+        ret = fw_env_write("osAB_now", "A");
     } else if (strncmp(next, "B", 2) == 0) {
         memcpy(target_os, APPLICATION_PART_REDUNDAND,
                strlen(APPLICATION_PART_REDUNDAND));
+        ret = fw_env_write("osAB_now", "B");
     } else {
         ret = -1;
         pr_err("Invalid osAB_next\n");
+        goto err_write_next_os;
     }
 
+    if (ret) {
+        pr_err("osAB_now write fail\n");
+        goto err_write_next_os;
+    }
+    fw_env_flush();
+
+err_write_next_os:
     fw_env_close();
+
     return ret;
 }

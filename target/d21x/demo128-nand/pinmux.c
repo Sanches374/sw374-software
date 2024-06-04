@@ -367,6 +367,10 @@ struct aic_pinmux aic_pinmux_config[] = {
     {4, PIN_PULL_DIS, 3, "PE.18"},
     {4, PIN_PULL_DIS, 3, "PE.19"},
 #endif
+#ifdef AIC_WIRELESS_LAN
+    {1, PIN_PULL_DIS, 3, "PD.1"},  // PWR
+#endif
+
 };
 
 void aic_board_pinmux_init(void)

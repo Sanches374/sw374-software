@@ -78,17 +78,23 @@ static inline int usbh_msc_scsi_testunitready(struct usbh_msc *msc_class)
 
     usbh_msc_cbw_dump(cbw);
     /* Send the CBW */
+    aicos_mdelay(50);
     nbytes = usbh_ep_bulk_transfer(msc_class->bulkout, (u8 *)cbw,
                                    USB_SIZEOF_MSC_CBW,
                                    CONFIG_USBHOST_MSC_TIMEOUT, msc_class->id);
-    if (nbytes < 0)
+    if (nbytes < 0) {
+        pr_err("Testunitready:Failed to send CBW,ret:%d\n", nbytes);
         goto out;
+    }
     /* Receive the CSW */
+    aicos_mdelay(50);
     nbytes = usbh_ep_bulk_transfer(msc_class->bulkin, msc_class->tx_buffer,
                                    USB_SIZEOF_MSC_CSW,
                                    CONFIG_USBHOST_MSC_TIMEOUT, msc_class->id);
     if (nbytes >= 0) {
         usbh_msc_csw_dump((struct CSW *)msc_class->tx_buffer);
+    } else {
+        pr_err("Testunitready:Failed to receive CSW,ret:%d\n", nbytes);
     }
 out:
     return nbytes < 0 ? (int)nbytes : 0;
@@ -152,23 +158,30 @@ static inline int usbh_msc_scsi_inquiry(struct usbh_msc *msc_class)
 
     usbh_msc_cbw_dump(cbw);
     /* Send the CBW */
+    aicos_mdelay(20);
     nbytes = usbh_ep_bulk_transfer(msc_class->bulkout, (u8 *)cbw,
                                    USB_SIZEOF_MSC_CBW,
                                    CONFIG_USBHOST_MSC_TIMEOUT, msc_class->id);
-    if (nbytes < 0)
+    if (nbytes < 0) {
+        pr_err("Inquiry:Failed to send CBW,ret:%d\n", nbytes);
         goto out;
+    }
     /* Receive the sense data response */
+    aicos_mdelay(20);
     nbytes = usbh_ep_bulk_transfer(msc_class->bulkin, msc_class->tx_buffer,
                                    SCSIRESP_INQUIRY_SIZEOF,
                                    CONFIG_USBHOST_MSC_TIMEOUT, msc_class->id);
     if (nbytes < 0)
         goto out;
     /* Receive the CSW */
+    aicos_mdelay(20);
     nbytes = usbh_ep_bulk_transfer(msc_class->bulkin, msc_class->tx_buffer,
                                    USB_SIZEOF_MSC_CSW,
                                    CONFIG_USBHOST_MSC_TIMEOUT, msc_class->id);
     if (nbytes >= 0) {
         usbh_msc_csw_dump((struct CSW *)msc_class->tx_buffer);
+    } else {
+        pr_err("Inquiry:Failed to receive CSW,ret:%d\n", nbytes);
     }
 out:
     return nbytes < 0 ? (int)nbytes : 0;
@@ -191,26 +204,35 @@ static inline int usbh_msc_scsi_readcapacity10(struct usbh_msc *msc_class)
 
     usbh_msc_cbw_dump(cbw);
     /* Send the CBW */
+    aicos_mdelay(20);
     nbytes = usbh_ep_bulk_transfer(msc_class->bulkout, (u8 *)cbw,
                                    USB_SIZEOF_MSC_CBW,
                                    CONFIG_USBHOST_MSC_TIMEOUT, msc_class->id);
-    if (nbytes < 0)
+    if (nbytes < 0) {
+        pr_err("Readcapacity10:Failed to send CBW,ret:%d\n", nbytes);
         goto out;
+    }
     /* Receive the sense data response */
+    aicos_mdelay(20);
     nbytes = usbh_ep_bulk_transfer(msc_class->bulkin, msc_class->tx_buffer,
                                    SCSIRESP_READCAPACITY10_SIZEOF,
                                    CONFIG_USBHOST_MSC_TIMEOUT, msc_class->id);
-    if (nbytes < 0)
+    if (nbytes < 0) {
+        pr_err("Readcapacity10:Failed to receive data response,ret:%d\n", nbytes);
         goto out;
+    }
     /* Save the capacity information */
     msc_class->blocknum = GET_BE32(&msc_class->tx_buffer[0]) + 1;
     msc_class->blocksize = GET_BE32(&msc_class->tx_buffer[4]);
     /* Receive the CSW */
+    aicos_mdelay(20);
     nbytes = usbh_ep_bulk_transfer(msc_class->bulkin, msc_class->tx_buffer,
                                    USB_SIZEOF_MSC_CSW,
                                    CONFIG_USBHOST_MSC_TIMEOUT, msc_class->id);
     if (nbytes >= 0) {
         usbh_msc_csw_dump((struct CSW *)msc_class->tx_buffer);
+    } else {
+        pr_err("Readcapacity10:Failed to receive CSW,ret:%d\n", nbytes);
     }
 
 out:
@@ -310,11 +332,13 @@ int usbh_msc_connect(struct usbh_hubport *hport, u8 intf, int id)
         pr_err("Fail to scsi_testunitready\r\n");
         return ret;
     }
+
     ret = usbh_msc_scsi_inquiry(msc_class);
     if (ret < 0) {
         pr_err("Fail to scsi_inquiry\r\n");
         return ret;
     }
+
     ret = usbh_msc_scsi_readcapacity10(msc_class);
     if (ret < 0) {
         pr_err("Fail to scsi_readcapacity10\r\n");

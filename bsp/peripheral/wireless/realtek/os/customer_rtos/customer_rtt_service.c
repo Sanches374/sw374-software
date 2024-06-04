@@ -26,7 +26,7 @@ unsigned int g_prioritie_offset = 4;
 //----- ------------------------------------------------------------------
 // Misc Function
 //----- ------------------------------------------------------------------
-
+#ifdef AIC_DEV_REALTEK_DEBUG
 int rtw_printf(const char *format, ...)
 {
     va_list args;
@@ -43,6 +43,12 @@ int rtw_printf(const char *format, ...)
     va_end(args);
     return n;
 }
+#else
+int rtw_printf(const char *format, ...)
+{
+    return 0;
+}
+#endif
 
 #if CONFIG_MP_LOG_FUNC_INDEPENDENT
 int rtw_mplog(const char *format, ...)

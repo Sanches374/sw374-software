@@ -18,6 +18,8 @@ char *aic_upgrade_get_partname(unsigned char index);
 int aic_upgrade_end(void);
 int aic_ota_status_update(void);
 int aic_get_rodata_to_mount(char *target_rodata);
+int aic_get_mmc_rodata_to_mount(char *target_rodata);
+int aic_get_data_to_mount(char *target_data);
 
 #ifdef __cplusplus
 }

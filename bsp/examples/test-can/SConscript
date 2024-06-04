@@ -6,7 +6,7 @@ cwd = GetCurrentDir()
 CPPPATH = []
 src = []
 if GetDepend('AIC_CAN_DRV_TEST') and GetDepend('RT_USING_FINSH'):
-    src = Glob('*.c')
+    src += Glob('*.c')
 
 group = DefineGroup('test-can', src, depend = [''], CPPPATH = CPPPATH)
 

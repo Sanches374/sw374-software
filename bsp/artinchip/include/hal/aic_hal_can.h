@@ -143,11 +143,17 @@ struct can_bittiming_const {
 };
 
 typedef enum {
+    CAN_NORMAL_MODE     = 0,
     CAN_RESET_MODE      = BIT(0),
     CAN_LISTEN_MODE     = BIT(1),
     CAN_SELFTEST_MODE   = BIT(2),
     CAN_SLEEP_MODE      = BIT(4),
 } can_mode_t;
+
+enum {
+    CAN_FRAME_TYPE_DATA      = 0,
+    CAN_FRAME_TYPE_REMOTE    = 1,
+};
 
 typedef enum {
     TX_REQ          = BIT(0),
@@ -188,15 +194,16 @@ typedef struct {
 
 typedef struct can_handle can_handle;
 struct can_handle {
-	unsigned long can_base;
-	u32 irq_num;
-	u32 clk_id;
-	u32 idx;
-	void (*callback)(can_handle * phandle, void *arg);
-	void *arg;
-	u32 baudrate;
-	can_msg_t msg;
-	can_status_t status;
+    unsigned long can_base;
+    u32 irq_num;
+    u32 clk_id;
+    u32 idx;
+    void (*callback)(can_handle * phandle, void *arg);
+    void *arg;
+    u32 baudrate;
+    can_msg_t msg;
+    can_status_t status;
+    unsigned long mode;
 };
 
 typedef enum {

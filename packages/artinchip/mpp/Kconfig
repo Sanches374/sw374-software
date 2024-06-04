@@ -29,3 +29,8 @@ config AIC_MPP_FB_TEST
     bool "Install MPP FB test programs"
     default n
     depends on LPKG_MPP
+
+config AIC_MPP_AVI_DEMUX
+	bool "enable avi demux"
+	default n
+    depends on LPKG_MPP && AIC_MPP_PLAYER_INTERFACE

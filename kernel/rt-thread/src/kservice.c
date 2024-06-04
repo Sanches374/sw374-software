@@ -26,6 +26,7 @@
 #include <rtthread.h>
 #include <rthw.h>
 #include <aic_core.h>
+#include <ctype.h>
 
 #ifdef RT_USING_MODULE
 #include <dlmodule.h>
@@ -639,13 +640,22 @@ RTM_EXPORT(rt_strdup);
 /**
  * This function will show the version of rt-thread rtos
  */
-void rt_show_version(void)
+void rt_show_banner(void)
 {
     rt_kprintf("%s", BANNER1);
     rt_kprintf("%s", BANNER2);
     rt_kprintf("%s", BANNER3);
-    rt_kprintf("Welcome to ArtInChip Luban-Lite %d.%d [Built on %s %s]\n",
-               LL_VERSION, LL_SUBVERSION, __DATE__, __TIME__);
+}
+RTM_EXPORT(rt_show_banner);
+
+void rt_show_version(void)
+{
+    char ver[] = PRJ_CHIP;
+
+    ver[0] = toupper(ver[0]);
+    rt_kprintf("Welcome to ArtInChip Luban-Lite %d.%d.%d [%s Inside]\n",
+               LL_VERSION, LL_SUBVERSION, LL_REVISION, ver);
+    rt_kprintf("Built on %s %s\n", __DATE__, __TIME__);
 }
 RTM_EXPORT(rt_show_version);
 

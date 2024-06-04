@@ -17,115 +17,53 @@
 uint64_t sleep_counter;
 uint64_t resume_counter;
 
-extern void aic_suspend_resume();
-extern u32 aic_suspend_resume_size;
-static void (*aic_suspend_resume_fn)();
-extern size_t __sram_start;
-
-#define PRCM_SW_VDD11_CTL           0x88000070
-#define PRCM_C908_VDD11_CTL         0x88000074
-#define PRCM_DDR_WAKEUP_STATUS      0x88000108
-#define CMU_APB0_REG                0x98020120
-#define CMU_APB2_REG                0x98020128
+extern void sc_save_context_and_suspend();
+extern void sc_restore_context_and_resume();
+extern u32 sc_restore_context_and_resume_size;
 
 void aic_pm_enter_idle(void)
 {
     __WFI();
 }
 
-#ifndef AIC_USING_SRAM
-void aic_ddr_sr_code_on_ddr(void)
-{
-    rt_kprintf("aic_suspend_resume_size: %d\n", aic_suspend_resume_size);
-    rt_kprintf("__sram_start: %x\n", (uint32_t)&__sram_start);
-
-    rt_memcpy((void *)&__sram_start, aic_suspend_resume, aic_suspend_resume_size);
-    aic_suspend_resume_fn = (void *)&__sram_start;
-    aicos_icache_invalid();
-    aicos_dcache_clean_invalid();
-    aic_suspend_resume_fn();
-}
-#else
-void aic_ddr_sr_code_on_sram(void)
-{
-    rt_kprintf("aic_suspend_resume_size: %d\n", aic_suspend_resume_size);
-    aic_suspend_resume_fn = aic_suspend_resume;
-    aic_suspend_resume_fn();
-}
-#endif
-
 void aic_pm_enter_deep_sleep(void)
 {
-    rt_base_t level;
     uint32_t i;
-    uint8_t save_sp_clic_ie[MAX_IRQn] = {0};
-    uint32_t cmu_pll_freq[8];
-    uint32_t cmu_pll8_freq, cmu_apb0_freq, cmu_apb2_freq;
+    uint8_t save_sc_clic_ie[MAX_IRQn] = {0};
+    uint32_t save_sc_context[36] = {0};
 
-    level = rt_hw_interrupt_disable();
-    /*
-     * After VDD1.1 power domain reset, the CMU will also reset.
-     * So save the CMU pll and bus register value before the VDD1.1 domain
-     * power down.
-     */
-    for (i = 0; i < ARRAY_SIZE(cmu_pll_freq); i++)
-        cmu_pll_freq[i] = hal_clk_get_freq(CLK_CS_PLL_FRA0 + i);
+    rt_memcpy((void *)0x80050000, sc_restore_context_and_resume,
+                sc_restore_context_and_resume_size);
 
-    /* TO DO  */
-    RT_UNUSED(cmu_pll8_freq);
-
-    cmu_apb0_freq = readl(CMU_APB0_REG);
-    cmu_apb2_freq = readl(CMU_APB2_REG);
-
-    /* change PRCM bus frequency to 24M */
-    hal_clk_set_parent(CLK_AHB, CLK_24M);
-    hal_clk_set_parent(CLK_APB0, CLK_24M);
-    hal_clk_set_parent(CLK_AXI, CLK_24M);
-    /* change SP cpu frequency to 24M */
-    hal_clk_set_parent(CLK_CPU, CLK_24M);
     /* save the interrupt status of each peripheral  */
     for (i = 0; i < MAX_IRQn; i++)
     {
-        save_sp_clic_ie[i] = (uint8_t)csi_vic_get_enabled_irq(i);
-        if (save_sp_clic_ie[i])
+        save_sc_clic_ie[i] = (uint8_t)csi_vic_get_enabled_irq(i);
+        if (save_sc_clic_ie[i])
             aicos_irq_disable(i);
     }
 
-    /* Indicate DDR will enter self-refresh */
-    writel(1, PRCM_DDR_WAKEUP_STATUS);
-    /* reset all pins */
-    //TO DO
-#ifndef AIC_USING_SRAM
-    aic_ddr_sr_code_on_ddr();
-#else
-    aic_ddr_sr_code_on_sram();
-#endif
+    /* save context and wait power down */
+    sc_save_context_and_suspend(&save_sc_context);
 
-    /* wakeup flow */
-    /* restore CMU pll and bus freqency */
-    for (i = 0; i < ARRAY_SIZE(cmu_pll_freq); i++)
-        hal_clk_set_freq(CLK_CS_PLL_FRA0 + i, cmu_pll_freq[i]);
+    /* SC power up and resume flow */
+    CLIC->CLICCFG = (((CLIC->CLICINFO & CLIC_INFO_CLICINTCTLBITS_Msk) >>
+                      CLIC_INFO_CLICINTCTLBITS_Pos) << CLIC_CLICCFG_NLBIT_Pos);
+    /* config CLIC attribute to use vector interrupt */
+    for (i = 0; i < MAX_IRQn; i++)
+        CLIC->CLICINT[i].ATTR = 1;
 
-    writel(cmu_apb0_freq, CMU_APB0_REG);
-    writel(cmu_apb2_freq, CMU_APB2_REG);
+    CLIC->CLICINT[Machine_Software_IRQn].ATTR = 0x3;
 
-    /* indicate DDR has exited self-refresh and is ready */
-    writel(0, PRCM_DDR_WAKEUP_STATUS);
     /* restore the interrupt status of each peripheral  */
     for (i = 0; i < MAX_IRQn; i++)
     {
-        if (save_sp_clic_ie[i])
+        if (save_sc_clic_ie[i])
             aicos_irq_enable(i);
     }
-    /* change cpu frequency to pll */
-    hal_clk_set_parent(CLK_CPU, CLK_PLL_FRA0);
-    /* enable PLL_INT1: bus pll */
-    hal_clk_set_parent(CLK_APB0, CLK_PLL_FRA0);
-    hal_clk_set_parent(CLK_AHB, CLK_PLL_FRA0);
-    rt_pm_request(PM_SLEEP_MODE_NONE);
-    rt_hw_interrupt_enable(level);
-}
 
+    rt_pm_request(PM_SLEEP_MODE_NONE);
+}
 
 static void aic_sleep(struct rt_pm *pm, uint8_t mode)
 {
@@ -187,8 +125,6 @@ static rt_tick_t aic_timer_get_tick(struct rt_pm *pm)
     resume_counter = ((uint64_t)csi_coret_get_valueh() << 32) |
                      csi_coret_get_value();
     delta_counter = resume_counter - sleep_counter;
-    if (delta_counter > 400)
-        return 1;
 
     delta_tick = delta_counter / tick_resolution;
 

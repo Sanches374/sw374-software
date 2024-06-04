@@ -28,11 +28,11 @@
 #define STRAIGHT_RIGHT  6
 #define DIRECTLY_BELOW  7
 
-#define SCAN_IMAGE      "/sdcard/ge_test/image/scan_order.bmp"
-
 #define LOGE(fmt, ...) aic_log(AIC_LOG_ERR, "E", fmt, ##__VA_ARGS__)
 #define LOGW(fmt, ...) aic_log(AIC_LOG_WARN, "W", fmt, ##__VA_ARGS__)
 #define LOGI(fmt, ...) aic_log(AIC_LOG_INFO, "I", fmt, ##__VA_ARGS__)
+
+static char g_src_input[128] = {"/sdcard/ge_test/image/scan_order.bmp"};
 
 static void usage(char *app)
 {
@@ -43,9 +43,13 @@ static void usage(char *app)
     printf("\t    --mode=1 scan order flags = MPP_RL_TB\n");
     printf("\t    --mode=2 scan order flags = MPP_LR_BT\n");
     printf("\t    --mode=3 scan order flags = MPP_RL_BT\n");
+    printf("\t-i  --input_src, input src\n");
 
     printf("\t-u, --usage\n");
     printf("\t-h, --help\n\n");
+
+    printf("\tfor example:\n");
+    printf("\tge_scan_order -i scan_order.bmp\n");
 }
 
 static void help(void)
@@ -261,10 +265,11 @@ static void ge_scan_test(int argc, char **argv)
     struct ge_buf *buffer = NULL;
     struct bmp_header bmp_head = {0};
 
-    const char sopts[] = "uhr:m:";
+    const char sopts[] = "uhr:m:i:";
     const struct option lopts[] = {
         {"usage",   no_argument,       NULL, 'u'},
         {"help",    no_argument,       NULL, 'h'},
+        {"src_input" ,  required_argument, NULL, 'i'},
         {"region",  required_argument, NULL, 'r'},
         {"mode",    required_argument, NULL, 'm'},
         {0, 0, 0, 0}
@@ -273,6 +278,9 @@ static void ge_scan_test(int argc, char **argv)
     optind = 0;
     while ((ret = getopt_long(argc, argv, sopts, lopts, NULL)) != -1) {
         switch (ret) {
+        case 'i':
+            strncpy(g_src_input, optarg, sizeof(g_src_input) - 1);
+            break;
         case 'r':
             region = str2int(optarg);
             if (region < 0 || region > 7)  region=0;
@@ -301,9 +309,9 @@ static void ge_scan_test(int argc, char **argv)
 
     fb_info = fb_open();
 
-    bmp_fd = bmp_open(SCAN_IMAGE, &bmp_head);
+    bmp_fd = bmp_open(g_src_input, &bmp_head);
     if (bmp_fd < 0) {
-        LOGE("open bmp error, path = %s\n", SCAN_IMAGE);
+        LOGE("open bmp error, path = %s\n", g_src_input);
         goto EXIT;
     }
 
@@ -337,6 +345,7 @@ static void ge_scan_test(int argc, char **argv)
         goto EXIT;
     }
 
+    printf("ge scan order test success\n");
 EXIT:
     if (bmp_fd > 0)
         bmp_close(bmp_fd);

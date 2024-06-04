@@ -9,6 +9,7 @@
 #include <dfs_posix.h>
 
 #define BUFSZ   1024
+#define SOUND_DEVICE_NAME   "sound0"
 static rt_device_t snd_dev;
 
 struct RIFF_HEADER_DEF
@@ -55,18 +56,23 @@ int test_wavplay(int argc, char **argv)
     struct wav_info *info = NULL;
     struct rt_audio_caps caps = {0};
 
-    if (argc != 3)
+    if (argc < 2 || argc > 3)
     {
         rt_kprintf("Usage:\n");
-        rt_kprintf("\taplay soundCard song.wav\n\n");
+        rt_kprintf("\taplay [soundCard] song.wav\n");
+        rt_kprintf("\tdefault soundCard: sound0\n");
         rt_kprintf("\tFor example:\n");
-        rt_kprintf("\t\taplay sound0 test.wav\n");
+        rt_kprintf("\t\taplay test.wav\n");
         rt_kprintf("\t\taplay i2s0_sound test.wav\n");
         rt_kprintf("\t\taplay i2s1_sound test.wav\n");
         return 0;
     }
 
-    fd = open(argv[2], O_RDONLY);
+    if (argc == 3)
+        fd = open(argv[2], O_RDONLY);
+    else
+        fd = open(argv[1], O_RDONLY);
+
     if (fd < 0)
     {
         rt_kprintf("open file failed!\n");
@@ -130,7 +136,11 @@ int test_wavplay(int argc, char **argv)
     rt_kprintf("samplebits %d\n", info->fmt_block.wav_format.BitsPerSample);
     rt_kprintf("data_size 0x%08x\n", info->data_block.data_size);
 
-    snd_dev = rt_device_find(argv[1]);
+    if (argc == 3)
+        snd_dev = rt_device_find(argv[1]);
+    else
+        snd_dev = rt_device_find(SOUND_DEVICE_NAME);
+
     if (!snd_dev) {
         rt_kprintf("%s not found!\n", argv[1]);
         ret = -RT_ERROR;

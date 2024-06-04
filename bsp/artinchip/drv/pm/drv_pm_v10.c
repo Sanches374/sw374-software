@@ -17,6 +17,11 @@
 uint64_t sleep_counter;
 uint64_t resume_counter;
 
+#define AIC_SRAM_BASE                       0x00100000
+static void (*aic_suspend_resume_fn)();
+extern void aic_suspend_resume();
+extern u32 aic_suspend_resume_size;
+
 void aic_pm_enter_idle(void)
 {
     __WFI();
@@ -86,7 +91,12 @@ void aic_pm_enter_deep_sleep(void)
     hal_clk_disable(CLK_PLL_INT0);
     /* reset all pins */
     //TO DO
-    __WFI();
+
+    rt_memcpy((void *)AIC_SRAM_BASE, aic_suspend_resume, aic_suspend_resume_size);
+    aic_suspend_resume_fn = (void *)AIC_SRAM_BASE;
+    aicos_icache_invalid();
+    aicos_dcache_clean_invalid();
+    aic_suspend_resume_fn();
 
     /* wakeup flow */
     /* enable PLL_INT0: cpu pll */

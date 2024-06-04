@@ -635,6 +635,7 @@ rt_size_t rt_strlen(const char *src);
 #endif /*RT_KSERVICE_USING_STDLIB*/
 
 void rt_show_version(void);
+void rt_show_banner(void);
 
 #ifdef RT_DEBUG
 extern void (*rt_assert_hook)(const char *ex, const char *func, rt_size_t line);

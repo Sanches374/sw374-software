@@ -17,6 +17,7 @@ extern "C" {
 
 int hal_efuse_init(void);
 int hal_efuse_deinit(void);
+int hal_efuse_get_version(void);
 int hal_efuse_wait_ready(void);
 int hal_efuse_read(u32 wid, u32 *wval);
 int hal_efuse_write(u32 wid, u32 wval);

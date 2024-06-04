@@ -7,8 +7,8 @@
  *   dwj <weijie.ding@artinchip.com>
  */
 
-#define PRCM_CPU_STATUS             0x8800010C
-#define PRCM_SE_CONTEXT_ADDR        0x88000114
+#define PRCM_SESS_CPU_STATUS        0x88000114
+#define PRCM_SE_CONTEXT_ADDR        0x88000120
 
     .section .entry, "ax", %progbits
     .align  3
@@ -40,14 +40,13 @@ se_save_context_and_suspend:
     mfcr    r1, cr<15, 1>  //save INT-sp
     stw     r1, (r0, 104)
 
-    /* save se context addr to 0x88000114 */
+    /* save se context addr to PRCM_SE_CONTEXT_ADDR */
     lrw     r1, PRCM_SE_CONTEXT_ADDR
     stw     r0, (r1, 0)
 
     /* Update CPU status to PRCM bank register */
-    lrw     r1, PRCM_CPU_STATUS
-    ldw     r2, (r1, 0)
-    ori     r2, r2, 0x4
+    lrw     r1, PRCM_SESS_CPU_STATUS
+    lrw     r2, 1
     stw     r2, (r1, 0)
 
     sync
@@ -89,15 +88,14 @@ se_restore_context_and_resume:
     ldw     r1, (r0, 104)
     mtcr    r1, cr<15, 1>
 
-    /* clear se context addr to 0 in 0x88000114 */
+    /* clear se context addr to 0 in PRCM_SE_CONTEXT_ADDR */
     lrw     r1, PRCM_SE_CONTEXT_ADDR
     lrw     r2, 0
     stw     r2, (r1, 0)
 
     /* clear CPU status to PRCM bank register */
-    lrw     r1, PRCM_CPU_STATUS
-    ldw     r2, (r1, 0)
-    bclri   r2, 0x2             //bit2 clear
+    lrw     r1, PRCM_SESS_CPU_STATUS
+    lrw     r2, 0
     stw     r2, (r1, 0)
 
     /* restore r1~r15 */

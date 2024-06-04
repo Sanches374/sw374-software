@@ -74,12 +74,12 @@ PROVIDE (__sram_end               = 0x30040000 + AIC_SRAM_TOTAL_SIZE);
 PROVIDE (__min_heap_size           = 0x200);
 #ifdef AIC_BOOTLOADER_PSRAM_EN
 PROVIDE (__heap_start              = 0x40000000);
-/* Limit bootloader's heap to 8MB */
-PROVIDE (__heap_end                = 0x40000000 + 0x800000);
+PROVIDE (__heap_end                = 0x40000000 + AIC_PSRAM_SIZE);
 #else
 PROVIDE (__heap_start              = 0x300E0000);
-PROVIDE (__heap_end                = 0x30100000);
+PROVIDE (__heap_end                = 0x300FF000);
 #endif
+
 REGION_ALIAS("REGION_TEXT"          , SRAM_SW);
 REGION_ALIAS("REGION_RODATA"        , SRAM_SW);
 REGION_ALIAS("REGION_DATA"          , SRAM_SW);

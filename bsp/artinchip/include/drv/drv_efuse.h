@@ -15,8 +15,8 @@ extern "C" {
 
 #include <aic_core.h>
 
-int drv_efuse_init(void);
 int drv_efuse_read(u32 addr, void *data, u32 size);
+int drv_efuse_read_chip_id(void *data);
 int drv_efuse_program(u32 addr, const void *data, u32 size);
 
 #ifdef __cplusplus

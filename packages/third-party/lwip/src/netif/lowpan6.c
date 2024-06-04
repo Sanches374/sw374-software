@@ -474,7 +474,6 @@ lowpan6_frag(struct netif *netif, struct pbuf *p, const struct lowpan6_link_addr
 
     /* Calculate frame length */
     p_frag->len = p_frag->tot_len = frag_len + lowpan6_header_len + ieee_header_len + 2;
-    LWIP_ASSERT("", p_frag->len <= 127);
 
     /* 2 bytes CRC */
     crc = LWIP_6LOWPAN_DO_CALC_CRC(p_frag->payload, p_frag->len - 2);

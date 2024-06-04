@@ -18,6 +18,8 @@
 
 #define SD_CHECK_PIN ("PC.6")
 
+static bool g_sdcard_hotplug_flag = 0;
+
 irqreturn_t sdcard_detect_irq_handler(int irq, void *args)
 {
     u8 pin;
@@ -33,18 +35,10 @@ irqreturn_t sdcard_detect_irq_handler(int irq, void *args)
 
     if (value) {
         printf("card removal detected!\n");
-        mmc_deinit(1);
-#if defined(LPKG_USING_DFS_ELMFAT) && defined(AIC_SDMC_DRV)
-        if (dfs_unmount("/sdcard") < 0)
-            printf("Failed to umount SD Card with FatFS\n");
-#endif
+        g_sdcard_hotplug_flag = 1;
     } else {
         printf("card insertion detected!\n");
-        mmc_init(1);
-#if defined(LPKG_USING_DFS_ELMFAT) && defined(AIC_SDMC_DRV)
-        if (dfs_mount("sd1", "/sdcard", "elm", 0, DEVICE_TYPE_SDMC_DISK) < 0)
-            printf("Failed to mount SD Card with FatFS\n");
-#endif
+        g_sdcard_hotplug_flag = 0;
     }
 
     return IRQ_HANDLED;
@@ -80,3 +74,24 @@ void sdcard_hotplug_init(void)
     sdcard_detect_pin_init();
 }
 
+void sdcard_hotplug_act(void)
+{
+    static bool last_removal_stat = 0;
+
+    if (g_sdcard_hotplug_flag && !last_removal_stat) {
+        last_removal_stat = 1;
+        mmc_deinit(1);
+#if defined(LPKG_USING_DFS_ELMFAT) && defined(AIC_SDMC_DRV)
+        if (dfs_unmount("/sdcard") < 0)
+            printf("Failed to umount SD Card with FatFS\n");
+#endif
+    } else if (!g_sdcard_hotplug_flag && last_removal_stat) {
+        last_removal_stat = 0;
+        mmc_init(1);
+#if defined(LPKG_USING_DFS_ELMFAT) && defined(AIC_SDMC_DRV)
+        if (dfs_mount("sd1", "/sdcard", "elm", 0, DEVICE_TYPE_SDMC_DISK) < 0)
+            printf("Failed to mount SD Card with FatFS\n");
+#endif
+
+    }
+}

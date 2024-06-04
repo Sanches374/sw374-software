@@ -102,6 +102,21 @@ int hal_gpio_get_value(unsigned int group, unsigned int pin,
     return 0;
 }
 
+int hal_gpio_get_outcfg(unsigned int group, unsigned int pin,
+                        unsigned int *pvalue)
+{
+    unsigned int val = 0;
+
+    CHECK_PARAM(group < GPIO_GROUP_MAX && group >= 0 && pin < 32 && pin >= 0,
+                -EINVAL);
+
+    val = readl(gen_reg(group, GEN_OUT_CFG_REG));
+
+    *pvalue = !!(val & (1 << pin));
+
+    return 0;
+}
+
 int hal_gpio_set_value(unsigned int group, unsigned int pin, unsigned int value)
 {
     unsigned int val = 0;

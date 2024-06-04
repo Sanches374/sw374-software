@@ -22,6 +22,10 @@
 #endif /* RT_SDIO_DEBUG */
 #include <rtdbg.h>
 
+#ifdef AIC_AB_SYSTEM_INTERFACE
+#include <absystem.h>
+#include <boot_param.h>
+#endif
 
 #define BLK_MIN(a, b) ((a) < (b) ? (a) : (b))
 
@@ -217,13 +221,85 @@ static rt_err_t rt_mmcsd_close(rt_device_t dev)
     return RT_EOK;
 }
 
+static rt_err_t mmcsd_erase(struct mmcsd_blk_device *blk_dev, u64 start,
+                                 u64 blkcnt)
+{
+    rt_err_t err;
+    u64 start_temp = 0, end_temp = 0;
+    struct rt_mmcsd_cmd  cmd;
+    struct dfs_partition *part = &blk_dev->part;
+    struct rt_mmcsd_card *card = blk_dev->card;
+
+    start = start + part->offset;
+
+    if (!(card->flags & CARD_FLAG_SDHC))
+    {
+        start_temp = start << 9;
+        end_temp = (start + blkcnt - 1) << 9;
+    }
+    else
+    {
+        start_temp = start;
+        end_temp = start + blkcnt - 1;
+    }
+
+    rt_memset(&cmd, 0, sizeof(struct rt_mmcsd_cmd));
+
+    if (card->card_type == CARD_TYPE_MMC)
+        cmd.cmd_code = ERASE_GROUP_START;
+    else
+        cmd.cmd_code = ERASE_GROUP_START - 3;
+    cmd.arg = start_temp;
+    cmd.flags = RESP_R1;
+
+    err = mmcsd_send_cmd(card->host, &cmd, 0);
+    if (err) {
+        LOG_E("mmcsd_erase send ERASE_GROUP_START ERROR!");
+        return -RT_ERROR;
+    }
+
+    rt_memset(&cmd, 0, sizeof(struct rt_mmcsd_cmd));
+
+    if (card->card_type == CARD_TYPE_MMC)
+        cmd.cmd_code = ERASE_GROUP_END;
+    else
+        cmd.cmd_code = ERASE_GROUP_END - 3;
+    cmd.arg = end_temp;
+    cmd.flags = RESP_R1;
+
+    err = mmcsd_send_cmd(card->host, &cmd, 0);
+    if (err) {
+        LOG_E("mmcsd_erase send ERASE_GROUP_END ERROR!");
+        return -RT_ERROR;
+    }
+
+    rt_memset(&cmd, 0, sizeof(struct rt_mmcsd_cmd));
+
+    cmd.cmd_code = ERASE;
+    cmd.arg = 0;
+    cmd.flags = RESP_R1B;
+
+    err = mmcsd_send_cmd(card->host, &cmd, 0);
+    if (err) {
+        LOG_E("mmcsd_erase send ERASE ERROR!");
+        return -RT_ERROR;
+    }
+
+    return RT_EOK;
+}
+
 static rt_err_t rt_mmcsd_control(rt_device_t dev, int cmd, void *args)
 {
     struct mmcsd_blk_device *blk_dev = (struct mmcsd_blk_device *)dev->user_data;
+    u64 *p = (u64 *)args;
+
     switch (cmd)
     {
     case RT_DEVICE_CTRL_BLK_GETGEOME:
         rt_memcpy(args, &blk_dev->geometry, sizeof(struct rt_device_blk_geometry));
+        break;
+    case RT_DEVICE_CTRL_BLK_ERASE:
+        mmcsd_erase(blk_dev, p[0], p[1]);
         break;
     default:
         break;
@@ -414,6 +490,22 @@ static struct mmcsd_blk_device * rt_mmcsd_create_blkdev(struct rt_mmcsd_card *ca
     if ( blk_dev )
     {
         LOG_D("Try to mount %s\n", blk_dev->dev.parent.name);
+#ifdef AIC_AB_SYSTEM_INTERFACE
+        char target[32] = { 0 };
+        enum boot_device boot_dev = aic_get_boot_device();
+
+        if (boot_dev == BD_SDMC0) {
+            if ((strcmp("mmc0p5", blk_dev->dev.parent.name) == 0) ||
+                (strcmp("mmc0p6", blk_dev->dev.parent.name) == 0)) {
+            aic_ota_status_update();
+            aic_get_mmc_rodata_to_mount(target);
+
+            if (dfs_mount(target, "/rodata", "elm", 0, 0) == 0)
+                LOG_I("mount fs[elm] device[%s] to /rodata ok.\n", target);
+            }
+        }
+#endif
+
         /* try to mount file system on this block device */
         dfs_mount_device(&(blk_dev->dev));
     }
@@ -487,11 +579,12 @@ rt_int32_t rt_mmcsd_blk_probe(struct rt_mmcsd_card *card)
         ops.blk_read = mmcsd_read;
         aic_disk_part_set_ops(&ops);
         dev_desc.blksz = card->card_blksize;
-        dev_desc.lba_count = card->card_capacity * (1024 / card->card_blksize);
+        dev_desc.lba_count = card->card_capacity * (1024 / 512);
         dev_desc.priv = card;
         parts = aic_disk_get_parts(&dev_desc);
         p = parts;
         i = 0;
+        memset(&part, 0, sizeof(part));
         while (p) {
                 /* Given name is with allocated host id and its partition index. */
                 if (card->card_type == CARD_TYPE_MMC)
@@ -519,7 +612,7 @@ rt_int32_t rt_mmcsd_blk_probe(struct rt_mmcsd_card *card)
             rt_snprintf(dname, sizeof(dname), "mmc%d", host_id);
         else
             rt_snprintf(dname, sizeof(dname), "sd%d", host_id);
-        blk_dev = rt_mmcsd_create_blkdev(card, (const char*)dname, RT_NULL);
+        blk_dev = rt_mmcsd_create_blkdev(card, (const char*)dname, &part);
         if ( blk_dev == RT_NULL )
         {
             err = -RT_ENOMEM;

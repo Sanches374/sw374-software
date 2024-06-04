@@ -23,10 +23,13 @@ struct rt_adc_ops
     rt_err_t (*config_dma)(struct rt_adc_device *device, void *dma_info);
     rt_err_t (*get_dma_data)(struct rt_adc_device *device,
                              rt_uint32_t channel);
-    rt_uint32_t (*get_irq_count)(struct rt_adc_device *device,
-                                 rt_uint32_t channel);
+    rt_err_t (*get_mode)(struct rt_adc_device *device, void *chan_info);
     rt_uint32_t (*get_obtaining_data_mode)(struct rt_adc_device *device,
                                            rt_uint32_t channel);
+    rt_uint32_t (*get_irq_count)(struct rt_adc_device *device,
+                                 rt_uint32_t channel);
+    rt_err_t (*irq_callback)(struct rt_adc_device *device, void *dma_info);
+    rt_err_t (*get_ch_info)(struct rt_adc_device *device, void *chan_info);
 #endif
 #ifdef AIC_PSADC_DRV
     rt_err_t (*get_adc_values_poll)(struct rt_adc_device *device,
@@ -57,11 +60,14 @@ typedef enum
     RT_ADC_CMD_GET_DMA_DATA = RT_DEVICE_CTRL_BASE(ADC) + 6,
     RT_ADC_CMD_CONFIG_DMA = RT_DEVICE_CTRL_BASE(ADC) + 7,
     RT_ADC_CMD_OBTAIN_DATA_MODE = RT_DEVICE_CTRL_BASE(ADC) + 8,
+    RT_ADC_CMD_IRQ_CALLBACK = RT_DEVICE_CTRL_BASE(ADC) + 9,
+    RT_ADC_CMD_GET_CH_INFO = RT_DEVICE_CTRL_BASE(ADC) + 10,
+    RT_ADC_CMD_GET_MODE = RT_DEVICE_CTRL_BASE(ADC) + 11,
 #endif
 #ifdef AIC_PSADC_DRV
-    RT_ADC_CMD_GET_VALUES_POLL = RT_DEVICE_CTRL_BASE(ADC) + 9,
-    RT_ADC_CMD_GET_VALUES = RT_DEVICE_CTRL_BASE(ADC) + 10,
-    RT_ADC_CMD_GET_CHAN_COUNT = RT_DEVICE_CTRL_BASE(ADC) + 11,
+    RT_ADC_CMD_GET_VALUES_POLL = RT_DEVICE_CTRL_BASE(ADC) + 12,
+    RT_ADC_CMD_GET_VALUES = RT_DEVICE_CTRL_BASE(ADC) + 13,
+    RT_ADC_CMD_GET_CHAN_COUNT = RT_DEVICE_CTRL_BASE(ADC) + 14,
 #endif
 } rt_adc_cmd_t;
 

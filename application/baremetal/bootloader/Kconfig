@@ -121,6 +121,21 @@ menu "Upgrading"
         bool "Write to NOR support"
         default y
         depends on AIC_BOOTLOADER_SPINOR_SUPPORT
+    config AICUPG_LOG_BUFFER_SUPPORT
+        bool "Support to get log buffer from device"
+        default y
+    if AICUPG_LOG_BUFFER_SUPPORT
+        config AICUPG_LOG_BUFFER_ADDR
+            hex "Log buffer start address"
+            default 0x100000 if AIC_CHIP_D21X
+            default 0x30040000 if AIC_CHIP_D12X
+            default 0x30040000 if AIC_CHIP_D13X
+        config AICUPG_LOG_BUFFER_SIZE
+            hex "Log buffer size"
+            default 0x3000 if AIC_CHIP_D21X
+            default 0x3000 if AIC_CHIP_D12X
+            default 0x3000 if AIC_CHIP_D13X
+    endif
 endmenu # "Upgrading settings"
 
 menu "Commands"
@@ -170,6 +185,11 @@ menu "Commands"
     config AIC_BOOTLOADER_CMD_PROGRESS_BAR
         bool "boot progress bar"
         default n
+
+    config AIC_BOOTLOADER_CMD_PROGRESS_BAR_ROTATE
+        int "progress bar rotate degress (0/90/270)"
+        default 0
+        depends on AIC_BOOTLOADER_CMD_PROGRESS_BAR
 
     config AIC_BOOTLOADER_CMD_FB_CONSOLE
         bool "fb console support"

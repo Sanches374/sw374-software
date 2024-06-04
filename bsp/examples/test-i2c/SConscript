@@ -6,8 +6,8 @@ cwd = GetCurrentDir()
 CPPPATH = []
 src = []
 
-if GetDepend('AIC_I2C_DRV_TEST') and GetDepend('PKG_USING_AT24CXX'):
-    src = Glob('*.c')
+if GetDepend('AIC_I2C_DRV_TEST') and GetDepend('RT_USING_FINSH'):
+    src = Glob('test_i2c_slave.c')
 
 group = DefineGroup('test-i2c', src, depend = [''], CPPPATH = CPPPATH)
 

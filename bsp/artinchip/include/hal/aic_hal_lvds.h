@@ -44,6 +44,12 @@ enum lvds_swap {
     LVDS_D3  = 0x4
 };
 
+#define  LVDS_LANES(x0, x1, x2, x3, x4) ((((x0) & 0xF) << 16)   |   \
+                                         (((x1) & 0xF) << 12)   |   \
+                                         (((x2) & 0xF) << 8)    |   \
+                                         (((x3) & 0xF) << 4)    |   \
+                                         (((x4) & 0xF) << 0))       \
+
 #define  LVDS_CTL_MODE_MASK          GENMASK(9, 8)
 #define  LVDS_CTL_MODE(x)            (((x) & 0x3) << 8)
 #define  LVDS_CTL_LINK_MASK          GENMASK(5, 4)

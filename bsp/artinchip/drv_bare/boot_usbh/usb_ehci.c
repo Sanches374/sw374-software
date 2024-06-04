@@ -333,21 +333,25 @@ int usb_hc_hw_fast_init(int id)
 
     /* Disable all interrupts */
     writel(0, &hcor->usbintr);
+    aicos_mdelay(10);
 
     /* Clear pending interrupts.  Bits in the USBSTS register are cleared by
      * writing a '1' to the corresponding bit.
      */
     writel(EHCI_INT_ALLINTS, &hcor->usbsts);
+    aicos_mdelay(10);
 
     /* Start the host controller by setting the RUN bit in the USBCMD register. */
     regval = readl(&hcor->usbcmd);
     regval |= EHCI_USBCMD_RUN;
     writel(regval, &hcor->usbcmd);
+    aicos_mdelay(10);
 
     /* Route all ports to this host controller by setting the CONFIG flag. */
     regval = readl(&hcor->configflag);
     regval |= EHCI_CONFIGFLAG;
     writel(regval, &hcor->configflag);
+    aicos_mdelay(10);
 
     /* Wait for the EHCI to run (i.e., no longer report halted) */
     ret = usb_ehci_wait_usbsts(id, EHCI_USBSTS_HALTED, 0, 100 * 1000);
@@ -360,11 +364,14 @@ int usb_hc_hw_fast_init(int id)
     regval = readl(&hcor->portsc[0]);
     regval |= EHCI_PORTSC_PP;
     writel(regval, &hcor->portsc[0]);
+    aicos_mdelay(10);
 
     /* Enable EHCI interrupts.  Interrupts are still disabled at the level of
      * the interrupt controller.
      */
     writel(EHCI_HANDLED_INTS, &hcor->usbintr);
+    aicos_mdelay(10);
+
     return ret;
 }
 
@@ -728,7 +735,7 @@ int usbh_ep_free(usbh_epinfo_t ep)
 static int usb_ehci_reset(int id)
 {
     u32 regval = 0;
-    u64 start_us;
+    u64 start_ms;
     volatile struct ehci_hcor_s *hcor;
 
     hcor = (struct ehci_hcor_s *)USB_EHCI_HCOR_BASE(id);
@@ -741,16 +748,17 @@ static int usb_ehci_reset(int id)
      */
 
     writel(0, &hcor->usbcmd);
+    aicos_mdelay(10);
 
     /* "... Software should not set [HCRESET] to a one when the HCHalted bit in
      *  the USBSTS register is a zero. Attempting to reset an actively running
      *  host controller will result in undefined behavior."
      */
 
-    start_us = aic_get_time_us();
+    start_ms = aic_get_time_ms();
     do {
         /* Wait and update the timeout counter */
-        if ((aic_get_time_us() - start_us) > 1000)
+        if ((aic_get_time_ms() - start_ms) > 1000)
             break;
 
         /* Get the current value of the USBSTS register.  This loop will
@@ -774,13 +782,14 @@ static int usb_ehci_reset(int id)
     regval = readl(&hcor->usbcmd);
     regval |= EHCI_USBCMD_HCRESET;
     writel(regval, &hcor->usbcmd);
+    aicos_mdelay(10);
 
     /* Wait for the HCReset bit to become clear */
 
-    start_us = aic_get_time_us();
+    start_ms = aic_get_time_ms();
     do {
         /* Wait and update the timeout counter */
-        if ((aic_get_time_us() - start_us) > 1000)
+        if ((aic_get_time_ms() - start_ms) > 1000)
             break;
 
         /* Get the current value of the USBCMD register.  This loop will
@@ -788,6 +797,7 @@ static int usb_ehci_reset(int id)
          * HCReset bit is no longer set in the USBSTS register.
          */
 
+        aicos_mdelay(1);
         regval = readl(&hcor->usbcmd);
     } while ((regval & EHCI_USBCMD_HCRESET) != 0);
 
@@ -898,13 +908,14 @@ int usbh_get_port_connect_status(int id, int port)
      * to preserve the values of all R/W bits (RO bits don't matter)
      */
     writel(portsc, &hcor->portsc[port - 1]);
+    aicos_mdelay(10);
 
     return connected;
 }
 
 int usbh_reset_port(int port, int id)
 {
-    u64 start_us;
+    u64 start_ms;
     u32 regval;
     volatile struct ehci_hcor_s *hcor;
 
@@ -914,12 +925,12 @@ int usbh_reset_port(int port, int id)
     regval &= ~EHCI_PORTSC_PE;
     regval |= EHCI_PORTSC_RESET;
     writel(regval, &hcor->portsc[port - 1]);
-
-    aic_mdelay(3);
+    aic_mdelay(20);
 
     regval = readl(&hcor->portsc[port - 1]);
     regval &= ~EHCI_PORTSC_RESET;
     writel(regval, &hcor->portsc[port - 1]);
+    aic_mdelay(20);
 
     /* Wait for the port reset to complete
      *
@@ -935,9 +946,9 @@ int usbh_reset_port(int port, int id)
      *   this bit from a one to a zero ..."
      */
 
-    start_us = aic_get_time_us();
+    start_ms = aic_get_time_ms();
     while ((readl(&hcor->portsc[port - 1]) & EHCI_PORTSC_RESET) != 0) {
-        if ((aic_get_time_us() - start_us) > 3000)
+        if ((aic_get_time_ms() - start_ms) > 100)
             return -ETIMEDOUT;
     }
 
@@ -1443,7 +1454,7 @@ static int usb_ehci_transfer_wait(int id, struct usb_ehci_epinfo_s *epinfo,
 
 static void ehci_disable_async(int id)
 {
-    u32 regval;
+    u32 regval, ret = 0;
     volatile struct ehci_hcor_s *hcor;
 
     hcor = (struct ehci_hcor_s *)USB_EHCI_HCOR_BASE(id);
@@ -1452,12 +1463,14 @@ static void ehci_disable_async(int id)
     regval &= ~(EHCI_USBCMD_ASEN);
     writel(regval, &hcor->usbcmd);
 
-    usb_ehci_wait_usbsts(id, EHCI_USBSTS_ASS, 0, USBHOST_CONTROL_TRANSFER_TIMEOUT);
+    ret = usb_ehci_wait_usbsts(id, EHCI_USBSTS_ASS, 0, USBHOST_CONTROL_TRANSFER_TIMEOUT);
+    if (ret)
+        pr_err("usb ehci wait usbsts failed, ret=%d\n", ret);
 }
 
 static void ehci_enable_async(int id)
 {
-    u32 regval;
+    u32 regval, ret = 0;
     volatile struct ehci_hcor_s *hcor;
 
     hcor = (struct ehci_hcor_s *)USB_EHCI_HCOR_BASE(id);
@@ -1470,7 +1483,9 @@ static void ehci_enable_async(int id)
     regval |= (EHCI_USBCMD_ASEN);
     writel(regval, &hcor->usbcmd);
 
-    usb_ehci_wait_usbsts(id, EHCI_USBSTS_ASS, EHCI_USBSTS_ASS, USBHOST_CONTROL_TRANSFER_TIMEOUT);
+    ret = usb_ehci_wait_usbsts(id, EHCI_USBSTS_ASS, EHCI_USBSTS_ASS, USBHOST_CONTROL_TRANSFER_TIMEOUT);
+    if (ret)
+        pr_err("usb ehci wait usbsts failed, ret=%d\n", ret);
 }
 
 static int usb_ehci_control_init(struct usb_ehci_epinfo_s *epinfo,
@@ -1721,6 +1736,7 @@ int usbh_ep_bulk_transfer(usbh_epinfo_t ep, u8 *buffer, u32 buflen, u32 timeout,
 
     ret = usb_ehci_ioc_setup(epinfo);
     if (ret < 0) {
+        pr_err("%s, line %d: setup failed.\n", __func__, __LINE__);
         goto errout_with_setup;
     }
 
@@ -1728,6 +1744,7 @@ int usbh_ep_bulk_transfer(usbh_epinfo_t ep, u8 *buffer, u32 buflen, u32 timeout,
 
     ret = usb_ehci_bulk_init(epinfo, buffer, buflen);
     if (ret < 0) {
+        pr_err("%s, line %d: setup failed.\n", __func__, __LINE__);
         goto errout_with_iocwait;
     }
 
@@ -1736,6 +1753,7 @@ int usbh_ep_bulk_transfer(usbh_epinfo_t ep, u8 *buffer, u32 buflen, u32 timeout,
     /* And wait for the transfer to complete */
     ret = usb_ehci_transfer_wait(id, epinfo, timeout);
     if (ret < 0) {
+        pr_err("%s, line %d: wait tmo.\n", __func__, __LINE__);
         goto errout_with_iocwait;
     }
     return ret;

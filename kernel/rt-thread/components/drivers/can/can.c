@@ -300,7 +300,11 @@ static rt_err_t rt_can_open(struct rt_device *dev, rt_uint16_t oflag)
 
             dev->open_flag |= RT_DEVICE_FLAG_INT_RX;
             /* open can rx interrupt */
-            can->ops->control(can, RT_DEVICE_CTRL_SET_INT, (void *)RT_DEVICE_FLAG_INT_RX);
+            /* If TX/RX/ERR interrupt is enabled in rt_can_open(),
+             * an error interrupt will be triggered if CAN data is received
+             * because the CAN baudrate has not been configured.
+             */
+            // can->ops->control(can, RT_DEVICE_CTRL_SET_INT, (void *)RT_DEVICE_FLAG_INT_RX);
         }
     }
 
@@ -332,11 +336,11 @@ static rt_err_t rt_can_open(struct rt_device *dev, rt_uint16_t oflag)
 
             dev->open_flag |= RT_DEVICE_FLAG_INT_TX;
             /* open can tx interrupt */
-            can->ops->control(can, RT_DEVICE_CTRL_SET_INT, (void *)RT_DEVICE_FLAG_INT_TX);
+            // can->ops->control(can, RT_DEVICE_CTRL_SET_INT, (void *)RT_DEVICE_FLAG_INT_TX);
         }
     }
 
-    can->ops->control(can, RT_DEVICE_CTRL_SET_INT, (void *)RT_DEVICE_CAN_INT_ERR);
+    // can->ops->control(can, RT_DEVICE_CTRL_SET_INT, (void *)RT_DEVICE_CAN_INT_ERR);
 
 #ifdef RT_CAN_USING_HDR
     if (can->hdr == RT_NULL)

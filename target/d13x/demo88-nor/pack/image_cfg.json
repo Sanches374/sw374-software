@@ -3,8 +3,12 @@
         "size": "16m", // Size of SPI NOR
         "partitions": {
             "spl":        { "size": "256k" },
-            "os":         { "size": "2m" },
-            "rodata":     { "size": "6m" },
+            "env":        { "size": "128k" },
+            "env_r":      { "size": "128k" },
+            "os":         { "size": "1m" },
+            "os_r":       { "size": "1m" },
+            "rodata":     { "size": "3m" },
+            "rodata_r":   { "size": "3m" },
             "data":       { "size": "7m" }
         },
     },
@@ -30,6 +34,11 @@
                 "file": "bootloader.aic",
                 "attr": ["mtd", "required"],
                 "part": ["spl"]
+            },
+            "env": {
+                "file": "env.bin",
+                "attr": ["mtd", "optional"],
+                "part": ["env","env_r"]
             },
             "os": {
                 "file": "d13x_os.itb",
@@ -66,6 +75,13 @@
         "itb": {
             "d13x_os.itb": {
                 "its": "d13x_os.its"
+            },
+        },
+        "uboot_env": {
+            "env.bin": {
+                "file": "env.txt",
+                "size": "4096",
+                "redundant": "enable",
             },
         },
     },

@@ -23,6 +23,8 @@ extern "C" {
 #define UPG_PROTO_CMD_FREE_MEM_BUF        0x09
 #define UPG_PROTO_CMD_SET_UPG_CFG         0x0A
 #define UPG_PROTO_CMD_SET_UPG_END         0x0B
+#define UPG_PROTO_CMD_GET_LOG_SIZE        0x0C
+#define UPG_PROTO_CMD_GET_LOG_DATA        0x0D
 #define UPG_PROTO_CMD_SET_FWC_META        0x10
 #define UPG_PROTO_CMD_GET_BLOCK_SIZE      0x11
 #define UPG_PROTO_CMD_SEND_FWC_DATA       0x12
@@ -43,11 +45,9 @@ extern "C" {
 /* "UPGR" */
 #define UPG_CMD_RESP_MAGIC (0x52475055)
 
-#ifdef AIC_BOOTLOADER_PSRAM_EN
-#define DATA_WRITE_ONCE_SIZE (1024 * 1024)
-#else
-#define DATA_WRITE_ONCE_SIZE (20 * 1024)
-#endif
+#define DATA_WRITE_ONCE_MAX_SIZE (1024 * 1024)
+#define DATA_WRITE_ONCE_MID_SIZE (64 * 1024)
+#define DATA_WRITE_ONCE_MIN_SIZE (20 * 1024)
 
 struct cmd_header {
     u32 magic; /* "UPGC" */
@@ -114,11 +114,6 @@ s32 aicupg_set_upg_cfg(struct upg_cfg *cfg);
 s32 aicupg_get_upg_mode(void);
 s32 aicupg_data_packet_write(u8 *data, s32 len);
 s32 aicupg_data_packet_read(u8 *data, s32 len);
-
-/*SD card upgrade function*/
-//s32 aicupg_sd_write(struct image_header_upgrade *header, struct mmc *mmc,
-//		    struct disk_partition part_info);
-//s32 aicupg_mmc_create_gpt_part(u32 mmc_id, bool is_sdupg);
 
 /*fat upgrade function*/
 s32 aicupg_fat_write(char *image_name, char *protection,

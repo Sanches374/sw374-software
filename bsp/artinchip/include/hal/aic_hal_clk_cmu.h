@@ -14,7 +14,7 @@ extern "C" {
 struct aic_clk_comm_cfg {
     struct aic_clk_ops *ops;
     const char *name;
-    bool enable_count;
+    bool enable;
 };
 
 struct aic_clk_fixed_rate_cfg {
@@ -117,6 +117,12 @@ struct aic_clk {
     u8 flag;
 };
 
+struct aic_pll_vco {
+    unsigned long vco_min;
+    unsigned long vco_max;
+    char *name;
+};
+
 struct aic_clk_ops {
     int (*enable)(struct aic_clk_comm_cfg *comm_cfg);
     void (*disable)(struct aic_clk_comm_cfg *comm_cfg);
@@ -148,7 +154,7 @@ struct aic_clk_ops {
         .id        = _id, \
         .parent_id = 0, \
         .rate      = _rate, \
-        .comm.enable_count = 1, \
+        .comm.enable = 1, \
         .comm.ops  = &aic_clk_fixed_rate_ops, \
         .comm.name = _name,  \
     }

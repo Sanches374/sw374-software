@@ -48,7 +48,7 @@
 #define USB_HID_CONFIG_DESC_SIZ (9 + 9 + 9 + 7 + 7)
 
 /*!< custom hid report descriptor size */
-#define HID_CUSTOM_REPORT_DESC_SIZE 38
+#define HID_CUSTOM_REPORT_DESC_SIZE 63
 
 /*!< global descriptor */
 static const uint8_t hid_descriptor[] = {
@@ -88,7 +88,7 @@ static const uint8_t hid_descriptor[] = {
     0x03,                         /* bmAttributes: Interrupt endpoint */
     WBVAL(HIDRAW_OUT_EP_SIZE),    /* wMaxPacketSize: 4 Byte max */
     HIDRAW_OUT_EP_INTERVAL,       /* bInterval: Polling Interval */
-    /* 73 */
+    /* 41 */
     /*
      * string0 descriptor
      */
@@ -163,29 +163,39 @@ static const uint8_t hid_descriptor[] = {
     0x00
 };
 
-/*!< custom hid report descriptor */
 static const uint8_t hid_custom_report_desc[HID_CUSTOM_REPORT_DESC_SIZE] = {
-    /* USER CODE BEGIN 0 */
-    0x06, 0x00, 0xff, /* USAGE_PAGE (Vendor Defined Page 1) */
-    0x09, 0x01,       /* USAGE (Vendor Usage 1) */
-    0xa1, 0x01,       /* COLLECTION (Application) */
-    0x85, 0x02,       /*   REPORT ID (0x02) */
-    0x09, 0x01,       /*   USAGE (Vendor Usage 1) */
-    0x15, 0x00,       /*   LOGICAL_MINIMUM (0) */
-    0x26, 0xff, 0x00, /*   LOGICAL_MAXIMUM (255) */
-    0x95, 0x40 - 1,   /*   REPORT_COUNT (63) */
-    0x75, 0x08,       /*   REPORT_SIZE (8) */
-    0x81, 0x02,       /*   INPUT (Data,Var,Abs) */
-    /* <___________________________________________________> */
-    0x85, 0x01,       /*   REPORT ID (0x01) */
-    0x09, 0x01,       /*   USAGE (Vendor Usage 1) */
-    0x15, 0x00,       /*   LOGICAL_MINIMUM (0) */
-    0x26, 0xff, 0x00, /*   LOGICAL_MAXIMUM (255) */
-    0x95, 0x40 - 1,   /*   REPORT_COUNT (63) */
-    0x75, 0x08,       /*   REPORT_SIZE (8) */
-    0x91, 0x02,       /*   OUTPUT (Data,Var,Abs) */
-    /* USER CODE END 0 */
-    0xC0 /*     END_COLLECTION	             */
+    0x05, 0x01, // USAGE_PAGE (Generic Desktop)
+    0x09, 0x06, // USAGE (Keyboard)
+    0xa1, 0x01, // COLLECTION (Application)
+    0x05, 0x07, // USAGE_PAGE (Keyboard)
+    0x19, 0xe0, // USAGE_MINIMUM (Keyboard LeftControl)
+    0x29, 0xe7, // USAGE_MAXIMUM (Keyboard Right GUI)
+    0x15, 0x00, // LOGICAL_MINIMUM (0)
+    0x25, 0x01, // LOGICAL_MAXIMUM (1)
+    0x75, 0x01, // REPORT_SIZE (1)
+    0x95, 0x08, // REPORT_COUNT (8)
+    0x81, 0x02, // INPUT (Data,Var,Abs)
+    0x95, 0x01, // REPORT_COUNT (1)
+    0x75, 0x08, // REPORT_SIZE (8)
+    0x81, 0x03, // INPUT (Cnst,Var,Abs)
+    0x95, 0x05, // REPORT_COUNT (5)
+    0x75, 0x01, // REPORT_SIZE (1)
+    0x05, 0x08, // USAGE_PAGE (LEDs)
+    0x19, 0x01, // USAGE_MINIMUM (Num Lock)
+    0x29, 0x05, // USAGE_MAXIMUM (Kana)
+    0x91, 0x02, // OUTPUT (Data,Var,Abs)
+    0x95, 0x01, // REPORT_COUNT (1)
+    0x75, 0x03, // REPORT_SIZE (3)
+    0x91, 0x03, // OUTPUT (Cnst,Var,Abs)
+    0x95, 0x06, // REPORT_COUNT (6)
+    0x75, 0x08, // REPORT_SIZE (8)
+    0x15, 0x00, // LOGICAL_MINIMUM (0)
+    0x25, 0xFF, // LOGICAL_MAXIMUM (255)
+    0x05, 0x07, // USAGE_PAGE (Keyboard)
+    0x19, 0x00, // USAGE_MINIMUM (Reserved (no event indicated))
+    0x29, 0x65, // USAGE_MAXIMUM (Keyboard Application)
+    0x81, 0x00, // INPUT (Data,Ary,Abs)
+    0xc0        // END_COLLECTION
 };
 
 USB_NOCACHE_RAM_SECTION USB_MEM_ALIGNX uint8_t read_buffer[HIDRAW_OUT_EP_SIZE];
@@ -217,7 +227,6 @@ struct hid_vbuf {
     unsigned int         buf_len[HID_RECV_BUF_SIZE / HID_VBUF_PLANE_SIZE];
     struct vb_queue      queue;
     struct list_head     active_list;
-    aicos_mutex_t        active_lock; /* lock of active buf list */
     unsigned int         sequence;
     unsigned int         streaming;
 };
@@ -268,7 +277,7 @@ static void show_speed(u64 start, u64 end, int bytes)
 static void notify_file_decode(void)
 {
     printf("\nThe follow command can decode the image file to FB: \n");
-    printf("pic_test -a 0x%lx -z %d\n", (long)g_hid_img_buf, g_hid_img_size);
+    printf("pic_test -a 0x%lx -z %d\n", (long)g_hid_img_buf, (int)g_hid_img_size);
     if (!g_hid_only_recv)
         rt_sem_release(g_hid_sem);
 }
@@ -390,7 +399,7 @@ static void dump_to_buf(uint8_t *data, uint32_t len)
         parse_file_type(data);
 
 #ifdef HID_RECV_VIDEO_FILE
-        if (!g_hid_vb.active_lock) {
+        if (!g_hid_vb.vbuf.num_planes) {
             pr_err("Must init HID vb first!\n");
             return;
         }
@@ -398,10 +407,8 @@ static void dump_to_buf(uint8_t *data, uint32_t len)
         if (g_hid_need_wr_file) {
             /* Need switch to the next buf */
             if (g_hid_img_size) { /* Be sure it's not the first pkt */
-                aicos_mutex_take(g_hid_vb.active_lock, AICOS_WAIT_FOREVER);
                 hid_buf_done();
                 hid_buf_update();
-                aicos_mutex_give(g_hid_vb.active_lock);
             }
             max_len = HID_VBUF_PLANE_SIZE;
         }
@@ -454,7 +461,6 @@ static void dump_to_buf(uint8_t *data, uint32_t len)
 
 static void usbd_hid_custom_in_callback(uint8_t ep, uint32_t nbytes)
 {
-    usbd_ep_start_write(HIDRAW_IN_EP, send_buffer, nbytes);
     custom_state = HID_STATE_IDLE;
 }
 
@@ -536,9 +542,7 @@ int decode_pic(uint8_t* pic, int len, u32 offset_x, u32 offset_y,
 #ifdef HID_RECV_VIDEO_FILE
 static void hid_vb_buf_queue(struct vb_buffer *vb)
 {
-    aicos_mutex_take(g_hid_vb.active_lock, AICOS_WAIT_FOREVER);
     list_add_tail(&vb->active_entry, &g_hid_vb.active_list);
-    aicos_mutex_give(g_hid_vb.active_lock);
     vb->hw_using = 0;
 }
 
@@ -549,13 +553,11 @@ static int hid_vb_start_streaming(struct vb_queue *q)
     pr_debug("Start streaming\n");
 
     g_hid_vb.sequence = 0;
-    aicos_mutex_take(g_hid_vb.active_lock, AICOS_WAIT_FOREVER);
 
     /* Prepare active_buffers for HID recv*/
     vb = list_first_entry(&g_hid_vb.active_list, struct vb_buffer, active_entry);
     hid_buf_reload(vb);
 
-    aicos_mutex_give(g_hid_vb.active_lock);
     g_hid_vb.streaming = 1;
     return 0;
 }
@@ -564,12 +566,10 @@ static void hid_vb_reclaim_all_buffers(enum vb_buffer_state state)
 {
     struct vb_buffer *vb, *node;
 
-    aicos_mutex_take(g_hid_vb.active_lock, AICOS_WAIT_FOREVER);
     list_for_each_entry_safe(vb, node, &g_hid_vb.active_list, active_entry) {
         vin_vb_buffer_done(vb, state);
         list_del(&vb->active_entry);
     }
-    aicos_mutex_give(g_hid_vb.active_lock);
 }
 
 static void hid_vb_stop_streaming(struct vb_queue *q)
@@ -577,9 +577,7 @@ static void hid_vb_stop_streaming(struct vb_queue *q)
     pr_debug("Stopping capture\n");
 
     /* Release all active buffers */
-    aicos_mutex_take(g_hid_vb.active_lock, AICOS_WAIT_FOREVER);
     hid_vb_reclaim_all_buffers(VB_BUF_STATE_ERROR);
-    aicos_mutex_give(g_hid_vb.active_lock);
     g_hid_vb.streaming = 0;
 }
 
@@ -594,11 +592,10 @@ static int hid_vb_init(void)
     struct vin_video_buf *vbuf = &g_hid_vb.vbuf;
     int i, ret = 0;
 
-    g_hid_vb.active_lock = aicos_mutex_create();
     INIT_LIST_HEAD(&g_hid_vb.active_list);
     vin_vb_init(&g_hid_vb.queue, &hid_vb_ops);
 
-    vbuf->num_planes   = HID_VBUF_PLANE_NUM;
+    vbuf->num_planes    = HID_VBUF_PLANE_NUM;
     vbuf->planes[0].len = HID_VBUF_PLANE_SIZE;
     ret = vin_vb_req_buf(&g_hid_vb.queue,
                          (char *)g_hid_buf_poll, HID_RECV_BUF_SIZE, vbuf);
@@ -670,7 +667,7 @@ static void hid_dec_thread(void *arg)
         /* 2. Write the buffer to a file */
         if (fd < 0) { /* Need create a new file */
            pr_info("Create a new file: %s\n", HID_FILE_FOR_SAVE);
-           fd = open(HID_FILE_FOR_SAVE, O_CREAT|O_WRONLY|O_BINARY);
+           fd = open(HID_FILE_FOR_SAVE, O_CREAT|O_WRONLY|O_BINARY|O_TRUNC);
            if (fd < 0) {
                pr_err("Failed to open(%s)\n", HID_FILE_FOR_SAVE);
                return;
@@ -695,11 +692,11 @@ static void hid_dec_thread(void *arg)
         /* 3. Release/Queue the buffer */
         vin_vb_q_buf(&g_hid_vb.queue, index);
 #else
-        printf("\nWaiting for %d/%d file ...\n", cnt + 1, max);
+        printf("\nWaiting for %d/%d file ...\n", (int)cnt + 1, (int)max);
         if (rt_sem_take(g_hid_sem, RT_WAITING_FOREVER) != RT_EOK)
             break;
 
-        printf("Try to decode and display the file ...\n");
+        printf("Try to decode and display the picture ...\n");
         if (!g_hid_need_wr_file) {
             if (cnt % 5 == 0) {
                 layer_id = AICFB_LAYER_TYPE_VIDEO;
@@ -715,7 +712,7 @@ static void hid_dec_thread(void *arg)
                 width = 0;
                 height = 0;
             }
-            printf("Layer %d: Offset (%d, %d), Size %d x %d\n", layer_id,
+            printf("Layer %d: Offset (%d, %d), Size %d x %d\n", (int)layer_id,
                    offset_x, offset_y, width, height);
             decode_pic(g_hid_img_buf, g_hid_img_size, offset_x, offset_y,
                        width, height, layer_id);
@@ -777,6 +774,25 @@ int cmd_test_usbd_hid_custom(int argc, char **argv)
     return 0;
 }
 MSH_CMD_EXPORT_ALIAS(cmd_test_usbd_hid_custom, test_usbd_hid_custom, Receive and decode a file);
+
+static int test_usbd_hid_keyboard(int argc, char **argv)
+{
+    uint8_t buf[8] = {0x00, 0x00, HID_KBD_USAGE_A, 0x00, 0x01, 0x03, 0x05, 0x07};
+
+    memcpy(send_buffer, buf, 8);
+    int ret = usbd_ep_start_write(HIDRAW_IN_EP, send_buffer, 8);
+    if (ret < 0) {
+        pr_err("Failed to write IN_EP, return %d\n", ret);
+        return -1;
+    }
+
+    custom_state = HID_STATE_BUSY;
+    while (custom_state == HID_STATE_BUSY) {
+    }
+
+    return 0;
+}
+MSH_CMD_EXPORT_ALIAS(test_usbd_hid_keyboard, test_usbd_hid_keyboard, test USB device HID keyboard);
 
 #endif // end of #if defined(RT_USING_FINSH)
 

@@ -51,6 +51,10 @@ if LPKG_USING_ADBD
         config LPKG_ADB_FILESYNC_RECV_TIMEOUT
             int "Set file service receive timeout(ms)"
             default 2000
+
+        config LPKG_ADB_FILESYNC_DATA_MAX
+            int "Set file service sync data max"
+            default 512
     endif
 
     config LPKG_ADB_EXTERNAL_MOD_ENABLE

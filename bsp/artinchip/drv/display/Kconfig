@@ -8,7 +8,7 @@ config AIC_DISP_PQ_TOOL
     bool "Ai PQ Tool Support"
     default n
     depends on AIC_DE_DRV
-    select AIC_MPP_FB_TEST
+    select AIC_FB_DRV_DEBUG
 
 config AIC_DISP_DE_DRV
     bool

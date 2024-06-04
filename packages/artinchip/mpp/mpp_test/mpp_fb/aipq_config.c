@@ -17,6 +17,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <aic_core.h>
+#include <aic_hal_dsi.h>
 
 #include "mpp_fb.h"
 
@@ -44,20 +45,20 @@ struct panel_lvds {
     unsigned int mode;
     unsigned int link_mode;
     unsigned int link_swap;
-    unsigned int pols;
-    unsigned int line;
+    unsigned int pols[2];
+    unsigned int lanes[2];
 };
 
 struct dsi_command
 {
-    unsigned char buf[1024];
-    size_t len;
+    unsigned int len;
     unsigned int command_on;
+    unsigned char *buf;
 };
 
 struct panel_dsi {
-    unsigned int mode;
-    unsigned int format;
+    enum dsi_mode mode;
+    enum dsi_format format;
     unsigned int lane_num;
     unsigned int vc_num;
     unsigned int dc_inv;
@@ -154,13 +155,18 @@ static void aicpq_print_config(struct aicfb_pq_config *config, int connector_typ
                         "\tmode:%d\n"
                         "\tlink_mode:%d\n"
                         "\tlink_swap:%d\n"
-                        "\tpols:%x\n"
-                        "\tline:%x\n",
+                        "\tlink_0_pols:%x\n"
+                        "\tlink_1_pols:%x\n"
+                        "\tlink_0_lanes:%x\n"
+                        "\tlink_1_lanes:%x\n",
                         lvds->mode,
                         lvds->link_mode,
                         lvds->link_swap,
-                        lvds->pols,
-                        lvds->line);
+                        lvds->pols[0],
+                        lvds->pols[1],
+                        lvds->lanes[0],
+                        lvds->lanes[1]
+                        );
                 break;
             }
             case AIC_MIPI_COM:
@@ -305,7 +311,18 @@ static int aipq_config_test(int argc, char **argv)
                 return -1;
             }
             fsize = get_file_size(optarg);
+
+            if (fsize > 4096) {
+                printf("file size: %d, over max size 4096\n", fsize);
+                return -1;
+            }
             dsi.command.len = fsize;
+
+            dsi.command.buf = aicos_malloc(MEM_CMA, fsize);
+            if (!dsi.command.buf) {
+                printf("malloc dsi command buf failed\n");
+                return -1;
+            }
 
             ret = read(fd, (void *)dsi.command.buf, fsize);
             if (ret != fsize) {
@@ -316,6 +333,8 @@ static int aipq_config_test(int argc, char **argv)
             dsi.command.command_on = MIPI_DSI_UPDATE_COMMAND;
             config.data  = &dsi;
             mpp_fb_ioctl(fb, AICFB_PQ_SET_CONFIG, &config);
+
+            aicos_free(MEM_CMA, dsi.command.buf);
             break;
         }
         case 't':
@@ -327,7 +346,7 @@ static int aipq_config_test(int argc, char **argv)
         }
         case 'c':
         {
-            char con_info[18] = { 0 };
+            char con_info[32] = { 0 };
 
             memcpy(con_info, optarg, strlen(optarg));
             connector_type = con_info[0] - '0';
@@ -354,31 +373,41 @@ static int aipq_config_test(int argc, char **argv)
                 case AIC_LVDS_COM:
                 {
                     char polr[3] = {0};
+                    char lanes[6] = {0};
                     lvds.mode      = char2int(con_info[1]);
                     lvds.link_mode = char2int(con_info[2]);
                     lvds.link_swap = char2int(con_info[3]);
 
                     memcpy(polr, con_info + 4, 2);
+                    memcpy(lanes, con_info + 6, 5);
+                    lvds.pols[0]     = strtoll(polr, NULL, 16);
+                    lvds.lanes[0]    = strtoll(lanes, NULL, 16);
 
-                    lvds.pols      = strtoll(polr, NULL, 16);
-                    lvds.line      = strtoll(con_info + 6, NULL, 16);
+                    if (strlen(optarg) > 12) {
+                        memcpy(polr, con_info + 11, 2);
+                        memcpy(lanes, con_info + 13, 5);
+                        lvds.pols[1]     = strtoll(polr, NULL, 16);
+                        lvds.lanes[1]    = strtoll(lanes, NULL, 16);
+                    }
                     config.data    = &lvds;
                     break;
                 }
                 case AIC_MIPI_COM:
                 {
-                    char ln_polrs[3] = {0};
+                    char str[3] = {0};
 
-                    dsi.mode     = char2int(con_info[1]);
-                    dsi.format   = char2int(con_info[2]);
-                    dsi.lane_num = char2int(con_info[3]);
-                    dsi.vc_num   = char2int(con_info[4]);
-                    dsi.dc_inv   = char2int(con_info[5]);
+                    memcpy(str, con_info + 1, 2);
+                    dsi.mode     = atoi(str);
 
-                    memcpy(ln_polrs, con_info + 6, 2);
+                    dsi.format   = char2int(con_info[3]);
+                    dsi.lane_num = char2int(con_info[4]);
+                    dsi.vc_num   = char2int(con_info[5]);
+                    dsi.dc_inv   = char2int(con_info[6]);
 
-                    dsi.ln_polrs           = strtoll(ln_polrs, NULL, 16);
-                    dsi.ln_assign          = strtoll(con_info + 8, NULL, 16);
+                    memcpy(str, con_info + 7, 2);
+
+                    dsi.ln_polrs           = atoi(str);
+                    dsi.ln_assign          = strtoll(con_info + 9, NULL, 16);
                     dsi.command.command_on = MIPI_DSI_SEND_COMMAND;
                     config.data            = &dsi;
                     break;

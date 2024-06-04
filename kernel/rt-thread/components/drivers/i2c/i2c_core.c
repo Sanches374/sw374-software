@@ -102,6 +102,26 @@ rt_err_t rt_i2c_control(struct rt_i2c_bus_device *bus,
     }
 }
 
+rt_err_t rt_i2c_slave_control(struct rt_i2c_bus_device *bus,
+                              rt_uint32_t               cmd,
+                              void                     *arg)
+{
+    rt_err_t ret;
+
+    if(bus->ops->i2c_slave_control)
+    {
+        ret = bus->ops->i2c_slave_control(bus, cmd, arg);
+
+        return ret;
+    }
+    else
+    {
+        LOG_E("I2C bus operation not supported");
+
+        return -RT_ERROR;
+    }
+}
+
 rt_size_t rt_i2c_master_send(struct rt_i2c_bus_device *bus,
                              rt_uint16_t               addr,
                              rt_uint16_t               flags,

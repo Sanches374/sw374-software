@@ -158,7 +158,7 @@ int aicmac_init(uint32_t port)
     /* Check the parameters */
     assert_param(port < MAX_ETH_MAC_PORT);
 
-    memset(dctl, 0, sizeof(dctl));
+    memset(&dctl[port], 0, sizeof(dctl[0]));
 
     /* HW Low-Level Init */
     aicmac_low_level_init(port, ENABLE);
@@ -167,9 +167,9 @@ int aicmac_init(uint32_t port)
     aicmac_sw_reset(port);
     /* Wait for software reset */
     while (aicmac_get_sw_reset_status(port) == SET) {
-    
+
     }
-    
+
     /* phy reset must after mac reset */
     if (mac_config[port].phyrst_gpio_name) {
         pin = hal_gpio_name2pin(mac_config[port].phyrst_gpio_name);
@@ -239,6 +239,11 @@ int aicmac_init(uint32_t port)
     writel(tmpreg, MAC(port, macrxfunc));
 
     /* (4) macfrmflt */
+    #if LWIP_IPV6
+    tmpreg = readl(MAC(port, macfrmflt));
+    tmpreg |= 0x80000001;
+    writel(tmpreg, MAC(port, macfrmflt));
+    #endif
 
     /* (5) flowctl */
     tmpreg = readl(MAC(port, flowctl));
@@ -624,7 +629,7 @@ void aicmac_dma_tx_desc_init(uint32_t port)
 
         /* Set Second Address Chained bit */
         pdesc->control = ETH_DMATxDesc_TCH;
-        
+
         #ifdef LWIP_PTP
         pdesc->control |= ETH_DMATxDesc_TTSE;
         #endif
@@ -648,6 +653,7 @@ void aicmac_dma_tx_desc_init(uint32_t port)
             pdesc->buff2_addr = (uint32_t)(unsigned long)txdesc_tbl;
         }
     }
+
     /* after write: flush cache */
     aicmac_dcache_clean((uintptr_t)txdesc_tbl, sizeof(aicmac_dma_desc_t) * count);
 

@@ -136,6 +136,29 @@ static int volume(int* vol,char ch)
     return volume;
 }
 
+static void show_cpu_usage()
+{
+#ifdef LPKG_USING_CPU_USAGE
+    static int index = 0;
+    char data_str[64];
+    float value = 0.0;
+
+    if (index++ % 30 == 0) {
+        value = cpu_load_average();
+        #ifdef AIC_PRINT_FLOAT_CUSTOM
+        int cpu_i;
+        int cpu_frac;
+        cpu_i = (int)value;
+        cpu_frac = (value - cpu_i) * 100;
+        snprintf(data_str, sizeof(data_str), "%d.%02d\n", cpu_i, cpu_frac);
+        #else
+        snprintf(data_str, sizeof(data_str), "%.2f\n", value);
+        #endif
+        printf("cpu_loading:%s\n",data_str);
+    }
+#endif
+}
+
 static void audio_player_demo(int argc, char **argv)
 {
     int i,j;
@@ -221,27 +244,7 @@ static void audio_player_demo(int argc, char **argv)
                     break;
                 }
                 usleep(100*1000);
-                #ifdef LPKG_USING_CPU_USAGE
-                {
-                    static int index = 0;
-                    char data_str[64];
-                    float value = 0.0;
-                    if (index++ % 30 == 0) {
-                        value = cpu_load_average();
-                        #ifdef AIC_PRINT_FLOAT_CUSTOM
-                            int cpu_i;
-                            int cpu_frac;
-                            cpu_i = (int)value;
-                            cpu_frac = (value - cpu_i) * 100;
-                            snprintf(data_str, sizeof(data_str), "%d.%02d\n", cpu_i, cpu_frac);
-                        #else
-                            snprintf(data_str, sizeof(data_str), "%.2f\n", value);
-                        #endif
-                        printf("cpu_loading:%s\n",data_str);
-                    }
-
-                }
-                #endif
+                show_cpu_usage();
             }
         }
     }

@@ -111,6 +111,8 @@ int hal_gpio_set_debounce(unsigned int group, unsigned int pin,
 
 int hal_gpio_cfg(struct gpio_cfg *cfg, u32 cnt);
 int hal_gpio_get_pincfg(unsigned int group, unsigned int pin, int check_type);
+int hal_gpio_get_outcfg(unsigned int group, unsigned int pin,
+                        unsigned int *pvalue);
 
 #ifdef __cplusplus
 }

@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <ctype.h>
 #include <board.h>
 #include <hal_syscfg.h>
 #include <aic_core.h>
@@ -20,6 +21,10 @@
 #include <aic_log.h>
 #ifdef AIC_DMA_DRV
 #include "drv_dma.h"
+#endif
+
+#ifdef AIC_USING_SID
+#include "efuse.h"
 #endif
 
 #ifdef AIC_OSR_CE_DRV
@@ -55,11 +60,11 @@ extern void lv_port_indev_init(void);
 extern void lv_user_gui_init(void);
 #endif
 
+extern void show_version(void);
+
 void show_banner(void)
 {
     printf("%s\n", BANNER);
-    printf("Welcome to ArtInChip Luban-Lite %d.%d [Baremetal - Built on %s %s]\n",
-               LL_VERSION, LL_SUBVERSION, __DATE__, __TIME__);
 }
 
 static int board_init(void)
@@ -76,7 +81,11 @@ static int board_init(void)
     uart_init(cons_uart);
     stdio_set_uart(cons_uart);
 
+#ifdef AIC_USING_SID
+    efuse_init();
+#endif
     show_banner();
+    show_version();
 
     return 0;
 }
@@ -125,7 +134,9 @@ int main(void)
 #endif
 #ifdef AIC_USING_SDMC1
     mmc_init(1);
+#ifdef AIC_SD_USING_HOTPLUG
     sdcard_hotplug_init();
+#endif
 #endif
 
 #if defined(LPKG_USING_DFS_ELMFAT) && defined(AIC_USING_SDMC0)
@@ -231,6 +242,10 @@ int main(void)
     extern void msc_storage_init(char *path);
     msc_storage_init(MSC_STORAGE_PATH);
 #endif
+#ifdef LPKG_CHERRYUSB_DEVICE_MTP_TEMPLATE
+    extern void mtp_init(char *path);
+    mtp_init(ROOT_PATH);
+#endif
 #ifdef LPKG_CHERRYUSB_DEVICE_MIDI_TEMPLATE
     extern void midi_init(void);
     midi_init();
@@ -239,6 +254,12 @@ int main(void)
     extern  void audio_v2_init(void);
     audio_v2_init();
 #endif
+#endif
+
+#ifdef AIC_SD_USING_HOTPLUG
+    while (1) {
+        sdcard_hotplug_act();
+    }
 #endif
 
 #ifdef AIC_CONSOLE_BARE_DRV

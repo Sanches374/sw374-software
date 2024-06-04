@@ -101,7 +101,7 @@ int usbh_get_connect_id(void)
             return ret;
         }
 
-        aicos_udelay(1500);
+        aicos_mdelay(2);
         ret = usbh_portchange_wait(id);
         if (ret) {
             pr_warn("usb %d port change wait failed.\n", id);

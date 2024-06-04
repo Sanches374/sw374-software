@@ -12,7 +12,9 @@
 #include <console.h>
 #include <aic_common.h>
 #include "upg_internal.h"
-
+#ifdef AICUPG_LOG_BUFFER_SUPPORT
+#include <log_buf.h>
+#endif
 #define BOOT_STAGE_UBOOT 1
 /*
  * UPG_PROTO_CMD_GET_HWINFO at BROM stage is use to provide hardware data
@@ -482,8 +484,8 @@ static s32 CMD_RUN_SHELL_STR_write_input_data(struct upg_cmd *cmd, u8 *buf,
 
     if (cmd->state == CMD_STATE_ARG) {
         /*
-		 * Enter recv argument state
-		 */
+         * Enter recv argument state
+         */
         if (len < 4)
             return 0;
         memcpy(&shinfo->cmdlen, buf, 4);
@@ -496,9 +498,9 @@ static s32 CMD_RUN_SHELL_STR_write_input_data(struct upg_cmd *cmd, u8 *buf,
 
     if (cmd->state == CMD_STATE_DATA_IN) {
         /*
-		 * Enter recv data state, all command string should be sent in
-		 * one packet.
-		 */
+         * Enter recv data state, all command string should be sent in
+         * one packet.
+         */
 
         if (((len - clen) != shinfo->cmdlen) ||
             (shinfo->cmdlen >= MAX_SHELL_CMD_STR_LEN)) {
@@ -531,9 +533,9 @@ static s32 CMD_RUN_SHELL_STR_read_output_data(struct upg_cmd *cmd, u8 *buf,
 
     if (cmd->state == CMD_STATE_RESP) {
         /*
-		 * Enter read RESP state, to make it simple, HOST should read
-		 * RESP in one read operation.
-		 */
+         * Enter read RESP state, to make it simple, HOST should read
+         * RESP in one read operation.
+         */
         aicupg_gen_resp(&resp, cmd->cmd, shinfo->result, 0);
         siz = sizeof(struct resp_header);
         memcpy(buf, &resp, siz);
@@ -859,6 +861,157 @@ static void CMD_SET_UPG_END_end(struct upg_cmd *cmd)
     }
 }
 
+static void CMD_GET_LOG_SIZE_start(struct upg_cmd *cmd, s32 cmd_data_len)
+{
+    cmd_state_init(cmd, CMD_STATE_START);
+}
+
+static s32 CMD_GET_LOG_SIZE_write_input_data(struct upg_cmd *cmd, u8 *buf,
+                                             s32 len)
+{
+    /* No input data for this command */
+    return 0;
+}
+
+static s32 CMD_GET_LOG_SIZE_read_output_data(struct upg_cmd *cmd, u8 *buf,
+                                             s32 len)
+{
+    struct resp_header resp;
+    u32 siz = 0, val = 0;
+
+    if (cmd->state == CMD_STATE_START)
+        cmd_state_set_next(cmd, CMD_STATE_RESP);
+
+    if (cmd->state == CMD_STATE_RESP) {
+        /*
+         * Enter read RESP state, to make it simple, HOST should read
+         * RESP in one read operation.
+         */
+        aicupg_gen_resp(&resp, cmd->cmd, 0, 4);
+        siz = sizeof(struct resp_header);
+        memcpy(buf, &resp, siz);
+        cmd_state_set_next(cmd, CMD_STATE_DATA_OUT);
+    }
+    if (siz == len)
+        return siz;
+
+    if (cmd->state == CMD_STATE_DATA_OUT) {
+#ifdef AICUPG_LOG_BUFFER_SUPPORT
+        val = log_buf_get_len();
+#else
+        val = 0;
+#endif
+        memcpy(buf, &val, 4);
+        siz += 4;
+        cmd_state_set_next(cmd, CMD_STATE_END);
+    }
+    return siz;
+}
+
+static void CMD_GET_LOG_SIZE_end(struct upg_cmd *cmd)
+{
+    cmd_state_set_next(cmd, CMD_STATE_IDLE);
+}
+
+static void CMD_GET_LOG_DATA_start(struct upg_cmd *cmd, s32 cmd_data_len)
+{
+    static struct cmd_rw_priv read_log;
+
+    read_log.addr = 0;
+    read_log.len = 0;
+    read_log.index = 0;
+    cmd->priv = &read_log;
+    cmd_state_init(cmd, CMD_STATE_START);
+}
+
+static s32 CMD_GET_LOG_DATA_write_input_data(struct upg_cmd *cmd, u8 *buf,
+                         s32 len)
+{
+    struct cmd_rw_priv *priv;
+    u32 val, clen = 0;
+
+    priv = (struct cmd_rw_priv *)cmd->priv;
+    if (!priv)
+        return 0;
+
+    if (cmd->state == CMD_STATE_START)
+        cmd_state_set_next(cmd, CMD_STATE_ARG);
+
+    if (cmd->state == CMD_STATE_ARG) {
+        /*
+         * Enter recv argument state
+         */
+        if (len < 4)
+            return 0;
+        memcpy(&val, buf, 4);
+#ifdef AICUPG_LOG_BUFFER_SUPPORT
+        if (val > log_buf_get_len())
+            val = log_buf_get_len();
+#endif
+        priv->len = val;
+        clen += 4;
+        cmd_state_set_next(cmd, CMD_STATE_RESP);
+    }
+    return clen;
+}
+
+static s32 CMD_GET_LOG_DATA_read_output_data(struct upg_cmd *cmd, u8 *buf,
+                                             s32 len)
+{
+    struct cmd_rw_priv *priv;
+    struct resp_header resp;
+    u32 siz = 0;
+#ifdef AICUPG_LOG_BUFFER_SUPPORT
+    char *p;
+#endif
+
+    priv = (struct cmd_rw_priv *)cmd->priv;
+    if (!priv)
+        return 0;
+    if (cmd->state == CMD_STATE_RESP) {
+        /*
+         * Enter read RESP state, to make it simple, HOST should read
+         * RESP in one read operation.
+         */
+        siz = priv->len;
+        aicupg_gen_resp(&resp, cmd->cmd, 0, siz);
+        siz = sizeof(struct resp_header);
+        memcpy(buf, &resp, siz);
+        cmd_state_set_next(cmd, CMD_STATE_DATA_OUT);
+    }
+    if (siz == len)
+        return siz;
+    if (cmd->state == CMD_STATE_DATA_OUT) {
+        /* Enter read DATA state */
+        p = (char *)buf;
+
+#ifdef AICUPG_LOG_BUFFER_SUPPORT
+        log_buf_read(p, len - siz);
+#endif
+        priv->index += (len - siz);
+        siz += (len - siz);
+        if (priv->index >= priv->len)
+            cmd_state_set_next(cmd, CMD_STATE_END);
+    }
+    return siz;
+}
+
+static void CMD_GET_LOG_DATA_end(struct upg_cmd *cmd)
+{
+    struct cmd_rw_priv *priv;
+
+    priv = (struct cmd_rw_priv *)cmd->priv;
+    if (!priv)
+        return;
+
+    if (cmd->state == CMD_STATE_END) {
+        priv->addr = 0;
+        priv->len = 0;
+        priv->index = 0;
+        cmd->priv = 0;
+        cmd_state_set_next(cmd, CMD_STATE_IDLE);
+    }
+}
 static struct upg_cmd basic_cmd_list[] = {
     {
         UPG_PROTO_CMD_GET_HWINFO,
@@ -929,6 +1082,20 @@ static struct upg_cmd basic_cmd_list[] = {
         CMD_FREE_MEM_BUF_write_input_data,
         CMD_FREE_MEM_BUF_read_output_data,
         CMD_FREE_MEM_BUF_end,
+    },
+    {
+        UPG_PROTO_CMD_GET_LOG_SIZE,
+        CMD_GET_LOG_SIZE_start,
+        CMD_GET_LOG_SIZE_write_input_data,
+        CMD_GET_LOG_SIZE_read_output_data,
+        CMD_GET_LOG_SIZE_end,
+    },
+    {
+        UPG_PROTO_CMD_GET_LOG_DATA,
+        CMD_GET_LOG_DATA_start,
+        CMD_GET_LOG_DATA_write_input_data,
+        CMD_GET_LOG_DATA_read_output_data,
+        CMD_GET_LOG_DATA_end,
     },
 };
 

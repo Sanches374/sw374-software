@@ -34,11 +34,13 @@ menu "gmac0 parameter"
         int "gmac0 rx delay"
         default 0
         range 0 31
+        depends on AIC_DEV_GMAC0_RGMII
 
     config AIC_DEV_GMAC0_TXDELAY
         int "gmac0 tx delay"
         default 0
         range 0 31
+        depends on AIC_DEV_GMAC0_RGMII
 
     config AIC_DEV_GMAC0_IPADDR
         string "gmac0 ip addr"
@@ -52,9 +54,15 @@ menu "gmac0 parameter"
         string "gmac0 netmask"
         default "255.255.255.0"
 
+    config AIC_DEV_GMAC0_USE_CHIPID
+        bool "gmac0 mac address use chip-id"
+        default y
+        select AIC_USING_SID
+
     config AIC_DEV_GMAC0_MACADDR
         string "gmac0 mac addr"
         default "002244887766"
+        depends on !AIC_DEV_GMAC0_USE_CHIPID
 
     config AIC_DEV_GMAC0_PHYADDR
         int "gmac0 phy mdio addr"
@@ -95,15 +103,35 @@ menu "gmac1 parameter"
         int "gmac1 rx delay"
         default 0
         range 0 31
+        depends on AIC_DEV_GMAC1_RGMII
 
     config AIC_DEV_GMAC1_TXDELAY
         int "gmac1 tx delay"
         default 0
         range 0 31
+        depends on AIC_DEV_GMAC1_RGMII
+
+    config AIC_DEV_GMAC1_IPADDR
+        string "gmac1 ip addr"
+        default "192.168.3.21"
+
+    config AIC_DEV_GMAC1_GW
+        string "gmac1 gateway addr"
+        default "192.168.3.1"
+
+    config AIC_DEV_GMAC1_NETMASK
+        string "gmac1 netmask"
+        default "255.255.255.0"
+
+    config AIC_DEV_GMAC1_USE_CHIPID
+        bool "gmac1 mac address use chip-id"
+        default y
+        select AIC_USING_SID
 
     config AIC_DEV_GMAC1_MACADDR
         string "gmac1 mac addr"
-        default "003344557799"
+        default "001133557788"
+        depends on !AIC_DEV_GMAC1_USE_CHIPID
 
     config AIC_DEV_GMAC1_PHYADDR
         int "gmac1 phy mdio addr"

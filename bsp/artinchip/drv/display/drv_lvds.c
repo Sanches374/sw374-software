@@ -19,6 +19,11 @@ struct aic_lvds_comp
 };
 static struct aic_lvds_comp *g_aic_lvds_comp;
 
+#ifdef AIC_DISP_PQ_TOOL
+AIC_PQ_TOOL_PINMUX_CONFIG(disp_pinmux_config);
+AIC_PQ_TOOL_SET_DISP_PINMUX_FOPS(disp_pinmux_config)
+#endif
+
 static struct aic_lvds_comp *aic_lvds_request_drvdata(void)
 {
     return g_aic_lvds_comp;
@@ -29,12 +34,12 @@ static void aic_lvds_release_drvdata(void)
 
 }
 
-static void lvds_0_lines(struct aic_lvds_comp *comp, u32 value)
+static void lvds_0_lanes(struct aic_lvds_comp *comp, u32 value)
 {
     reg_write(comp->regs + LVDS_0_SWAP, value);
 }
 
-static void lvds_1_lines(struct aic_lvds_comp *comp, u32 value)
+static void lvds_1_lanes(struct aic_lvds_comp *comp, u32 value)
 {
     reg_write(comp->regs + LVDS_1_SWAP, value);
 }
@@ -87,32 +92,40 @@ static int aic_lvds_clk_disable(void)
     return 0;
 }
 
+static void
+lvds_set_mode(struct aic_lvds_comp *comp, struct panel_lvds *lvds)
+{
+    reg_set_bits(comp->regs + LVDS_CTL, LVDS_CTL_MODE_MASK,
+             LVDS_CTL_MODE(lvds->mode));
+    reg_set_bits(comp->regs + LVDS_CTL, LVDS_CTL_LINK_MASK,
+             LVDS_CTL_LINK(lvds->link_mode));
+}
+
+static void
+lvds_set_option_config(struct aic_lvds_comp *comp, struct panel_lvds *lvds)
+{
+    reg_set_bits(comp->regs + LVDS_CTL, LVDS_CTL_SYNC_MODE_MASK,
+             LVDS_CTL_SYNC_MODE_EN(AIC_LVDS_SYNC_MODE_EN));
+    reg_set_bits(comp->regs + LVDS_CTL, LVDS_CTL_SWAP_MASK,
+             LVDS_CTL_SWAP_EN(lvds->link_swap));
+
+    lvds_0_lanes(comp, lvds->lanes[0]);
+    lvds_1_lanes(comp, lvds->lanes[1]);
+
+    lvds_0_pol(comp, lvds->pols[0]);
+    lvds_1_pol(comp, lvds->pols[1]);
+
+    lvds_phy_0_init(comp, AIC_LVDS_LINK0_PHY);
+    lvds_phy_1_init(comp, AIC_LVDS_LINK1_PHY);
+}
+
 static int aic_lvds_enable(void)
 {
     struct aic_lvds_comp *comp = aic_lvds_request_drvdata();
     struct panel_lvds *lvds = comp->panel->lvds;
 
-    if (lvds->pols)
-    {
-        lvds_0_pol(comp, lvds->pols);
-        lvds_1_pol(comp, lvds->pols);
-    }
-
-    lvds_0_lines(comp, lvds->line);
-    lvds_1_lines(comp, lvds->line);
-
-    lvds_phy_0_init(comp, AIC_LVDS_PHY);
-    lvds_phy_1_init(comp, AIC_LVDS_PHY);
-
-    reg_set_bits(comp->regs + LVDS_CTL,
-             LVDS_CTL_MODE_MASK
-             | LVDS_CTL_LINK_MASK
-             | LVDS_CTL_SWAP_MASK
-             | LVDS_CTL_SYNC_MODE_MASK,
-             LVDS_CTL_MODE(lvds->mode)
-             | LVDS_CTL_LINK(lvds->link_mode)
-             | LVDS_CTL_SWAP_EN(lvds->link_swap)
-             | LVDS_CTL_SYNC_MODE_EN(AIC_LVDS_SYNC_MODE_EN));
+    lvds_set_mode(comp, lvds);
+    lvds_set_option_config(comp, lvds);
 
     reg_set_bit(comp->regs + LVDS_CTL, LVDS_CTL_EN);
 
@@ -152,6 +165,11 @@ static int aic_lvds_attach_panel(struct aic_panel *panel)
     }
     comp->pll_disp_rate = pll_disp_rate;
 
+    if (!lvds->lanes[0])
+        lvds->lanes[0] = AIC_LVDS_LINK0_LANES;
+    if (!lvds->lanes[1])
+        lvds->lanes[1] = AIC_LVDS_LINK1_LANES;
+
     aic_lvds_release_drvdata();
     return 0;
 }
@@ -179,6 +197,10 @@ static int aic_lvds_probe(void)
 
     comp->regs = (void *)LVDS_BASE;
     g_aic_lvds_comp = comp;
+
+#ifdef AIC_DISP_PQ_TOOL
+    AIC_PQ_SET_DSIP_PINMUX;
+#endif
 
     return 0;
 }

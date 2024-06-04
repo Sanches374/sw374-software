@@ -18,8 +18,6 @@
 #include "./public/ge_fb.h"
 #include "./public/ge_mem.h"
 
-#define SCALE_IMAGE     "/sdcard/ge_test/image/scale.bmp"
-
 #define LOGE(fmt, ...) aic_log(AIC_LOG_ERR, "E", fmt, ##__VA_ARGS__)
 #define LOGW(fmt, ...) aic_log(AIC_LOG_WARN, "W", fmt, ##__VA_ARGS__)
 #define LOGI(fmt, ...) aic_log(AIC_LOG_INFO, "I", fmt, ##__VA_ARGS__)
@@ -31,14 +29,20 @@
 
 #define ONE_PIXEL 1.0
 
+static char g_src_input[128] = {"/sdcard/ge_test/image/scale.bmp"};
+
 static void usage(char *app)
 {
     printf("Usage: %s [Options]: \n", app);
 
     printf("\t    --Framebuffer uses double buffer in this test, ensure that fb0 is properly configure\n\n");
+    printf("\t-i  --input_src, input src\n");
     printf("\t-t, --type, Select scale type (default 2)\n");
     printf("\t    --type, 0: wide stretch, 1: height stretch, 2: width and height stretch\n\n");
     printf("\t-u, --usage\n");
+
+    printf("\tfor example:\n");
+    printf("\tge_scale -i scale.bmp\n");
 }
 
 static long long int str2int(char *_str)
@@ -332,15 +336,19 @@ static void scale_test(int argc, char **argv)
     struct ge_buf *dst_buffer = NULL;
     struct bmp_header bmp_head = {0};
 
-    const char sopts[] = "ut:";
+    const char sopts[] = "ut:i:";
     const struct option lopts[] = {
         {"usage",   no_argument,       NULL, 'u'},
         {"type",    required_argument, NULL, 't'},
+        {"src_input" ,  required_argument, NULL, 'i'},
         {0, 0, 0, 0}
     };
     optind = 0;
     while ((ret = getopt_long(argc, argv, sopts, lopts, NULL)) != -1) {
         switch (ret) {
+        case 'i':
+            strncpy(g_src_input, optarg, sizeof(g_src_input) - 1);
+            break;
         case 't':
             scale_type = str2int(optarg);
             if ((scale_type > 2) || (scale_type < 0)) {
@@ -365,9 +373,9 @@ static void scale_test(int argc, char **argv)
 
     fb_info = fb_open();
 
-    bmp_fd = bmp_open(SCALE_IMAGE, &bmp_head);
+    bmp_fd = bmp_open(g_src_input, &bmp_head);
     if (bmp_fd < 0) {
-        LOGE("open bmp error, path = %s\n", SCALE_IMAGE);
+        LOGE("open bmp error, path = %s\n", g_src_input);
         goto EXIT;
     }
 
@@ -399,6 +407,7 @@ static void scale_test(int argc, char **argv)
         goto EXIT;
     }
 
+    printf("ge scale test success\n");
 EXIT:
     if (bmp_fd > 0)
         bmp_close(bmp_fd);

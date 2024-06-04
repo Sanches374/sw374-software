@@ -1,4 +1,5 @@
-﻿/*
+﻿// SPDX-License-Identifier: GPL-2.0+
+/*
  * Copyright (c) 2022, Artinchip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
@@ -20,69 +21,69 @@
 
 static const struct phy_setting settings[] = {
 #if 0
-	/* 400G */
-	PHY_SETTING( 400000, FULL, 400000baseCR8_Full		),
-	PHY_SETTING( 400000, FULL, 400000baseKR8_Full		),
-	PHY_SETTING( 400000, FULL, 400000baseLR8_ER8_FR8_Full	),
-	PHY_SETTING( 400000, FULL, 400000baseDR8_Full		),
-	PHY_SETTING( 400000, FULL, 400000baseSR8_Full		),
-	PHY_SETTING( 400000, FULL, 400000baseCR4_Full		),
-	PHY_SETTING( 400000, FULL, 400000baseKR4_Full		),
-	PHY_SETTING( 400000, FULL, 400000baseLR4_ER4_FR4_Full	),
-	PHY_SETTING( 400000, FULL, 400000baseDR4_Full		),
-	PHY_SETTING( 400000, FULL, 400000baseSR4_Full		),
-	/* 200G */
-	PHY_SETTING( 200000, FULL, 200000baseCR4_Full		),
-	PHY_SETTING( 200000, FULL, 200000baseKR4_Full		),
-	PHY_SETTING( 200000, FULL, 200000baseLR4_ER4_FR4_Full	),
-	PHY_SETTING( 200000, FULL, 200000baseDR4_Full		),
-	PHY_SETTING( 200000, FULL, 200000baseSR4_Full		),
-	PHY_SETTING( 200000, FULL, 200000baseCR2_Full		),
-	PHY_SETTING( 200000, FULL, 200000baseKR2_Full		),
-	PHY_SETTING( 200000, FULL, 200000baseLR2_ER2_FR2_Full	),
-	PHY_SETTING( 200000, FULL, 200000baseDR2_Full		),
-	PHY_SETTING( 200000, FULL, 200000baseSR2_Full		),
-	/* 100G */
-	PHY_SETTING( 100000, FULL, 100000baseCR4_Full		),
-	PHY_SETTING( 100000, FULL, 100000baseKR4_Full		),
-	PHY_SETTING( 100000, FULL, 100000baseLR4_ER4_Full	),
-	PHY_SETTING( 100000, FULL, 100000baseSR4_Full		),
-	PHY_SETTING( 100000, FULL, 100000baseCR2_Full		),
-	PHY_SETTING( 100000, FULL, 100000baseKR2_Full		),
-	PHY_SETTING( 100000, FULL, 100000baseLR2_ER2_FR2_Full	),
-	PHY_SETTING( 100000, FULL, 100000baseDR2_Full		),
-	PHY_SETTING( 100000, FULL, 100000baseSR2_Full		),
-	PHY_SETTING( 100000, FULL, 100000baseCR_Full		),
-	PHY_SETTING( 100000, FULL, 100000baseKR_Full		),
-	PHY_SETTING( 100000, FULL, 100000baseLR_ER_FR_Full	),
-	PHY_SETTING( 100000, FULL, 100000baseDR_Full		),
-	PHY_SETTING( 100000, FULL, 100000baseSR_Full		),
-	/* 56G */
-	PHY_SETTING(  56000, FULL,  56000baseCR4_Full	  	),
-	PHY_SETTING(  56000, FULL,  56000baseKR4_Full	  	),
-	PHY_SETTING(  56000, FULL,  56000baseLR4_Full	  	),
-	PHY_SETTING(  56000, FULL,  56000baseSR4_Full	  	),
-	/* 50G */
-	PHY_SETTING(  50000, FULL,  50000baseCR2_Full		),
-	PHY_SETTING(  50000, FULL,  50000baseKR2_Full		),
-	PHY_SETTING(  50000, FULL,  50000baseSR2_Full		),
-	PHY_SETTING(  50000, FULL,  50000baseCR_Full		),
-	PHY_SETTING(  50000, FULL,  50000baseKR_Full		),
-	PHY_SETTING(  50000, FULL,  50000baseLR_ER_FR_Full	),
-	PHY_SETTING(  50000, FULL,  50000baseDR_Full		),
-	PHY_SETTING(  50000, FULL,  50000baseSR_Full		),
-	/* 40G */
-	PHY_SETTING(  40000, FULL,  40000baseCR4_Full		),
-	PHY_SETTING(  40000, FULL,  40000baseKR4_Full		),
-	PHY_SETTING(  40000, FULL,  40000baseLR4_Full		),
-	PHY_SETTING(  40000, FULL,  40000baseSR4_Full		),
-	/* 25G */
-	PHY_SETTING(  25000, FULL,  25000baseCR_Full		),
-	PHY_SETTING(  25000, FULL,  25000baseKR_Full		),
-	PHY_SETTING(  25000, FULL,  25000baseSR_Full		),
-	/* 20G */
-	PHY_SETTING(  20000, FULL,  20000baseKR2_Full		),
-	PHY_SETTING(  20000, FULL,  20000baseMLD2_Full		),
+    /* 400G */
+    PHY_SETTING(400000, FULL, 400000baseCR8_Full),
+    PHY_SETTING(400000, FULL, 400000baseKR8_Full),
+    PHY_SETTING(400000, FULL, 400000baseLR8_ER8_FR8_Full),
+    PHY_SETTING(400000, FULL, 400000baseDR8_Full),
+    PHY_SETTING(400000, FULL, 400000baseSR8_Full),
+    PHY_SETTING(400000, FULL, 400000baseCR4_Full),
+    PHY_SETTING(400000, FULL, 400000baseKR4_Full),
+    PHY_SETTING(400000, FULL, 400000baseLR4_ER4_FR4_Full),
+    PHY_SETTING(400000, FULL, 400000baseDR4_Full),
+    PHY_SETTING(400000, FULL, 400000baseSR4_Full),
+    /* 200G */
+    PHY_SETTING(200000, FULL, 200000baseCR4_Full),
+    PHY_SETTING(200000, FULL, 200000baseKR4_Full),
+    PHY_SETTING(200000, FULL, 200000baseLR4_ER4_FR4_Full),
+    PHY_SETTING(200000, FULL, 200000baseDR4_Full),
+    PHY_SETTING(200000, FULL, 200000baseSR4_Full),
+    PHY_SETTING(200000, FULL, 200000baseCR2_Full),
+    PHY_SETTING(200000, FULL, 200000baseKR2_Full),
+    PHY_SETTING(200000, FULL, 200000baseLR2_ER2_FR2_Full),
+    PHY_SETTING(200000, FULL, 200000baseDR2_Full),
+    PHY_SETTING(200000, FULL, 200000baseSR2_Full),
+    /* 100G */
+    PHY_SETTING(100000, FULL, 100000baseCR4_Full),
+    PHY_SETTING(100000, FULL, 100000baseKR4_Full),
+    PHY_SETTING(100000, FULL, 100000baseLR4_ER4_Full),
+    PHY_SETTING(100000, FULL, 100000baseSR4_Full),
+    PHY_SETTING(100000, FULL, 100000baseCR2_Full),
+    PHY_SETTING(100000, FULL, 100000baseKR2_Full),
+    PHY_SETTING(100000, FULL, 100000baseLR2_ER2_FR2_Full),
+    PHY_SETTING(100000, FULL, 100000baseDR2_Full),
+    PHY_SETTING(100000, FULL, 100000baseSR2_Full),
+    PHY_SETTING(100000, FULL, 100000baseCR_Full),
+    PHY_SETTING(100000, FULL, 100000baseKR_Full),
+    PHY_SETTING(100000, FULL, 100000baseLR_ER_FR_Full),
+    PHY_SETTING(100000, FULL, 100000baseDR_Full),
+    PHY_SETTING(100000, FULL, 100000baseSR_Full),
+    /* 56G */
+    PHY_SETTING(56000, FULL,  56000baseCR4_Full),
+    PHY_SETTING(56000, FULL,  56000baseKR4_Full),
+    PHY_SETTING(56000, FULL,  56000baseLR4_Full),
+    PHY_SETTING(56000, FULL,  56000baseSR4_Full),
+    /* 50G */
+    PHY_SETTING(50000, FULL,  50000baseCR2_Full),
+    PHY_SETTING(50000, FULL,  50000baseKR2_Full),
+    PHY_SETTING(50000, FULL,  50000baseSR2_Full),
+    PHY_SETTING(50000, FULL,  50000baseCR_Full),
+    PHY_SETTING(50000, FULL,  50000baseKR_Full),
+    PHY_SETTING(50000, FULL,  50000baseLR_ER_FR_Full),
+    PHY_SETTING(50000, FULL,  50000baseDR_Full),
+    PHY_SETTING(50000, FULL,  50000baseSR_Full),
+    /* 40G */
+    PHY_SETTING(40000, FULL,  40000baseCR4_Full),
+    PHY_SETTING(40000, FULL,  40000baseKR4_Full),
+    PHY_SETTING(40000, FULL,  40000baseLR4_Full),
+    PHY_SETTING(40000, FULL,  40000baseSR4_Full),
+    /* 25G */
+    PHY_SETTING(25000, FULL,  25000baseCR_Full),
+    PHY_SETTING(25000, FULL,  25000baseKR_Full),
+    PHY_SETTING(25000, FULL,  25000baseSR_Full),
+    /* 20G */
+    PHY_SETTING(20000, FULL,  20000baseKR2_Full),
+    PHY_SETTING(20000, FULL,  20000baseMLD2_Full),
     /* 10G */
     PHY_SETTING(10000, FULL, 10000baseCR_Full),
     PHY_SETTING(10000, FULL, 10000baseER_Full),
@@ -281,9 +282,9 @@ int aicphy_read_abilities(uint32_t port)
     int err = 0;
 
     /*
-	linkmode_set_bit_array(phy_basic_ports_array,
-			       ARRAY_SIZE(phy_basic_ports_array),
-			       phydev->supported);
+    linkmode_set_bit_array(phy_basic_ports_array,
+                   ARRAY_SIZE(phy_basic_ports_array),
+                   phydev->supported);
     */
     //linkmode_mod_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, phydev->supported, 1);
     linkmode_mod_bit(ETHTOOL_LINK_MODE_TP_BIT, phydev->supported, 1);
@@ -342,7 +343,7 @@ int aicphy_config_advert(uint32_t port)
 
     /* Only allow advertising what this PHY supports */
     /* linkmode_and(phydev->advertising, phydev->advertising,
-		     phydev->supported);*/
+             phydev->supported);*/
     phydev->advertising[0] = phydev->supported[0];
 
     adv = linkmode_adv_to_mii_adv_t(phydev->advertising);
@@ -360,9 +361,9 @@ int aicphy_config_advert(uint32_t port)
         return ETH_ERROR;
 
     /* Per 802.3-2008, Section 22.2.4.2.16 Extended status all
-	 * 1000Mbits/sec capable PHYs shall have the BMSR_ESTATEN bit set to a
-	 * logical 1.
-	 */
+     * 1000Mbits/sec capable PHYs shall have the BMSR_ESTATEN bit set to a
+     * logical 1.
+     */
     if (!(bmsr & BMSR_ESTATEN))
         return ETH_SUCCESS;
 
@@ -549,8 +550,8 @@ int aicphy_update_link(uint32_t port)
         return ETH_ERROR;
 
     /* Autoneg is being started, therefore disregard BMSR value and
-	 * report link as down.
-	 */
+     * report link as down.
+     */
     if (bmcr & BMCR_ANRESTART)
         goto done;
 
@@ -563,8 +564,8 @@ done:
     phydev->autoneg_complete = status & BMSR_ANEGCOMPLETE ? 1 : 0;
 
     /* Consider the case that autoneg was started and "aneg complete"
-	 * bit has been reset, but "link up" bit not yet.
-	 */
+     * bit has been reset, but "link up" bit not yet.
+     */
     if (phydev->autoneg && !phydev->autoneg_complete)
         phydev->link = 0;
 
@@ -606,75 +607,76 @@ int aicphy_read_status(uint32_t port)
     return ETH_SUCCESS;
 }
 
-void aic_phy_poll(void)
+void aic_phy_poll(struct netif *netif)
 {
-    uint32_t port = aic_netif.port;
-    struct netif *netif = &aic_netif.netif;
+    aicmac_netif_t *aic_netif = (aicmac_netif_t *)netif;
+    uint32_t port = aic_netif->port;
     aic_phy_device_t *phydev = &phy_device[port];
     static int old_link = 0;
     int err;
 
-	/* Pool phy satus */
-	err = aicphy_read_status(port);
-	if (err){
-		pr_err("%s fail.\n", __func__);
-		return ;
-	}
+    /* Pool phy satus */
+    err = aicphy_read_status(port);
+    if (err) {
+        pr_err("%s fail.\n", __func__);
+        return;
+    }
 
-	/* Phy link status not change */
-	if (old_link == phydev->link)
-		return ;
-	old_link = phydev->link;
+    /* Phy link status not change */
+    if (old_link == phydev->link)
+        return;
+    old_link = phydev->link;
 
-	/* Phy link status change: DOWN -> UP */
-	if (phydev->link){
-		pr_info(" Port %d link UP! %s mode: speed %dM, %s duplex, flow control %s.\n",
-				(int)port,
-				(phydev->autoneg ? "autoneg" : "fixed"),
-				phydev->speed,
-				(phydev->duplex ? "full" : "half"),
-				(phydev->pause ? "on" : "off"));
+    /* Phy link status change: DOWN -> UP */
+    if (phydev->link) {
+        pr_info(" Port %d link UP! %s mode: speed %dM, %s duplex, flow control %s.\n",
+                (int)port,
+                (phydev->autoneg ? "autoneg" : "fixed"),
+                phydev->speed,
+                (phydev->duplex ? "full" : "half"),
+                (phydev->pause ? "on" : "off"));
 
-		/* Config mac base on autoneg result */
-		if (phydev->autoneg){
-			aicmac_set_mac_speed(port, phydev->speed);
-			aicmac_set_mac_duplex(port, phydev->duplex);
-			aicmac_set_mac_pause(port, phydev->pause);
-		}
+        /* Config mac base on autoneg result */
+        if (phydev->autoneg) {
+            aicmac_set_mac_speed(port, phydev->speed);
+            aicmac_set_mac_duplex(port, phydev->duplex);
+            aicmac_set_mac_pause(port, phydev->pause);
+        }
 
-		/* Enable MAC and DMA transmission and reception */
-		aicmac_start(port);
+        /* Enable MAC and DMA transmission and reception */
+        aicmac_start(port);
 
-		/* Netif set phy linkup */
-		netif_set_link_up(netif);
+        /* Netif set phy linkup */
+        netif_set_link_up(netif);
 
-	/* Phy link status change: UP -> DOWN */
-	} else {
-		pr_info(" Port %d link DOWN!\n", (int)port);
+    /* Phy link status change: UP -> DOWN */
+    } else {
+        pr_info(" Port %d link DOWN!\n", (int)port);
 
-		/* Disable MAC and DMA transmission and reception */
-		aicmac_stop(port);
+        /* Disable MAC and DMA transmission and reception */
+        aicmac_stop(port);
 
-		/* Netif set phy linkdown */
-		netif_set_link_down(netif);
-	}
+        /* Netif set phy linkdown */
+        netif_set_link_down(netif);
+    }
 }
 
 void aicphy_poll_thread(void *pvParameters)
 {
-    uint32_t port = aic_netif.port;
-    struct netif *netif = &aic_netif.netif;
+    aicmac_netif_t *aic_netif = (aicmac_netif_t *)pvParameters;
+    uint32_t port = aic_netif->port;
+    struct netif *netif = &aic_netif->netif;
     aic_phy_device_t *phydev = &phy_device[port];
     int old_link = 0;
     int err;
 
-    while(1){
+    while(1) {
         /* Sleep */
         aicos_msleep(PHY_POLL_TASK_INTERVAL_MS);
 
         /* Pool phy satus */
         err = aicphy_read_status(port);
-        if (err){
+        if (err) {
             pr_err("%s fail.\n", __func__);
             continue;
         }
@@ -685,7 +687,7 @@ void aicphy_poll_thread(void *pvParameters)
         old_link = phydev->link;
 
         /* Phy link status change: DOWN -> UP */
-        if (phydev->link){
+        if (phydev->link) {
             pr_info(" Port %d link UP! %s mode: speed %dM, %s duplex, flow control %s.\n",
                     (int)port,
                     (phydev->autoneg ? "autoneg" : "fixed"),
@@ -694,7 +696,7 @@ void aicphy_poll_thread(void *pvParameters)
                     (phydev->pause ? "on" : "off"));
 
             /* Config mac base on autoneg result */
-            if (phydev->autoneg){
+            if (phydev->autoneg) {
                 aicmac_set_mac_speed(port, phydev->speed);
                 aicmac_set_mac_duplex(port, phydev->duplex);
                 aicmac_set_mac_pause(port, phydev->pause);
@@ -719,8 +721,9 @@ void aicphy_poll_thread(void *pvParameters)
     }
 }
 
-int aicphy_init(uint32_t port)
+int aicphy_init(aicmac_netif_t *aic_netif)
 {
+    uint32_t port = aic_netif->port;
     aicmac_config_t *config = &mac_config[port];
     aic_phy_device_t *phydev = &phy_device[port];
     phydev->autoneg = config->autonegotiation;
@@ -743,7 +746,7 @@ int aicphy_init(uint32_t port)
 #if !NO_SYS
     /* create the task that handles the ETH_MAC */
     aicos_thread_create("eth_phy_poll", PHY_POLL_TASK_STACK_SIZE,
-                        PHY_POLL_TASK_PRIORITY, aicphy_poll_thread, NULL);
+                        PHY_POLL_TASK_PRIORITY, aicphy_poll_thread, aic_netif);
 #endif
     return ETH_SUCCESS;
 }

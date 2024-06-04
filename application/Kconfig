@@ -149,6 +149,12 @@ if LPKG_USING_LVGL
         int "Display refresh period (ms)"
         default 5 # official suggestion
 
+    config LPKG_USING_LVGL_VSCODE
+        bool "Support Vscode simulator import"
+        default n
+        help
+            "assets in packages/artinchip/lvgl-ui/aic_demo/vscode_simulator/hello_demo/lvgl_src"
+
     config LPKG_USING_LVGL_SQUARELINE
         bool "Support SquareLine Studio"
         default n
@@ -186,6 +192,18 @@ config AIC_LVGL_LAUNCHER_DEMO
 config AIC_LVGL_DASHBOARD_DEMO
     bool "LVGL dashboard demo"
 
+config AIC_LVGL_SHOWCASE_DEMO
+    bool "LVGL showcase demo"
+
+config AIC_LVGL_ELEVATOR_DEMO
+    bool "LVGL elevator demo"
+
+config AIC_LVGL_SLIDE_DEMO
+    bool "LVGL sliding demo"
+
+config AIC_LVGL_SIMPLE_PLAYER_DEMO
+    bool "LVGL simple player demo"
+
 if KERNEL_BAREMETAL
     config AIC_LVGL_GIF_DEMO
         bool "LVGL gif demo"
@@ -207,7 +225,14 @@ if AIC_LVGL_METER_DEMO
         bool "LVGL meter demo use simple point"
         default n
 endif
+
+# Parameters for LVGL elevator demo
+if AIC_LVGL_ELEVATOR_DEMO
+    config LV_ELEVATOR_UART_COMMAND
+        bool "LVGL elevator demo use uart send command"
+        default n
 endif
+endif # AIC_LVGL_DEMO
 
 config LVGL_STORAGE_PATH
     string "LVGL Resource Directory"

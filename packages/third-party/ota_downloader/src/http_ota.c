@@ -29,6 +29,17 @@
 
 #define HTTP_OTA_URL PKG_HTTP_OTA_URL
 
+static int ota_shard_download_fun_handle(char *buffer, int size)
+{
+    int ret;
+
+    ret = ota_shard_download_fun(buffer, size);
+
+    web_free(buffer);
+
+    return ret;
+}
+
 static int http_ota_fw_download(const char *uri)
 {
     int ret = RT_EOK;
@@ -73,11 +84,11 @@ static int http_ota_fw_download(const char *uri)
 
     /* register the handle function, you can handle data in the function */
     webclient_register_shard_position_function(session,
-                                               ota_shard_download_fun);
+                                               ota_shard_download_fun_handle);
 
     /* the "memory size" that you can provide in the project and uri */
     ret = webclient_shard_position_function(session, uri, 0,
-                                            file_size, 256);
+                                            file_size, OTA_BUFF_LEN);
 
     /* clear the handle function */
     webclient_register_shard_position_function(session, RT_NULL);

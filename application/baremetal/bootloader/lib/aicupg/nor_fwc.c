@@ -79,28 +79,6 @@ s32 nor_fwc_prepare(struct fwc_info *fwc, u32 id)
         return -1;
     }
 
-    // reset statuts register0 as 0x0 default
-    uint8_t result;
-    uint8_t val = 0x0;
-    uint8_t reg = 0x5;
-    result = sfud_read_reg(flash, reg, &val);
-    if (result == SFUD_SUCCESS) {
-        printf("Read status register0 1, val: %u.\n", val);
-    } else {
-        printf("Read status register0 1 failed.\n");
-    }
-    uint8_t *default_0 = 0x0;
-    result = sfud_write_reg(flash, 0x1, default_0);
-    if (result == SFUD_SUCCESS) {
-        printf("Write status register0 0 success.\n");
-    } else {
-        printf("Write status register0  failed.\n");
-    }
-    result = sfud_read_reg(flash, 0x5, &val);
-    if (result == SFUD_SUCCESS) {
-        printf("Read status register0 2, val: %u.\n\n", val);
-    }
-
 #ifdef AIC_SPIENC_BYPASS_IN_UPGMODE
         spienc_set_bypass(1);
 #endif

@@ -55,6 +55,10 @@ extern "C" {
 #define SFUD_INFO(...)  sfud_log_info(__VA_ARGS__)
 #endif
 
+#ifndef SFUD_WP_INFO
+#define SFUD_WP_INFO(...)  sfud_log_info(__VA_ARGS__)
+#endif
+
 /* assert for developer. */
 #ifdef SFUD_DEBUG_MODE
 #define SFUD_ASSERT(EXPR)                                                      \
@@ -189,6 +193,11 @@ extern void sfud_log_info(const char *format, ...);
 
 /* maximum number of erase type support on JESD216 (V1.0) */
 #define SFUD_SFDP_ERASE_TYPE_MAX_NUM                      4
+
+/* write protection state mask */
+#ifndef SFUD_WRITE_PROTECTION_MASK
+#define SFUD_WRITE_PROTECTION_MASK                      0xFC
+#endif
 
 /**
  * status register bits

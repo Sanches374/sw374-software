@@ -52,6 +52,7 @@
 #define DBG_TAG "SFUD"
 #include <rtdbg.h>
 #define SFUD_INFO(...)        LOG_I(__VA_ARGS__)
+#define SFUD_WP_INFO(...)     LOG_I(__VA_ARGS__)
 
 /**
  * Using probe flash JEDEC SFDP parameter.

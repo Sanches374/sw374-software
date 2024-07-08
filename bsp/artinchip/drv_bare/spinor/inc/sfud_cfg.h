@@ -42,6 +42,12 @@
 
 #define SFUD_USING_QSPI
 
+#ifdef AIC_SPINOR_SFUD_WP_DEBUG
+#define SFUD_WP_INFO(fmt, ...)  printf(fmt"\n", ##__VA_ARGS__)
+#else
+#define SFUD_WP_INFO(...)   do {} while (0)
+#endif
+
 /**
  * Using probe flash JEDEC ID then query defined supported flash chip information table. @see SFUD_FLASH_CHIP_TABLE
  */

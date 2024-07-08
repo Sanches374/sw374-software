@@ -222,7 +222,7 @@ static int do_spinor_reg_read(int argc, char *argv[])
         printf("spinor init first.\n");
         return 0;
     }
-    err = sfud_write_reg(flash, reg, &val);
+    err = sfud_read_reg(flash, reg, &val);
     if (err)
         printf("Read Register failure.\n");
     printf("Reg 0x%x, Value: 0x%x\n", reg, val);

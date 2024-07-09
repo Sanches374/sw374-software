@@ -154,7 +154,6 @@ Default_IRQHandler:
     .type   trap, %function
 trap:
     /* Check for interrupt */
-    j       .
     addi    sp, sp, -4
     sw      t0, 0x0(sp)
     csrr    t0, mcause

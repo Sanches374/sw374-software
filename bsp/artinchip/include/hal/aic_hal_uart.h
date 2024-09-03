@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Artinchip Technology Co., Ltd
+ * Copyright (c) 2022-2024, Artinchip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -89,6 +89,7 @@ extern "C" {
 #define AIC_UART_232_SUSPEND_DATA   0x84
 #define AIC_UART_SW_FLOW_CTRL       0x85
 #define AIC_UART_SW_RECEIVE_ON_OFF  0x86
+#define AIC_UART_SET_BAUDRATE       0x87
 
 #define AIC_UART_DEV_MODE_RS485     0x1
 
@@ -233,7 +234,8 @@ typedef struct
 typedef enum
 {
     USART_INTR_WRITE,
-    USART_INTR_READ
+    USART_INTR_READ,
+    USART_INTR_ELSI,
 } usart_intr_type_e;
 
 /**
@@ -616,6 +618,8 @@ int32_t hal_usart_config_rs485(usart_handle_t handle, bool rs485, bool compactio
 int32_t hal_usart_rts_ctl_soft_mode_set(usart_handle_t handle);
 int32_t hal_usart_rts_ctl_soft_mode_clr(usart_handle_t handle);
 int32_t hal_usart_halt_tx_enable(usart_handle_t handle, uint8_t halt_tx_enable);
+void hal_usart_intr_recv_line(int32_t idx, aic_usart_priv_t *usart_priv);
+void hal_usart_clear_rxfifo(usart_handle_t handle);
 
 #if defined (RT_SERIAL_USING_DMA)
 int32_t hal_uart_set_fifo(usart_handle_t handle);
@@ -624,7 +628,6 @@ int32_t hal_usart_rx_enable_drq(usart_handle_t handle);
 int32_t hal_usart_tx_disable_drq(usart_handle_t handle);
 int32_t hal_usart_rx_disable_drq(usart_handle_t handle);
 int32_t hal_usart_get_rx_fifo_num(usart_handle_t handle);
-int32_t hal_usart_set_ier(usart_handle_t handle, uint8_t enable);
 int32_t hal_usart_set_hsk(usart_handle_t handle);
 int32_t hal_uart_rx_dma_config(usart_handle_t handle, uint8_t *buf, uint32_t size);
 int32_t hal_uart_send_by_dma(usart_handle_t handle, uint8_t *buf, uint32_t size);

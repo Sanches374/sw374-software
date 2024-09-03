@@ -44,10 +44,6 @@
 #define AXS_TOUCH_WEIGHT_POS                6
 #define AXS_TOUCH_AREA_POS                  7
 
-#define AXS15260_I2C_CHAN    AIC_TOUCH_PANEL_AXS15260_I2C_CHA
-#define AXS15260_RST_PIN     AIC_TOUCH_PANEL_AXS15260_RST_PIN
-#define AXS15260_INT_PIN     AIC_TOUCH_PANEL_AXS15260_INT_PIN
-
 int rt_hw_axs15260_init(const char *name, struct rt_touch_config *cfg);
 
 #endif /* _AXS15260_H_ */

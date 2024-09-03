@@ -6,7 +6,9 @@ cwd = GetCurrentDir()
 CPPPATH = []
 src = []
 if GetDepend('AIC_GPIO_DRV_TEST') and GetDepend('RT_USING_FINSH'):
-    src = Glob('*.c')
+    src = Glob('test_gpio.c')
+if GetDepend('AIC_GPIO_KEY_TEST') and GetDepend('RT_USING_FINSH'):
+    src = Glob('test_gpio_key.c')
 
 group = DefineGroup('test-gpio', src, depend = [''], CPPPATH = CPPPATH)
 

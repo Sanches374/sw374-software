@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Artinchip Technology Co., Ltd
+ * Copyright (c) 2022-2024, Artinchip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -39,6 +39,7 @@ static struct aic_sdmc_pdata sdmc_pdata[] = {
 #endif
         .drv_phase = AIC_SDMC0_DRV_PHASE,
         .smp_phase = AIC_SDMC0_SMP_PHASE,
+        .clk_freq = AIC_SDMC0_CLK_FREQ,
     },
 #endif
 #if defined(AIC_USING_SDMC1)
@@ -61,6 +62,7 @@ static struct aic_sdmc_pdata sdmc_pdata[] = {
 #endif
         .drv_phase = AIC_SDMC1_DRV_PHASE,
         .smp_phase = AIC_SDMC1_SMP_PHASE,
+        .clk_freq = AIC_SDMC1_CLK_FREQ,
     },
 #endif
 #if defined(AIC_USING_SDMC2)
@@ -83,6 +85,7 @@ static struct aic_sdmc_pdata sdmc_pdata[] = {
 #endif
         .drv_phase = AIC_SDMC2_DRV_PHASE,
         .smp_phase = AIC_SDMC2_SMP_PHASE,
+        .clk_freq = AIC_SDMC2_CLK_FREQ,
     },
 #endif
 };
@@ -1056,7 +1059,7 @@ u32 mmc_berase(struct aic_sdmc *host, u32 start, u32 blkcnt)
 void mmc_setup_cfg(struct aic_sdmc *host)
 {
     host->dev->freq_min = SDMC_CLOCK_MIN;
-    host->dev->freq_max = SDMC_CLOCK_MAX;
+    host->dev->freq_max = host->sclk_rate;
     host->dev->host_caps = MMC_MODE_HC | MMC_MODE_HS | MMC_MODE_HS_52MHz | MMC_MODE_4BIT;
     host->dev->valid_ocr = MMC_VDD_32_33 | MMC_VDD_33_34;
     host->dev->voltages = MMC_VDD_29_30 | MMC_VDD_30_31 | MMC_VDD_31_32 |

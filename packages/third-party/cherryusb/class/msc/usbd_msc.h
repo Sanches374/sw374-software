@@ -23,7 +23,9 @@ int usbd_msc_sector_write(uint32_t sector, uint8_t *buffer, uint32_t length);
 
 void usbd_msc_set_readonly(bool readonly);
 bool usbd_msc_set_popup(void);
-
+void usbd_msc_thread_init(void);
+void usbd_msc_thread_deinit(void);
+bool usbd_msc_check_storage(void);
 #ifdef __cplusplus
 }
 #endif

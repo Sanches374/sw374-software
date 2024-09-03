@@ -40,6 +40,7 @@
 #define SPI_CTLR_INVAL 0xFF
 
 static int bypass = 0;
+static int tweak_sel = AIC_SPIENC_USER_TWEAK;
 
 static int hal_spienc_attach_bus(u8 bus)
 {
@@ -128,6 +129,9 @@ void hal_spienc_set_cfg(u32 spi_bus, u32 addr, u32 cpos, u32 clen)
     else
         hal_spienc_attach_bus(spi_bus);
 
+    if (tweak_sel == AIC_SPIENC_HW_TWEAK)
+        tweak = 0;
+
     writel(addr, (SPI_ENC_BASE + SPIE_REG_ADDR));
     writel(cpos, (SPI_ENC_BASE + SPIE_REG_CPOS));
     writel(clen, (SPI_ENC_BASE + SPIE_REG_CLEN));
@@ -137,6 +141,11 @@ void hal_spienc_set_cfg(u32 spi_bus, u32 addr, u32 cpos, u32 clen)
 void hal_spienc_set_bypass(int status)
 {
     bypass = status;
+}
+
+void hal_spienc_select_tweak(int select)
+{
+    tweak_sel = select;
 }
 
 void hal_spienc_start(void)

@@ -3,7 +3,11 @@
         "size": "2m", // Size of SPI NAND
         "partitions": {
             "spl":        { "size": "256k" },
-            "os":         { "size": "1m" },
+            "env":        { "size": "128k" },
+            "env_r":      { "size": "128k" },
+            "os":         { "size": "512k" },
+            "os_r":       { "size": "512k" },
+
         },
     },
     "image": {
@@ -29,6 +33,11 @@
                 "attr": ["mtd", "required"],
                 "part": ["spl"]
             },
+            "env": {
+                "file": "env.bin",
+                "attr": ["mtd", "optional"],
+                "part": ["env","env_r"]
+            },
             "os": {
                 "file": "g73x_os.itb",
                 "attr": ["mtd", "required"],
@@ -36,24 +45,42 @@
             },
         },
     },
-    "temporary": { // Pre-proccess to generate image components from raw data
-        "aicboot": {
-            "bootloader.aic": {
+    "pre-process": { // Pre-proccess to generate image components from raw data
+        "aicimage": { // Create aic boot image
+            "pbp_ext.aic": {
+                "head_ver": "0x00010001",
+                "resource": {
+                    "pbp": "g73x.pbp",
+                    "private": "pbp_cfg.bin",
+                },
+                // combine to use with loader.aic
+                "with_ext": "true",
+            },
+            "loader.aic": {
                 "head_ver": "0x00010001",
                 "loader": {
                     "file": "bootloader.bin",
                     "load address": "0x30100000",
-                    "entry point":  "0x30100100",
+                    "entry point":  "0x30100100", // 256 byte aic header
                 },
                 "resource": {
                     "private": "pbp_cfg.bin",
-                    "pbp": "g73x.pbp",
                 },
             },
         },
-        "itb": {
+        "concatenate": { // cat files in order
+            "bootloader.aic": ["pbp_ext.aic", "loader.aic"],
+        },
+        "itb": { // Create itb image from its
             "g73x_os.itb": {
                 "its": "g73x_os.its"
+            },
+        },
+        "uboot_env": { // Create env data from txt
+            "env.bin": {
+                "file": "env.txt",
+                "size": "4096",
+                "redundant": "enable",
             },
         },
     },

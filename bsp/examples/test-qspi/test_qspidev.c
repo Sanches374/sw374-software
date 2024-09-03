@@ -279,7 +279,6 @@ static void test_qspi_sendlen(int argc, char **argv)
     data = RT_NULL;
     if (data_len) {
         align_len = roundup(data_len, CACHE_LINE_SIZE);
-        align_len = 64;
         data = aicos_malloc_align(0, align_len, CACHE_LINE_SIZE);
     }
     if (data == NULL) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Artinchip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -11,12 +11,6 @@
 extern void Default_Handler(void);
 extern void SysTick_Handler(void);
 extern void TIM4_NMIHandler(void);
-
-#ifdef AIC_GPIO_IRQ_DRV_EN
-#define MAX_IRQ_ENTRY (MAX_IRQn+GPIO_MAX_PIN)
-#else
-#define MAX_IRQ_ENTRY (MAX_IRQn)
-#endif
 
 void * g_irqvector[MAX_IRQ_ENTRY];
 void * g_irqdata[MAX_IRQ_ENTRY];

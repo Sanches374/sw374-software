@@ -19,6 +19,9 @@ extern "C" {
 #include <rtdevice.h>
 
 int tpc_run(const char *name, rt_uint16_t x, rt_uint16_t y);
+void lvgl_get_tp(void);
+void lvgl_put_tp(void);
+
 #endif
 
 #ifdef __cplusplus

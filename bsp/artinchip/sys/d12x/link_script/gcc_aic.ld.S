@@ -40,7 +40,7 @@
            |          |
            |          |
  0x43FFFFFF+----------+
- 
+
  */
 
 #include "rtconfig.h"
@@ -76,6 +76,7 @@ PROVIDE (__psram_sw_start          = __psram_start);
 PROVIDE (__psram_sw_end            = __psram_sw_start + AIC_PSRAM_SW_SIZE);
 PROVIDE (__psram_cma_start         = __psram_sw_end);
 PROVIDE (__psram_cma_end           = 0x40000000 + AIC_PSRAM_SIZE);
+PROVIDE (__dtb_pos_f               = __psram_end - 0x40000);
 
 PROVIDE (__sram_sw_heap_end        = __sram_sw_end);
 PROVIDE (__sram_cma_heap_end       = __sram_cma_end);

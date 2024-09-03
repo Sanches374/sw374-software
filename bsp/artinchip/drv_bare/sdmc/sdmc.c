@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Artinchip Technology Co., Ltd
+ * Copyright (c) 2022-2024, Artinchip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -151,7 +151,7 @@ s32 aic_sdmc_clk_init(struct aic_sdmc *host)
     hal_clk_disable(host->clk);
 
     ret = hal_clk_get_freq(hal_clk_get_parent(host->clk));
-    hal_clk_set_freq(host->clk, SDMC_CLOCK_MAX);
+    hal_clk_set_freq(host->clk, host->pdata->clk_freq);
     host->sclk_rate = hal_clk_get_freq(host->clk) / 2;
     pr_info("SDMC%d sclk: %d KHz, parent clk %d KHz\n",
             host->index, host->sclk_rate / 1000, ret / 1000);
@@ -354,7 +354,7 @@ static int aic_sdmc_setup_bus(struct aic_sdmc *host, u32 freq)
             div = SDMC_CLKCTRL_DIV_MAX;
     }
     aic_sdmc_set_ext_clk_mux(&host->host, mux);
-    printf("SDMC%d BW %d, sclk %d KHz, clk %d KHz(%d KHz), div %d-%d\n",
+    printf("SDMC%d BW %d, sclk %d KHz, clk expt %d KHz(act %d KHz), div %d-%d\n",
             host->index, aic_sdmc_buswidth(host->pdata->buswidth),
             sclk / 1000, freq / 1000,
             div ? sclk / mux / div / 2 / 1000 : sclk / mux / 1000,
@@ -399,10 +399,9 @@ void aic_sdmc_set_cfg(struct aic_sdmc *host)
 {
     aic_sdmc_setup_bus(host, host->dev->clock);
 
-    if (host->pdata->buswidth != SDMC_CTYPE_1BIT)
-        pr_info("SDMC%d Buswidth %d, DDR mode %d, Current clock: %d KHz\n",
-            host->index, aic_sdmc_buswidth(host->pdata->buswidth),
-            host->ddr_mode, host->dev->clock / 1000);
+    pr_debug("SDMC%d Buswidth %d, DDR mode %d, Clock: %d KHz\n",
+        host->index, aic_sdmc_buswidth(host->pdata->buswidth),
+        host->ddr_mode, host->dev->clock / 1000);
 
     hal_sdmc_set_buswidth(&host->host, host->pdata->buswidth);
     hal_sdmc_set_ddrmode(&host->host, host->ddr_mode);

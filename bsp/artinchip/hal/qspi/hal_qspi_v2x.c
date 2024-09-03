@@ -355,6 +355,14 @@ int hal_qspi_master_set_bus_freq(qspi_master_handle *h, u32 bus_hz)
     divider = qspi_master_get_best_div_param(sclk, bus_hz, &div);
 
     qspi_hw_set_clk_div(base, divider, div);
+    if (divider == 0 && div == 0) {
+        u32 rx_delay, tx_delay;
+        tx_delay = qspi_hw_get_tx_delay_mode(base);
+        rx_delay = qspi_hw_get_rx_delay_mode(base);
+        qspi_hw_set_delay_mode_normal(base);
+        qspi_hw_set_tx_delay_normal(base, tx_delay);
+        qspi_hw_set_rx_delay_normal(base, rx_delay);
+    }
     qspi->bus_hz = bus_hz;
 
     return 0;

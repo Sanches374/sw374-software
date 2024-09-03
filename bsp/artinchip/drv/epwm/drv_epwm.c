@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -205,7 +205,11 @@ static void drv_epwm_resume(const struct rt_device *device, rt_uint8_t mode)
     case PM_SLEEP_MODE_LIGHT:
     case PM_SLEEP_MODE_DEEP:
     case PM_SLEEP_MODE_STANDBY:
+#ifdef AIC_EPWM_DRV_V11
+        hal_clk_set_freq(CLK_PWMCS_SDFM, EPWM_CLK_RATE);
+#else
         hal_clk_set_freq(CLK_PWMCS, EPWM_CLK_RATE);
+#endif
         hal_clk_enable(CLK_PWMCS);
         break;
     default:

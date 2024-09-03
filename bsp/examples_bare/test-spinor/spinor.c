@@ -1,9 +1,9 @@
 /*
- * Copyright (c) 2023, Artinchip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
- * Wu Dehuang <dehuang.wu@artinchip.com>
+ * Authors: Wu Dehuang <dehuang.wu@artinchip.com>
  */
 
 #include <stdio.h>
@@ -25,6 +25,7 @@
     "  spinor write <addr> <offset> <size>\n" \
     "  spinor regs\n"                         \
     "  spinor regwrite reg val\n"             \
+    "  spinor statuswrite val\n"             \
     "  spinor regread  reg\n"                 \
     "e.g.: \n"                                \
     "  spinor read 0x40000000 0 256\n"
@@ -209,6 +210,26 @@ static int do_spinor_reg_write(int argc, char *argv[])
     return err;
 }
 
+static int do_spinor_status_write(int argc, char *argv[])
+{
+    sfud_err err;
+    sfud_flash *flash;
+    u8 status;
+
+    status = (u8)strtol(argv[1], NULL, 0);
+
+    flash = g_spinor_flash;
+    if (flash == NULL) {
+        printf("spinor init first.\n");
+        return 0;
+    }
+    err = sfud_write_status(flash, true, status);
+    if (err)
+        printf("Write Register failure.\n");
+    printf("Write status1 success, val: 0x%x\n", status);
+    return err;
+}
+
 static int do_spinor_reg_read(int argc, char *argv[])
 {
     sfud_err err;
@@ -256,6 +277,8 @@ static int do_spinor(int argc, char *argv[])
         return do_spinor_reg_dump(argc - 1, &argv[1]);
     else if (!strncmp(argv[1], "regwrite", 8))
         return do_spinor_reg_write(argc - 1, &argv[1]);
+    else if (!strncmp(argv[1], "statuswrite", 11))
+        return do_spinor_status_write(argc - 1, &argv[1]);
     else if (!strncmp(argv[1], "regread", 7))
         return do_spinor_reg_read(argc - 1, &argv[1]);
 

@@ -15,14 +15,17 @@
 #include "hal_psadc.h"
 #include "test_psadc.h"
 #include "aic_hal_clk.h"
+#ifdef AIC_SYSCFG_DRV
+#include "hal_syscfg.h"
+#endif
 
 /* The default voltages are set to D21x->3.0V, D13x、D12x->2.5V */
-#define AIC_PSADC_STANDARD_VOLTAGE       3
+#define AIC_PSADC_DEFAULT_VOLTAGE        3
 #define AIC_PSADC_ADC_MAX_VAL            0xFFF
 #define AIC_PSADC_VOLTAGE_ACCURACY       10000
 #define AIC_PSADC_DEFAULT_SAMPLES_NUM    10
 
-static float g_def_voltage = AIC_PSADC_STANDARD_VOLTAGE;
+static float g_def_voltage = AIC_PSADC_DEFAULT_VOLTAGE;
 static int g_sample_num = AIC_PSADC_DEFAULT_SAMPLES_NUM;
 static struct aic_psadc_queue *queue = &aic_psadc_queues[AIC_PSADC_QC];
 
@@ -33,19 +36,19 @@ static void cmd_psadc_usage(void)
     printf("Compile time: %s %s\n", __DATE__, __TIME__);
     printf("Usage: test_psadc [options]\n");
     printf("test_psadc read                       : Get the adc value\n");
-    printf("test_psadc modify <standard_voltage>  : Modify standard voltage, default is 3V\n");
+    printf("test_psadc modify <default_voltage>   : Modify default voltage\n");
     printf("test_psadc status                     : Check the psadc status\n");
     printf("test_psadc help                       : Get this help\n");
     printf("\n");
     printf("Example: test_psadc read\n");
 }
 
-static void adc2voltage(float st_voltage, int adc_value)
+static void adc2voltage(float ref_voltage, int adc_value)
 {
     int voltage;
 
-    voltage = (adc_value * st_voltage * 100) / AIC_PSADC_ADC_MAX_VAL;
-    printf(" %d.%2dv", voltage / 100, voltage % 100);
+    voltage = (adc_value * ref_voltage / 100) / AIC_PSADC_ADC_MAX_VAL;
+    printf(" %d.%02d V", voltage / 100, voltage % 100);
     return;
 }
 
@@ -120,6 +123,7 @@ static int test_psadc_get_adc()
     int cnt = 0;
     int chan_cnt = 0;
     u64 start_us, end_us;
+    int ref_voltage = 0;
 
     ret = test_psadc_init();
     if (ret < 0) {
@@ -132,6 +136,17 @@ static int test_psadc_get_adc()
         printf("Please enable the required channel in menuconfig");
         return -EINVAL;
     }
+
+#ifdef AIC_SYSCFG_DRV
+    ref_voltage = syscfg_read_ldo_cfg();
+#endif
+    if (!ref_voltage) {
+        printf("Failed to obtain reference voltage through eFuse\n");
+        ref_voltage = (int)(g_def_voltage * AIC_PSADC_VOLTAGE_ACCURACY);
+    }
+    printf("The reference voltage is %d.%02d V\n",
+           ref_voltage / AIC_PSADC_VOLTAGE_ACCURACY,
+           ref_voltage % AIC_PSADC_VOLTAGE_ACCURACY);
 
     printf("Starting sampling for %d channels\n", chan_cnt);
 
@@ -152,7 +167,7 @@ static int test_psadc_get_adc()
         }
         printf("\nvoltage: ");
         for (int i = 0; i < chan_cnt; i++) {
-            adc2voltage(g_def_voltage, adc_values[i]);
+            adc2voltage(ref_voltage, adc_values[i]);
         }
         printf("\n");
 

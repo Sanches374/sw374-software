@@ -123,6 +123,17 @@ const uint8_t hid_descriptor[] = {
     0x40,
     0x01,
     0x00,
+    ///////////////////////////////////////
+    /// Other Speed Configuration Descriptor
+    ///////////////////////////////////////
+    0x09,
+    USB_DESCRIPTOR_TYPE_OTHER_SPEED,
+    WBVAL(USB_HID_CONFIG_DESC_SIZ),
+    0x01,
+    0x01,
+    0x00,
+    USB_CONFIG_BUS_POWERED,
+    USB_CONFIG_POWER_MA(USBD_MAX_POWER),
 #endif
     0x00
 };

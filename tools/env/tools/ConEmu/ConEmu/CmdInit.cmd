@@ -59,8 +59,17 @@ rem OneStep command
 set SDK_PRJ_TOP_DIR=%CD%
 set PATH=%PATH%;%SDK_PRJ_TOP_DIR%\tools\scripts\onestep
 doskey list=scons --list-def -C %SDK_PRJ_TOP_DIR%
-doskey m=scons -C %SDK_PRJ_TOP_DIR% -j 8
-doskey c=scons -c -C %SDK_PRJ_TOP_DIR%
+doskey bm=boot_menuconfig
+doskey km=app_menuconfig
+doskey m=make_boot_and_app
+doskey mb=make_boot_and_app
+:: make uboot
+doskey mu=make_boot
+:: make spl
+doskey ms=make_boot
+doskey ma=make_app
+doskey c=clean_boot_and_app
+doskey mc=make_boot_and_app clean
 doskey i=scons --info -C %SDK_PRJ_TOP_DIR%
 doskey aicupg=scons --aicupg -C %SDK_PRJ_TOP_DIR%
 doskey croot=cd /d %SDK_PRJ_TOP_DIR%

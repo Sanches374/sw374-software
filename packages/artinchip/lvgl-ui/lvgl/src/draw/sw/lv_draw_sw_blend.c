@@ -152,7 +152,8 @@ LV_ATTRIBUTE_FAST_MEM void lv_draw_sw_blend_basic(lv_draw_ctx_t * draw_ctx, cons
 #else
             src_stride = lv_area_get_width(dsc->blend_area) * sizeof(lv_color_t);
 #endif
-        src_buf += src_stride * (blend_area.y1 - dsc->blend_area->y1) + (blend_area.x1 - dsc->blend_area->x1);
+        src_buf += src_stride * (blend_area.y1 - dsc->blend_area->y1)
+                + (blend_area.x1 - dsc->blend_area->x1) * sizeof(lv_color_t);
     }
     else {
         src_stride = 0;
@@ -668,7 +669,7 @@ LV_ATTRIBUTE_FAST_MEM static void map_normal(lv_color_t * dest_buf, const lv_are
     if(mask == NULL) {
         if(opa >= LV_OPA_MAX) {
             for(y = 0; y < h; y++) {
-                lv_memcpy(dest_buf, src_buf, src_stride);
+                lv_memcpy(dest_buf, src_buf, w * sizeof(lv_color_t));
                 dest_buf += dest_stride;
                 src_buf += src_stride;
             }
@@ -782,7 +783,7 @@ LV_ATTRIBUTE_FAST_MEM static void map_argb(lv_color_t * dest_buf, const lv_area_
         if(opa >= LV_OPA_MAX) {
             if(blend_fp == NULL && LV_COLOR_DEPTH == 32) {
                 for(y = 0; y < h; y++) {
-                    lv_memcpy(dest_buf, src_buf, src_stride);
+                    lv_memcpy(dest_buf, src_buf, w * sizeof(lv_color_t));
                     dest_buf += dest_stride;
                     src_buf += src_stride;
                 }

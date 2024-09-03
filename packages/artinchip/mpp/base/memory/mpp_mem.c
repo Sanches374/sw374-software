@@ -1,10 +1,10 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
- *  author: qi.xu@artinchip.com
- *  Desc: virtual memory allocator
+ * Author: qi.xu@artinchip.com
+ * Desc: virtual memory allocator
  */
 
 #include <unistd.h>
@@ -40,7 +40,7 @@ void *_mpp_alloc_(size_t len,const char *file,int line)
 {
     void *ptr = NULL;
 
-    ptr = aicos_malloc(MEM_DEFAULT, len);
+    ptr = malloc(len);
 
 #if DEBUG_MEM
     int i;
@@ -78,7 +78,7 @@ void mpp_free(void *ptr)
     if(ptr == NULL)
         return;
 
-    aicos_free(MEM_DEFAULT, ptr);
+    free(ptr);
 
 #if DEBUG_MEM
     int i;
@@ -101,6 +101,11 @@ void mpp_free(void *ptr)
     }
     pthread_mutex_unlock(&g_mem_mutex);
 #endif
+}
+
+void *mpp_realloc(void *ptr,size_t size)
+{
+	return realloc(ptr,size);
 }
 
 void show_mem_info_debug()

@@ -27,6 +27,7 @@
 #include <rthw.h>
 #include <aic_core.h>
 #include <ctype.h>
+#include <boot_param.h>
 
 #ifdef RT_USING_MODULE
 #include <dlmodule.h>
@@ -648,6 +649,7 @@ void rt_show_banner(void)
 }
 RTM_EXPORT(rt_show_banner);
 
+extern struct boot_args boot_arg;
 void rt_show_version(void)
 {
     char ver[] = PRJ_CHIP;
@@ -655,6 +657,8 @@ void rt_show_version(void)
     ver[0] = toupper(ver[0]);
     rt_kprintf("Welcome to ArtInChip Luban-Lite %d.%d.%d [%s Inside]\n",
                LL_VERSION, LL_SUBVERSION, LL_REVISION, ver);
+    if ((boot_arg.image_version[0] - '0') < 10)
+        rt_kprintf("Image version: %s\n", boot_arg.image_version);
     rt_kprintf("Built on %s %s\n", __DATE__, __TIME__);
 }
 RTM_EXPORT(rt_show_version);
@@ -733,7 +737,8 @@ static char *print_number(char *buf,
 #ifdef RT_PRINTF_PRECISION
                           int   precision,
 #endif /* RT_PRINTF_PRECISION */
-                          int   type)
+                          int   type,
+                          int   qualifier)
 {
     char c, sign;
 #ifdef RT_KPRINTF_USING_LONGLONG
@@ -759,15 +764,52 @@ static char *print_number(char *buf,
     sign = 0;
     if (type & SIGN)
     {
-        if (num < 0)
+        switch (qualifier)
         {
-            sign = '-';
-            num = -num;
-        }
-        else if (type & PLUS)
-            sign = '+';
-        else if (type & SPACE)
-            sign = ' ';
+            case 'h':
+                if ((rt_int16_t)num < 0)
+                {
+                    sign = '-';
+                    num = (rt_uint16_t)-num;
+                }
+                break;
+
+#ifdef RT_KPRINTF_USING_LONGLONG
+            case 'L':
+                if ((long)num < 0)
+                {
+                    sign = '-';
+                    num = (long long)-num;
+                }
+                break;
+#endif
+            case 'l':
+                if ((long)num < 0)
+                {
+                    sign = '-';
+                    num = (unsigned long)-num;
+                }
+                break;
+            case 0:
+            default:
+                if ((rt_int32_t)num < 0)
+                {
+                    sign = '-';
+                    num = (rt_uint32_t)-num;
+                }
+                break;
+            }
+            if (sign != '-')
+            {
+                if (type & PLUS)
+                {
+                    sign = '+';
+                }
+                else if (type & SPACE)
+                {
+                    sign = ' ';
+                }
+            }
     }
 
 #ifdef RT_PRINTF_SPECIAL
@@ -1068,11 +1110,11 @@ RT_WEAK int rt_vsnprintf(char *buf, rt_size_t size, const char *fmt, va_list arg
 #ifdef RT_PRINTF_PRECISION
             str = print_number(str, end,
                                (long)va_arg(args, void *),
-                               16, field_width, precision, flags);
+                               16, field_width, precision, flags, qualifier);
 #else
             str = print_number(str, end,
                                (long)va_arg(args, void *),
-                               16, field_width, flags);
+                               16, field_width, flags, qualifier);
 #endif /* RT_PRINTF_PRECISION */
             continue;
 
@@ -1114,16 +1156,16 @@ RT_WEAK int rt_vsnprintf(char *buf, rt_size_t size, const char *fmt, va_list arg
             continue;
         }
 
-#ifdef RT_KPRINTF_USING_LONGLONG
-        if (qualifier == 'L') num = va_arg(args, long long);
-        else if (qualifier == 'l')
-#else
-        if (qualifier == 'l')
-#endif /* RT_KPRINTF_USING_LONGLONG */
+       if (qualifier == 'l')
         {
-            num = va_arg(args, rt_uint32_t);
-            if (flags & SIGN) num = (rt_int32_t)num;
+            num = va_arg(args, unsigned long);
         }
+#ifdef RT_KPRINTF_USING_LONGLONG
+        else if (qualifier == 'L')
+        {
+            num = va_arg(args, unsigned long long);
+        }
+#endif /* RT_KPRINTF_USING_LONGLONG */
         else if (qualifier == 'h')
         {
             num = (rt_uint16_t)va_arg(args, rt_int32_t);
@@ -1135,9 +1177,9 @@ RT_WEAK int rt_vsnprintf(char *buf, rt_size_t size, const char *fmt, va_list arg
             if (flags & SIGN) num = (rt_int32_t)num;
         }
 #ifdef RT_PRINTF_PRECISION
-        str = print_number(str, end, num, base, field_width, precision, flags);
+        str = print_number(str, end, num, base, field_width, precision, flags, qualifier);
 #else
-        str = print_number(str, end, num, base, field_width, flags);
+        str = print_number(str, end, num, base, field_width, flags, qualifier);
 #endif /* RT_PRINTF_PRECISION */
     }
 

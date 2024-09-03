@@ -55,6 +55,10 @@ struct _psram_info {
     {0x31, 0, 0, {0, 0}},                                           \
     /* M6806SPES NON PSRAM*/                                        \
     {0x32, 0, 0, {0, 0}},                                           \
+    /* DR128 8M */                                                  \
+    {0xA1, PSRAM_PARALLEL, 0x800000, {APS3208K, 0x80c980c9}},       \
+    /* JYX68 8M */                                                  \
+    {0xA2, PSRAM_PARALLEL, 0x800000, {APS3208K, 0x80c980c9}},       \
 }
 
 struct _psram_info psram_table_info[] = PSRAM_TABLE_INFO;

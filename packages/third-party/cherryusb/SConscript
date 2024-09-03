@@ -1,3 +1,4 @@
+Import('AIC_ROOT')
 Import('PRJ_KERNEL')
 from building import *
 
@@ -14,8 +15,14 @@ path += [cwd + '/class/wireless']
 path += [cwd + '/class/dfu']
 path += [cwd]
 src = []
+libs = ['']
+lib_path = ['']
 
 CPPDEFINES = []
+
+# USB OTG
+if GetDepend(['LPKG_CHERRYUSB_OTG']) and GetDepend(['AIC_USB_OTG_DRV']):
+    src += Glob('core/usb_otg.c')
 
 # USB DEVICE
 if GetDepend(['LPKG_CHERRYUSB_DEVICE']) and GetDepend(['AIC_USB_DEVICE_DRV']):
@@ -60,6 +67,10 @@ if GetDepend(['LPKG_CHERRYUSB_DEVICE']) and GetDepend(['AIC_USB_DEVICE_DRV']):
         src += Glob('demo/hid_keyboard_template.c')
     if GetDepend(['LPKG_CHERRYUSB_DEVICE_HID_IO_TEMPLATE']):
         src += Glob('demo/hid_custom_inout_template.c')
+    if GetDepend(['LPKG_CHERRYUSB_DEVICE_HID_TOUCH_TEMPLATE']):
+        src += Glob('demo/usbd_hid_touch_template.c')
+    if GetDepend(['LPKG_CHERRYUSB_DEVICE_HID_REPORT_ID_TEMPLATE']):
+        src += Glob('demo/hid_multiple_report_id_template.c')
     if GetDepend(['LPKG_CHERRYUSB_DEVICE_MSC_RAM_TEMPLATE']):
         src += Glob('demo/msc_ram_template.c')
     if GetDepend(['LPKG_CHERRYUSB_DEVICE_MSC_STORAGE_TEMPLATE']):
@@ -72,12 +83,33 @@ if GetDepend(['LPKG_CHERRYUSB_DEVICE']) and GetDepend(['AIC_USB_DEVICE_DRV']):
         src += Glob('demo/audio_v2_mic_speaker_multichan_template.c')
     if GetDepend(['LPKG_CHERRYUSB_DEVICE_AUDIO_SPEAKER_V2_TEMPLATE']):
         src += Glob('demo/audio_v2_speaker_multichan_template.c')
-    if GetDepend(['LPKG_CHERRYUSB_DEVICE_VIDEO_TEMPLATE']):
+    if GetDepend(['LPKG_CHERRYUSB_DEVICE_VIDEO_MJPEG_TEMPLATE']):
         src += Glob('demo/video_static_mjpeg_template.c')
+    if GetDepend(['LPKG_CHERRYUSB_DEVICE_VIDEO_YUYV_TEMPLATE']):
+        src += Glob('demo/video_static_yuyv_template.c')
+    if GetDepend(['LPKG_CHERRYUSB_DEVICE_VIDEO_NV12_TEMPLATE']):
+        src += Glob('demo/video_static_nv12_template.c')
+    if GetDepend(['LPKG_CHERRYUSB_DEVICE_VIDEO_DVP_TEMPLATE']):
+        src += Glob('demo/video_dvp_template.c')
     if GetDepend(['LPKG_CHERRYUSB_DEVICE_RNDIS_TEMPLATE']):
         src += Glob('demo/cdc_rndis_template.c')
     if GetDepend(['LPKG_CHERRYUSB_DEVICE_MIDI_TEMPLATE']):
         src += Glob('demo/midi_template.c')
+    if GetDepend(['LPKG_CHERRYUSB_DEVICE_WINUSB10_TEMPLATE']):
+        src += Glob('demo/winusb1.0_template.c')
+    if GetDepend(['LPKG_CHERRYUSB_DEVICE_WINUSB20_TEMPLATE']):
+        src += Glob('demo/winusb2.0_template.c')
+    if GetDepend(['LPKG_CHERRYUSB_DEVICE_DISPLAY_TEMPLATE']):
+        src += Glob('demo/usbd_display_template_entry.c')
+        lib_demo_path = os.path.join(cwd, 'demo')
+        lib_display_src = os.path.join(lib_demo_path, 'usbd_display_template.c')
+        lib_display_name = 'usbd_display_template_' + rtconfig.CPUNAME + '.a'
+        if os.path.exists(lib_display_src):
+            DefineGroup(os.path.join(lib_demo_path, lib_display_name), Glob(lib_display_src), depend = [''], CPPPATH = path, CPPDEFINES = CPPDEFINES, LIBRARY='')
+        libs += ['usbd_display_template_' + rtconfig.CPUNAME]
+        lib_path += [lib_demo_path]
+    if GetDepend(['LPKG_CHERRYUSB_DEVICE_COMPOSITE_TEMPLATE']):
+        src += Glob('demo/composite_template.c')
 
     if GetDepend(['LPKG_CHERRYUSB_DEVICE_AIC']):
         src += Glob('port/aic/usb_dc_aic.c')
@@ -170,7 +202,7 @@ if GetDepend(['LPKG_CHERRYUSB_HOST']) and GetDepend(['AIC_USB_HOST_EHCI_DRV']):
     if GetDepend(['LPKG_CHERRYUSB_HOST_MSC_TEMPLATE']):
         src += Glob('demo/usbh_msc_template.c')
 
-group = DefineGroup('CherryUSB', src, depend = ['LPKG_USING_CHERRYUSB'], CPPPATH = path, CPPDEFINES = CPPDEFINES)
+group = DefineGroup('CherryUSB', src, depend = ['LPKG_USING_CHERRYUSB'], CPPPATH = path, CPPDEFINES = CPPDEFINES, LIBS = libs, LIBPATH = lib_path)
 
 Return('group')
 

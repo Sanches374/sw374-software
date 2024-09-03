@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Artinchip Technology Co., Ltd
+ * Copyright (c) 2022-2024, Artinchip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -17,6 +17,7 @@ struct aic_sdmc_pdata {
     ulong base;
     int irq;
     int clk;
+    int clk_freq;
     u32 is_sdio;
     u8 id;
     u8 buswidth;

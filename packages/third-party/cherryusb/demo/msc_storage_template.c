@@ -1,9 +1,8 @@
 /*
- * Copyright (c) 2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2023-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-
 #include "usbd_core.h"
 #include "usbd_msc.h"
 
@@ -115,20 +114,27 @@ const uint8_t msc_storage_descriptor[] = {
 struct usbd_storage_p {
     struct dfs_filesystem *fs;
     rt_device_t dev;
+    char dev_name[10];
     uint32_t block_num;
-    uint32_t block_size;
+    uint16_t block_size;
     unsigned char pdrv;
     char fs_path[10];
     char fs_type[5];
-    bool suspended;
+    bool storage_exist;
+    uint8_t is_inited;
+    uint8_t is_forbidden;
 };
 
-struct usbd_interface intf0;
+struct usbd_interface msc_intf0;
 struct usbd_storage_p usbd_storage;
 static void usbd_msc_suspend(void);
 static void usbd_msc_configured(void);
 
+#ifdef LPKG_CHERRYUSB_DEVICE_COMPOSITE
+void usbd_comp_msc_event_handler(uint8_t event)
+#else
 void usbd_event_handler(uint8_t event)
+#endif
 {
     switch (event) {
         case USBD_EVENT_RESET:
@@ -143,7 +149,9 @@ void usbd_event_handler(uint8_t event)
             usbd_msc_suspend();
             break;
         case USBD_EVENT_CONFIGURED:
+#if !defined(KERNEL_RTTHREAD)
             usbd_msc_configured();
+#endif
             break;
         case USBD_EVENT_SET_REMOTE_WAKEUP:
             break;
@@ -164,19 +172,31 @@ static void usbd_msc_suspend(void)
 {
     int ret = 0;
     long device_type = 0;
+
     struct usbd_storage_p *usbd_storage = get_usbd_storage();
 
+    if (usbd_storage == NULL || usbd_storage->fs == NULL)
+        return;
+
     if ((FATFS *)usbd_storage->fs->data == NULL) {
-#ifndef KERNEL_RTTHREAD
+#if defined(KERNEL_RTTHREAD)
+        usbd_storage->dev = rt_device_find(usbd_storage->dev_name);
+        if (usbd_storage->dev == NULL){
+            usbd_storage->storage_exist = false;
+            return;
+        }
+        rt_device_close(usbd_storage->dev);
+#else
         disk_ioctl(usbd_storage->pdrv, GET_DEVICE_TYPE, &device_type);
 #endif
-        ret = usbd_storage->fs->ops->mount(usbd_storage->fs, 0, (void *)device_type);
+        ret = dfs_mount(usbd_storage->dev_name, usbd_storage->fs_path, usbd_storage->fs_type, 0, (void *)device_type);
         if (ret < 0)
-            USB_LOG_ERR("Failed to mount %s to %s\n", (char *)usbd_storage->dev, usbd_storage->fs_path);
+            USB_LOG_ERR("Failed to mount %s to %s\n", usbd_storage->dev_name, usbd_storage->fs_path);
         else
-            USB_LOG_INFO("Mount %s to %s\n", (char *)usbd_storage->dev, usbd_storage->fs_path);
+            USB_LOG_INFO("Mount %s to %s\n", usbd_storage->dev_name, usbd_storage->fs_path);
     }
 
+    usbd_storage->storage_exist = true;
 }
 
 static void usbd_msc_configured(void)
@@ -184,23 +204,37 @@ static void usbd_msc_configured(void)
     int ret;
     struct usbd_storage_p *usbd_storage = get_usbd_storage();
 
+    if (usbd_storage == NULL || usbd_storage->fs == NULL)
+        return;
+
     if ((FATFS *)usbd_storage->fs->data == NULL)
         return;
 
-    ret = usbd_storage->fs->ops->unmount(usbd_storage->fs);
-
+    ret = dfs_unmount(usbd_storage->fs_path);
     if (ret < 0)
         USB_LOG_ERR("Failed to unmount %s !\n", usbd_storage->fs_path);
     else
         USB_LOG_INFO("Unmount %s \n", usbd_storage->fs_path);
+
+#if defined(KERNEL_RTTHREAD)
+    ret = rt_device_open(usbd_storage->dev, RT_DEVICE_FLAG_RDWR);
+    if (ret != RT_EOK) {
+        USB_LOG_ERR("Open device failed !\n");
+        return;
+    }
+#endif
+    usbd_storage->storage_exist = true;
 }
 
 void usbd_msc_get_cap(uint8_t lun, uint32_t *block_num, uint16_t *block_size)
 {
     struct usbd_storage_p *usbd_storage = get_usbd_storage();
 
-    *block_num = usbd_storage->block_num;
-    *block_size = usbd_storage->block_size;
+    if (usbd_storage == NULL || usbd_storage->storage_exist == false)
+        return;
+
+    *block_num = (uint32_t)usbd_storage->block_num;
+    *block_size = (uint16_t)usbd_storage->block_size;
 
     USB_LOG_DBG("block_num:%ld block_size:%d\n", *block_num, *block_size);
 }
@@ -209,6 +243,10 @@ int usbd_msc_sector_read(uint32_t sector, uint8_t *buffer, uint32_t length)
 {
     int ret = -1;
     struct usbd_storage_p *usbd_storage = get_usbd_storage();
+
+    if (usbd_storage->storage_exist == false || usbd_storage == NULL)
+        return 0;
+
 #if defined(KERNEL_RTTHREAD)
     ret = rt_device_read(usbd_storage->dev,
                          sector, buffer,
@@ -226,6 +264,10 @@ int usbd_msc_sector_write(uint32_t sector, uint8_t *buffer, uint32_t length)
 {
     int ret = -1;
     struct usbd_storage_p *usbd_storage = get_usbd_storage();
+
+    if (usbd_storage->storage_exist == false || usbd_storage == NULL)
+        return 0;
+
 #if defined(KERNEL_RTTHREAD)
     ret = rt_device_write(usbd_storage->dev,
                           sector, buffer,
@@ -240,31 +282,37 @@ int usbd_msc_sector_write(uint32_t sector, uint8_t *buffer, uint32_t length)
 }
 
 extern struct dfs_filesystem filesystem_table[];
-int usbd_storage_init(char *path)
+int _fs_is_exist(char *path)
 {
-    FATFS *f; // using elmfat
     struct dfs_filesystem *iter;
     struct usbd_storage_p *usbd_storage = get_usbd_storage();
 
     for (iter = &filesystem_table[0];
             iter < &filesystem_table[DFS_FILESYSTEMS_MAX]; iter++) {
         if ((iter != NULL) && (iter->path != NULL)) {
-            if ((strcmp(iter->path, path) == 0)
-                 && strcmp(iter->ops->name, "elm") == 0)
-                goto __init;
+            if (strcmp(iter->path, path) == 0) {
+                strcpy(usbd_storage->fs_path, iter->path);
+                strcpy(usbd_storage->fs_type, iter->ops->name);
+                return 0;
+            }
         }
     }
-    USB_LOG_WRN("Invalid file system!\n");
-
     return -1;
+}
 
-__init:
+int usbd_storage_init(char *path)
+{
+    FATFS *f; // using elmfat
+    struct usbd_storage_p *usbd_storage = get_usbd_storage();
+
+    if (_fs_is_exist(path) < 0)
+        return -1;
 
     usbd_storage->fs = dfs_filesystem_lookup(path);
     f = (FATFS *)usbd_storage->fs->data;
     usbd_storage->pdrv = f->pdrv;
     usbd_storage->dev = usbd_storage->fs->dev_id;
-
+    strcpy(usbd_storage->dev_name, (char *)usbd_storage->dev);
 #if defined(KERNEL_RTTHREAD)
     int ret;
     struct rt_device_blk_geometry geometry;
@@ -289,31 +337,68 @@ __init:
     disk_ioctl(usbd_storage->pdrv, GET_SECTOR_COUNT, &usbd_storage->block_num);
     disk_ioctl(usbd_storage->pdrv, GET_SECTOR_SIZE, &usbd_storage->block_size);
 #endif
-    strcpy(usbd_storage->fs_type, iter->ops->name);
-    strcpy(usbd_storage->fs_path, iter->path);
+    return 0;
+}
+
+#ifdef LPKG_CHERRYUSB_DEVICE_COMPOSITE
+#include "composite_template.h"
+int usbd_comp_msc_init(uint8_t *ep_table, void *data)
+{
+    usbd_add_interface(usbd_msc_init_intf(&msc_intf0, ep_table[0], ep_table[1]));
+    return 0;
+}
+#endif
+
+#ifdef LPKG_CHERRYUSB_DEVICE_COMPOSITE
+#include "composite_template.h"
+#endif
+
+int msc_storage_init(char *path)
+{
+    struct usbd_storage_p *usbd_storage = get_usbd_storage();
+
+    if (usbd_storage->is_forbidden == true)
+        return -1;
+
+    if (usbd_storage->is_inited == true) {
+        USB_LOG_DBG("Msc storage already initialized ! (%s)\n", usbd_storage->fs_path);
+        return 0;
+    }
+
+#ifndef LPKG_CHERRYUSB_DEVICE_COMPOSITE
+    usbd_desc_register(msc_storage_descriptor);
+    usbd_add_interface(usbd_msc_init_intf(&msc_intf0, MSC_OUT_EP, MSC_IN_EP));
+    usbd_initialize();
+#else
+    usbd_comp_func_register(msc_storage_descriptor,
+                            usbd_comp_msc_event_handler,
+                            usbd_comp_msc_init, NULL);
+#endif
+    usbd_storage->is_inited = true;
+    USB_LOG_INFO("msc_storage_init.\n");
+    return 0;
+}
+
+int msc_storage_deinit()
+{
+    struct usbd_storage_p *usbd_storage = get_usbd_storage();
+    memset(usbd_storage, 0, sizeof(struct usbd_storage_p));
+    usbd_deinitialize();
 
     return 0;
 }
 
-int msc_storage_init(char *path)
+int msc_storage_forbidden(void)
 {
-    int ret = 0;
-
     struct usbd_storage_p *usbd_storage = get_usbd_storage();
 
-    if (usbd_storage->fs != NULL) {
-        USB_LOG_WRN("Msc storage already initialized ! (%s)\n", usbd_storage->fs_path);
-        return 0;
-    }
-
-    ret = usbd_storage_init(path);
-    if (ret < 0)
-        return -1;
-
-    usbd_desc_register(msc_storage_descriptor);
-    usbd_add_interface(usbd_msc_init_intf(&intf0, MSC_OUT_EP, MSC_IN_EP));
-
-    usbd_initialize();
+    usbd_storage->is_forbidden = true;
+    usbd_msc_check_storage();
+    usbd_msc_thread_deinit();
+    usbd_msc_suspend();
+#ifdef LPKG_CHERRYUSB_DEVICE_COMPOSITE
+    usbd_comp_func_release(msc_storage_descriptor, NULL);
+#endif
 
     return 0;
 }
@@ -343,26 +428,71 @@ CONSOLE_CMD(msc_init, cmd_msc_storage_init, "Mount usb massstorage");
 #endif
 
 #if defined(KERNEL_RTTHREAD)
-rt_thread_t usbd_msc_tid;
-
-static void usbd_msc_detection_thread(void *parameter)
+bool usbd_msc_check_storage(void)
 {
-    int ret = -1;
+    rt_device_t device = NULL;
+    struct usbd_storage_p *usbd_storage = get_usbd_storage();
 
-    // waiting to mount the correspongding file system
-    rt_thread_mdelay(400);
+    device = rt_device_find(usbd_storage->dev_name);
+    if (device == NULL)
+        usbd_storage->storage_exist = false;
+    else
+        usbd_storage->storage_exist = true;
 
-    ret = msc_storage_init(MSC_STORAGE_PATH);
-    if (ret < 0)
-        USB_LOG_ERR("Failed to detect %s !\n", MSC_STORAGE_PATH);
+    if (usbd_storage->is_forbidden == true)
+        usbd_storage->storage_exist = false;
 
+    return usbd_storage->storage_exist;
 }
 
+rt_thread_t usbd_msc_tid;
+static void usbd_msc_detection_thread(void *parameter)
+{
+retry:
+    if (msc_storage_init(MSC_STORAGE_PATH) < 0) {
+        rt_thread_mdelay(400);
+        goto retry;
+    }
+
+    if ((_fs_is_exist(MSC_STORAGE_PATH) < 0)) {
+        rt_thread_mdelay(400);
+        goto retry;
+    }
+
+    /* When you need to disable the USB function without using MSC,
+    *  please initialize the USB function here and use it in conjunction
+    *  with the msc_storage_deinit function below.
+    */
+    // msc_storage_init(MSC_STORAGE_PATH);
+
+    if (usbd_storage_init(MSC_STORAGE_PATH) < 0) {
+        USB_LOG_ERR("Failed to detect %s !\n", MSC_STORAGE_PATH);
+        goto retry;
+    }
+
+    usbd_msc_configured();
+    usbd_msc_thread_init();
+
+    USB_LOG_INFO("Msc storage detected.\n");
+
+#ifdef USBD_MSC_STORAGE_USING_HOTPLUG
+    while (1) {
+        rt_thread_mdelay(400);
+        if (false == usbd_msc_check_storage()) {
+            USB_LOG_INFO("Msc storage ejected.\n");
+            usbd_msc_thread_deinit();
+            usbd_msc_set_popup();
+            // msc_storage_deinit(); /* this will completely shut down USB.*/
+            goto retry;
+        }
+    }
+#endif
+}
 int usbd_msc_detection(void)
 {
-    usbd_msc_tid = rt_thread_create("usbd_msc_detection", usbd_msc_detection_thread, RT_NULL,
-                                    1024 + CONFIG_USBDEV_MSC_MAX_BUFSIZE,
-                                    RT_THREAD_PRIORITY_MAX - 2, 20);
+    usbd_msc_tid = rt_thread_create("usbd_msc_detection",
+                                    usbd_msc_detection_thread, RT_NULL,
+                                    2560, RT_THREAD_PRIORITY_MAX - 2, 20);
     if (usbd_msc_tid != RT_NULL)
         rt_thread_startup(usbd_msc_tid);
     else
@@ -370,5 +500,7 @@ int usbd_msc_detection(void)
 
     return RT_EOK;
 }
+#if !defined(LPKG_CHERRYUSB_DYNAMIC_REGISTRATION_MODE)
 INIT_APP_EXPORT(usbd_msc_detection);
+#endif
 #endif

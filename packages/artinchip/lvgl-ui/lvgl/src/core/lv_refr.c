@@ -23,6 +23,11 @@
     #include "../widgets/lv_label.h"
 #endif
 
+#if LV_USE_PERF_MONITOR_WITH_AIC
+#ifdef LPKG_USING_CPU_USAGE
+#include "cpu_usage.h"
+#endif
+#endif
 /*********************
  *      DEFINES
  *********************/
@@ -399,6 +404,11 @@ void _lv_disp_refr_timer(lv_timer_t * tmr)
         perf_monitor.fps_sum_all += fps;
         perf_monitor.fps_sum_cnt ++;
         uint32_t cpu = 100 - lv_timer_get_idle();
+#if LV_USE_PERF_MONITOR_WITH_AIC
+#ifdef LPKG_USING_CPU_USAGE
+        cpu = cpu_load_average();
+#endif
+#endif
         lv_label_set_text_fmt(perf_label, "%"LV_PRIu32" FPS\n%"LV_PRIu32"%% CPU", fps, cpu);
     }
 #endif

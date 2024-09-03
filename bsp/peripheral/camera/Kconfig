@@ -2,10 +2,29 @@ config AIC_USING_CAMERA
     bool "Using camera device"
     default n
 
-config AIC_USING_CAMERA_OV5640
-    bool "Using camera OV5640"
+choice
+    prompt "Select camera device"
+    default AIC_USING_CAMERA_OV5640
     depends on AIC_USING_CAMERA && AIC_I2C_DRV
-    default n
+
+    config AIC_USING_CAMERA_OV7670
+        bool "Using camera OV7670"
+
+    config AIC_USING_CAMERA_OV5640
+        bool "Using camera OV5640"
+
+    config AIC_USING_CAMERA_OV2659
+        bool "Using camera OV2659"
+
+    config AIC_USING_CAMERA_OV2640
+        bool "Using camera OV2640"
+
+    config AIC_USING_CAMERA_GM7150
+        bool "Using camera GM7150"
+
+    config AIC_USING_CAMERA_TP2825
+        bool "Using camera TP2825"
+endchoice
 
 config AIC_CAMERA_I2C_CHAN
     int "The No. of I2C channel"

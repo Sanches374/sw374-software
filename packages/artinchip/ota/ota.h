@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -24,6 +24,7 @@ extern "C" {
 #define OTA_BURN_LEN      2048
 #define OTA_HEAD_LEN      (2048 * 2)
 #define OTA_BUFF_LEN      2048
+#define OTA_CPIO_INFO_LEN 512
 
 int ota_init(void);
 void ota_deinit(void);

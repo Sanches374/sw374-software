@@ -37,6 +37,9 @@
 #define MEDIA_SIGNAL_VIDEO_SOG_ACTIVE_LOW         BIT(13)
 #define MEDIA_SIGNAL_DATA_ENABLE_HIGH             BIT(14)
 #define MEDIA_SIGNAL_DATA_ENABLE_LOW              BIT(15)
+#define MEDIA_SIGNAL_FIELD_ACTIVE_HIGH            BIT(16)
+#define MEDIA_SIGNAL_FIELD_ACTIVE_LOW             BIT(17)
+#define MEDIA_SIGNAL_INTERLACED_MODE              BIT(18)
 
 enum media_colorspace {
     /*

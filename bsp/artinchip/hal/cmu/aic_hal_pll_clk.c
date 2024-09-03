@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Artinchip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -279,7 +279,7 @@ static int clk_pll_set_rate(struct aic_clk_comm_cfg *comm_cfg,
                 PLL_SDM_AMP_MAX / ppm_max;
 
         /* SDM uses triangular wave, 33KHz by default  */
-        sdm_step = (PLL_SDM_AMP_MAX - sdm_amp) * 2 *
+        sdm_step = (u64)(PLL_SDM_AMP_MAX - sdm_amp) * 2 *
             PLL_SDM_SPREAD_FREQ;
         do_div(sdm_step, parent_rate);
         if (sdm_step > 511)

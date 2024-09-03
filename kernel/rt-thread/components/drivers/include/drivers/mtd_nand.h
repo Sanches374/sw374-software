@@ -75,6 +75,11 @@ struct rt_mtd_nand_driver_ops {
     rt_err_t (*continuous_read)(struct rt_mtd_nand_device *device,
                                 rt_off_t page, rt_uint8_t *data,
                                 rt_uint32_t size);
+    rt_err_t (*set_block_status)(struct rt_mtd_nand_device *device,
+                                rt_uint32_t block, rt_uint32_t block_pos,
+                                rt_uint32_t status);
+    rt_uint32_t (*get_block_status)(struct rt_mtd_nand_device *device,
+                                rt_uint32_t block);
 };
 
 rt_err_t rt_mtd_nand_register_device(const char *name,

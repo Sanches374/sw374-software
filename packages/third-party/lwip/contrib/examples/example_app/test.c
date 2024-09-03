@@ -86,6 +86,10 @@
 
 #include "netif_startup.h"
 
+#ifdef AIC_USING_IPMANAGER
+#include "ipmanager.h"
+#endif
+
 #if NO_SYS
 /* ... then we need information about the timer intervals: */
 #include "lwip/ip4_frag.h"
@@ -252,6 +256,10 @@ test_init(void * arg)
 #if !NO_SYS
   sys_sem_signal(init_sem);
 #endif /* !NO_SYS */
+
+#ifdef LPKG_LWIP_USING_HTTP
+  httpd_init();
+#endif
 }
 
 /* This is somewhat different to other ports: we have a main loop here:
@@ -289,6 +297,10 @@ void lwip_test_example_main_loop(void * data)
     netif_baremetal_poll();
   }
 #endif /* NO_SYS */
+
+#ifdef AIC_USING_IPMANAGER
+  ipmanager_daemon_start();
+#endif
 }
 
 #if defined(KERNEL_RTTHREAD)
@@ -298,7 +310,7 @@ void lwip_test_example_main_loop(void * data)
 
 int lwip_test_example_init(void)
 {
-    aicos_thread_create("lwip_test_example", 2048,
+    aicos_thread_create("lwip_test_example", 4096,
                             20, lwip_test_example_main_loop, NULL);
 
     return 0;

@@ -13,12 +13,14 @@
 #include <hwcrypto.h>
 #include <hw_hash.h>
 #include <hw_symmetric.h>
+#include <hw_bignum.h>
 #include <hal_ce.h>
 
 #define AES_BLOCK_SIZE   16
 #define AES_MAX_KEY_LEN  32
 #define CE_WORK_BUF_LEN  1024
-
+#define RSA_CHECK_OPSIZE(x) (((x) == 64) || ((x) == 128) || ((x) == 256) ? 0 : 1)
+#define RSA_SELECT_OPSIZE(x) ((x) / 16)
 struct aic_hwcrypto_device
 {
     struct rt_hwcrypto_device dev;
@@ -105,12 +107,12 @@ static s32 aes_ecb_crypto(u8 *key, u8 keylen, u8 dir, u8 *in, u8 *out, u32 len)
         aicos_dcache_clean_range((void *)(unsigned long)&task, sizeof(task));
         hal_crypto_start_symm(&task);
 
-        while (!hal_crypto_poll_finish(ALG_UNIT_SYMM)) {
+        while (!hal_crypto_poll_finish(ALG_SK_ACCELERATOR)) {
             continue;
         }
-        hal_crypto_pending_clear(ALG_UNIT_SYMM);
+        hal_crypto_pending_clear(ALG_SK_ACCELERATOR);
 
-        if (hal_crypto_get_err(ALG_UNIT_SYMM)) {
+        if (hal_crypto_get_err(ALG_SK_ACCELERATOR)) {
             pr_err("AES run error.\n");
             return RT_ERROR;
         }
@@ -165,12 +167,12 @@ static s32 aes_cbc_crypto(u8 *key, u8 keylen, u8 dir, u8 *iv, u8 *in, u8 *out,
         aicos_dcache_clean_range((void *)(unsigned long)&task, sizeof(task));
         hal_crypto_start_symm(&task);
 
-        while (!hal_crypto_poll_finish(ALG_UNIT_SYMM)) {
+        while (!hal_crypto_poll_finish(ALG_SK_ACCELERATOR)) {
             continue;
         }
-        hal_crypto_pending_clear(ALG_UNIT_SYMM);
+        hal_crypto_pending_clear(ALG_SK_ACCELERATOR);
 
-        if (hal_crypto_get_err(ALG_UNIT_SYMM)) {
+        if (hal_crypto_get_err(ALG_SK_ACCELERATOR)) {
             pr_err("AES run error.\n");
             return RT_ERROR;
         }
@@ -337,12 +339,12 @@ rt_err_t drv_sha_update(aic_sha_context_t *context, const void *input,
                                  sizeof(struct crypto_task));
         hal_crypto_start_hash(&task);
 
-        while (!hal_crypto_poll_finish(ALG_UNIT_HASH)) {
+        while (!hal_crypto_poll_finish(ALG_HASH_ACCELERATOR)) {
             continue;
         }
-        hal_crypto_pending_clear(ALG_UNIT_HASH);
+        hal_crypto_pending_clear(ALG_HASH_ACCELERATOR);
 
-        if (hal_crypto_get_err(ALG_UNIT_HASH)) {
+        if (hal_crypto_get_err(ALG_HASH_ACCELERATOR)) {
             pr_err("SHA run error.\n");
             return RT_ERROR;
         }
@@ -542,6 +544,102 @@ static rt_err_t drv_hash_finish(struct hwcrypto_hash *ctx, rt_uint8_t *out,
     return err;
 }
 
+rt_err_t drv_rsa_init(struct rt_hwcrypto_ctx *ctx)
+{
+    rt_err_t res = RT_EOK;
+
+    res = hal_crypto_init();
+    if (res)
+        res = -RT_ERROR;
+
+    return res;
+}
+
+void drv_rsa_uninit(struct rt_hwcrypto_ctx *ctx)
+{
+    hal_crypto_deinit();
+}
+
+static s32 rsa_calc(void *mod, void *prime, void *src, u32 src_size, void *out)
+{
+    struct crypto_task task __attribute__((aligned(CACHE_LINE_SIZE)));
+    u8 *pn, *pp, *data, *pout;
+    u32 opsize;
+    int ret = 0;
+
+    if (RSA_CHECK_OPSIZE(src_size)) {
+        pr_err("opsize %d error\n", src_size);
+        return -1;
+    }
+
+    /* Use aligned buffer to CE */
+    pp = aicos_malloc_align(0, CE_WORK_BUF_LEN, CACHE_LINE_SIZE);
+    if (pp == NULL) {
+        pr_err("malloc aligned buf failed.\n");
+        return -1;
+    }
+    memset(pp, 0, CE_WORK_BUF_LEN);
+    opsize = src_size;
+    pn = pp + opsize;
+    data = pn + opsize;
+    pout = data + opsize;
+
+    hal_crypto_bignum_be2le(src, opsize, data, opsize);
+    hal_crypto_bignum_be2le(mod, opsize, pn, opsize);
+    hal_crypto_bignum_be2le(prime, opsize, pp, opsize);
+
+    memset(&task, 0, sizeof(task));
+    task.alg.rsa.alg_tag = ALG_RSA;
+
+    task.alg.rsa.op_siz = RSA_SELECT_OPSIZE(opsize);
+    task.alg.rsa.m_addr = (u32)(uintptr_t)pn;
+    task.alg.rsa.d_e_addr = (u32)(uintptr_t)pp;
+    task.data.in_addr = (u32)(uintptr_t)data;
+    task.data.in_len = opsize;
+    task.data.out_addr = (u32)(uintptr_t)pout;
+    task.data.out_len = opsize;
+
+    aicos_dcache_clean_range((void *)(unsigned long)pp, CE_WORK_BUF_LEN);
+    aicos_dcache_clean_range((void *)(unsigned long)&task, sizeof(task));
+
+    hal_crypto_start_asym(&task);
+
+    while (!hal_crypto_poll_finish(ALG_AK_ACCELERATOR)) {
+        continue;
+    }
+    hal_crypto_pending_clear(ALG_AK_ACCELERATOR);
+
+    if (hal_crypto_get_err(ALG_AK_ACCELERATOR)) {
+        pr_err("RSA run error.\n");
+        ret = RT_ERROR;
+        goto out;
+    }
+
+    aicos_dma_sync();
+    aicos_dcache_invalid_range((void *)(unsigned long)pout, opsize);
+    hal_crypto_bignum_le2be(pout, opsize, out, opsize);
+
+out:
+    if (pp)
+        aicos_free_align(0, pp);
+
+    return ret;
+}
+
+/* x = a ^ b (mod c) */
+static rt_err_t drv_exptmod(struct hwcrypto_bignum *ctx,
+                        struct hw_bignum_mpi *x,
+                        const struct hw_bignum_mpi *a,
+                        const struct hw_bignum_mpi *b,
+                        const struct hw_bignum_mpi *c)
+{
+    return rsa_calc(c->p, b->p, a->p, a->total, x->p);
+}
+
+static const struct hwcrypto_bignum_ops rsa_ops = {
+    .exptmod = drv_exptmod,
+};
+
 static const struct hwcrypto_symmetric_ops aes_ops = {
     .crypt = drv_aes_crypt,
 };
@@ -563,6 +661,12 @@ static rt_err_t aic_hwcrypto_create(struct rt_hwcrypto_ctx *ctx)
 
             /* Setup AES operation */
             ((struct hwcrypto_symmetric *)ctx)->ops = &aes_ops;
+            break;
+        case HWCRYPTO_TYPE_BIGNUM:
+            drv_rsa_init(ctx);
+
+            /* Setup RSA operation */
+            ((struct hwcrypto_bignum *)ctx)->ops = &rsa_ops;
             break;
         case HWCRYPTO_TYPE_MD5:
         case HWCRYPTO_TYPE_SHA1:
@@ -590,6 +694,9 @@ static void aic_hwcrypto_destroy(struct rt_hwcrypto_ctx *ctx)
             drv_aes_uninit(ctx);
             break;
         case HWCRYPTO_TYPE_DES:
+            break;
+        case HWCRYPTO_TYPE_BIGNUM:
+            drv_rsa_uninit(ctx);
             break;
         case HWCRYPTO_TYPE_MD5:
         case HWCRYPTO_TYPE_SHA1:
@@ -637,6 +744,9 @@ static void aic_hwcrypto_reset(struct rt_hwcrypto_ctx *ctx)
         case HWCRYPTO_TYPE_RC4:
         case HWCRYPTO_TYPE_RNG:
         case HWCRYPTO_TYPE_CRC:
+            break;
+        case HWCRYPTO_TYPE_BIGNUM:
+            drv_rsa_init(ctx);
             break;
         case HWCRYPTO_TYPE_MD5:
         case HWCRYPTO_TYPE_SHA1:

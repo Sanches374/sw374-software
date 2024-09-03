@@ -4,13 +4,13 @@ cwd = GetCurrentDir()
 src = ['sqlite3.c']
 src += ['dbhelper.c']
 
-if GetDepend('PKG_SQLITE_DAO_EXAMPLE'):
+if GetDepend('LPKG_SQLITE_DAO_EXAMPLE'):
     src += Glob('student_dao.c')
 
-if GetDepend('PKG_SQLITE_RECIPE_EXAMPLE'):
+if GetDepend('LPKG_SQLITE_RECIPE_EXAMPLE'):
     src += Glob('recipe_test.c')
 
 CPPPATH = [cwd]
-group = DefineGroup('sqlite', src, depend = ['RT_USING_DFS', 'PKG_USING_SQLITE'], CPPPATH = CPPPATH)
+group = DefineGroup('sqlite', src, depend = ['RT_USING_DFS', 'LPKG_USING_SQLITE'], CPPPATH = CPPPATH)
 
 Return('group')

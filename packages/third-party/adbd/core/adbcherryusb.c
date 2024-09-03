@@ -72,7 +72,7 @@ __ALIGN_BEGIN const uint8_t WINUSB_WCIDDescriptor[40] __ALIGN_END = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00,             /* bReserved_6 */
 };
 
-__ALIGN_BEGIN const uint8_t WINUSB_IF0_WCIDProperties [142] __ALIGN_END = {
+__ALIGN_BEGIN const uint8_t WINUSB_IF0_WCIDProperties[142] __ALIGN_END = {
   ///////////////////////////////////////
   /// WCID property descriptor
   ///////////////////////////////////////
@@ -153,8 +153,9 @@ const uint8_t winusb_descriptor[] = {
     USB_DEVICE_DESCRIPTOR_INIT(USB_2_0, 0x00, 0x00, 0x00, USBD_VID, USBD_PID, USBD_BCD_DEVICE, 0x01),
     USB_CONFIG_DESCRIPTOR_INIT(USB_CONFIG_SIZE, INTF_NUM, 0x01, USB_CONFIG_BUS_POWERED, USBD_MAX_POWER),
     USB_INTERFACE_DESCRIPTOR_INIT(0x00, 0x00, 0x02, 0xff, WINUSB_INTERF_SUBCLASS, WINUSB_INTERF_PROTOCOL, 0x04),
-    USB_ENDPOINT_DESCRIPTOR_INIT(WINUSB_IN_EP, 0x02, WINUSB_EP_MPS_HS, 0x00),
     USB_ENDPOINT_DESCRIPTOR_INIT(WINUSB_OUT_EP, 0x02, WINUSB_EP_MPS_HS, 0x00),
+    USB_ENDPOINT_DESCRIPTOR_INIT(WINUSB_IN_EP, 0x02, WINUSB_EP_MPS_HS, 0x00),
+
     ///////////////////////////////////////
     /// string0 descriptor
     ///////////////////////////////////////
@@ -257,8 +258,8 @@ const uint8_t winusb_descriptor[] = {
     USB_DEVICE_DESCRIPTOR_INIT(USB_2_0, 0x00, 0x00, 0x00, USBD_VID, USBD_PID, 0x0001, 0x01),
     USB_CONFIG_DESCRIPTOR_INIT(USB_CONFIG_SIZE, INTF_NUM, 0x01, USB_CONFIG_BUS_POWERED, USBD_MAX_POWER),
     USB_INTERFACE_DESCRIPTOR_INIT(0x00, 0x00, 0x02, 0xff, 0xff, 0x00, 0x04),
-    USB_ENDPOINT_DESCRIPTOR_INIT(WINUSB_IN_EP, 0x02, WINUSB_EP_MPS, 0x00),
     USB_ENDPOINT_DESCRIPTOR_INIT(WINUSB_OUT_EP, 0x02, WINUSB_EP_MPS, 0x00),
+    USB_ENDPOINT_DESCRIPTOR_INIT(WINUSB_IN_EP, 0x02, WINUSB_EP_MPS, 0x00),
     ///////////////////////////////////////
     /// string0 descriptor
     ///////////////////////////////////////
@@ -388,7 +389,7 @@ typedef struct winusb_device * winusb_device_t;
 
 struct winusb_device adb_winusb_device;
 
-struct usbd_interface intf0;
+struct usbd_interface adb_intf0;
 
 struct usbd_endpoint winusb_out_ep1 = {
     .ep_addr = WINUSB_OUT_EP,
@@ -409,7 +410,7 @@ static rt_err_t usbd_interface_enable(winusb_device_t wd)
     rt_ringbuffer_init(wd->rrb, wd->rrb->buffer_ptr, 1024);
 
     /* setup first out ep read transfer */
-    usbd_ep_start_read(WINUSB_OUT_EP, read_buffer, WINUSB_EP_MPS);
+    usbd_ep_start_read(winusb_out_ep1.ep_addr, read_buffer, WINUSB_EP_MPS);
 
     wd->enabled = RT_TRUE;
 
@@ -429,7 +430,11 @@ static rt_err_t usbd_interface_disable(winusb_device_t wd)
     return RT_EOK;
 }
 
+#ifdef LPKG_CHERRYUSB_DEVICE_COMPOSITE
+void usbd_comp_adb_event_handler(uint8_t event)
+#else
 void usbd_event_handler(uint8_t event)
+#endif
 {
     winusb_device_t wd = &adb_winusb_device;
 
@@ -465,7 +470,7 @@ void usbd_winusb_out(uint8_t ep, uint32_t size)
 
     if (size == 0)
     {
-        usbd_ep_start_read(WINUSB_OUT_EP, read_buffer, WINUSB_EP_MPS);
+        usbd_ep_start_read(winusb_out_ep1.ep_addr, read_buffer, WINUSB_EP_MPS);
         rt_wqueue_wakeup(&(wd->rq), (void *)POLLIN);
         return;
     }
@@ -479,7 +484,7 @@ void usbd_winusb_out(uint8_t ep, uint32_t size)
     if (size <= space)
     {
         rt_ringbuffer_put(wd->rrb, read_buffer, size);
-        usbd_ep_start_read(WINUSB_OUT_EP, read_buffer, WINUSB_EP_MPS);
+        usbd_ep_start_read(winusb_out_ep1.ep_addr, read_buffer, WINUSB_EP_MPS);
     }
     else
     {
@@ -550,7 +555,7 @@ static int _file_read(struct dfs_fd *fd, void *buf, size_t size)
         {
             rt_ringbuffer_put(wd->rrb, read_buffer, wd->rdcnt);
             wd->rdcnt = 0;
-            usbd_ep_start_read(WINUSB_OUT_EP, read_buffer, WINUSB_EP_MPS);
+            usbd_ep_start_read(winusb_out_ep1.ep_addr, read_buffer, WINUSB_EP_MPS);
         }
     }
 
@@ -580,7 +585,7 @@ static int _file_write(struct dfs_fd *fd, const void *buf, size_t size)
     wlen = size > WINUSB_EP_MPS ? WINUSB_EP_MPS : size;
     wd->wrcnt = wlen;
 
-    usbd_ep_start_write(WINUSB_IN_EP, buf, wlen);
+    usbd_ep_start_write(winusb_in_ep1.ep_addr, buf, wlen);
 
     return wlen;
 }
@@ -637,20 +642,48 @@ static rt_err_t rt_usb_winusb_init(winusb_device_t winusb_device)
     return ret;
 }
 
+struct usbd_interface *usbd_adb_init_intf(struct usbd_interface *intf,
+                                            uint8_t out_ep, uint8_t in_ep)
+{
+    winusb_out_ep1.ep_addr = out_ep;
+    winusb_in_ep1.ep_addr = in_ep;
+    usbd_add_endpoint(&winusb_out_ep1);
+    usbd_add_endpoint(&winusb_in_ep1);
+
+    return intf;
+}
+
+#ifdef LPKG_CHERRYUSB_DEVICE_COMPOSITE
+extern void usbd_comp_func_register(const uint8_t *desc,
+                                void (*event_handler)(uint8_t event),
+                                int (*usbd_comp_class_init)(uint8_t *ep_table, void *data),
+                                void *data);
+int usbd_comp_adb_init(uint8_t *ep_table, void *data)
+{
+    usbd_add_interface(usbd_adb_init_intf(&adb_intf0, ep_table[0], ep_table[1]));
+    return 0;
+}
+#endif
+
 int adb_winusb_init(void)
 {
     int ret = 0;
 
-    usbd_desc_register(winusb_descriptor);
     usbd_msosv1_desc_register(&msosv1_desc);
-    usbd_add_interface(&intf0);
-    usbd_add_endpoint(&winusb_out_ep1);
-    usbd_add_endpoint(&winusb_in_ep1);
     rt_usb_winusb_init(&adb_winusb_device);
+#ifndef LPKG_CHERRYUSB_DEVICE_COMPOSITE
+    usbd_desc_register(winusb_descriptor);
+    usbd_add_interface(usbd_adb_init_intf(&adb_intf0, WINUSB_OUT_EP, WINUSB_IN_EP));
     usbd_initialize();
+#else
+    usbd_comp_func_register(winusb_descriptor,
+                            usbd_comp_adb_event_handler,
+                            usbd_comp_adb_init, NULL);
+#endif
+
     return ret;
 }
 
-INIT_PREV_EXPORT(adb_winusb_init);
+INIT_ENV_EXPORT(adb_winusb_init);
 
 #endif

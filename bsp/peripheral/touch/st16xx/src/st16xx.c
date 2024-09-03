@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024-2025, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -277,13 +277,13 @@ static int rt_st16xx_gpio_cfg()
     long pin;
 
     // RST
-    pin = drv_pin_get(ST16XX_RESET_PIN);
+    pin = drv_pin_get(AIC_TOUCH_PANEL_RST_PIN);
     g = GPIO_GROUP(pin);
     p = GPIO_GROUP_PIN(pin);
     hal_gpio_direction_input(g, p);
 
     // INT
-    pin = drv_pin_get(ST16XX_IRQ_PIN);
+    pin = drv_pin_get(AIC_TOUCH_PANEL_INT_PIN);
     g = GPIO_GROUP(pin);
     p = GPIO_GROUP_PIN(pin);
     hal_gpio_direction_input(g, p);
@@ -360,9 +360,9 @@ static int rt_hw_st16xx_port(void)
 
     rt_st16xx_gpio_cfg();
 
-    rst_pin = drv_pin_get(ST16XX_RESET_PIN);
-    cfg.dev_name = ST16XX_I2C_CHAN;
-    cfg.irq_pin.pin = drv_pin_get(ST16XX_IRQ_PIN);
+    rst_pin = drv_pin_get(AIC_TOUCH_PANEL_RST_PIN);
+    cfg.dev_name = AIC_TOUCH_PANEL_I2C_CHAN;
+    cfg.irq_pin.pin = drv_pin_get(AIC_TOUCH_PANEL_INT_PIN);
     cfg.irq_pin.mode = PIN_MODE_INPUT;
     cfg.user_data = &rst_pin;
 

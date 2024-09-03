@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Artinchip Technology Co., Ltd
+ * Copyright (c) 2023-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -94,19 +94,30 @@ enum upg_mode {
     UPG_MODE_BURN_USER_ID,
     UPG_MODE_DUMP_PARTITION,
     UPG_MODE_BURN_IMG_FORCE,
+    /*
+     * UPG_MODE_BURN_FROZEN:
+     * Set by Host Tool for case:
+     *   Host Tool already burn image/userid successfuly, and don't want burn
+     *   the same image again before next reboot, Host Tool will set this
+     *   flag to upg_cfg.mode.
+     *
+     *   Host Tool will check this flag from device, if the flag in device is
+     *   UPG_MODE_BURN_FROZEN, it will skip the device.
+     */
     UPG_MODE_BURN_FROZEN,
     UPG_MODE_INVALID,
 };
 
 struct upg_cfg {
-    u8 mode;
+    u8 mode; /* The value is "enum upg_mode" */
     u8 reserved[31];
 };
 
 #define INIT_MODE(mode) (1 << (mode))
 
 struct upg_init {
-    u8 mode;
+    /* Store the "enum upg_mode" value by bit index */
+    u8 mode_bits;
 };
 
 s32 aicupg_initialize(struct upg_init *param);
@@ -114,13 +125,18 @@ s32 aicupg_set_upg_cfg(struct upg_cfg *cfg);
 s32 aicupg_get_upg_mode(void);
 s32 aicupg_data_packet_write(u8 *data, s32 len);
 s32 aicupg_data_packet_read(u8 *data, s32 len);
+void aicupg_show_upg_cfg_mode(int mode);
+void aicupg_show_init_cfg_mode(int mode_bits);
 
 /*fat upgrade function*/
 s32 aicupg_fat_write(char *image_name, char *protection,
-				struct image_header_upgrade *header);
+                     struct image_header_upgrade *header);
 
 int aicupg_fat_direct_write(char *dst_type, u32 intf_id, char *fpath,
                             u32 dst_offset, u32 boot_flag, char *attr);
+typedef void (*progress_cb)(u32 percent);
+void aicupg_fat_set_process_cb(progress_cb cb);
+
 #ifdef __cplusplus
 }
 #endif

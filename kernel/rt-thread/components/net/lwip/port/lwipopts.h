@@ -383,12 +383,20 @@
 
 /* TCP sender buffer space (pbufs). This must be at least = 2 *
    TCP_SND_BUF/TCP_MSS for things to work. */
+#ifdef AIC_WLAN_ASR
+#define TCP_SND_QUEUELEN            (2 * TCP_SND_BUF/TCP_MSS)
+#else
 #define TCP_SND_QUEUELEN            (4 * TCP_SND_BUF/TCP_MSS)
+#endif
 
 /* TCP writable space (bytes). This must be less than or equal
    to TCP_SND_BUF. It is the amount of space which must be
    available in the tcp snd_buf for select to return writable */
+#ifdef AIC_WLAN_ASR
+#define TCP_SNDLOWAT                LWIP_MIN(LWIP_MAX(((TCP_SND_BUF)/7), (2*TCP_MSS)+1), (TCP_SND_BUF)-1)
+#else
 #define TCP_SNDLOWAT                (TCP_SND_BUF/2)
+#endif
 #define TCP_SNDQUEUELOWAT           TCP_SND_QUEUELEN/2
 
 /* TCP receive window. */
@@ -415,7 +423,11 @@
 #define TCPIP_THREAD_STACKSIZE      4096
 #endif
 #define TCPIP_THREAD_NAME           "tcpip"
+#ifdef AIC_WLAN_ASR
+#define DEFAULT_TCP_RECVMBOX_SIZE   60
+#else
 #define DEFAULT_TCP_RECVMBOX_SIZE   10
+#endif
 
 /* ---------- ARP options ---------- */
 #define LWIP_ARP                    1

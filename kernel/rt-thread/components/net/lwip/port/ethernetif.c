@@ -106,6 +106,9 @@ static char eth_tx_thread_stack[RT_LWIP_ETHTHREAD_STACKSIZE];
 #ifndef LWIP_NO_RX_THREAD
 static struct rt_mailbox eth_rx_thread_mb;
 static struct rt_thread eth_rx_thread;
+#ifdef AIC_WLAN_ASR
+static int eth_tx_result = 0;
+#endif
 #ifndef RT_LWIP_ETHTHREAD_MBOX_SIZE
 static char eth_rx_thread_mb_pool[48 * sizeof(rt_ubase_t)];
 static char eth_rx_thread_stack[1024];
@@ -440,11 +443,23 @@ static err_t ethernetif_linkoutput(struct netif *netif, struct pbuf *p)
     msg.netif = netif;
     msg.buf   = p;
     rt_completion_init(&msg.ack);
-    if (rt_mb_send(&eth_tx_thread_mb, (rt_ubase_t) &msg) == RT_EOK)
+#ifdef AIC_WLAN_ASR
+    int ret = rt_mb_send(&eth_tx_thread_mb, (rt_ubase_t) &msg);
+    if (ret == RT_EOK)
     {
         /* waiting for ack */
         rt_completion_wait(&msg.ack, RT_WAITING_FOREVER);
+        return eth_tx_result;
+    } else {
+        return ret;
     }
+#else
+    if (rt_mb_send(&eth_tx_thread_mb, (rt_ubase_t) &msg) == RT_EOK)
+     {
+         /* waiting for ack */
+         rt_completion_wait(&msg.ack, RT_WAITING_FOREVER);
+    }
+#endif
 #else
     struct eth_device* enetif;
 
@@ -706,14 +721,25 @@ static void eth_tx_thread_entry(void* parameter)
             RT_ASSERT(msg->netif != RT_NULL);
             RT_ASSERT(msg->buf   != RT_NULL);
 
+#ifdef AIC_WLAN_ASR
+            eth_tx_result = ERR_MEM;
+#endif
             enetif = (struct eth_device*)msg->netif->state;
             if (enetif != RT_NULL)
             {
                 /* call driver's interface */
-                if (enetif->eth_tx(&(enetif->parent), msg->buf) != RT_EOK)
+#ifdef AIC_WLAN_ASR
+                eth_tx_result = enetif->eth_tx(&(enetif->parent), msg->buf);
+                if (eth_tx_result != RT_EOK)
                 {
                     /* transmit eth packet failed */
                 }
+#else
+                if (enetif->eth_tx(&(enetif->parent), msg->buf) != RT_EOK)
+                 {
+                     /* transmit eth packet failed */
+                 }
+#endif
             }
 
             /* send ACK */

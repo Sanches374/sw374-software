@@ -491,17 +491,25 @@ static struct mmcsd_blk_device * rt_mmcsd_create_blkdev(struct rt_mmcsd_card *ca
     {
         LOG_D("Try to mount %s\n", blk_dev->dev.parent.name);
 #ifdef AIC_AB_SYSTEM_INTERFACE
-        char target[32] = { 0 };
+        char ro_target[32] = { 0 };
+        char rw_target[32] = { 0 };
         enum boot_device boot_dev = aic_get_boot_device();
 
         if (boot_dev == BD_SDMC0) {
-            if ((strcmp("mmc0p5", blk_dev->dev.parent.name) == 0) ||
-                (strcmp("mmc0p6", blk_dev->dev.parent.name) == 0)) {
-            aic_ota_status_update();
-            aic_get_mmc_rodata_to_mount(target);
-
-            if (dfs_mount(target, "/rodata", "elm", 0, 0) == 0)
-                LOG_I("mount fs[elm] device[%s] to /rodata ok.\n", target);
+            //skip the spl/env partition
+            if (strcmp("mmc0p0", blk_dev->dev.parent.name) != 0 &&
+                strcmp("mmc0p1", blk_dev->dev.parent.name) != 0 &&
+                strcmp("mmc0p2", blk_dev->dev.parent.name) != 0) {
+                aic_get_rodata_to_mount(ro_target);
+                aic_get_data_to_mount(rw_target);
+                if (strcmp(ro_target, blk_dev->dev.parent.name) == 0) {
+                    if (dfs_mount(ro_target, "/rodata", "elm", 0, 0) == 0)
+                        LOG_I("mount fs[elm] device[%s] to /rodata ok.\n", ro_target);
+                }
+                if (strcmp(rw_target, blk_dev->dev.parent.name) == 0) {
+                    if (dfs_mount(rw_target, "/data", "elm", 0, 0) == 0)
+                        LOG_I("mount fs[elm] device[%s] to /data ok.\n", rw_target);
+                }
             }
         }
 #endif
@@ -542,10 +550,12 @@ rt_int32_t rt_mmcsd_blk_probe(struct rt_mmcsd_card *card)
     rt_uint8_t status;
     rt_uint8_t *sector;
 
-    err = mmcsd_set_blksize(card);
-    if(err)
-    {
-        return err;
+    if (!(card->host->flags & MMCSD_SUP_HIGHSPEED_DDR)) {
+        err = mmcsd_set_blksize(card);
+        if(err)
+        {
+            return err;
+        }
     }
 
     LOG_D("probe mmcsd block device!");

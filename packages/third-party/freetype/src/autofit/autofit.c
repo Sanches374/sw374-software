@@ -18,20 +18,5 @@
 
 #define FT_MAKE_OPTION_SINGLE_OBJECT
 
-#include "afangles.c"
-#include "afblue.c"
-#include "afcjk.c"
-#include "afdummy.c"
-#include "afglobal.c"
-#include "afhints.c"
-#include "afindic.c"
-#include "aflatin.c"
-#include "aflatin2.c"
-#include "afloader.c"
-#include "afmodule.c"
-#include "afranges.c"
-#include "afshaper.c"
-#include "afwarp.c"
-
 
 /* END */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -9,6 +9,11 @@
 #include <aic_core.h>
 #include <aic_hal.h>
 #include "board.h"
+#include <libfdt.h>
+#include <of.h>
+#include <aic_utils.h>
+
+extern size_t __dtb_pos_f;
 
 struct aic_pinmux
 {
@@ -22,12 +27,12 @@ struct aic_pinmux aic_pinmux_config[] = {
 #ifdef AIC_USING_UART0
     /* uart0 */
     {5, PIN_PULL_DIS, 3, "PA.0"},
-    {5, PIN_PULL_DIS, 3, "PA.1"},
+    {5, PIN_PULL_UP, 3, "PA.1"},
 #endif
 #ifdef AIC_USING_UART1
     /* uart1 */
     {5, PIN_PULL_DIS, 3, "PA.2"},
-    {5, PIN_PULL_DIS, 3, "PA.3"},
+    {5, PIN_PULL_UP, 3, "PA.3"},
 #endif
 #ifdef AIC_USING_CAN0
     /* can0 */
@@ -46,10 +51,8 @@ struct aic_pinmux aic_pinmux_config[] = {
 #ifdef AIC_USING_I2C0
     {4, PIN_PULL_DIS, 3, "PA.8"},  // SCK
     {4, PIN_PULL_DIS, 3, "PA.9"},  // SDA
-    {1, PIN_PULL_DIS, 3, "PA.10"}, // RST
-    {1, PIN_PULL_DIS, 3, "PA.11"}, // INT
 #endif
-#ifdef AIC_USING_QSPI0
+#if defined(AIC_USING_QSPI0) && !defined(AIC_SYSCFG_SIP_FLASH_ENABLE)
     /* qspi0 */
     {2, PIN_PULL_DIS, 3, "PB.0"},
     {2, PIN_PULL_DIS, 3, "PB.1"},
@@ -169,6 +172,10 @@ struct aic_pinmux aic_pinmux_config[] = {
     {1, PIN_PULL_DIS, 3, AIC_AUDIO_PA_ENABLE_GPIO},
 #endif
 #endif
+#ifdef AIC_USING_CTP
+    {1, PIN_PULL_DIS, 3, AIC_TOUCH_PANEL_RST_PIN},
+    {1, PIN_PULL_DIS, 3, AIC_TOUCH_PANEL_INT_PIN},
+#endif
 };
 
 void aic_board_pinmux_init(void)
@@ -188,4 +195,24 @@ void aic_board_pinmux_init(void)
         hal_gpio_set_bias_pull(g, p, aic_pinmux_config[i].bias);
         hal_gpio_set_drive_strength(g, p, aic_pinmux_config[i].drive);
     }
+
+#ifndef AIC_BOOTLOADER
+    struct fdt_header *header;
+    uint32_t dtb_size;
+    void *dtb_pos_r;
+
+    header = (struct fdt_header *)(&__dtb_pos_f);
+
+    if (fdt_magic(header) == FDT_MAGIC)
+    {
+        dtb_size = fdt_totalsize(header);
+        dtb_pos_r = aicos_malloc(0, dtb_size);
+
+        aicos_memcpy(dtb_pos_r, (void *)(&__dtb_pos_f), dtb_size);
+
+        of_relocate_dtb((unsigned long)dtb_pos_r);
+
+        pinmux_fdt_parse();
+    }
+#endif
 }

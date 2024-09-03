@@ -1,5 +1,8 @@
 /*
- * Copyright (C) 2022-2023 ArtinChip Technology Co., Ltd.
+ * Copyright (c) 2022-2024 ArtInChip Technology Co., Ltd.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
  * Authors:  Ning Fang <ning.fang@artinchip.com>
  */
 
@@ -13,7 +16,9 @@ extern "C" {
 #include "lvgl.h"
 #include "aic_ui.h"
 
-void gif_ui_init(int *end_flag);
+void gif_ui_init(void);
+
+int gif_check_finish(void);
 
 #ifdef __cplusplus
 } /*extern "C"*/

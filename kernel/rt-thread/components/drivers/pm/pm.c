@@ -117,6 +117,18 @@ static void pm_sleep(struct rt_pm *pm, uint8_t sleep_mode)
         _pm.ops->sleep(pm, sleep_mode);
 }
 
+static rt_bool_t pm_check_device_wakeup_is_enabled(const struct rt_device *dev)
+{
+    /* parameter check */
+    RT_ASSERT(dev != RT_NULL);
+    RT_ASSERT(rt_object_get_type(&dev->parent) == RT_Object_Class_Device);
+
+    if (dev->flag & RT_DEVICE_FLAG_WAKEUP)
+        return RT_TRUE;
+    else
+        return RT_FALSE;
+}
+
 /**
  * This function will suspend all registered devices
  */
@@ -126,6 +138,9 @@ static int _pm_device_suspend(rt_uint8_t mode)
 
     for (index = 0; index < _pm.device_pm_number; index++)
     {
+        if (pm_check_device_wakeup_is_enabled(_pm.device_pm[index].device))
+            continue;
+
         if (_pm.device_pm[index].ops->suspend != RT_NULL)
         {
             ret = _pm.device_pm[index].ops->suspend(_pm.device_pm[index].device, mode);
@@ -136,6 +151,9 @@ static int _pm_device_suspend(rt_uint8_t mode)
 
     for (index = 0; index < _pm.device_pm_late_number; index++)
     {
+        if (pm_check_device_wakeup_is_enabled(_pm.device_pm_late[index].device))
+            continue;
+
         if (_pm.device_pm_late[index].ops->suspend_late != RT_NULL)
         {
             ret = _pm.device_pm_late[index].ops->suspend_late(_pm.device_pm_late[index].device, mode);
@@ -143,6 +161,8 @@ static int _pm_device_suspend(rt_uint8_t mode)
                 break;
         }
     }
+
+    rt_pm_disable_pin_irq_nonwakeup();
 
     return ret;
 }
@@ -169,6 +189,8 @@ static void _pm_device_resume(rt_uint8_t mode)
             _pm.device_pm[index].ops->resume(_pm.device_pm[index].device, mode);
         }
     }
+
+    rt_pm_resume_pin_irq();
 }
 
 /**
@@ -319,9 +341,7 @@ RT_WEAK rt_tick_t pm_timer_next_timeout_tick(rt_uint8_t mode)
     switch (mode)
     {
         case PM_SLEEP_MODE_LIGHT:
-            return rt_timer_next_timeout_tick();
         case PM_SLEEP_MODE_DEEP:
-        case PM_SLEEP_MODE_STANDBY:
             return rt_lptimer_next_timeout_tick();
     }
 
@@ -456,16 +476,9 @@ static void _pm_change_sleep_mode(struct rt_pm *pm)
             }
         }
 
-#ifdef AIC_PM_POWER_DEFAULT_LIGHT_MODE
-        rt_pm_exit_critical(level, pm->sleep_mode);
-#endif
-
         /* enter lower power state */
         pm_sleep(pm, pm->sleep_mode);
 
-#ifdef AIC_PM_POWER_DEFAULT_LIGHT_MODE
-        level = rt_pm_enter_critical(pm->sleep_mode);
-#endif
         /* wake up from lower power state*/
         if (pm->timer_mask & (0x01 << pm->sleep_mode))
         {

@@ -17,6 +17,7 @@
 uint64_t sleep_counter;
 uint64_t resume_counter;
 
+extern void systemmap_config(void);
 extern void sc_save_context_and_suspend();
 extern void sc_restore_context_and_resume();
 extern u32 sc_restore_context_and_resume_size;
@@ -47,6 +48,11 @@ void aic_pm_enter_deep_sleep(void)
     sc_save_context_and_suspend(&save_sc_context);
 
     /* SC power up and resume flow */
+    /* Since SCSS is powered off during suspend, sysmap must be configure
+     * after wakeup to ensure that the mailbox's buffer is uncacheable.
+     */
+    systemmap_config();
+
     CLIC->CLICCFG = (((CLIC->CLICINFO & CLIC_INFO_CLICINTCTLBITS_Msk) >>
                       CLIC_INFO_CLICINTCTLBITS_Pos) << CLIC_CLICCFG_NLBIT_Pos);
     /* config CLIC attribute to use vector interrupt */

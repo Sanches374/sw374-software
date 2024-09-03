@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -26,11 +26,13 @@ struct aic_sdmc_pdata {
     ulong base;
     int irq;
     int clk;
+    int clk_freq;
     u32 is_sdio;
     u8 id;
     u8 buswidth;
     u8 drv_phase;
     u8 smp_phase;
+    u8 data_rate;
 };
 
 /**
@@ -346,7 +348,7 @@ static int aic_sdmc_setup_bus(struct aic_sdmc *host, u32 freq)
 {
     u32 mux, div, sclk = host->sclk_rate;
 
-    if ((freq == host->clock) || (freq == 0))
+    if ((freq == host->clock && host->ddr_mode == 0) || (freq == 0))
         return 0;
 
     if (sclk == freq) {
@@ -355,6 +357,7 @@ static int aic_sdmc_setup_bus(struct aic_sdmc *host, u32 freq)
         div = 0;
     } else {
         div = aic_sdmc_get_best_div(sclk, freq);
+
         if (div <= 4) {
             mux = DIV_ROUND_UP(div, 2);
         } else {
@@ -367,8 +370,15 @@ static int aic_sdmc_setup_bus(struct aic_sdmc *host, u32 freq)
         if (div > SDMC_CLKCTRL_DIV_MAX)
             div = SDMC_CLKCTRL_DIV_MAX;
     }
+
+    if (host->ddr_mode) {
+        //ddr mode div must set 0
+        div = 0;
+        mux = aic_sdmc_get_best_div(sclk * 2, freq);
+    }
+
     aic_sdmc_set_ext_clk_mux(&host->host, mux);
-    LOG_I("SDMC%d BW %d, sclk %d KHz, clk %d KHz(%d KHz), div %d-%d\n",
+    LOG_I("SDMC%d BW %d, sclk %d KHz, clk expt %d KHz(act %d KHz), div %d-%d\n",
             host->index, aic_sdmc_buswidth(host->buswidth),
             sclk / 1000, freq / 1000,
             div ? sclk / mux / div / 2 / 1000 : sclk / mux / 1000,
@@ -427,7 +437,7 @@ static void aic_sdmc_set_iocfg(struct rt_mmcsd_host *rthost,
         host->buswidth = SDMC_CTYPE_8BIT;
         break;
     case MMCSD_DDR_BUS_WIDTH_4:
-        // host->ddr_mode = 1;
+        host->ddr_mode = 1;
     case MMCSD_BUS_WIDTH_4:
         host->buswidth = SDMC_CTYPE_4BIT;
         break;
@@ -435,11 +445,10 @@ static void aic_sdmc_set_iocfg(struct rt_mmcsd_host *rthost,
         host->buswidth = SDMC_CTYPE_1BIT;
         break;
     }
-    if (host->buswidth != SDMC_CTYPE_1BIT)
-        pr_info("SDMC%d Buswidth %d, DDR mode %d, Current clock: %d KHz\n",
-            host->index,
-            aic_sdmc_buswidth(host->buswidth), host->ddr_mode,
-            io_cfg->clock / 1000);
+    pr_debug("SDMC%d Buswidth %d, DDR mode %d, Clock: %d KHz\n",
+        host->index,
+        aic_sdmc_buswidth(host->buswidth), host->ddr_mode,
+        io_cfg->clock / 1000);
 
     hal_sdmc_set_buswidth(&host->host, host->buswidth);
     hal_sdmc_set_ddrmode(&host->host, host->ddr_mode);
@@ -518,10 +527,13 @@ void aic_sdmc_setup_cfg(struct rt_mmcsd_host *rthost)
 
     rthost->ops = &ops;
     rthost->freq_min = SDMC_CLOCK_MIN;
-    rthost->freq_max = SDMC_CLOCK_MAX;
+    rthost->freq_max = host->sclk_rate;
     rthost->valid_ocr = VDD_32_33 | VDD_33_34;
     rthost->flags = MMCSD_MUTBLKWRITE | \
                   MMCSD_SUP_HIGHSPEED | MMCSD_SUP_SDIO_IRQ;
+
+    if (host->pdata->data_rate == SDMC_DDR_MODE)
+        rthost->flags |= MMCSD_SUP_HIGHSPEED_DDR;
 
     if (host->pdata->buswidth == SDMC_CTYPE_4BIT)
         rthost->flags |= MMCSD_BUSWIDTH_4;
@@ -543,7 +555,7 @@ s32 aic_sdmc_clk_init(struct aic_sdmc *host)
     hal_clk_disable(host->clk);
 
     ret = hal_clk_get_freq(hal_clk_get_parent(host->clk));
-    hal_clk_set_freq(host->clk, SDMC_CLOCK_MAX);
+    hal_clk_set_freq(host->clk, host->pdata->clk_freq);
     host->sclk_rate = hal_clk_get_freq(host->clk) / 2;
     pr_info("SDMC%d sclk: %d KHz, parent clk %d KHz\n",
             host->index, host->sclk_rate / 1000, ret / 1000);
@@ -581,6 +593,10 @@ static struct aic_sdmc_pdata sdmc_pdata[] = {
 #endif
         .drv_phase = AIC_SDMC0_DRV_PHASE,
         .smp_phase = AIC_SDMC0_SMP_PHASE,
+#ifdef AIC_SDMC0_DDR_MODE
+        .data_rate = SDMC_DDR_MODE,
+#endif
+        .clk_freq = AIC_SDMC0_CLK_FREQ,
     },
 #endif
 #ifdef AIC_USING_SDMC1
@@ -603,6 +619,7 @@ static struct aic_sdmc_pdata sdmc_pdata[] = {
 #endif
         .drv_phase = AIC_SDMC1_DRV_PHASE,
         .smp_phase = AIC_SDMC1_SMP_PHASE,
+        .clk_freq = AIC_SDMC1_CLK_FREQ,
     },
 #endif
 #ifdef AIC_USING_SDMC2
@@ -625,6 +642,7 @@ static struct aic_sdmc_pdata sdmc_pdata[] = {
 #endif
         .drv_phase = AIC_SDMC2_DRV_PHASE,
         .smp_phase = AIC_SDMC2_SMP_PHASE,
+        .clk_freq = AIC_SDMC2_CLK_FREQ,
     },
 #endif
 };

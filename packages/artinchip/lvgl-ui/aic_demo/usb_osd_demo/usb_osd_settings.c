@@ -1,0 +1,719 @@
+/*
+ * Copyright (C) 2024 ArtInChip Technology Co., Ltd.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Authors:  Huahui Mai <huahui.mai@artinchip.com>
+ *
+ * base on lv_example_menu_5.c
+ */
+
+#include <dirent.h>
+
+#include "lv_tpc_run.h"
+#include "usb_osd_settings.h"
+#include "usb_osd_ui.h"
+#include "mpp_fb.h"
+
+#define USB_OSD_MENU_WIDTH  800
+#define USB_OSD_MENU_HEIGHT 300
+
+#define USB_OSD_SCREEN_LOCK_TIME_MS (LV_USB_OSD_SCREEN_LOCK_TIME * 1000)
+#define USB_OSD_SCREEN_LOCK_MODE LV_USB_OSD_SCREEN_LOCK_MODE
+
+#ifdef LV_USB_OSD_SCREEN_BLANK_TIME_AFTER_LOCK
+#define USB_OSD_SCREEN_BLANK_TIME_MS (LV_USB_OSD_SCREEN_BLANK_TIME_AFTER_LOCK * 1000)
+#else
+#define USB_OSD_SCREEN_BLANK_TIME_MS    0
+#endif
+
+#define USB_OSD_MENU_HIDE_TIME_MS   (6 * 1000)
+
+#ifndef LVGL_STORAGE_PATH
+#define LVGL_STORAGE_PATH "/rodata/lvgl_data"
+#endif
+#define USB_OSD_PICTURES_DIR    LVGL_STORAGE_PATH"/pictures"
+
+enum {
+    LV_MENU_ITEM_BUILDER_VARIANT_1,
+    LV_MENU_ITEM_BUILDER_VARIANT_2
+};
+typedef uint8_t lv_menu_builder_variant_t;
+
+static lv_obj_t * brightness_label = NULL;
+static lv_obj_t * contrast_label = NULL;
+static lv_obj_t * saturation_label = NULL;
+static lv_obj_t * hue_label = NULL;
+
+static lv_obj_t * brightness_slider = NULL;
+static lv_obj_t * contrast_slider = NULL;
+static lv_obj_t * saturation_slider = NULL;
+static lv_obj_t * hue_slider = NULL;
+
+static lv_obj_t * screen_blank_time_obj = NULL;
+
+static lv_obj_t * menu;
+static lv_obj_t * root_page;
+static lv_obj_t * g_image;
+static lv_obj_t * g_logo_image;
+
+static struct mpp_fb * g_fb;
+
+static unsigned int g_screen_lock_time_ms = 0;
+static unsigned int g_screen_lock_mode = 0;
+static unsigned int g_screen_blank_time_ms = 0;
+
+static unsigned int g_sleep_count = 0;
+static unsigned int g_image_index = 1;
+static unsigned int g_image_count = 0;
+
+static unsigned int g_menu_draw_count = 0;
+static unsigned int g_hide_time_count = 0;
+
+bool lv_settings_menu_is_enabled(void)
+{
+    return !lv_obj_has_flag(menu, LV_OBJ_FLAG_HIDDEN);
+}
+
+void lv_settings_menu_enable(bool enable)
+{
+    if (enable)
+        lv_obj_clear_flag(menu, LV_OBJ_FLAG_HIDDEN);
+    else
+        lv_obj_add_flag(menu, LV_OBJ_FLAG_HIDDEN);
+}
+
+bool lv_pictures_screen_is_enabled(void)
+{
+    return !lv_obj_has_flag(g_image, LV_OBJ_FLAG_HIDDEN);
+}
+
+void lv_pictures_screen_enable(bool enable)
+{
+    if (enable)
+        lv_obj_clear_flag(g_image, LV_OBJ_FLAG_HIDDEN);
+    else
+        lv_obj_add_flag(g_image, LV_OBJ_FLAG_HIDDEN);
+}
+
+bool lv_logo_screen_is_enabled(void)
+{
+    return !lv_obj_has_flag(g_logo_image, LV_OBJ_FLAG_HIDDEN);
+}
+
+void lv_logo_screen_enable(bool enable)
+{
+    if (enable)
+        lv_obj_clear_flag(g_logo_image, LV_OBJ_FLAG_HIDDEN);
+    else
+        lv_obj_add_flag(g_logo_image, LV_OBJ_FLAG_HIDDEN);
+}
+
+static void back_pictures_screen(void)
+{
+    lv_logo_screen_enable(false);
+    lv_settings_menu_enable(false);
+    lv_pictures_screen_enable(true);
+}
+
+static void back_logo_screen(void)
+{
+    lv_logo_screen_enable(true);
+    lv_settings_menu_enable(false);
+    lv_pictures_screen_enable(false);
+}
+
+static void usb_osd_pic_callback(lv_timer_t *tmr)
+{
+    lv_obj_t * settings_screen = tmr->user_data;
+    char image_str[64];
+
+    if ((settings_screen != lv_scr_act()) ||
+            !lv_pictures_screen_is_enabled())
+        return;
+
+    g_sleep_count++;
+
+    /*
+     * Automatically switches one picture every 5 seconds
+     * menu_event_cb() switches picture will not reset this timer
+     */
+    if ((g_sleep_count % 10) == 0) {
+        snprintf(image_str, sizeof(image_str), LVGL_PATH(pictures/image%d.jpg), g_image_index);
+        lv_img_set_src(g_image, image_str);
+
+        g_image_index++;
+
+        if (g_image_index >= g_image_count)
+            g_image_index = 0;
+
+        g_sleep_count = 0;
+    }
+}
+
+static void menu_event_cb(lv_event_t * e)
+{
+    lv_event_code_t code = (lv_event_code_t)lv_event_get_code(e);
+    lv_dir_t dir = lv_indev_get_gesture_dir(lv_indev_get_act());
+    char image_str[64];
+
+    /* switch picture by tp gestur event */
+    if (code == LV_EVENT_GESTURE) {
+        if (!lv_pictures_screen_is_enabled())
+            return;
+
+        if(dir == LV_DIR_LEFT)
+            g_image_index = (g_image_index == 0) ? (g_image_count - 1) : (g_image_index - 1);
+
+        if(dir == LV_DIR_RIGHT)
+            g_image_index = (g_image_index == g_image_count - 1) ? (0) : (g_image_index + 1);
+
+        snprintf(image_str, sizeof(image_str), LVGL_PATH(pictures/image%d.jpg), g_image_index);
+        lv_img_set_src(g_image, image_str);
+    }
+
+    /*
+     * show settings menu by tp long pressed event
+     * hide by back_event_handler()
+     */
+    if (code == LV_EVENT_LONG_PRESSED) {
+        if (!lv_settings_menu_is_enabled())
+            lv_settings_menu_enable(true);
+    }
+}
+
+/*
+ * Record settings menu operation event to determine whether to hide
+ */
+static void menu_event_handler(lv_event_t * e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+    lv_obj_t * draw_menu = lv_event_get_user_data(e);
+
+    if(code == LV_EVENT_DRAW_MAIN_END && draw_menu == menu)
+        g_menu_draw_count++;
+}
+
+static void menu_hide_callback(lv_timer_t *tmr)
+{
+    if (g_menu_draw_count == 0)
+        return;
+
+    /*
+     * There has been no menu operation for USB_OSD_MENU_HIDE_TIME_MS.
+     * Automatically hide the settings menu.
+     */
+    if (g_menu_draw_count == g_hide_time_count) {
+        lv_settings_menu_enable(false);
+        g_hide_time_count = 0;
+        g_menu_draw_count = 0;
+        return;
+    }
+
+    g_hide_time_count = g_menu_draw_count;
+}
+
+static void slider_event_cb(lv_event_t * e)
+{
+    lv_obj_t * slider = lv_event_get_target(e);
+    lv_obj_t * slider_label = lv_event_get_user_data(e);
+    struct aicfb_disp_prop disp_prop;
+    char buf[8];
+    u32 value;
+
+    value = (u32)lv_slider_get_value(slider);
+    lv_snprintf(buf, sizeof(buf), "%d", value);
+    lv_label_set_text(slider_label, buf);
+
+    if (mpp_fb_ioctl(g_fb, AICFB_GET_DISP_PROP, &disp_prop)) {
+        printf("mpp fb ioctl get disp prop failed\n");
+        return;
+    }
+
+    /* limit value in [25, 75] */
+    value = (value >> 1) + 25;
+
+    if (slider_label == brightness_label)
+        disp_prop.bright = value;
+    if (slider_label == contrast_label)
+        disp_prop.contrast = value;
+    if (slider_label == saturation_label)
+        disp_prop.saturation = value;
+    if (slider_label == hue_label)
+        disp_prop.hue = value;
+
+    if (mpp_fb_ioctl(g_fb, AICFB_SET_DISP_PROP, &disp_prop)) {
+        printf("mpp fb ioctl set disp prop failed\n");
+        return;
+    }
+}
+
+static void recovery_btn_event_handler(lv_event_t * e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+
+    if(code == LV_EVENT_CLICKED) {
+
+        lv_slider_set_value(brightness_slider, 50, LV_ANIM_OFF);
+        lv_label_set_text(brightness_label, "50");
+
+        lv_slider_set_value(contrast_slider, 50, LV_ANIM_OFF);
+        lv_label_set_text(contrast_label, "50");
+
+        lv_slider_set_value(saturation_slider, 50, LV_ANIM_OFF);
+        lv_label_set_text(saturation_label, "50");
+
+        lv_slider_set_value(hue_slider, 50, LV_ANIM_OFF);
+        lv_label_set_text(hue_label, "50");
+
+        struct aicfb_disp_prop disp_prop = { 50, 50, 50, 50 };
+        mpp_fb_ioctl(g_fb, AICFB_SET_DISP_PROP, &disp_prop);
+    }
+}
+
+static void blank_screen_delay_callback(lv_timer_t *tmr)
+{
+    mpp_fb_ioctl(g_fb, AICFB_POWEROFF, 0);
+}
+
+static void back_event_handler(lv_event_t * e)
+{
+    lv_obj_t * obj = lv_event_get_target(e);
+    lv_obj_t * menu = lv_event_get_user_data(e);
+
+    if(lv_menu_back_btn_is_root(menu, obj)) {
+        if (is_usb_disp_suspend()) {
+            int mode = lv_get_screen_lock_mode();
+
+            switch (mode) {
+            case DISPLAY_LOGO:
+                back_logo_screen();
+                break;
+            case DISPLAY_PICTURES:
+                back_pictures_screen();
+                break;
+            case BLANK_SCREEN:
+            {
+                lv_pictures_screen_enable(false);
+                lv_settings_menu_enable(false);
+                lv_logo_screen_enable(false);
+
+                lv_timer_t * blank_timer = lv_timer_create(blank_screen_delay_callback, 250, 0);
+                lv_timer_set_repeat_count(blank_timer, 1);
+                break;
+            }
+            default:
+                printf("Invalid lock screen mode\n");
+                break;
+            }
+        } else {
+                lv_pictures_screen_enable(false);
+                lv_settings_menu_enable(false);
+                lv_logo_screen_enable(false);
+        }
+    }
+}
+
+static void screen_lock_mode_dropdown_event_handler(lv_event_t * e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+    lv_obj_t * obj = lv_event_get_target(e);
+
+    if(code == LV_EVENT_VALUE_CHANGED) {
+        g_screen_lock_mode = lv_dropdown_get_selected(obj);
+
+        if (g_screen_lock_mode == DISPLAY_LOGO)
+            lv_obj_clear_flag(screen_blank_time_obj, LV_OBJ_FLAG_HIDDEN);
+        else
+            lv_obj_add_flag(screen_blank_time_obj, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
+static void screen_lock_delay_dropdown_event_handler(lv_event_t * e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+    lv_obj_t * obj = lv_event_get_target(e);
+
+    if(code == LV_EVENT_VALUE_CHANGED) {
+        unsigned int index = lv_dropdown_get_selected(obj);
+
+        switch (index) {
+        case SECONDS_15_LOCK:
+            g_screen_lock_time_ms = 15 * 1000;
+            break;
+        case SECONDS_30_LOCK:
+            g_screen_lock_time_ms = 30 * 1000;
+            break;
+        case MINUTES_1_LOCK:
+            g_screen_lock_time_ms = 1 * 60 * 1000;
+            break;
+        case MINUTES_2_LOCK:
+            g_screen_lock_time_ms = 2 * 60 * 1000;
+            break;
+        case MINUTES_5_LOCK:
+            g_screen_lock_time_ms = 5 * 60 * 1000;
+            break;
+        case MINUTES_10_LOCK:
+            g_screen_lock_time_ms = 10 * 60 * 1000;
+            break;
+        case SCREEN_NEVER_LOCK:
+            g_screen_lock_time_ms = 0;
+            break;
+        default:
+            rt_kprintf("Unknown screen lock index: %#x\n", index);
+            break;
+        }
+    }
+}
+
+static void screen_blank_delay_dropdown_event_handler(lv_event_t * e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+    lv_obj_t * obj = lv_event_get_target(e);
+
+    if(code == LV_EVENT_VALUE_CHANGED) {
+        unsigned int index = lv_dropdown_get_selected(obj);
+
+        switch (index) {
+        case MINUTES_5_BLANK:
+            g_screen_blank_time_ms = 5 * 60 * 1000;
+            break;
+        case MINUTES_10_BLANK:
+            g_screen_blank_time_ms = 10 * 60 * 1000;
+            break;
+        case MINUTES_15_BLANK:
+            g_screen_blank_time_ms = 15 * 60 * 1000;
+            break;
+        case MINUTES_30_BLANK:
+            g_screen_blank_time_ms = 30 * 60 * 1000;
+            break;
+        case SCREEN_NEVER_BLANK:
+            g_screen_blank_time_ms = 0;
+            break;
+        default:
+            rt_kprintf("Unknown screen blank after lock index: %#x\n", index);
+            break;
+        }
+    }
+}
+
+int lv_get_screen_lock_time_ms(void)
+{
+    return g_screen_lock_time_ms;
+}
+
+int lv_get_screen_lock_mode(void)
+{
+    return g_screen_lock_mode;
+}
+
+int lv_get_screen_blank_tmie_ms(void)
+{
+    return g_screen_blank_time_ms;
+}
+
+static lv_obj_t * create_text(lv_obj_t * parent, const char * icon, const char * txt,
+                              lv_menu_builder_variant_t builder_variant)
+{
+    lv_obj_t * obj = lv_menu_cont_create(parent);
+
+    lv_obj_t * img = NULL;
+    lv_obj_t * label = NULL;
+
+    if(icon) {
+        img = lv_img_create(obj);
+        lv_img_set_src(img, icon);
+    }
+
+    if(txt) {
+        label = lv_label_create(obj);
+        lv_label_set_text(label, txt);
+        lv_label_set_long_mode(label, LV_LABEL_LONG_SCROLL_CIRCULAR);
+        lv_obj_set_flex_grow(label, 1);
+    }
+
+    if(builder_variant == LV_MENU_ITEM_BUILDER_VARIANT_2 && icon && txt) {
+        lv_obj_add_flag(img, LV_OBJ_FLAG_FLEX_IN_NEW_TRACK);
+        lv_obj_swap(img, label);
+    }
+
+    return obj;
+}
+
+static lv_obj_t * create_slider(lv_obj_t * parent,
+                                const char * icon, const char * txt,
+                                int32_t min, int32_t max, int32_t val,
+                                lv_obj_t ** label)
+{
+    lv_obj_t * obj = create_text(parent, icon, txt, LV_MENU_ITEM_BUILDER_VARIANT_2);
+
+
+    lv_obj_t * slider = lv_slider_create(obj);
+    lv_obj_set_flex_grow(slider, LV_FLEX_FLOW_COLUMN);
+    lv_slider_set_range(slider, min, max);
+    lv_slider_set_value(slider, val, LV_ANIM_OFF);
+
+    if(icon == NULL) {
+        lv_obj_add_flag(slider, LV_OBJ_FLAG_FLEX_IN_NEW_TRACK);
+    }
+
+    if (label) {
+        lv_obj_t * label_obj = lv_menu_cont_create(parent);
+        *label = lv_label_create(label_obj);
+        lv_label_set_text(*label, "50");
+
+        lv_obj_set_flex_flow(label_obj, LV_FLEX_FLOW_COLUMN);
+        lv_obj_set_flex_align(label_obj, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    }
+
+    return slider;
+}
+
+static lv_obj_t * create_switch(lv_obj_t * parent,
+                                const char * icon, const char * txt, bool chk)
+{
+    lv_obj_t * obj = create_text(parent, icon, txt, LV_MENU_ITEM_BUILDER_VARIANT_1);
+
+    lv_obj_t * sw = lv_switch_create(obj);
+    lv_obj_add_state(sw, chk ? LV_STATE_CHECKED : 0);
+
+    return sw;
+}
+
+static lv_obj_t * creat_screen_lock_mode_dropdown(lv_obj_t * parent)
+{
+    /*Create a normal drop down list*/
+    lv_obj_t * dd = lv_dropdown_create(parent);
+    lv_dropdown_set_options(dd, "LOGO \n"
+                            "Pictures\n"
+                            "Blank screen");
+
+    lv_dropdown_set_selected(dd, USB_OSD_SCREEN_LOCK_MODE);
+
+    lv_obj_add_event_cb(dd, screen_lock_mode_dropdown_event_handler, LV_EVENT_ALL, NULL);
+    return dd;
+}
+
+static lv_obj_t * creat_screen_lock_delay_dropdown(lv_obj_t * parent)
+{
+    /*Create a normal drop down list*/
+    lv_obj_t * dd = lv_dropdown_create(parent);
+    lv_dropdown_set_options(dd, "15 seconds\n"
+                            "30 seconds\n"
+                            "1 minutes\n"
+                            "2 minutes\n"
+                            "5 minutes\n"
+                            "10 minutes\n"
+                            "Never");
+
+    lv_obj_add_event_cb(dd, screen_lock_delay_dropdown_event_handler, LV_EVENT_ALL, NULL);
+    return dd;
+}
+
+static lv_obj_t * creat_screen_blank_delay_dropdown(lv_obj_t * parent)
+{
+    /*Create a normal drop down list*/
+    lv_obj_t * dd = lv_dropdown_create(parent);
+    lv_dropdown_set_options(dd, "5 minutes \n"
+                            "10 minutes\n"
+                            "15 minutes\n"
+                            "30 minutes\n"
+                            "Never");
+
+    lv_obj_add_event_cb(dd, screen_blank_delay_dropdown_event_handler, LV_EVENT_ALL, NULL);
+    return dd;
+}
+
+static void lv_bg_dark_set(lv_obj_t * parent)
+{
+    struct aicfb_screeninfo info;
+    char bg_dark[256];
+
+    g_fb = mpp_fb_open();
+
+    mpp_fb_ioctl(g_fb, AICFB_GET_SCREENINFO, &info);
+    snprintf(bg_dark, 255, "L:/%dx%d_%d_%08x.fake",\
+                 info.width, info.height, 0, 0x00000000);
+
+    lv_obj_t * img_bg = lv_img_create(parent);
+    lv_img_set_src(img_bg, bg_dark);
+    lv_obj_set_pos(img_bg, 0, 0);
+}
+
+static void lv_logo_image_create(lv_obj_t * parent)
+{
+    char logo_image_src[64];
+    snprintf(logo_image_src, sizeof(logo_image_src), LVGL_PATH(%s), USB_OSD_UI_LOGO);
+
+    g_logo_image = lv_img_create(parent);
+    lv_img_set_src(g_logo_image, logo_image_src);
+    lv_obj_set_pos(g_logo_image, 0, 0);
+    lv_obj_add_flag(g_logo_image, LV_OBJ_FLAG_HIDDEN);
+}
+
+static unsigned int lv_calculate_pictures_count(void)
+{
+    DIR *dir;
+    struct dirent *file;
+    int image_count = 0;
+
+    dir = opendir(USB_OSD_PICTURES_DIR);
+    if (!dir) {
+        printf("failed to open %s dir\n", USB_OSD_PICTURES_DIR);
+        return 0;
+    }
+
+    while ((file = readdir(dir)) != NULL)
+        image_count++;
+
+    printf("find image num: %d in %s dir\n",image_count, USB_OSD_PICTURES_DIR);
+
+    closedir(dir);
+    return image_count;
+}
+
+lv_obj_t * lv_settings_screen_creat(void)
+{
+    lv_obj_t * settings_screen = lv_obj_create(NULL);
+    lv_obj_clear_flag(settings_screen, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_event_cb(settings_screen, menu_event_cb, LV_EVENT_ALL, NULL);
+
+    lv_bg_dark_set(settings_screen);
+    lv_logo_image_create(settings_screen);
+
+    g_image = lv_img_create(settings_screen);
+    lv_img_set_src(g_image, LVGL_PATH(pictures/image0.jpg));
+    lv_obj_set_pos(g_image, 0, 0);
+
+    g_image_count = lv_calculate_pictures_count();
+    if (g_image_count > 0)
+        lv_timer_create(usb_osd_pic_callback, 500, settings_screen);
+
+    menu = lv_menu_create(settings_screen);
+    lv_obj_add_event_cb(menu, menu_event_handler, LV_EVENT_ALL, menu);
+    lv_timer_create(menu_hide_callback, USB_OSD_MENU_HIDE_TIME_MS, 0);
+
+    static lv_style_t menu_style;
+    lv_style_init(&menu_style);
+    lv_style_set_bg_opa(&menu_style, LV_OPA_90);
+    lv_obj_add_style(menu, &menu_style, 0);
+
+    lv_color_t bg_color = lv_obj_get_style_bg_color(menu, 0);
+    if(lv_color_brightness(bg_color) > 127)
+        lv_obj_set_style_bg_color(menu, lv_color_darken(lv_obj_get_style_bg_color(menu, 0), 10), 0);
+    else
+        lv_obj_set_style_bg_color(menu, lv_color_darken(lv_obj_get_style_bg_color(menu, 0), 50), 0);
+
+    lv_obj_set_size(menu, USB_OSD_MENU_WIDTH, USB_OSD_MENU_HEIGHT);
+    lv_obj_align(menu, LV_ALIGN_BOTTOM_MID, 0, 0);
+
+    /* back btn */
+    lv_menu_set_mode_root_back_btn(menu, LV_MENU_ROOT_BACK_BTN_ENABLED);
+    lv_obj_add_event_cb(menu, back_event_handler, LV_EVENT_CLICKED, menu);
+
+    /* Create sub pages */
+    lv_obj_t * cont;
+    lv_obj_t * section;
+
+    /* input sub page */
+    lv_obj_t * sub_input_page = lv_menu_page_create(menu, NULL);
+    lv_obj_set_style_pad_hor(sub_input_page, lv_obj_get_style_pad_left(lv_menu_get_main_header(menu), 0), 0);
+    lv_menu_separator_create(sub_input_page);
+    section = lv_menu_section_create(sub_input_page);
+    cont = create_text(section, NULL, "Connection Type: USB", LV_MENU_ITEM_BUILDER_VARIANT_1);
+    cont = create_text(section, NULL, "Resolution: 1024 * 600", LV_MENU_ITEM_BUILDER_VARIANT_1);
+
+    /* sound sub page */
+    lv_obj_t * sub_sound_page = lv_menu_page_create(menu, NULL);
+    lv_obj_set_style_pad_hor(sub_sound_page, lv_obj_get_style_pad_left(lv_menu_get_main_header(menu), 0), 0);
+    lv_menu_separator_create(sub_sound_page);
+    section = lv_menu_section_create(sub_sound_page);
+    create_switch(section, LV_SYMBOL_AUDIO, "Sound", false);
+    create_slider(section, LV_SYMBOL_SETTINGS, "Media", 0, 100, 50, NULL);
+
+    /* display sub page */
+    lv_obj_t * sub_display_page = lv_menu_page_create(menu, NULL);
+    lv_obj_set_style_pad_hor(sub_display_page, lv_obj_get_style_pad_left(lv_menu_get_main_header(menu), 0), 0);
+    lv_menu_separator_create(sub_display_page);
+    section = lv_menu_section_create(sub_display_page);
+
+    /* display sub page recovery button */
+    lv_obj_t * recovery_btn = lv_btn_create(section);
+    lv_obj_add_event_cb(recovery_btn, recovery_btn_event_handler, LV_EVENT_ALL, NULL);
+    lv_obj_center(recovery_btn);
+
+    static lv_style_t style;
+    lv_style_init(&style);
+    lv_style_set_bg_opa(&style, LV_OPA_50);
+    lv_style_set_bg_color(&style, lv_palette_main(LV_PALETTE_BLUE));
+    lv_obj_add_style(recovery_btn, &style, 0);
+
+    lv_obj_t * label = lv_label_create(recovery_btn);
+    lv_label_set_text(label, "recovery");
+    lv_obj_center(label);
+
+    /* display sub page slider */
+    brightness_slider = create_slider(section, LV_SYMBOL_SETTINGS, "Brightness", 0, 100, 50, &brightness_label);
+    lv_obj_add_event_cb(brightness_slider, slider_event_cb, LV_EVENT_VALUE_CHANGED, brightness_label);
+
+    contrast_slider =create_slider(section, LV_SYMBOL_SETTINGS, "Contrast", 0, 100, 50, &contrast_label);
+    lv_obj_add_event_cb(contrast_slider, slider_event_cb, LV_EVENT_VALUE_CHANGED, contrast_label);
+
+    saturation_slider =create_slider(section, LV_SYMBOL_SETTINGS, "Saturation", 0, 100, 50, &saturation_label);
+    lv_obj_add_event_cb(saturation_slider, slider_event_cb, LV_EVENT_VALUE_CHANGED, saturation_label);
+
+    hue_slider =create_slider(section, LV_SYMBOL_SETTINGS, "Hue", 0, 100, 50, &hue_label);
+    lv_obj_add_event_cb(hue_slider, slider_event_cb, LV_EVENT_VALUE_CHANGED, hue_label);
+
+    /* lock sub page */
+    lv_obj_t * sub_lock_page = lv_menu_page_create(menu, NULL);
+    lv_obj_set_style_pad_hor(sub_lock_page, lv_obj_get_style_pad_left(lv_menu_get_main_header(menu), 0), 0);
+    lv_menu_separator_create(sub_lock_page);
+    section = lv_menu_section_create(sub_lock_page);
+
+    cont = create_text(section, NULL, "Screen Lock Delay", LV_MENU_ITEM_BUILDER_VARIANT_1);
+    creat_screen_lock_delay_dropdown(cont);
+    /* sceen lock time default by menuconfig */
+    g_screen_lock_time_ms = USB_OSD_SCREEN_LOCK_TIME_MS;
+
+    cont = create_text(section, NULL, "Screen Lock Mode", LV_MENU_ITEM_BUILDER_VARIANT_1);
+    creat_screen_lock_mode_dropdown(cont);
+    /* sceen lock mode default by menuconfig */
+    g_screen_lock_mode = USB_OSD_SCREEN_LOCK_MODE;
+
+    cont = create_text(section, NULL, "Screen Blank After Lock", LV_MENU_ITEM_BUILDER_VARIANT_1);
+    creat_screen_blank_delay_dropdown(cont);
+    screen_blank_time_obj = cont;
+    /* sceen blank time after lock default by menuconfig */
+    g_screen_blank_time_ms = USB_OSD_SCREEN_BLANK_TIME_MS;
+
+    /* about sub page */
+    lv_obj_t * sub_about_page = lv_menu_page_create(menu, NULL);
+    lv_obj_set_style_pad_hor(sub_about_page, lv_obj_get_style_pad_left(lv_menu_get_main_header(menu), 0), 0);
+    lv_menu_separator_create(sub_about_page);
+    section = lv_menu_section_create(sub_about_page);
+    cont = create_text(section, NULL,
+                       "Copyright (C) 2024 ArtinChip Technology Co., Ltd.", LV_MENU_ITEM_BUILDER_VARIANT_1);
+    cont = create_text(section, NULL, "Chip ID: D215BBV", LV_MENU_ITEM_BUILDER_VARIANT_1);
+
+    /* Create a root page */
+    root_page = lv_menu_page_create(menu, "OSD");
+    lv_obj_set_style_pad_hor(root_page, lv_obj_get_style_pad_left(lv_menu_get_main_header(menu), 0), 0);
+    section = lv_menu_section_create(root_page);
+    cont = create_text(section, LV_SYMBOL_SETTINGS, "Input", LV_MENU_ITEM_BUILDER_VARIANT_1);
+    lv_menu_set_load_page_event(menu, cont, sub_input_page);
+    cont = create_text(section, LV_SYMBOL_SETTINGS, "Display", LV_MENU_ITEM_BUILDER_VARIANT_1);
+    lv_menu_set_load_page_event(menu, cont, sub_display_page);
+    cont = create_text(section, LV_SYMBOL_POWER, "Lockscreen", LV_MENU_ITEM_BUILDER_VARIANT_1);
+    lv_menu_set_load_page_event(menu, cont, sub_lock_page);
+    cont = create_text(section, LV_SYMBOL_AUDIO, "Sound", LV_MENU_ITEM_BUILDER_VARIANT_1);
+    lv_menu_set_load_page_event(menu, cont, sub_sound_page);
+    cont = create_text(section, LV_SYMBOL_LIST, "About", LV_MENU_ITEM_BUILDER_VARIANT_1);
+    lv_menu_set_load_page_event(menu, cont, sub_about_page);
+
+    lv_menu_set_sidebar_page(menu, root_page);
+
+    lv_event_send(lv_obj_get_child(lv_obj_get_child(lv_menu_get_cur_sidebar_page(menu), 0), 0), LV_EVENT_CLICKED, NULL);
+
+    return settings_screen;
+}

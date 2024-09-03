@@ -1,6 +1,7 @@
 /*
-* Copyright (C) 2020-2022 Artinchip Technology Co. Ltd
+* Copyright (C) 2020-2024 ArtInChip Technology Co. Ltd
 *
+*  SPDX-License-Identifier: Apache-2.0
 *  author: <qi.xu@artinchip.com>
 *  Desc: png register configure
 *
@@ -116,103 +117,106 @@ static void png_set_clip_info(struct png_dec_ctx *s)
 
 int png_hardware_decode(struct png_dec_ctx *s, unsigned char *buf, int length)
 {
-	struct png_register_list *reg_list = (struct png_register_list *)s->reg_list;
-	u32 *pval;
-	u32 val;
+    struct png_register_list *reg_list = (struct png_register_list *)s->reg_list;
+    u32 *pval;
+    u32 val;
 
-	memset(reg_list, 0, sizeof(struct png_register_list));
-	s->hw_size = s->stride * s->height;
+    memset(reg_list, 0, sizeof(struct png_register_list));
+    s->hw_size = s->stride * s->height;
 
-	ve_get_client();
+    ve_get_client();
 
-	//* 1. reset ve
-	config_ve_top_reg(s);
-	png_reset(s);
+    // 1. reset ve
+    config_ve_top_reg(s);
+    png_reset(s);
 
-	//* 2.set png info
-	pval = (u32 *)&reg_list->_10_png_ctrl;
-	reg_list->_10_png_ctrl.bit_depth = s->bit_depth;
-	reg_list->_10_png_ctrl.color_type = s->color_type;
-	reg_list->_10_png_ctrl.dec_type = 1;
-	write_reg_u32(s->regs_base + PNG_CTRL_REG, *pval);
+    // 2.set png info
+    pval = (u32 *)&reg_list->_10_png_ctrl;
+    reg_list->_10_png_ctrl.bit_depth = s->bit_depth;
+    reg_list->_10_png_ctrl.color_type = s->color_type;
+    reg_list->_10_png_ctrl.dec_type = 1;
+    write_reg_u32(s->regs_base + PNG_CTRL_REG, *pval);
 
-	//* 3. set picture size
-	pval = (u32 *)&reg_list->_14_png_size;
-	reg_list->_14_png_size.width = s->width;
-	reg_list->_14_png_size.height = s->height;
-	write_reg_u32(s->regs_base + PNG_SIZE_REG, *pval);
+    // 3. set picture size
+    pval = (u32 *)&reg_list->_14_png_size;
+    reg_list->_14_png_size.width = s->width;
+    reg_list->_14_png_size.height = s->height;
+    write_reg_u32(s->regs_base + PNG_SIZE_REG, *pval);
 
-	write_reg_u32(s->regs_base + PNG_STRIDE_REG, s->curr_frame->mpp_frame.buf.stride[0]);
+    write_reg_u32(s->regs_base + PNG_STRIDE_REG, s->curr_frame->mpp_frame.buf.stride[0]);
 
-	int format = 0;
-	if(s->pix_fmt == MPP_FMT_RGBA_8888)
-		format = RGBA8888;
-	else if(s->pix_fmt == MPP_FMT_BGRA_8888)
-		format = BGRA8888;
-	else if(s->pix_fmt == MPP_FMT_ABGR_8888)
-		format = ABGR8888;
-	else if(s->pix_fmt == MPP_FMT_ARGB_8888)
-		format = ARGB8888;
-	else if(s->pix_fmt == MPP_FMT_BGR_888)
-		format = BGR888;
-	else if(s->pix_fmt == MPP_FMT_RGB_888)
-		format = RGB888;
-	else if(s->pix_fmt == MPP_FMT_BGR_565)
-		format = BGR565;
-	else if(s->pix_fmt == MPP_FMT_RGB_565)
-		format = RGB565;
+    int format = 0;
+    if(s->pix_fmt == MPP_FMT_RGBA_8888)
+        format = RGBA8888;
+    else if(s->pix_fmt == MPP_FMT_BGRA_8888)
+        format = BGRA8888;
+    else if(s->pix_fmt == MPP_FMT_ABGR_8888)
+        format = ABGR8888;
+    else if(s->pix_fmt == MPP_FMT_ARGB_8888)
+        format = ARGB8888;
+    else if(s->pix_fmt == MPP_FMT_BGR_888)
+        format = BGR888;
+    else if(s->pix_fmt == MPP_FMT_RGB_888)
+        format = RGB888;
+    else if(s->pix_fmt == MPP_FMT_BGR_565)
+        format = BGR565;
+    else if(s->pix_fmt == MPP_FMT_RGB_565)
+        format = RGB565;
 
-	write_reg_u32(s->regs_base + PNG_FORMAT_REG, format);
+    write_reg_u32(s->regs_base + PNG_FORMAT_REG, format);
 
-	//* 4. set output buffer
+    // 4. set output buffer
     int channel = (s->pix_fmt == MPP_FMT_BGR_888 || s->pix_fmt == MPP_FMT_RGB_888) ? 3 : 4;
     int stride = s->curr_frame->mpp_frame.buf.stride[0];
     int out_offset = s->decoder.output_y * stride + s->decoder.output_x * channel;
-	val = s->curr_frame->phy_addr[0] + out_offset;
-	write_reg_u32(s->regs_base + OUTPUT_BUFFER_ADDR_REG, val);
+    val = s->curr_frame->phy_addr[0] + out_offset;
+    write_reg_u32(s->regs_base + OUTPUT_BUFFER_ADDR_REG, val);
 
-	val = s->curr_frame->phy_addr[0] + s->height * stride;
-	write_reg_u32(s->regs_base + OUTPUT_BUFFER_LENGTH_REG, val);
+#ifdef AIC_VE_DRV_V10
+    write_reg_u32(s->regs_base + OUTPUT_BUFFER_LENGTH_REG, s->height * stride);
+#else
+    write_reg_u32(s->regs_base + OUTPUT_BUFFER_LENGTH_REG, s->curr_frame->phy_addr[0] + s->height * stride);
+#endif
 
-	//* 5. set LZ77 buffer 32K
-	val = s->lz77_mpp_buf->phy_addr;
-	write_reg_u32(s->regs_base + INFLATE_WINDOW_BUFFER_ADDR_REG, val);
+    // 5. set LZ77 buffer 32K
+    val = s->lz77_mpp_buf->phy_addr;
+    write_reg_u32(s->regs_base + INFLATE_WINDOW_BUFFER_ADDR_REG, val);
 
-    //* PNG filter line buffer address
+    // PNG filter line buffer address
     val = s->filter_mpp_buf->phy_addr;
     write_reg_u32(s->regs_base + PNG_FILTER_LINE_BUF_ADDR_REG, val);
 
-	//* 6. set memory register for palette
-	if (s->color_type == PNG_COLOR_TYPE_PALETTE) {
-		unsigned char* palette_buf = (unsigned char*)&s->palette;
-		memcpy(s->palette_mpp_buf->vir_addr, palette_buf, 256 * 4);
-		ve_buffer_sync(s->palette_mpp_buf, CACHE_CLEAN);
+    // 6. set memory register for palette
+    if (s->color_type == PNG_COLOR_TYPE_PALETTE) {
+        unsigned char* palette_buf = (unsigned char*)&s->palette;
+        memcpy(s->palette_mpp_buf->vir_addr, palette_buf, 256 * 4);
+        ve_buffer_sync(s->palette_mpp_buf, CACHE_CLEAN);
 
-		val = s->palette_mpp_buf->phy_addr;
-		write_reg_u32(s->regs_base + PNG_PNG_PALETTE_ADDR_REG, val);
-	}
+        val = s->palette_mpp_buf->phy_addr;
+        write_reg_u32(s->regs_base + PNG_PNG_PALETTE_ADDR_REG, val);
+    }
 
-    //* 7. set clip info
+    // 7. set clip info
     png_set_clip_info(s);
 
-	//* 8. decode start
-	logd("config start");
-	write_reg_u32(s->regs_base + INFLATE_INTERRUPT_REG, 15);
-	write_reg_u32(s->regs_base + INFLATE_STATUS_REG, 15);
-	write_reg_u32(s->regs_base + INFLATE_START_REG, 7);
+    // 8. decode start
+    logd("config start");
+    write_reg_u32(s->regs_base + INFLATE_INTERRUPT_REG, 15);
+    write_reg_u32(s->regs_base + INFLATE_STATUS_REG, 15);
+    write_reg_u32(s->regs_base + INFLATE_START_REG, 7);
 
-	//* 9.set bitstream
-	if (set_bitstream_and_wait(s, buf, length)) {
-		ve_put_client();
-		return -1;
-	}
+    // 9.set bitstream
+    if (set_bitstream_and_wait(s, buf, length)) {
+        ve_put_client();
+        return -1;
+    }
 
-	val = read_reg_u32(s->regs_base + PNG_COUNT_REG);
-	logi("png clock: %d", val);
+    val = read_reg_u32(s->regs_base + PNG_COUNT_REG);
+    logi("png clock: %d", val);
 
-	// disable png module
-	write_reg_u32(s->regs_base + VE_PNG_EN_REG, 0);
-	ve_put_client();
+    // disable png module
+    write_reg_u32(s->regs_base + VE_PNG_EN_REG, 0);
+    ve_put_client();
 
-	return 0;
+    return 0;
 }

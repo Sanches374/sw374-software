@@ -87,6 +87,8 @@ int spinand_flash_init(struct aic_spinand *flash);
 int spinand_read_page(struct aic_spinand *flash, u32 page, u8 *data,
                       u32 data_len, u8 *spare, u32 spare_len);
 int spinand_block_isbad(struct aic_spinand *flash, u16 blk);
+int spinand_get_status(struct aic_spinand *flash, u16 blk);
+int spinand_set_status(struct aic_spinand *flash, u16 blk, u16 pos, u16 status);
 int spinand_continuous_read(struct aic_spinand *flash, u32 page, u8 *data,
                             u32 size);
 int spinand_write_page(struct aic_spinand *flash, u32 page, const u8 *data,

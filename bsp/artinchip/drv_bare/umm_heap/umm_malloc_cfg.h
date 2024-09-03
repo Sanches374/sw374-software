@@ -184,7 +184,7 @@
 #endif
 
 /* -------------------------------------------------------------------------- */
-
+#define UMM_FIRST_FIT
 #ifdef UMM_BEST_FIT
   #ifdef  UMM_FIRST_FIT
     #error Both UMM_BEST_FIT and UMM_FIRST_FIT are defined - pick one!

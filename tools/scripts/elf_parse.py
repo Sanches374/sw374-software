@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
-# SPDX-License-Identifier: GPL-2.0+
+# SPDX-License-Identifier: Apache-2.0
 #
-# Copyright (C) 2021 ArtInChip Technology Co., Ltd
+# Copyright (C) 2021-2024 ArtInChip Technology Co., Ltd
 # Authors: dwj <weijie.ding@artinchip.com>
 import os
 import sys
+import json
 
 seg_info = {}
+
 
 def parse_elf_segment(src_file, prj_out_dir, toolchain_prefix):
     phdr = 0
@@ -63,23 +65,60 @@ def parse_elf_segment(src_file, prj_out_dir, toolchain_prefix):
                 if bitmask & (1 << segIdx):
                     for i in range(1, len(line_list)):
                         option += ' -j ' + line_list[i]
-                    os.system(objcopy_action + option + " " + src_file + ' ' + SEG_BIN_PREFIX + str(genSegIdx) + ".bin")
+                    seg_info[genSegIdx].setdefault("sections", option)
                     option = ""
                     genSegIdx += 1
                 segIdx += 1
 
             lines = f.readline()
 
+    # For xip-nor only, xip code must be in seg0
+    if int(entry_point, 16) > 0x60000000:
+        for i in range(0, len(seg_info)):
+            if (seg_info[i]['load'] == entry_point and i):
+                tmp = seg_info[0]
+                seg_info[0] = seg_info[i]
+                seg_info[i] = tmp
+
+    for i in range(0, len(seg_info)):
+        os.system(objcopy_action + seg_info[i]['sections'] + " " +
+                  src_file + ' ' + SEG_BIN_PREFIX + str(i) + ".bin")
+
     os.system("rm " + SEG_INFO_TMP)
 
-def generate_its_head(depth):
+
+def parse_image_cfg(cfgfile):
+    with open(cfgfile, "r") as f:
+        lines = f.readlines()
+        jsonstr = ""
+        for line in lines:
+            sline = line.strip()
+            if sline.startswith("//"):
+                continue
+            slash_start = sline.find("//")
+            if slash_start > 0:
+                jsonstr += sline[0:slash_start].strip()
+            else:
+                jsonstr += sline
+
+        jsonstr = jsonstr.replace(",}", "}").replace(",]", "]")
+        cfg = json.loads(jsonstr)
+    return cfg
+
+
+def generate_its_head(depth, prj_out_dir):
     indent = depth * '\t'
     head_str = indent + "/dts-v1/;\n\n"
     head_str += indent + "/ {\n"
     head_str += indent + "\tdescription = \"Artinchip Luban-lite\";\n"
     head_str += indent + "\t#address-cells = <1>;\n\n"
     head_str += indent + "\timages {\n"
+
+    cfg = parse_image_cfg(prj_out_dir + 'image_cfg.json')
+    head_str += indent + "\t\tversion = \"" + cfg['image']['info']['version'] + "\";\n"
+
     return head_str
+
 
 def generate_its_tail(depth):
     indent = depth * '\t'
@@ -99,6 +138,7 @@ def generate_its_tail(depth):
     tail_str += "};\n"
     return tail_str
 
+
 def insert_seg_node(depth, seg_index):
     indent = depth * '\t'
     node_str = indent + "seg{} {{\n".format(seg_index)
@@ -112,11 +152,12 @@ def insert_seg_node(depth, seg_index):
     node_str += indent + "};\n"
     return node_str
 
+
 def generate_its(output_file):
     file_path = output_file + '.its'
 
     with open(file_path, "w") as f:
-        f.write(generate_its_head(0))
+        f.write(generate_its_head(0, sys.argv[2]))
 
         # insert seg0/1/2/3 etc. node
         for i in range(len(seg_info)):

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Artinchip Technology Co., Ltd
+ * Copyright (c) 2024, Artinchip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -192,12 +192,14 @@ int32_t hal_usart_config_parity(usart_handle_t handle, usart_parity_e parity)
             /* Set PEN and clear EPS(LCR[4]) to set the ODD parity. */
             addr->LCR |= LCR_PARITY_ENABLE;
             addr->LCR &= LCR_PARITY_ODD;
+            hal_usart_set_interrupt(handle, USART_INTR_ELSI, 1);
             break;
 
         case USART_PARITY_EVEN:
             /* Set PEN and EPS(LCR[4]) to set the EVEN parity.*/
             addr->LCR |= LCR_PARITY_ENABLE;
             addr->LCR |= LCR_PARITY_EVEN;
+            hal_usart_set_interrupt(handle, USART_INTR_ELSI, 1);
             break;
 
         default:
@@ -375,18 +377,11 @@ int32_t hal_usart_config_func(usart_handle_t handle, usart_func_e func)
     else if (func == USART_MODE_RS232_AUTO_FLOW_CTRL)
     {
         addr->MCR |= AIC_UART_MCR_FLOW_CTRL;
-        addr->IER |= IER_RDA_INT_ENABLE;
         exaddr->RS485CTL &= ~AIC_UART_RS485_RXBFA;
         exaddr->RS485CTL &= ~AIC_UART_RS485_RXAFA;
     }
-    else if (func == USART_MODE_RS232_UNAUTO_FLOW_CTRL ||
-             func == USART_MODE_RS232_SW_HW_FLOW_CTRL)
+    else
     {
-        addr->MCR &= AIC_UART_MCR_FUNC_MASK;
-        addr->IER |= IER_RDA_INT_ENABLE;
-        exaddr->RS485CTL &= ~AIC_UART_RS485_RXBFA;
-        exaddr->RS485CTL &= ~AIC_UART_RS485_RXAFA;
-    } else {
         addr->MCR &= AIC_UART_MCR_FUNC_MASK;
         exaddr->RS485CTL &= ~AIC_UART_RS485_RXBFA;
         exaddr->RS485CTL &= ~AIC_UART_RS485_RXAFA;
@@ -587,10 +582,24 @@ static void hal_usart_intr_recv_data(int32_t idx, aic_usart_priv_t *usart_priv)
 }
 
 /**
+  \brief       clear usart rx fifo data.
+  \param[in]   handle  usart handle to operate.
+*/
+void hal_usart_clear_rxfifo(usart_handle_t handle)
+{
+    int ch = -1;
+    while (1)
+    {
+        ch = hal_uart_getchar(handle);
+        if (ch == -1) break;
+    }
+}
+
+/**
   \brief        interrupt service function for receiver line.
   \param[in]   usart_priv usart private to operate.
 */
-static void hal_usart_intr_recv_line(int32_t idx, aic_usart_priv_t *usart_priv)
+void hal_usart_intr_recv_line(int32_t idx, aic_usart_priv_t *usart_priv)
 {
     aic_usart_reg_t *addr = (aic_usart_reg_t *)(usart_priv->base);
     uint32_t lsr_stat = addr->LSR;
@@ -598,22 +607,6 @@ static void hal_usart_intr_recv_line(int32_t idx, aic_usart_priv_t *usart_priv)
     addr->IER &= (~IER_THRE_INT_ENABLE);
 
     uint32_t timecount = 0;
-
-    while (addr->LSR & 0x1)
-    {
-        //addr->RBR;
-        timecount++;
-
-        if (timecount >= UART_BUSY_TIMEOUT)
-        {
-            if (usart_priv->cb_event)
-            {
-                usart_priv->cb_event(idx, USART_EVENT_RX_TIMEOUT);
-            }
-
-            return;
-        }
-    }
 
     /** Break Interrupt bit. This is used to indicate the detection of a
       * break sequence on the serial input data.
@@ -667,6 +660,20 @@ static void hal_usart_intr_recv_line(int32_t idx, aic_usart_priv_t *usart_priv)
         }
 
         return;
+    }
+
+    while (addr->LSR & 0x1)
+    {
+        timecount++;
+        if (timecount >= UART_BUSY_TIMEOUT)
+        {
+            if (usart_priv->cb_event)
+            {
+                usart_priv->cb_event(idx, USART_EVENT_RX_TIMEOUT);
+            }
+
+            return;
+        }
     }
 }
 /**
@@ -1199,6 +1206,17 @@ int32_t hal_usart_set_interrupt(usart_handle_t handle, usart_intr_type_e type, i
 
             break;
 
+        case USART_INTR_ELSI:
+            if (flag == 0) {
+                addr->IER &= ~IIR_RECV_LINE_ENABLE;
+            } else if (flag == 1) {
+                addr->IER |= IIR_RECV_LINE_ENABLE;
+            } else {
+                return ERR_USART(DRV_ERROR_PARAMETER);
+            }
+
+            break;
+
         default:
             return ERR_USART(DRV_ERROR_PARAMETER);
 
@@ -1378,22 +1396,6 @@ int32_t hal_usart_rx_disable_drq(usart_handle_t handle)
     aic_usart_reg_t *addr = (aic_usart_reg_t *)(usart_priv->base);
 
     addr->HALT &= ~AIC_UART_RX_DRQ_EN;
-
-    return 0;
-}
-
-int32_t hal_usart_set_ier(usart_handle_t handle, uint8_t enable)
-{
-    USART_NULL_PARAM_CHK(handle);
-    aic_usart_priv_t *usart_priv = handle;
-    aic_usart_reg_t *addr = (aic_usart_reg_t *)(usart_priv->base);
-    if (enable) {
-        addr->IER |= AIC_UART_IER_RDI;
-
-    } else {
-        addr->IER &= ~(AIC_UART_IER_RDI);
-
-    }
 
     return 0;
 }

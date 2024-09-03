@@ -129,19 +129,11 @@ static void gt911_entry(void *parameter)
 
 static rt_err_t rx_callback(rt_device_t dev, rt_size_t size)
 {
-#ifdef AIC_PM_POWER_TOUCH_WAKEUP
-  rt_uint8_t sleep_mode;
-#endif
   rt_sem_release(gt911_sem);
   rt_device_control(dev, RT_TOUCH_CTRL_DISABLE_INT, RT_NULL);
-#ifdef AIC_PM_POWER_TOUCH_WAKEUP
-  sleep_mode = rt_pm_get_sleep_mode();
-  if (sleep_mode != PM_SLEEP_MODE_NONE && !wakeup_triggered) {
-    rt_pm_module_request(PM_POWER_ID, PM_SLEEP_MODE_NONE);
-    wakeup_triggered = 1;
-  }
-  /* touch timer restart */
-  rt_timer_start(touch_timer);
+#ifdef AIC_PM_DEMO
+    extern struct rt_event pm_event;
+    rt_event_send(&pm_event, 2);
 #endif
   return 0;
 }

@@ -145,6 +145,11 @@ enum mpp_mbus_type {
 
 /* Media bus format */
 enum mpp_mbus_fmt {
+    MEDIA_BUS_FMT_RGB444_2X8_PADHI_BE = 0x1001,
+    MEDIA_BUS_FMT_RGB444_2X8_PADHI_LE = 0x1002,
+    MEDIA_BUS_FMT_RGB555_2X8_PADHI_BE = 0x1003,
+    MEDIA_BUS_FMT_RGB555_2X8_PADHI_LE = 0x1004,
+
     MEDIA_BUS_FMT_RGB565_2X8_BE = 0x1007,
     MEDIA_BUS_FMT_RGB565_2X8_LE = 0x1008,
     /* YUV (including grey) */

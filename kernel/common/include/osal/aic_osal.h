@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -13,6 +13,9 @@
 
 #include <rtconfig.h>
 #include <aic_common.h>
+
+/* aicos_memcpy */
+extern void *aicos_memcpy(void *, const void *, size_t);
 
 /* Common malloc align */
 typedef void *(*aicos_malloc1_t)(size_t);
@@ -34,6 +37,7 @@ typedef void *aicos_sem_t;
 typedef void *aicos_mutex_t;
 typedef void *aicos_event_t;
 typedef void *aicos_queue_t;
+typedef void *aicos_wqueue_t;
 
 #if defined(KERNEL_RTTHREAD)
 #include "aic_osal_rtthread.h"
@@ -90,6 +94,14 @@ static inline void aicos_queue_delete(aicos_queue_t queue) {}
 static inline int aicos_queue_send(aicos_queue_t queue, void const *buff) {return -1;}
 static inline int aicos_queue_receive(aicos_queue_t queue, void *buff, uint32_t msec) {return -1;}
 static inline int aicos_queue_empty(aicos_queue_t queue) {return false;}
+
+//--------------------------------------------------------------------+
+// Wait Queue API
+//--------------------------------------------------------------------+
+static inline aicos_wqueue_t aicos_wqueue_create(aicos_wqueue_t queue) {return NULL;}
+static inline void aicos_wqueue_delete(aicos_wqueue_t queue) {}
+static inline int aicos_wqueue_wakeup(aicos_wqueue_t queue) {return -1;}
+static inline int aicos_wqueue_wait(aicos_wqueue_t queue, uint32_t msec) {return -1;}
 
 //--------------------------------------------------------------------+
 // Critical API

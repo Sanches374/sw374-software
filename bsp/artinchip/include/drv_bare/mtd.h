@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Artinchip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -86,7 +86,7 @@ int mtd_write_oob(struct mtd_dev *mtd, u32 offset, u8 *data, u32 len,
                   u8 *spare_data, u32 spare_len);
 int mtd_block_isbad(struct mtd_dev *mtd, u32 offset);
 int mtd_block_markbad(struct mtd_dev *mtd, u32 offset);
-struct mtd_partition *mtd_parts_parse(char *parts);
+struct mtd_partition *mtd_parts_parse(char *parts, u32 spi_bus);
 void mtd_parts_free(struct mtd_partition *head);
 int mtd_contread(struct mtd_dev *mtd, u32 offset, u8 *data, u32 len);
 

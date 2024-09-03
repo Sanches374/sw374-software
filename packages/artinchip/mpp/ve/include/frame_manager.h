@@ -66,6 +66,11 @@ int fm_render_put_frame(struct frame_manager* fm, struct mpp_frame *frame);
 int fm_decoder_put_frame(struct frame_manager* fm, struct frame *frame);
 
 /*
+  decoder reclaim all used frame to frame_manager.the frame will not used by decoder any more.
+*/
+int fm_decoder_reclaim_all_used_frame(struct frame_manager* fm);
+
+/*
   get a empty frame for decoder.
 
   internal ref count will add 1 (used by decode)

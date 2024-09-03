@@ -9,6 +9,7 @@
 #include <string.h>
 #include <aicupg.h>
 #include <spinand.h>
+#include <spienc.h>
 #include <mtd.h>
 #include "upg_internal.h"
 #include "nand_fwc_spl.h"
@@ -555,6 +556,9 @@ static s32 nand_fwc_spl_image_verify(struct aicupg_nand_spl *spl)
     ret = verify_image_page(spl, pt);
 
 out:
+#ifdef AIC_USING_SPIENC
+    spienc_select_tweak(AIC_SPIENC_USER_TWEAK);
+#endif
     if (pt)
         free(pt);
     return ret;
@@ -604,6 +608,9 @@ s32 nand_fwc_spl_prepare(struct aicupg_nand_priv *priv, u32 datasiz, u32 blksiz)
         pr_err("spl erase image block failed.\n");
         return -1;
     }
+#ifdef AIC_USING_SPIENC
+    spienc_select_tweak(AIC_SPIENC_HW_TWEAK);
+#endif
 
     return 0;
 }

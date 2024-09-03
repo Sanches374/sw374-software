@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Artinchip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -38,7 +38,7 @@
 #define QSPI_MAX_CNT 4
 
 static struct aic_qspi_bus qspi_bus_arr[] = {
-#if defined(AIC_USING_QSPI0)
+#if defined(AIC_USING_QSPI0) && defined(AIC_QSPI0_DEVICE_SPINOR)
     {
         .name = "qspi0",
         .idx = 0,
@@ -58,7 +58,7 @@ static struct aic_qspi_bus qspi_bus_arr[] = {
 #endif
     },
 #endif
-#if defined(AIC_USING_QSPI1)
+#if defined(AIC_USING_QSPI1) && defined(AIC_QSPI1_DEVICE_SPINOR)
     {
         .name = "qspi1",
         .idx = 1,
@@ -78,7 +78,7 @@ static struct aic_qspi_bus qspi_bus_arr[] = {
 #endif
     },
 #endif
-#if defined(AIC_USING_QSPI2)
+#if defined(AIC_USING_QSPI2) && defined(AIC_QSPI2_DEVICE_SPINOR)
     {
         .name = "qspi2",
         .idx = 2,
@@ -493,7 +493,7 @@ sfud_flash *sfud_probe(u32 spi_bus)
     mtd_add_device(mtd);
 
     partstr = aic_spinor_get_partition_string(mtd);
-    part = mtd_parts_parse(partstr);
+    part = mtd_parts_parse(partstr, spi_bus);
     free(partstr);
     p = part;
     while (p) {

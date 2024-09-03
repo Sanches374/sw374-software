@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -11,15 +11,18 @@
  extern "C" {
 #endif
 
+#include <string.h>
 #include <rtthread.h>
 #include <rthw.h>
+#include <rtdevice.h>
 #include <aic_errno.h>
 
 //--------------------------------------------------------------------+
 // Timeout Define
 //--------------------------------------------------------------------+
 
-#define AICOS_WAIT_FOREVER RT_WAITING_FOREVER
+#define AICOS_WAIT_FOREVER  RT_WAITING_FOREVER
+#define AICOS_CMD_RESET     RT_IPC_CMD_RESET
 
 //--------------------------------------------------------------------+
 // Thread API
@@ -85,6 +88,15 @@ static inline int aicos_sem_take(aicos_sem_t sem, uint32_t msec)
 static inline int aicos_sem_give(aicos_sem_t sem)
 {
     return (int)rt_sem_release((rt_sem_t)sem);
+}
+
+static inline int aicos_sem_reset(aicos_sem_t sem, unsigned long val)
+{
+    int ret = 0;
+
+    ret = rt_sem_control((rt_sem_t)sem, AICOS_CMD_RESET, (void *)val);
+
+    return (int)ret;
 }
 
 //--------------------------------------------------------------------+
@@ -200,6 +212,58 @@ static inline int aicos_queue_empty(aicos_queue_t queue)
 }
 
 //--------------------------------------------------------------------+
+// Wait Queue API
+//--------------------------------------------------------------------+
+
+static inline aicos_wqueue_t aicos_wqueue_create(void)
+{
+    rt_wqueue_t *wqueue = rt_malloc(sizeof(*wqueue));
+
+    if (!wqueue)
+        return NULL;
+
+    rt_wqueue_init(wqueue);
+    return (aicos_wqueue_t)wqueue;
+}
+
+static inline void aicos_wqueue_delete(aicos_wqueue_t wqueue)
+{
+    rt_wqueue_t *queue = (rt_wqueue_t *)wqueue;
+    rt_list_t *queue_list;
+    struct rt_list_node *node;
+    struct rt_wqueue_node *entry;
+
+    queue_list = &(queue->waiting_list);
+
+    if (!(rt_list_isempty(queue_list)))
+    {
+        for (node = queue_list->next; node != queue_list;)
+        {
+            entry = rt_list_entry(node, struct rt_wqueue_node, list);
+
+            node = node->next;
+            rt_wqueue_remove(entry);
+        }
+    }
+
+    rt_free(wqueue);
+}
+
+static inline void aicos_wqueue_wakeup(aicos_wqueue_t wqueue)
+{
+    rt_wqueue_t *wq = (rt_wqueue_t *)wqueue;
+
+    rt_wqueue_wakeup_all(wq, NULL);
+}
+
+static inline int aicos_wqueue_wait(aicos_wqueue_t wqueue, uint32_t msec)
+{
+    rt_wqueue_t *wq = (rt_wqueue_t *)wqueue;
+
+    return rt_wqueue_wait(wq, 0, msec);
+}
+
+//--------------------------------------------------------------------+
 // Critical API
 //--------------------------------------------------------------------+
 
@@ -230,10 +294,14 @@ void aic_memheap_free(int type, void *rmem);
 
 static inline void *aicos_malloc(unsigned int mem_type, size_t size)
 {
+    void *p;
+
     if (mem_type == MEM_DEFAULT)
-        return rt_malloc(size);
+        p = rt_malloc(size);
     else
-        return aic_memheap_malloc(mem_type, size);
+        p = aic_memheap_malloc(mem_type, size);
+
+    return p;
 }
 
 static inline void aicos_free(unsigned int mem_type, void *mem)
@@ -246,10 +314,14 @@ static inline void aicos_free(unsigned int mem_type, void *mem)
 
 static inline void *aicos_malloc_align(uint32_t mem_type, size_t size, size_t align)
 {
+    void *p;
+
     if (mem_type == MEM_DEFAULT)
-        return rt_malloc_align(size, align);
+        p = rt_malloc_align(size, align);
     else
-        return _aicos_malloc_align_(size, align, mem_type, (void *)aic_memheap_malloc);
+        p = _aicos_malloc_align_(size, align, mem_type, (void *)aic_memheap_malloc);
+
+    return p;
 }
 
 static inline void aicos_free_align(uint32_t mem_type, void *mem)
@@ -258,6 +330,34 @@ static inline void aicos_free_align(uint32_t mem_type, void *mem)
         rt_free_align(mem);
     else
         _aicos_free_align_(mem, mem_type, (void *)aic_memheap_free);
+}
+
+static inline void *aicos_memdup(unsigned int mem_type, void *src, size_t size)
+{
+    void *p;
+
+    if (mem_type == MEM_DEFAULT)
+        p = rt_malloc(size);
+    else
+        p = aic_memheap_malloc(mem_type, size);
+
+    if (p)
+        memcpy(p, src, size);
+    return p;
+}
+
+static inline void *aicos_memdup_align(unsigned int mem_type, void *src, size_t size, size_t align)
+{
+    void *p;
+
+    if (mem_type == MEM_DEFAULT)
+        p = rt_malloc_align(size, align);
+    else
+        p = _aicos_malloc_align_(size, align, mem_type, (void *)aic_memheap_malloc);
+
+    if (p)
+        memcpy(p, src, size);
+    return p;
 }
 
 #ifdef __cplusplus

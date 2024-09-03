@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "usbh_core.h"
+#include "usb_otg.h"
 
 struct usbh_class_info *usbh_class_info_table_begin = NULL;
 struct usbh_class_info *usbh_class_info_table_end = NULL;
@@ -701,7 +702,6 @@ int usbh_deinitialize(struct usbh_bus *bus)
     usb_slist_init(&bus->hub_list);
     usb_slist_remove(&g_bus_head, &bus->list);
 
-    usb_free(bus);
     return 0;
 }
 
@@ -845,7 +845,7 @@ int lsusb(int argc, char **argv)
     return 0;
 }
 
-#ifdef AIC_USING_USB0_HOST
+#if defined(AIC_USING_USB0_HOST) || defined(AIC_USING_USB0_OTG)
 struct usbh_bus *usb_ehci0_hs_bus;
 #endif
 #ifdef AIC_USING_USB1_HOST
@@ -854,13 +854,18 @@ struct usbh_bus *usb_ehci1_hs_bus;
 
 int usbh_init(void)
 {
-#if defined(AIC_USING_USB0_HOST) || defined(AIC_USING_USB1_HOST)
+#if defined(AIC_USING_USB0_HOST) || defined(AIC_USING_USB0_OTG) || defined(AIC_USING_USB1_HOST)
     int bus_id = 0;
 #endif
 
-#ifdef AIC_USING_USB0_HOST
+#if defined(AIC_USING_USB0_HOST) || defined(AIC_USING_USB0_OTG)
+    int ret = 0;
     usb_ehci0_hs_bus = usbh_alloc_bus(bus_id, USB_HOST0_BASE);
-    usbh_initialize(usb_ehci0_hs_bus);
+    #ifdef AIC_USING_USB0_OTG
+    ret = usb_otg_register_host(0, usb_ehci0_hs_bus);
+    #endif
+    if (!ret)
+        usbh_initialize(usb_ehci0_hs_bus);
     bus_id++;
 #endif
 

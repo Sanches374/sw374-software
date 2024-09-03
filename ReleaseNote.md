@@ -1,3 +1,75 @@
+
+# V1.0.6 #
+## 新增 ##
+- 新增型号 D215，支持USB扩展屏功能
+- LVGL：
+  - 新增LVGL官方的music和benchmark demo
+  - 新增电梯、咖啡机、蒸箱、86盒 和 USB扩展屏OSD 的demo
+  - 支持从内存解码JPG/PNG图片到控件
+- MPP：支持从DVP采集数据进行JPG编码，并存储到文件，录像文件支持MP4封装。
+- PSRAM：支持封装型号D122BCV1、D122BCV2、TR230、JYX58、DR128、JYX68
+- USB：支持WinUSB 1.0；支持UVC & UAC device；
+- PM：支持设置唤醒源；支持light sleep mode
+- SDMC：支持DDR模式
+- WDT：增加寄存器的写保护
+- 存储：支持NOR + NAND/NOR方案；NAND的rodata分区也增加坏块管理
+- 启动：增加启动动画
+- 安全：支持镜像文件中的SPL数据加密
+- OneStep：新增 km/bm/ma/mu 命令
+- 系统：增加waitqueue API
+- 新增器件支持：
+  - WiFi：ASR5505
+  - 屏幕：axs15231b、nt35560、ST77922
+  - DVP CVBS In：GM7150、TP2825/TB9950
+  - Touch：cst3240、tw31xx、cst826、gsl3676、st77922
+- 新增软件包：aic-authorization、ipmanager
+- 新增第三方包：MicroPython
+- 支持烤机测试
+- test_dvp：支持使用GE进行旋转后再显示
+- 增加示例：LwIP HTTP server test、test_gpio_key
+- 增加方案配置：D215 demo88 nand/nor
+
+## 优化 ##
+- MPP：
+  - Player：优化性能，包括解码流程、快速seek处理、内存管理流程等
+  - Audio：优化重新播放时的延迟
+- DE：优化Scaler效果
+- Audio Codec：优化TLV320的播放和录音增益
+- OneStep：简化BootLoader的编译方法（lunch清单中隐藏Bootloader配置，不再需要预编译bootloader.bin）
+- 许可协议统一使用Apache-2.0
+- 系统：
+  - 优化memcpy的性能
+  - 优化刷Cache的性能
+  - package/artinchip中的软件包支持调整优先加载
+- USB：
+  - MSC支持热插拔，并优化传输的稳定性
+  - 优化接入Hub时的处理，支持Hub级联
+  - HID设备支持多个report ID
+- Touch设备支持五点触摸
+- 支持动态的注册模式
+- CAP：提升频率的计算精度
+- Touch：优化外设驱动的编译管理，简化用户的配置
+
+## 修改 ##
+- MPP：改进D21x的PNG解码兼容性
+- USB：修正USB1、Hub的数据处理逻辑
+- FatFS：分区时给文件夹预留足够的空间
+- OTA：全平台打开OTA配置
+- BootLoader：D13x中BootLoader默认运行在PSRAM中
+- Eclipse：解决Freetype的编译问题
+- 系统：
+  - Panic时可以打印出完整的寄存器信息
+  - 修正负数、浮点数的打印处理
+  - 修正部分情况下的栈对齐问题
+  - 完善get_tick接口的进位处理
+- aicupg：
+  - 当检测到SD卡/U盘拔出时重启系统
+  - 改善和Win7系统连接的稳定性
+- UART：为Rx IO配置上拉电阻
+- test_uart：修正接收过长数据时的循环计数溢出问题；流控测试中支持设置波特率；修正线程退出流程
+- test_psadc：从syscfg中读取电压参考值
+
+
 # V1.0.5 #
 ## 新增 ##
 - 调屏：支持和 AiPQ V1.1.1 工具配合使用

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -16,12 +16,16 @@
 #include "aic_log.h"
 #include "rtdevice.h"
 #include "hal_psadc.h"
+#ifdef AIC_SYSCFG_DRV
+#include "hal_syscfg.h"
+#endif
 
 /* Global macro and variables */
 #define AIC_PSADC_NAME               "psadc"
 #define AIC_PSADC_ADC_MAX_VAL        0xFFF
 #define AIC_PSADC_DEFAULT_VOLTAGE    3
 #define AIC_PSADC_QC_MODE            0
+#define AIC_PSADC_VOLTAGE_ACCURACY   10000
 
 static rt_adc_device_t psadc_dev;
 static const char sopts[] = "t:n:rsh";
@@ -41,7 +45,7 @@ static void cmd_psadc_usage(char *program)
     printf("Compile time: %s %s\n", __DATE__, __TIME__);
     printf("Usage: %s [options]\n", program);
     printf("\t -r, --read\t\tRead the adc value\n");
-    printf("\t -t, --voltage\t\tInput standard voltage, default is 3\n");
+    printf("\t -t, --voltage\t\tSet default voltage\n");
     printf("\t -s, --status\t\tShow more hardware information\n");
     printf("\t -n, --number\t\tSet the number of samples, default is 10\n");
     printf("\t -h, --help \n");
@@ -49,28 +53,41 @@ static void cmd_psadc_usage(char *program)
     printf("Example: %s -r -t 3 -n 10\n", program);
 }
 
-static void adc2voltage(float st_voltage, int adc_value)
+static void test_psadc_adc2voltage(float ref_voltage, int adc_value)
 {
     int voltage;
 
-    voltage = (adc_value * st_voltage * 100) / AIC_PSADC_ADC_MAX_VAL;
-    rt_kprintf(" %d.%2dv", voltage / 100, voltage % 100);
+    voltage = (adc_value * (ref_voltage / 100)) / AIC_PSADC_ADC_MAX_VAL;
+
+    rt_kprintf(" %d.%02d V", voltage / 100, voltage % 100);
     return;
 }
 
-int psadc_get_adc(float st_voltage, int sample_num)
+int psadc_get_adc(float def_voltage, int sample_num)
 {
     int ret = 0;
     u32 adc_values[AIC_PSADC_CH_NUM];
     int cnt = 0;
     int chan_cnt = 0;
     u64 start_us, end_us;
+    int ref_voltage = 0;
 
     psadc_dev = (rt_adc_device_t)rt_device_find(AIC_PSADC_NAME);
     if (!psadc_dev) {
         rt_kprintf("Failed to open %s device\n", AIC_PSADC_NAME);
         return -RT_ERROR;
     }
+
+#ifdef AIC_SYSCFG_DRV
+    ref_voltage = syscfg_read_ldo_cfg();
+#endif
+    if (!ref_voltage) {
+        rt_kprintf("Failed to obtain reference voltage through eFuse\n");
+        ref_voltage = (int)(def_voltage) * AIC_PSADC_VOLTAGE_ACCURACY;
+    }
+    rt_kprintf("The reference voltage is %d.%02d V\n",
+               ref_voltage / AIC_PSADC_VOLTAGE_ACCURACY,
+               ref_voltage % AIC_PSADC_VOLTAGE_ACCURACY);
 
     rt_adc_enable(psadc_dev, AIC_PSADC_QC_MODE);
     chan_cnt = rt_adc_control(psadc_dev, RT_ADC_CMD_GET_CHAN_COUNT, NULL);
@@ -97,7 +114,7 @@ int psadc_get_adc(float st_voltage, int sample_num)
         }
         rt_kprintf("\nvoltage:");
         for (int i = 0; i < chan_cnt; i++) {
-            adc2voltage(st_voltage, adc_values[i]);
+            test_psadc_adc2voltage(ref_voltage, adc_values[i]);
         }
         rt_kprintf("\n");
 
@@ -112,7 +129,7 @@ static void cmd_test_psadc(int argc, char **argv)
 {
     int c;
     int sample_num = 10;
-    float st_voltage = AIC_PSADC_DEFAULT_VOLTAGE;
+    float def_voltage = AIC_PSADC_DEFAULT_VOLTAGE;
     bool show_status = false;
     int read_enable = 0;
 
@@ -128,7 +145,7 @@ static void cmd_test_psadc(int argc, char **argv)
             read_enable = 1;
             break;
         case 't':
-            st_voltage = atof(optarg);
+            def_voltage = atof(optarg);
             break;
         case 's':
             show_status = true;
@@ -149,8 +166,8 @@ static void cmd_test_psadc(int argc, char **argv)
         return;
     }
 
-    if (st_voltage < 0) {
-        rt_kprintf("Please input standard voltage\n");
+    if (def_voltage < 0) {
+        rt_kprintf("Please set valid default voltage\n");
         return;
     }
 
@@ -160,7 +177,7 @@ static void cmd_test_psadc(int argc, char **argv)
     }
 
     if (read_enable)
-        psadc_get_adc(st_voltage, sample_num);
+        psadc_get_adc(def_voltage, sample_num);
 
     return;
 }

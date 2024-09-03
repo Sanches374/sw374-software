@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
-# SPDX-License-Identifier: GPL-2.0+
+# SPDX-License-Identifier: Apache-2.0
 #
 # Dehuang.Wu
-# Copyright (C) 2021-2023 ArtInChip Technology Co., Ltd
+# Copyright (C) 2021-2024 ArtInChip Technology Co., Ltd
 
 import os
 import re
@@ -12,15 +12,18 @@ import platform
 import argparse
 import subprocess
 
+
 def mkimage_get_resource_size(srcdir, cluster_siz):
     total_size = 0
-    root_path =srcdir
+    root_path = srcdir
     for root, dirs, files in os.walk(srcdir):
         for fn in files:
             fpath = os.path.join(root, fn)
             size = os.path.getsize(fpath)
             size = cluster_siz * int(round((size + cluster_siz - 1) / cluster_siz))
             total_size += size
+        for d in dirs:
+            total_size += cluster_siz
     return total_size
 
 
@@ -50,13 +53,17 @@ def run_cmd(cmdstr):
         sys.exit(1)
 
 
-def gen_fatfs(tooldir, srcdir, outimg, imgsiz, sector_siz, cluster):
+def gen_fatfs(tooldir, srcdir, outimg, volab, imgsiz, sector_siz, cluster):
     sector_cnt = int(imgsiz / sector_siz)
     if platform.system() == 'Linux':
         truncate = 'truncate -s {} {}'.format(imgsiz, outimg)
         run_cmd(truncate)
 
-        mformat = '{}mformat -i {} -M {} -T {} -c {}'.format(tooldir, outimg, sector_siz, sector_cnt, cluster)
+        mformat = '{}mformat -i {}'.format(tooldir, outimg)
+        mformat += ' -M {} -T {} -c {}'.format(sector_siz, sector_cnt, cluster)
+        if volab != 'default':
+            mformat += ' -v {}'.format(volab)
+
         run_cmd(mformat)
 
         mcopy = '{}mcopy -i {} -s {}// ::/'.format(tooldir, outimg, srcdir)
@@ -121,6 +128,8 @@ if __name__ == "__main__":
                         help="cluster size")
     parser.add_argument("-t", "--tooldir", type=str,
                         help="tool directory")
+    parser.add_argument("-v", "--volab", type=str,
+                        help="volume label")
     parser.add_argument("-r", "--raw", action='store_true',
                         help="Don't strip FAT image, keep raw image")
     args = parser.parse_args()
@@ -142,15 +151,20 @@ if __name__ == "__main__":
         data_siz = mkimage_get_resource_size(args.inputdir, cluster_siz)
         # Size should alignment with cluster size
         data_siz = cluster_siz * int(((data_siz + cluster_siz - 1) / cluster_siz))
+
+    # Total sector: FAT >= 128, FAT32 >= 0x10000
+    min_sect_cnt = 128
+    part_size = mkimage_get_part_size(args.outfile)
+
     if args.auto:
-        data_clus_cnt = 2 + data_siz / cluster_siz
+        data_clus_cnt = data_siz / cluster_siz
         data_region_sz = data_clus_cnt * cluster_siz
         if data_clus_cnt < 4096:
             # FAT12
             # - BPB_RsvdSecCnt should be 1
             # - BPB_RootEntCnt max 512
             # - FATsz: 2 * FAT
-            # - DATA Region: 2 cluster + DATA
+            # - DATA Region: DATA
             fat_siz = (data_region_sz / cluster_siz) * 12 / 8
             rsvd_siz = 1 * sector_siz
             root_ent_cnt = 512 * 32
@@ -159,7 +173,7 @@ if __name__ == "__main__":
             # - BPB_RsvdSecCnt should be 1
             # - BPB_RootEntCnt max 512
             # - FATsz: 2 * FAT
-            # - DATA Region: 2 cluster + DATA
+            # - DATA Region: DATA
             fat_siz = (data_region_sz / cluster_siz) * 16 / 8
             rsvd_siz = 1 * sector_siz
             root_ent_cnt = 512 * 32
@@ -169,20 +183,27 @@ if __name__ == "__main__":
             # - BPB_RsvdSecCnt fixed 32
             # - BPB_RootEntCnt fixed 0
             # - FATsz: 2 * FAT
-            # - DATA Region: 2 cluster + DATA
+            # - DATA Region: DATA
             fat_siz = data_region_sz / cluster_siz * 4
             rsvd_siz = 32 * sector_siz
             root_ent_cnt = 0
+            min_sect_cnt = 0x10000
         fat_siz = sector_siz * int((fat_siz + sector_siz - 1) / sector_siz)
         imgsiz = rsvd_siz + 2 * fat_siz + root_ent_cnt + data_region_sz
         # Round to cluster alignment
         imgsiz = cluster_siz * int(((imgsiz + cluster_siz - 1) / cluster_siz))
     elif args.fullpart:
-        imgsiz = mkimage_get_part_size(args.outfile)
+        imgsiz = part_size
     else:
         imgsiz = int(args.imgsize)
 
-    gen_fatfs(args.tooldir, args.inputdir, args.outfile, imgsiz, sector_siz, cluster)
+    if (imgsiz / sector_siz) < min_sect_cnt:
+        imgsiz = min_sect_cnt * sector_siz
+    if imgsiz > part_size:
+        print('Error, fatfs image size is larger than partition size: {}.'.format(args.outfile))
+        sys.exit(1)
+
+    gen_fatfs(args.tooldir, args.inputdir, args.outfile, args.volab, imgsiz, sector_siz, cluster)
     if strip_siz:
         clus_cnt = imgsiz / cluster_siz
         if clus_cnt < 65536:

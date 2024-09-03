@@ -38,6 +38,7 @@
 #define TLV320_PAGE0_RIGHTOL            93
 #define TLV320_PAGE0_CR                 101
 #define TLV320_PAGE0_CGCR               102
+#define TLV320_REG_MAX                  127
 
 #endif
 

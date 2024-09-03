@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -372,7 +372,7 @@ void aich_gpai_status_show(struct aic_gpai_ch *chan)
                version >> 8, version & 0xff,
                chan->id, chan->mode ? "P" : "S",
                mcr & GPAI_MCR_CH_EN(chan->id) ? 1 : 0,
-               chan->latest_data, chan->lla_thd, chan->hla_thd);
+               chan->avg_data, chan->lla_thd, chan->hla_thd);
 #endif
 
 #ifdef AIC_GPAI_DRV_V20
@@ -384,7 +384,7 @@ void aich_gpai_status_show(struct aic_gpai_ch *chan)
                version >> 8, version & 0xff,
                chan->id, chan->mode ? "P" : "S",
                mcr & GPAI_MCHS_CH_SET(chan->id) ? 1 : 0,
-               chan->latest_data, chan->lla_thd, chan->hla_thd);
+               chan->avg_data, chan->lla_thd, chan->hla_thd);
 #endif
 }
 
@@ -393,19 +393,22 @@ static int aic_gpai_read_ch(struct aic_gpai_ch *chan)
     u32 i, ch = chan->id;
     u32 cnt = (gpai_readl(GPAI_CHnFCR(ch)) & GPAI_CHnFCR_DAT_CNT_MASK)
             >> GPAI_CHnFCR_DAT_CNT_SHIFT;
+    chan->avg_data = 0;
 
     if (unlikely(cnt == 0 || cnt > GPAI_CHnFCR_DAT_CNT_MAX(ch))) {
         pr_err("ch%d invalid data count %d\n", ch, cnt);
         return -1;
     }
 
-    for (i = 0; i < cnt; i++)
+    for (i = 0; i < cnt; i++) {
         chan->fifo_data[i] = gpai_readl(GPAI_CHnDATA(ch));
+        chan->avg_data += chan->fifo_data[i];
+    }
 
     chan->fifo_valid_cnt = cnt;
-    chan->latest_data = chan->fifo_data[cnt];
+    chan->avg_data /= cnt;
     pr_debug("There are %d data ready in ch%d, last %d\n", cnt, ch,
-             chan->latest_data);
+             chan->avg_data);
 
     return 0;
 }
@@ -471,15 +474,15 @@ irqreturn_t aich_gpai_isr(int irq, void *arg)
         }
 
         if (ch_int & GPAI_CHnINT_LLA_VALID_FLAG)
-            pr_warn("LLA: ch%d %d!\n", i, chan->latest_data);
+            pr_warn("LLA: ch%d %d!\n", i, chan->avg_data);
         if (ch_int & GPAI_CHnINT_LLA_RM_FLAG)
             pr_warn("LLA removed: ch%d %d\n", i,
-                 chan->latest_data);
+                 chan->avg_data);
         if (ch_int & GPAI_CHnINT_HLA_VALID_FLAG)
-            pr_warn("HLA: ch%d %d!\n", i, chan->latest_data);
+            pr_warn("HLA: ch%d %d!\n", i, chan->avg_data);
         if (ch_int & GPAI_CHnINT_HLA_RM_FLAG)
             pr_warn("HLA removed: ch%d %d\n", i,
-                 chan->latest_data);
+                 chan->avg_data);
         if (ch_int & GPAI_CHnINT_FIFO_ERR_FLAG)
             gpai_fifo_flush(i);
     }

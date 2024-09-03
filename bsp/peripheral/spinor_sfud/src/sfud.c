@@ -259,6 +259,89 @@ sfud_err sfud_qspi_fast_read_enable(sfud_flash *flash, uint8_t data_line_width) 
 }
 #endif /* SFUD_USING_QSPI */
 
+/*
+* sfud init sfdp
+*/
+static bool sfud_init_info(sfud_flash *flash) {
+    bool ret = false;
+    size_t i = 0;
+
+#ifdef SFUD_USING_SFDP
+    extern bool sfud_read_sfdp(sfud_flash *flash);
+        /* read SFDP parameters */
+    ret =  sfud_read_sfdp(flash);
+    if (ret) {
+        flash->chip.name = NULL;
+        flash->chip.capacity = flash->sfdp.capacity;
+        /* only 1 byte or 256 bytes write mode for SFDP */
+        if (flash->sfdp.write_gran == 1) {
+            flash->chip.write_mode = SFUD_WM_BYTE;
+        } else {
+            flash->chip.write_mode = SFUD_WM_PAGE_256B;
+        }
+        /* find the the smallest erase sector size for eraser. then will use this size for erase granularity */
+        flash->chip.erase_gran = flash->sfdp.eraser[0].size;
+        flash->chip.erase_gran_cmd = flash->sfdp.eraser[0].cmd;
+        for (i = 1; i < SFUD_SFDP_ERASE_TYPE_MAX_NUM; i++) {
+            if (flash->sfdp.eraser[i].size != 0 && flash->chip.erase_gran > flash->sfdp.eraser[i].size) {
+                flash->chip.erase_gran = flash->sfdp.eraser[i].size;
+                flash->chip.erase_gran_cmd = flash->sfdp.eraser[i].cmd;
+            }
+        }
+    } else {
+#endif
+#ifdef SFUD_USING_FLASH_INFO_TABLE
+        /* read SFDP parameters failed then using SFUD library provided static parameter */
+        for (i = 0; i < sizeof(flash_chip_table) / sizeof(sfud_flash_chip); i++) {
+            if ((flash_chip_table[i].mf_id == flash->chip.mf_id)
+                    && (flash_chip_table[i].type_id == flash->chip.type_id)
+                    && (flash_chip_table[i].capacity_id == flash->chip.capacity_id)) {
+                flash->chip.name = flash_chip_table[i].name;
+                flash->chip.capacity = flash_chip_table[i].capacity;
+                flash->chip.write_mode = flash_chip_table[i].write_mode;
+                flash->chip.erase_gran = flash_chip_table[i].erase_gran;
+                flash->chip.erase_gran_cmd = flash_chip_table[i].erase_gran_cmd;
+                break;
+            }
+        }
+#endif
+#ifdef SFUD_USING_SFDP
+    }
+#endif
+    return ret;
+}
+
+static sfud_err sfud_check_flash(sfud_flash *flash) {
+    size_t i = 0;
+
+    if (flash->chip.capacity == 0 || flash->chip.write_mode == 0 || flash->chip.erase_gran == 0
+            || flash->chip.erase_gran_cmd == 0) {
+        SFUD_INFO("Warning: This flash device is not found or not support.");
+        return SFUD_ERR_NOT_FOUND;
+    } else {
+        const char *flash_mf_name = NULL;
+        /* find the manufacturer information */
+        for (i = 0; i < sizeof(mf_table) / sizeof(sfud_mf); i++) {
+            if (mf_table[i].id == flash->chip.mf_id) {
+                flash_mf_name = mf_table[i].name;
+                break;
+            }
+        }
+        /* print manufacturer and flash chip name */
+        SFUD_INFO("Flash ID: 0x%02x%02x%02x", flash->chip.mf_id, flash->chip.type_id, flash->chip.capacity_id);
+        if (flash_mf_name && flash->chip.name) {
+            SFUD_INFO("Find a %s %s flash chip. Size is %ld bytes.", flash_mf_name, flash->chip.name,
+                    flash->chip.capacity);
+        } else if (flash_mf_name) {
+            SFUD_INFO("Find a %s flash chip. Size is %ld bytes.", flash_mf_name, flash->chip.capacity);
+        } else {
+            SFUD_INFO("Find a flash chip. Size is %ld bytes.", flash->chip.capacity);
+        }
+    }
+
+    return SFUD_SUCCESS;
+}
+
 /**
  * hardware initialize
  */
@@ -266,7 +349,6 @@ static sfud_err hardware_init(sfud_flash *flash) {
     extern sfud_err sfud_spi_port_init(sfud_flash * flash);
 
     sfud_err result = SFUD_SUCCESS;
-    size_t i;
 
     SFUD_ASSERT(flash);
 
@@ -302,75 +384,12 @@ static sfud_err hardware_init(sfud_flash *flash) {
             return result;
         }
 
-#ifdef SFUD_USING_SFDP
-        extern bool sfud_read_sfdp(sfud_flash *flash);
-        /* read SFDP parameters */
-        if (sfud_read_sfdp(flash)) {
-            flash->chip.name = NULL;
-            flash->chip.capacity = flash->sfdp.capacity;
-            /* only 1 byte or 256 bytes write mode for SFDP */
-            if (flash->sfdp.write_gran == 1) {
-                flash->chip.write_mode = SFUD_WM_BYTE;
-            } else {
-                flash->chip.write_mode = SFUD_WM_PAGE_256B;
-            }
-            /* find the the smallest erase sector size for eraser. then will use this size for erase granularity */
-            flash->chip.erase_gran = flash->sfdp.eraser[0].size;
-            flash->chip.erase_gran_cmd = flash->sfdp.eraser[0].cmd;
-            for (i = 1; i < SFUD_SFDP_ERASE_TYPE_MAX_NUM; i++) {
-                if (flash->sfdp.eraser[i].size != 0 && flash->chip.erase_gran > flash->sfdp.eraser[i].size) {
-                    flash->chip.erase_gran = flash->sfdp.eraser[i].size;
-                    flash->chip.erase_gran_cmd = flash->sfdp.eraser[i].cmd;
-                }
-            }
-        } else {
-#endif
-
-#ifdef SFUD_USING_FLASH_INFO_TABLE
-            /* read SFDP parameters failed then using SFUD library provided static parameter */
-            for (i = 0; i < sizeof(flash_chip_table) / sizeof(sfud_flash_chip); i++) {
-                if ((flash_chip_table[i].mf_id == flash->chip.mf_id)
-                        && (flash_chip_table[i].type_id == flash->chip.type_id)
-                        && (flash_chip_table[i].capacity_id == flash->chip.capacity_id)) {
-                    flash->chip.name = flash_chip_table[i].name;
-                    flash->chip.capacity = flash_chip_table[i].capacity;
-                    flash->chip.write_mode = flash_chip_table[i].write_mode;
-                    flash->chip.erase_gran = flash_chip_table[i].erase_gran;
-                    flash->chip.erase_gran_cmd = flash_chip_table[i].erase_gran_cmd;
-                    break;
-                }
-            }
-#endif
-
-#ifdef SFUD_USING_SFDP
-        }
-#endif
-
+    sfud_init_info(flash);
     }
 
-    if (flash->chip.capacity == 0 || flash->chip.write_mode == 0 || flash->chip.erase_gran == 0
-            || flash->chip.erase_gran_cmd == 0) {
-        SFUD_INFO("Warning: This flash device is not found or not support.");
-        return SFUD_ERR_NOT_FOUND;
-    } else {
-        const char *flash_mf_name = NULL;
-        /* find the manufacturer information */
-        for (i = 0; i < sizeof(mf_table) / sizeof(sfud_mf); i++) {
-            if (mf_table[i].id == flash->chip.mf_id) {
-                flash_mf_name = mf_table[i].name;
-                break;
-            }
-        }
-        /* print manufacturer and flash chip name */
-        SFUD_INFO("Flash ID: 0x%02x%02x%02x", flash->chip.mf_id, flash->chip.type_id, flash->chip.capacity_id);
-        if (flash_mf_name && flash->chip.name) {
-            SFUD_INFO("Find a %s %s flash chip. Size is %ld bytes.", flash_mf_name, flash->chip.name,
-                    flash->chip.capacity);
-        } else if (flash_mf_name) {
-            SFUD_INFO("Find a %s flash chip. Size is %ld bytes.", flash_mf_name, flash->chip.capacity);
-        } else {
-            SFUD_INFO("Find a flash chip. Size is %ld bytes.", flash->chip.capacity);
-        }
+    result = sfud_check_flash(flash);
+    if (result != SFUD_SUCCESS) {
+            return result;
     }
 
     /* The flash all blocks is protected,so need change the flash status to unprotected before write and erase operate. */
@@ -379,7 +398,7 @@ static sfud_err hardware_init(sfud_flash *flash) {
     } else {
         /* MX25L3206E */
         if ((0xC2 == flash->chip.mf_id) && (0x20 == flash->chip.type_id) && (0x16 == flash->chip.capacity_id)) {
-            result = sfud_write_status(flash, false, 0x00);
+            result = sfud_write_status(flash, true, 0x00);
         }
     }
     if (result != SFUD_SUCCESS) {
@@ -402,6 +421,7 @@ static sfud_err hardware_init(sfud_flash *flash) {
     quad_enable_func qe = flash->quad_enable;
     qe(flash);
 #endif /* SFUD_USING_QSPI */
+    /* Check whether the flash is in write protect state. If it is, exit the state. */
     check_wp_mode(flash);
     return result;
 }

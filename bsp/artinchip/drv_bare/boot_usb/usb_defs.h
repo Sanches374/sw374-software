@@ -1,10 +1,5 @@
 /*
- * (C) Copyright 2001
- * Denis Peter, MPL AG Switzerland
- *
- * SPDX-License-Identifier:    GPL-2.0+
- *
- * Note: Part of this code has been derived from linux
+ * SPDX-License-Identifier: Apache-2.0
  */
 #ifndef _USB_DEFS_H_
 #define _USB_DEFS_H_

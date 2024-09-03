@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# SPDX-License-Identifier: GPL-2.0+
+# SPDX-License-Identifier: Apache-2.0
 #
-# Copyright (C) 2023 ArtInChip Technology Co., Ltd
+# Copyright (C) 2023-2024 ArtInChip Technology Co., Ltd
 # Dehuang Wu <dehuang.wu@artinchip.com>
 
 # Notes:
@@ -47,11 +47,14 @@ function hmm()
 	echo "Luban-Lite SDK OneStep commands:"
 	_hline "hmm|h" "" "Get this help."
 	_hline "lunch" "[keyword]" "Start with selected defconfig.e.g. lunch mmc"
-	_hline "menuconfig|me" "" "Config SDK with menuconfig"
-	_hline "m" "" "Build all and generate final image"
-	_hline "mc" "" "Clean & Build all and generate final image"
-	_hline "mb" "" "Build bootloader & app and generate final image"
-	_hline "c" "" "Clean all"
+	_hline "menuconfig|me" "" "Config application with menuconfig"
+	_hline "bm" "" "Config bootloader with menuconfig"
+	_hline "km" "" "Config application with menuconfig"
+	_hline "m|mb" "" "Build bootloader & application and generate final image"
+	_hline "ma" "" "Build application only"
+	_hline "mu|ms" "" "Build bootloader only"
+	_hline "c" "" "Clean bootloader and application"
+	_hline "mc" "" "Clean & Rebuild all and generate final image"
 	_hline "croot|cr" "" "cd to SDK root directory."
 	_hline "cout|co" "" "cd to build output directory."
 	_hline "cbuild|cb" "" "cd to build root directory."
@@ -77,7 +80,10 @@ function _get_solution_list()
 
 	echo Built-in configs:
 	# Get the solutions list of ArtInChip
-	SOLUTION_LIST=`ls ${SDK_PRJ_TOP_DIR}/target/configs/ -1 | grep defconfig`
+	SOLUTION_LIST_ALL=`ls -1 ${SDK_PRJ_TOP_DIR}/target/configs/ | grep "_defconfig$"`
+	SOLUTION_LIST_BOOT=`echo "${SOLUTION_LIST_ALL}" | grep bootloader`
+	SOLUTION_LIST=`echo "${SOLUTION_LIST_ALL}" | grep -v "bootloader"`
+	SOLUTION_LIST_WITH_BOOT=`echo -e "${SOLUTION_LIST_BOOT}\n""${SOLUTION_LIST}"`
 }
 
 cd_root()
@@ -108,12 +114,18 @@ function lunch()
 	cd_root
 	_get_solution_list
 
-	defconfigs=`echo "${SOLUTION_LIST}" && echo all`
+	defconfigs=`echo "${SOLUTION_LIST}"`
 	select_item=
+
 	if [ "${keyword}" != "" ]; then
-		select_item=$(echo "${defconfigs}" | grep "${keyword}")
+		boot_filter=`echo ${keyword} | grep baremetal_bootloader`
+		if [ -n "$boot_filter" ]; then
+			select_item=$(echo "${SOLUTION_LIST_WITH_BOOT}" | grep "${keyword}")
+		else
+			select_item=$(echo "${defconfigs}" | grep "${keyword}")
+		fi
 	fi
-	if [ "${keyword}" == "" -o "${select_item}" != "${keyword}" ]; then
+	if [ "${keyword}" == "" ] || [ "${select_item}" != "${keyword}" ]; then
 		_display_list_init "${defconfigs}"
 		select_item=
 		_search_in_list "${keyword}"
@@ -138,6 +150,14 @@ function lunch()
 	cd_back
 }
 
+function _get_cur_def()
+{
+	local cur_def=
+
+	cur_def=$(cat ${SDK_CFG_FILE} | tr -d '\r' |tr -d '\n')
+	printf ${cur_def}
+}
+
 function croot()
 {
 	[[ -z ${SDK_PRJ_TOP_DIR} ]] && {
@@ -151,6 +171,7 @@ alias cr=croot
 function cbuild()
 {
 	local build_dir=
+	local cur_def=
 	local ret=
 
 	ret=$(_lunch_check)
@@ -159,22 +180,33 @@ function cbuild()
 		return
 	fi
 
-	cur_def=$(cat $SDK_CFG_FILE)
+	cur_def=$(_get_cur_def)
 	if [ "$cur_def" == "all" ]; then
 		return
 	fi
 
-	build_dir=${SDK_PRJ_TOP_DIR}/output/$(cat $SDK_CFG_FILE)
+	build_dir=${SDK_PRJ_TOP_DIR}/output/$(_get_cur_def)
 	if [ -d $build_dir ]; then
 		cd ${build_dir} || exit 110
 	fi
 }
 alias cb=cbuild
 
+function get_cur_chip_name()
+{
+	chip_name=$(cat ${SDK_PRJ_TOP_DIR}/.config | grep CONFIG_PRJ_CHIP | awk -F '"' '{print $2}')
+}
+
+function get_cur_board_name()
+{
+	board_name=$(cat ${SDK_PRJ_TOP_DIR}/.config | grep CONFIG_PRJ_BOARD | awk -F '"' '{print $2}')
+}
+
 function ctarget()
 {
 	local build_dir=
 	local target_dir=
+	local cur_def=
 	local ret=
 
 	ret=$(_lunch_check)
@@ -183,13 +215,13 @@ function ctarget()
 		return
 	fi
 
-	cur_def=$(cat $SDK_CFG_FILE)
+	cur_def=$(_get_cur_def)
 	if [ "$cur_def" == "all" ]; then
 		return
 	fi
-	chip_name=`echo $cur_def | awk -F '_' '{print $1}'`
-	board_name=`echo $cur_def | awk -F '_' '{print $2}'`
 
+	get_cur_chip_name
+	get_cur_board_name
 	target_dir=${SDK_PRJ_TOP_DIR}/target/${chip_name}/${board_name}
 	if [ -d ${target_dir} ]; then
 		cd ${target_dir} || exit 110
@@ -199,6 +231,7 @@ alias ct=ctarget
 
 function cout()
 {
+	local cur_def=
 	local dst_dir=
 	local ret=
 
@@ -208,12 +241,12 @@ function cout()
 		return
 	fi
 
-	cur_def=$(cat $SDK_CFG_FILE)
+	cur_def=$(_get_cur_def)
 	if [ "$cur_def" == "all" ]; then
 		return
 	fi
 
-	dst_dir=${SDK_PRJ_TOP_DIR}/output/$(cat $SDK_CFG_FILE)
+	dst_dir=${SDK_PRJ_TOP_DIR}/output/$(_get_cur_def)
 	if [ -d $dst_dir ]; then
 		cd ${dst_dir} || exit 110
 		if [ -d images ]; then
@@ -268,6 +301,226 @@ build_one_solution()
 	fi
 }
 
+# menuconfig for current project
+function menuconfig()
+{
+	ret=$(_lunch_check)
+	if [ "${ret}" == "false" ]; then
+		echo "Not lunch project yet"
+		return
+	fi
+
+	scons --menuconfig -C $SDK_PRJ_TOP_DIR
+}
+alias me=menuconfig
+alias km=menuconfig
+
+function _boot_menuconfig()
+{
+	local ret=
+	local CUR_DEF=
+
+	ret=$(_lunch_check)
+	if [ "${ret}" == "false" ]; then
+		echo "Not lunch project yet"
+		return
+	fi
+
+	CUR_DEF=$(_get_cur_def)
+	boot_filter=`echo ${CUR_DEF} | grep baremetal_bootloader`
+	if [ -n "$boot_filter" ]; then
+		# Current defconfig is bootloader
+		scons --menuconfig -C $SDK_PRJ_TOP_DIR
+	else
+		BUILD_CNT=0
+		LOG_DIR=$SDK_PRJ_TOP_DIR/.log
+		RESULT_FILE=$LOG_DIR/result.log
+		WARNING_FILE=$LOG_DIR/warning.log
+		if [ ! -d $LOG_DIR ]; then
+			mkdir $LOG_DIR
+		fi
+		rm -f $RESULT_FILE $WARNING_FILE
+
+		get_cur_chip_name
+		get_cur_board_name
+		BL_DEF=${chip_name}_${board_name}_baremetal_bootloader
+		if [ -f ${SDK_PRJ_TOP_DIR}/target/configs/${BL_DEF}_defconfig ]; then
+			scons --apply-def=${BL_DEF}_defconfig -C $SDK_PRJ_TOP_DIR
+			scons --menuconfig -C $SDK_PRJ_TOP_DIR
+
+			# Switch to Application after config
+			scons --apply-def=${CUR_DEF}_defconfig -C $SDK_PRJ_TOP_DIR
+		else
+			echo ${BL_DEF}_defconfig does not exist!
+		fi
+	fi
+}
+alias bm=_boot_menuconfig
+
+function _make_boot()
+{
+	local ret=
+	local CUR_DEF=
+
+	ret=$(_lunch_check)
+	if [ "${ret}" == "false" ]; then
+		echo "Not lunch project yet"
+		return
+	fi
+
+	CUR_DEF=$(_get_cur_def)
+	boot_filter=`echo ${CUR_DEF} | grep baremetal_bootloader`
+	if [ -n "$boot_filter" ]; then
+		# Current defconfig is bootloader
+		echo "Build $SDK_PRJ_TOP_DIR/${CUR_DEF}"
+		scons -C $SDK_PRJ_TOP_DIR -j 8
+	else
+		BUILD_CNT=0
+		LOG_DIR=$SDK_PRJ_TOP_DIR/.log
+		RESULT_FILE=$LOG_DIR/result.log
+		WARNING_FILE=$LOG_DIR/warning.log
+		if [ ! -d $LOG_DIR ]; then
+			mkdir $LOG_DIR
+		fi
+		rm -f $RESULT_FILE $WARNING_FILE
+
+		get_cur_chip_name
+		get_cur_board_name
+		BL_DEF=${chip_name}_${board_name}_baremetal_bootloader
+		if [ -f ${SDK_PRJ_TOP_DIR}/target/configs/${BL_DEF}_defconfig ]; then
+			build_one_solution ${BL_DEF}_defconfig
+			# Switch to Application after build
+			scons --apply-def=${CUR_DEF}_defconfig -C $SDK_PRJ_TOP_DIR
+		else
+			echo ${BL_DEF}_defconfig does not exist!
+		fi
+	fi
+}
+alias mu=_make_boot
+alias ms=_make_boot
+
+function _make_app()
+{
+	local ret=
+	local CUR_DEF=
+
+	CLEAN_FLAG=$1
+	ret=$(_lunch_check)
+	if [ "${ret}" == "false" ]; then
+		echo "Not lunch project yet"
+		return
+	fi
+
+	CUR_DEF=$(_get_cur_def)
+	boot_filter=`echo ${CUR_DEF} | grep baremetal_bootloader`
+	if [ -n "$boot_filter" ]; then
+		# Current defconfig is bootloader
+		echo "Not lunch application yet"
+		return
+	fi
+	echo "Build $SDK_PRJ_TOP_DIR/${CUR_DEF}"
+	if [ -n "${CLEAN_FLAG}" ]; then
+		scons -c -C $SDK_PRJ_TOP_DIR -j 8
+	fi
+	scons -C $SDK_PRJ_TOP_DIR -j 8
+}
+alias ma=_make_app
+
+function _make_boot_and_app()
+{
+	local ret=
+	local CUR_DEF=
+
+	# Clean before build
+	CLEAN_FLAG=$1
+
+	ret=$(_lunch_check)
+	if [ "${ret}" == "false" ]; then
+		echo "Not lunch project yet"
+		return
+	fi
+
+	CUR_DEF=$(_get_cur_def)
+	boot_filter=`echo $CUR_DEF | grep baremetal_bootloader`
+	if [ -n "$boot_filter" ]; then
+		echo "Build $SDK_PRJ_TOP_DIR/$CUR_DEF"
+		scons -C $SDK_PRJ_TOP_DIR -j 8
+	else
+		BUILD_CNT=0
+		LOG_DIR=$SDK_PRJ_TOP_DIR/.log
+		RESULT_FILE=$LOG_DIR/result.log
+		WARNING_FILE=$LOG_DIR/warning.log
+		if [ ! -d $LOG_DIR ]; then
+			mkdir $LOG_DIR
+		fi
+		rm -f $RESULT_FILE $WARNING_FILE
+
+		get_cur_chip_name
+		get_cur_board_name
+		BL_DEF=${chip_name}_${board_name}_baremetal_bootloader
+		if [ -f ${SDK_PRJ_TOP_DIR}/target/configs/${BL_DEF}_defconfig ]; then
+			build_one_solution ${BL_DEF}_defconfig ${CLEAN_FLAG}
+		fi
+		ret=$?
+		if [ $ret -eq 0 ]; then
+			build_one_solution ${CUR_DEF}_defconfig ${CLEAN_FLAG}
+		else
+			scons --apply-def=${CUR_DEF}_defconfig -C $SDK_PRJ_TOP_DIR
+		fi
+	fi
+}
+alias m=_make_boot_and_app
+# Legacy command mb
+alias mb=_make_boot_and_app
+
+function _clean_boot_and_app()
+{
+	local ret=
+	local CUR_DEF=
+
+	# Clean before build
+	CLEAN_FLAG=$1
+
+	ret=$(_lunch_check)
+	if [ "${ret}" == "false" ]; then
+		echo "Not lunch project yet"
+		return
+	fi
+
+	CUR_DEF=$(_get_cur_def)
+	boot_filter=`echo ${CUR_DEF} | grep baremetal_bootloader`
+	if [ -n "$boot_filter" ]; then
+		echo "Build $SDK_PRJ_TOP_DIR/${CUR_DEF}"
+		scons -c -C $SDK_PRJ_TOP_DIR
+	else
+		BUILD_CNT=0
+		LOG_DIR=$SDK_PRJ_TOP_DIR/.log
+		RESULT_FILE=$LOG_DIR/result.log
+		WARNING_FILE=$LOG_DIR/warning.log
+		if [ ! -d $LOG_DIR ]; then
+			mkdir $LOG_DIR
+		fi
+		rm -f $RESULT_FILE $WARNING_FILE
+
+		get_cur_chip_name
+		get_cur_board_name
+		BL_DEF=${chip_name}_${board_name}_baremetal_bootloader
+		if [ -f ${SDK_PRJ_TOP_DIR}/target/configs/${BL_DEF}_defconfig ]; then
+			scons --apply-def=${BL_DEF}_defconfig -C $SDK_PRJ_TOP_DIR
+			scons -c -C $SDK_PRJ_TOP_DIR
+		fi
+		scons --apply-def=${CUR_DEF}_defconfig -C $SDK_PRJ_TOP_DIR
+		scons -c -C $SDK_PRJ_TOP_DIR
+	fi
+}
+alias c=_clean_boot_and_app
+
+# Clean then Build boot and app
+function mc()
+{
+	m clean
+}
+
 # $1 - if clean before make
 function build_check_all()
 {
@@ -283,7 +536,7 @@ function build_check_all()
 
 	_get_solution_list > /dev/null
 
-	for app in $SOLUTION_LIST
+	for app in $SOLUTION_LIST_WITH_BOOT
 	do
 		build_one_solution $app $1
 	done
@@ -304,90 +557,6 @@ function build_check_all()
 	fi
 }
 
-function menuconfig()
-{
-	ret=$(_lunch_check)
-	if [ "${ret}" == "false" ]; then
-		echo "Not lunch project yet"
-		return
-	fi
-
-	scons --menuconfig -C $SDK_PRJ_TOP_DIR
-}
-alias me=menuconfig
-
-function m()
-{
-	NEED_CLEAN=$1
-	local ret=
-
-	ret=$(_lunch_check)
-	if [ "${ret}" == "false" ]; then
-		echo "Not lunch project yet"
-		return
-	fi
-
-	CUR_APP=$(cat $SDK_CFG_FILE)
-	if [ "$CUR_APP" = all ]; then
-		if [ -n "$NEED_CLEAN" ]; then
-			build_check_all clean
-		else
-			build_check_all
-		fi
-	else
-		echo "Build $SDK_PRJ_TOP_DIR/$CUR_APP"
-		if [ -n "$NEED_CLEAN" ]; then
-			scons -c -C $SDK_PRJ_TOP_DIR -j 8
-		fi
-		scons -C $SDK_PRJ_TOP_DIR -j 8
-	fi
-}
-
-function mc()
-{
-	m clean
-}
-
-function mb()
-{
-	local ret=
-
-	ret=$(_lunch_check)
-	if [ "${ret}" == "false" ]; then
-		echo "Not lunch project yet"
-		return
-	fi
-
-	CUR_APP=$(cat $SDK_CFG_FILE)
-	boot_filter=`echo $CUR_APP | grep baremetal_bootloader`
-	if [ "$CUR_APP" = all ]; then
-		build_check_all
-	elif [ -n "$boot_filter" ]; then
-		echo "Build $SDK_PRJ_TOP_DIR/$CUR_APP"
-		scons -C $SDK_PRJ_TOP_DIR -j 8
-	else
-		BUILD_CNT=0
-		LOG_DIR=$SDK_PRJ_TOP_DIR/.log
-		RESULT_FILE=$LOG_DIR/result.log
-		WARNING_FILE=$LOG_DIR/warning.log
-		if [ ! -d $LOG_DIR ]; then
-			mkdir $LOG_DIR
-		fi
-		rm -f $RESULT_FILE $WARNING_FILE
-
-		chip_name=`echo $CUR_APP | awk -F '_' '{print $1}'`
-		board_name=`echo $CUR_APP | awk -F '_' '{print $2}'`
-		BL_DEF=${chip_name}_${board_name}_baremetal_bootloader
-		build_one_solution ${BL_DEF}_defconfig
-		ret=$?
-		if [ $ret -eq 0 ]; then
-			build_one_solution ${CUR_APP}_defconfig
-		else
-			scons --apply-def=${CUR_APP}_defconfig -C $SDK_PRJ_TOP_DIR
-		fi
-	fi
-}
-
 function buildall()
 {
 	build_check_all
@@ -396,27 +565,6 @@ function buildall()
 function rebuildall()
 {
 	build_check_all clean
-}
-
-function c()
-{
-	local ret=
-
-	ret=$(_lunch_check)
-	if [ "${ret}" == "false" ]; then
-		echo "Not lunch project yet"
-		return
-	fi
-
-	CUR_APP=$(cat $SDK_CFG_FILE)
-	if [ "$CUR_APP" = all ]; then
-		# Need do nothing
-		return
-	else
-		echo "Clean $SDK_PRJ_TOP_DIR/$CUR_APP"
-		scons -c -C $SDK_PRJ_TOP_DIR
-		rm -rf ${SDK_PRJ_TOP_DIR}/output/"$(cat $SDK_CFG_FILE)"/images
-	fi
 }
 
 function godir()
@@ -493,6 +641,7 @@ alias gi=genindex
 function _info()
 {
 	local ret=
+	local cur_def=
 
 	ret=$(_lunch_check)
 	if [ "${ret}" == "false" ]; then
@@ -500,7 +649,7 @@ function _info()
 		return
 	fi
 
-	cur_def=$(cat $SDK_CFG_FILE)
+	cur_def=$(_get_cur_def)
 	if [ "$cur_def" == "all" ]; then
 		echo Current solution: $cur_def
 		return
@@ -575,7 +724,7 @@ function _get_dir_list()
 	dir_list1+=`find ${SDK_PRJ_TOP_DIR}/target/ -type d ! -path "*/.*"`
 	dir_list1+="${sep}"
 
-	build_dir=${SDK_PRJ_TOP_DIR}/output/$(cat $SDK_CFG_FILE)
+	build_dir=${SDK_PRJ_TOP_DIR}/output/$(_get_cur_def)
 
 	topdir_tmp=${SDK_PRJ_TOP_DIR//\//\\\/}"\\/"
 	dir_list2=`echo -e "${dir_list1}" | sort | sed 's/'"${topdir_tmp}"'//g'`

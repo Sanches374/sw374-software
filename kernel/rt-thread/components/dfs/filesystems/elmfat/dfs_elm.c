@@ -505,6 +505,14 @@ int dfs_elm_ioctl(struct dfs_fd *file, int cmd, void *args)
             fd->fptr = fptr;
             return elm_result_to_dfs(result);
         }
+    case RT_FIOFFASTSEEK:
+        {
+            FIL *fd;
+            fd = (FIL *)(file->data);
+            fd->cltbl = args;
+            f_lseek(fd, CREATE_LINKMAP);
+            return RT_EOK;
+        }
     }
     return -ENOSYS;
 }

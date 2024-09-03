@@ -22,7 +22,7 @@ typedef struct aic_ehci_config {
 }aic_ehci_config_t;
 
 aic_ehci_config_t config[] = {
-#ifdef AIC_USING_USB0_HOST
+#if defined(AIC_USING_USB0_HOST) || defined(AIC_USING_USB0_OTG)
     {
         USB_HOST0_BASE,
         CLK_USBH0,
@@ -101,6 +101,25 @@ void usb_hc_low_level_init(struct usbh_bus *bus)
     aicos_request_irq(config[i].irq_num, (irq_handler_t)USBH_IRQHandler,
                       0, "usb_host_ehci", bus);
     aicos_irq_enable(config[i].irq_num);
+}
+
+void usb_hc_low_level_deinit(struct usbh_bus *bus)
+{
+    int i = 0;
+
+    for (i=0; i<sizeof(config)/sizeof(aic_ehci_config_t); i++) {
+        if (bus->hcd.reg_base == config[i].base_addr)
+            break;
+    }
+
+    if (i == sizeof(config)/sizeof(aic_ehci_config_t))
+        return;
+
+    aicos_irq_disable(config[i].irq_num);
+    hal_reset_assert(config[i].phy_rst_id);
+    hal_reset_assert(config[i].rst_id);
+    hal_clk_disable(config[i].phy_clk_id);
+    hal_clk_disable(config[i].clk_id);
 }
 
 uint8_t usbh_get_port_speed(struct usbh_bus *bus, const uint8_t port)

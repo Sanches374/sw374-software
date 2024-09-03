@@ -18,10 +18,5 @@
 
 #define FT_MAKE_OPTION_SINGLE_OBJECT
 
-#include "pshalgo.c"
-#include "pshglob.c"
-#include "pshmod.c"
-#include "pshrec.c"
-
 
 /* END */

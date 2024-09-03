@@ -1,7 +1,7 @@
 @echo off
-rem SPDX-License-Identifier: GPL-2.0+
+rem SPDX-License-Identifier: Apache-2.0
 rem
-rem Copyright (C) 2023 ArtInChip Technology Co., Ltd
+rem Copyright (C) 2023-2024 ArtInChip Technology Co., Ltd
 
 if "%CD%"=="C:\Windows\system32" (
     echo Current user is administrator, need change path to Luban-Lite ...

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Artinchip Technology Co., Ltd
+ * Copyright (c) 2023-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -68,6 +68,39 @@ void aicupg_gen_resp(struct resp_header *h, u8 cmd, u8 sts, u32 len)
     h->checksum = sum;
 }
 
+static char *get_upg_mode_name(int mode)
+{
+    char *modes[] = {
+        "Full disk upgrade",
+        "Partition upgrade",
+        "Burn UserID",
+        "Dump partition",
+        "Force upgrade",
+        "Burn frozen",
+    };
+    char *invalid = "Invalid mode";
+
+    if (mode < 0 || mode >= UPG_MODE_INVALID)
+        return invalid;
+    return modes[mode];
+}
+
+void aicupg_show_upg_cfg_mode(int mode)
+{
+    printf("UPGMODE: %s\n", get_upg_mode_name(mode));
+}
+
+void aicupg_show_init_cfg_mode(int mode_bits)
+{
+    int i;
+
+    printf("Init UPGMODE:\n");
+    for (i = 0; i < UPG_MODE_INVALID; i++) {
+        if (mode_bits & (1 << i))
+            printf("    %s\n", get_upg_mode_name(i));
+    }
+}
+
 s32 aicupg_set_upg_cfg(struct upg_cfg *cfg)
 {
     if (!cfg) {
@@ -76,14 +109,15 @@ s32 aicupg_set_upg_cfg(struct upg_cfg *cfg)
     }
 
     memcpy(&upg_info.cfg, cfg, sizeof(*cfg));
-    pr_debug("%s, mode = %d\n", __func__, upg_info.cfg.mode);
+    aicupg_show_upg_cfg_mode(upg_info.cfg.mode);
 
     return 0;
 }
 
 s32 aicupg_initialize(struct upg_init *param)
 {
-    upg_info.init.mode = param->mode;
+    upg_info.init.mode_bits = param->mode_bits;
+    aicupg_show_init_cfg_mode(upg_info.init.mode_bits);
     return 0;
 }
 

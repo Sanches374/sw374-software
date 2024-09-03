@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Artinchip Technology Co., Ltd
+ * Copyright (c) 2023-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -39,10 +39,13 @@
 extern size_t __heap_start;
 extern size_t __heap_end;
 
+extern int bl_upgmode_detect(enum boot_device bd);
 extern void aic_board_pinmux_init(void);
 extern void aic_board_sysclk_init(void);
 extern void stdio_set_uart(int id);
 extern int drv_dma_init(void);
+
+size_t config_ram_size = 0;
 
 #define MAX_HEAP_SIZE_IN_BOOT 0x800000
 
@@ -60,12 +63,16 @@ struct hal_axicfg_table axi_cfg_table[HAL_AXICFG_PORT_MAX] = {
 
 static void aic_board_heap_init(enum boot_device bd)
 {
-    size_t heap_size, heap_start, real_ram_size = 0, config_ram_size = 0;
+    size_t heap_size, heap_start, real_ram_size = 0;
 
 #ifdef AIC_PSRAM_SIZE
     config_ram_size = AIC_PSRAM_SIZE;
 #elif AIC_DRAM_TOTAL_SIZE
     config_ram_size = AIC_DRAM_TOTAL_SIZE;
+#elif AIC_SRAM_TOTAL_SIZE
+    config_ram_size = AIC_SRAM_TOTAL_SIZE;
+#elif AIC_SRAM_SIZE
+    config_ram_size = AIC_SRAM_SIZE;
 #endif
 
     real_ram_size = aic_get_ram_size();
@@ -117,23 +124,10 @@ void show_banner(void)
     printf("\ntinySPL [Built on %s %s]\n", __DATE__, __TIME__);
 }
 
-int bl_upgmode_detect(void)
-{
-    enum aic_reboot_reason r;
-
-    r = aic_get_reboot_reason();
-    if (r == REBOOT_REASON_BL_UPGRADE)
-        return 1;
-
-    return 0;
-}
-
 int main(void)
 {
     enum boot_device bd;
-    int ctrlc = -1;
-    s32 id = -1;
-    s32 __attribute__((unused)) ret = -1;
+    int ctrlc = -1, cont_boot;
 
     boot_time_trace("Enter main");
 
@@ -143,19 +137,15 @@ int main(void)
 #ifdef AIC_SYSCFG_DRV
     hal_syscfg_probe();
 #endif
-
-    bd = aic_get_boot_device();
-    if (bl_upgmode_detect())
-        bd = BD_USB;
-
+#ifdef AIC_DMA_DRV
+    drv_dma_init();
+#endif
 #ifdef AICUPG_LOG_BUFFER_SUPPORT
     log_buf_init();
 #endif
 
+    bd = aic_get_boot_device();
     board_init(bd);
-#ifdef AIC_DMA_DRV
-    drv_dma_init();
-#endif
 
     show_banner();
     boot_time_trace("Banner shown");
@@ -165,64 +155,32 @@ int main(void)
 
     ctrlc = console_get_ctrlc();
     if (ctrlc < 0) {
-#if defined(AICUPG_UDISK_ENABLE)
-        id = usbh_get_connect_id();
-        boot_time_trace("UDISK checked");
-        if (id < 0) {
-            pr_err("Not find udisk.\n");
-        } else {
-            if (id == 0)
-                ret = console_run_cmd("aicupg fat udisk 0");
-            else if (id == 1)
-                ret = console_run_cmd("aicupg fat udisk 1");
-            if (!ret)
-                console_loop();
-        }
-
-#endif
+        cont_boot = bl_upgmode_detect(bd);
         /*
          * Set bootcmd string to console, bootloader will check and run bootcmd
          * first in console_loop
          *
          * For the detail of boot command, please reference to cmd/
          */
-        switch (bd) {
-            case BD_USB:
-#if defined(AICUPG_USB_ENABLE)
-                usbd_connection_check_start();
-                if (usbd_connection_check_status()) {
-                    usbd_connection_check_end();
-                    console_set_bootcmd("aicupg usb 0");
+        if (cont_boot) {
+            switch (bd) {
+                case BD_SDMC0:
+                case BD_SDMC1:
+                    console_set_bootcmd("mmc_boot");
                     break;
-                }
-#endif
-                console_set_bootcmd("aicupg uart 0");
-                break;
-            case BD_UDISK:
-                if (id == 0)
-                    console_set_bootcmd("aicupg fat udisk 0");
-                else if (id == 1)
-                    console_set_bootcmd("aicupg fat udisk 1");
-                break;
-            case BD_SDFAT32:
-                console_set_bootcmd("aicupg fat mmc 1");
-                break;
-            case BD_SDMC0:
-            case BD_SDMC1:
-                console_set_bootcmd("mmc_boot");
-                break;
-            case BD_SPINOR:
+                case BD_SPINOR:
 #ifdef AIC_BOOTLOADER_CMD_XIP_BOOT
-                console_set_bootcmd("xip_boot");
+                    console_set_bootcmd("xip_boot");
 #elif defined(AIC_BOOTLOADER_CMD_NOR_BOOT)
-                console_set_bootcmd("nor_boot");
+                    console_set_bootcmd("nor_boot");
 #endif
-                break;
-            case BD_SPINAND:
-                console_set_bootcmd("nand_boot");
-                break;
-            default:
-                break;
+                    break;
+                case BD_SPINAND:
+                    console_set_bootcmd("nand_boot");
+                    break;
+                default:
+                    break;
+            }
         }
     }
     /*

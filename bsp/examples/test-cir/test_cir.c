@@ -26,12 +26,16 @@ static rt_err_t cir_rx_call(rt_device_t dev, rt_size_t size)
 static void cir_rx_thread(void *parameter)
 {
     uint32_t scancode = 0;
+    rt_size_t size = 0;
 
-    rt_sem_take(&rx_sem, RT_WAITING_FOREVER);
-    rt_device_read(cir_dev, 0, &scancode, sizeof(scancode));
-    rt_kprintf("cir received scancode: %08x\n", scancode);
-    rt_sem_detach(&rx_sem);
-    rt_device_close(cir_dev);
+    while(1)
+    {
+        rt_sem_take(&rx_sem, RT_WAITING_FOREVER);
+        size = rt_device_read(cir_dev, 0, &scancode, sizeof(scancode));
+	    if (size)
+            rt_kprintf("cir received scancode: %08x\n", scancode);
+        scancode = 0;
+    }
 }
 
 static void usage(char * program)

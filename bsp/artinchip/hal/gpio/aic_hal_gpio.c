@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Artinchip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -217,6 +217,15 @@ int hal_gpio_group_get_irq_en(unsigned int group, unsigned int *pen)
     val = readl(gen_reg(group, GEN_TRQ_EN_REG));
 
     *pen = val;
+
+    return 0;
+}
+
+int hal_gpio_group_set_irq_en(unsigned int group, unsigned int en)
+{
+    CHECK_PARAM(group < GPIO_GROUP_MAX && group >= 0, -EINVAL);
+
+    writel(en, gen_reg(group, GEN_TRQ_EN_REG));
 
     return 0;
 }

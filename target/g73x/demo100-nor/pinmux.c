@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -22,7 +22,7 @@ struct aic_pinmux aic_pinmux_config[] = {
 #ifdef AIC_USING_UART0
     /* uart0 */
     {5, PIN_PULL_DIS, 3, "PA.0"},
-    {5, PIN_PULL_DIS, 3, "PA.1"},
+    {5, PIN_PULL_UP, 3, "PA.1"},
 #ifdef AIC_DEV_UART0_MODE_RS485
     {1, PIN_PULL_DIS, 3, AIC_UART0_PA_RS485_CTL_NAME},
 #endif
@@ -30,7 +30,7 @@ struct aic_pinmux aic_pinmux_config[] = {
 #ifdef AIC_USING_UART1
     /* uart1 */
     {5, PIN_PULL_DIS, 3, "PD.2"},
-    {5, PIN_PULL_DIS, 3, "PD.3"},
+    {5, PIN_PULL_UP, 3, "PD.3"},
 #ifdef AIC_DEV_UART1_MODE_RS485
     {1, PIN_PULL_DIS, 3, AIC_UART1_PA_RS485_CTL_NAME},
 #endif
@@ -39,13 +39,13 @@ struct aic_pinmux aic_pinmux_config[] = {
     /* uart2 */
 #ifdef AIC_DEV_UART2_MODE_RS485
     {5, PIN_PULL_DIS, 3, "PD.4"},   // BT_UART2_TX
-    {5, PIN_PULL_DIS, 3, "PD.5"},   // BT_UART2_RX
+    {5, PIN_PULL_UP, 3, "PD.5"},   // BT_UART2_RX
     {1, PIN_PULL_DIS, 3, AIC_UART2_PA_RS485_CTL_NAME},
 #else
     {8, PIN_PULL_DIS, 3, "PA.2"},   // BT_UART2_CTS
     {8, PIN_PULL_DIS, 3, "PA.3"},   // BT_UART2_RTS
     {5, PIN_PULL_DIS, 3, "PD.4"},   // BT_UART2_TX
-    {5, PIN_PULL_DIS, 3, "PD.5"},   // BT_UART2_RX
+    {5, PIN_PULL_UP, 3, "PD.5"},   // BT_UART2_RX
     {1, PIN_PULL_DIS, 3, "PD.6"},   // BT_PWR_ON
 #endif
 #endif
@@ -81,7 +81,7 @@ struct aic_pinmux aic_pinmux_config[] = {
     {4, PIN_PULL_DIS, 3, "PA.8"},  // SCK
     {4, PIN_PULL_DIS, 3, "PA.9"},  // SDA
 #endif
-#ifdef AIC_USING_QSPI0
+#if defined(AIC_USING_QSPI0) && !defined(AIC_SYSCFG_SIP_FLASH_ENABLE)
     /* qspi0 */
     {2, PIN_PULL_DIS, 3, "PB.0"},
     {2, PIN_PULL_DIS, 3, "PB.1"},
@@ -197,8 +197,18 @@ struct aic_pinmux aic_pinmux_config[] = {
     {2, PIN_PULL_DIS, 3, "PE.9"},
     /* phy0 reset gpio */
     {1, PIN_PULL_DIS, 3, "PE.6"},
-    /* clk_out2 */
+#endif
+#ifdef AIC_USING_CLK_OUT0
+    {6, PIN_PULL_DIS, 3, "PD.13"},
+#endif
+#ifdef AIC_USING_CLK_OUT1
+    {2, PIN_PULL_DIS, 3, "PE.11"},
+#endif
+#ifdef AIC_USING_CLK_OUT2
     {2, PIN_PULL_DIS, 3, "PE.10"},
+#endif
+#ifdef AIC_USING_CLK_OUT3
+    {7, PIN_PULL_DIS, 3, "PC.6"},
 #endif
 #ifdef AIC_USING_PWM0
     {4, PIN_PULL_DIS, 3, "PE.0"},
@@ -323,6 +333,10 @@ struct aic_pinmux aic_pinmux_config[] = {
 #endif
 #ifdef AIC_USING_PSADC15
     {7, PIN_PULL_DIS, 3, "PA.15"},
+#endif
+#ifdef AIC_USING_CTP
+    {1, PIN_PULL_DIS, 3, AIC_TOUCH_PANEL_RST_PIN},
+    {1, PIN_PULL_DIS, 3, AIC_TOUCH_PANEL_INT_PIN},
 #endif
 };
 

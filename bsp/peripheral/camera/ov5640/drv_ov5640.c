@@ -2196,25 +2196,6 @@ power_off:
 
 static int ov5640_set_xclk(u32 freq)
 {
-    s32 ret = 0;
-
-    if (freq < OV5640_XCLK_MIN || freq > OV5640_XCLK_MAX) {
-        LOG_E("xclk freq out of range: %d Hz", freq);
-        return -1;
-    }
-
-    ret = hal_clk_set_freq(OV5640_CLK_SRC, freq);
-    if (ret < 0) {
-        LOG_E("Failed to set OV5640_CLK_SRC %d", freq);
-        return -1;
-    }
-
-    ret = hal_clk_enable(OV5640_CLK_SRC);
-    if (ret < 0) {
-        LOG_E("Failed to enable OV5640_CLK_SRC");
-        return -1;
-    }
-
     g_ov5640_dev.xclk_freq = freq;
     return 0;
 }
@@ -2236,9 +2217,9 @@ static rt_err_t ov5640_init(rt_device_t dev)
     sensor->fmt.width  = sensor->current_mode->hact;
     sensor->fmt.height = sensor->current_mode->vact;
     sensor->fmt.bus_type = OV5640_BUS_TYPE;
-    sensor->fmt.flags = MEDIA_SIGNAL_HSYNC_ACTIVE_LOW |
-                        MEDIA_SIGNAL_VSYNC_ACTIVE_HIGH |
-                        MEDIA_SIGNAL_PCLK_SAMPLE_RISING;
+    sensor->fmt.flags = MEDIA_SIGNAL_FIELD_ACTIVE_LOW |
+                        MEDIA_SIGNAL_HSYNC_ACTIVE_LOW |
+                        MEDIA_SIGNAL_VSYNC_ACTIVE_LOW;
     sensor->current_fr = OV5640_FPS;
     sensor->ae_target = 52;
 
@@ -2333,7 +2314,7 @@ int rt_hw_ov5640_init(void)
 #endif
     g_ov5640_dev.dev.type = RT_Device_Class_CAMERA;
 
-    rt_device_register(&g_ov5640_dev.dev, CAMERA_NAME_OV, 0);
+    rt_device_register(&g_ov5640_dev.dev, CAMERA_DEV_NAME, 0);
     return 0;
 }
 INIT_DEVICE_EXPORT(rt_hw_ov5640_init);

@@ -1002,6 +1002,7 @@ enum rt_device_class_type
 #define RT_DEVICE_FLAG_ACTIVATED        0x010           /**< device is activated */
 #define RT_DEVICE_FLAG_SUSPENDED        0x020           /**< device is suspended */
 #define RT_DEVICE_FLAG_STREAM           0x040           /**< stream mode */
+#define RT_DEVICE_FLAG_WAKEUP           0x080           /**< wakeup source*/
 
 #define RT_DEVICE_FLAG_INT_RX           0x100           /**< INT mode on Rx */
 #define RT_DEVICE_FLAG_DMA_RX           0x200           /**< DMA mode on Rx */

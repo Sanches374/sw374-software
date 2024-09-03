@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -115,15 +115,15 @@ void aic_memheap_free(int type, void *rmem)
  */
 void rt_hw_board_init(void)
 {
-    aic_board_sysclk_init();
-    aic_board_pinmux_init();
-
 #ifdef RT_USING_HEAP
     rt_system_heap_init((void *)&__heap_start, (void *)&__heap_end);
 #if (!defined(QEMU_RUN) && defined(RT_USING_MEMHEAP))
     aic_memheap_init();
 #endif
 #endif
+
+    aic_board_sysclk_init();
+    aic_board_pinmux_init();
 
 #ifdef RT_USING_COMPONENTS_INIT
     rt_components_board_init();
@@ -173,11 +173,14 @@ const struct dfs_mount_tbl mount_table[] = {
 #ifdef LPKG_RAMDISK_TYPE_INITDATA
     {"ramdisk0", "/ram", "elm", 0, 0, 0},
 #endif
+#ifndef AIC_AB_SYSTEM_INTERFACE
 #if (defined(AIC_USING_FS_IMAGE_TYPE_FATFS_FOR_0) || defined(AIC_USING_FS_IMAGE_TYPE_FATFS_FOR_1))
-    {"blk_rodata", "/rodata", "elm", 0, 0, 0},
-    {"blk_data", "/data", "elm", 0, 0, 1},
+        {"blk_rodata", "/rodata", "elm", 0, 0, 0},
 #endif
-
+#if (defined(AIC_USING_FS_IMAGE_TYPE_FATFS_FOR_0) || defined(AIC_USING_FS_IMAGE_TYPE_FATFS_FOR_1))
+        {"blk_data", "/data", "elm", 0, 0, 1},
+#endif
+#endif
 #ifdef LPKG_USING_LITTLEFS
     {"data", "/data", "lfs", 0, 0, 0},
 #endif

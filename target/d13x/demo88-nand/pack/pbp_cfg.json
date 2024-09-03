@@ -195,9 +195,9 @@
 			"main": {
 				"uart_id": "0", // UART0 for log output
 				"uart_tx_pin_cfg_reg": "0x18700080", // PA0
-				"uart_tx_pin_cfg_val": "0x035",
+				"uart_tx_pin_cfg_val": "0x335",
 				"uart_rx_pin_cfg_reg": "0x18700084", // PA1
-				"uart_rx_pin_cfg_val": "0x035",
+				"uart_rx_pin_cfg_val": "0x335",
 
 				// "uart_id": "0", // UART0 for log output
 				// "uart_tx_pin_cfg_reg": "0x18700E88", // PN2

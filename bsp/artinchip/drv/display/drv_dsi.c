@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Artinchip Technology Co., Ltd
+ * Copyright (c) 2023-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -9,7 +9,7 @@
 #include <aic_hal_dsi.h>
 #include <mipi_display.h>
 
-#include "disp_com.h"
+#include "drv_fb.h"
 
 struct aic_dsi_comp
 {
@@ -97,6 +97,10 @@ static int aic_dsi_enable(void)
 
 static int aic_dsi_disable(void)
 {
+    struct aic_dsi_comp *comp = aic_dsi_request_drvdata();
+
+    reg_clr_bit(comp->regs + DSI_CTL, DSI_CTL_EN);
+    aic_dsi_release_drvdata();
     return 0;
 }
 

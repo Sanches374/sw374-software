@@ -91,6 +91,9 @@ int zlib_test(int argc,char **argv)
     }
     //out buffer addr align CACHE_LINE_SIZE
     out_buff_align = ((out_buff+CACHE_LINE_SIZE -1)&(~(CACHE_LINE_SIZE-1)));
+    // invalid cache
+    aicos_dcache_invalid_range((unsigned long *)out_buff_align, (int64_t)out_len_align);
+
     // uncompressed
     before = aic_get_time_us();
     uncompress_len =  mpp_zlib_uncompressed((unsigned char*)in_buff_align, file_len, (unsigned char*)out_buff_align, out_len_align);
@@ -111,9 +114,6 @@ int zlib_test(int argc,char **argv)
         ret = -1;
         goto _exit;
     }
-
-    // invalid cache
-    aicos_dcache_invalid_range((unsigned long *)out_buff_align, (int64_t)out_len_align);
 
     w_len = write(fd_out,(void *)out_buff_align, uncompress_len);
 

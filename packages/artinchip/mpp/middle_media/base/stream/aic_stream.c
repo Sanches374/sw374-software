@@ -1,19 +1,22 @@
 /*
-* Copyright (C) 2020-2023 Artinchip Technology Co. Ltd
-*
-*  author: <jun.ma@artinchip.com>
-*  Desc: aic_stream
-*/
+ * Copyright (C) 2020-2024 ArtInChip Technology Co. Ltd
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Author: <jun.ma@artinchip.com>
+ * Desc: aic stream
+ */
+
 #include <stdio.h>
 #include <unistd.h>
 #include "aic_stream.h"
 #include "aic_file_stream.h"
 
-s32 aic_stream_open(char *uri, struct aic_stream **stream)
+s32 aic_stream_open(char *uri, struct aic_stream **stream, int flags)
 {
 	s32 ret = 0;
 	// now only file_stream,if more,it shoud probe which stream
-	ret = file_stream_open(uri, stream);
+	ret = file_stream_open(uri, stream, flags);
 	return ret;
 }
 
@@ -23,9 +26,9 @@ int aic_stream_skip(struct aic_stream *s, int len)
 }
 
 
-void aic_stream_w8(struct aic_stream *s, int b)
+void aic_stream_w8(struct aic_stream *s, int val)
 {
-    /* aic_stream_write(s, &val, 1);*/
+    aic_stream_write(s, &val, 1);
 }
 
 void aic_stream_wl32(struct aic_stream *s, unsigned int val)

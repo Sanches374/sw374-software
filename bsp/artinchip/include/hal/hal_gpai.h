@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -63,7 +63,7 @@ struct aic_gpai_ch {
     enum aic_gpai_obtain_data_mode obtain_data_mode;
     u32 smp_period;
     u32 pclk_rate;
-    u16 latest_data;
+    u16 avg_data;
     u16 fifo_data[AIC_GPAI_FIFO_MAX_DEPTH];
     u8 fifo_valid_cnt;
     u8 fifo_depth;

@@ -34,6 +34,9 @@
 #define AUDIO_FREQ      48000
 #define HALF_WORD_BYTES 2  //2 half word (one channel)
 #define SAMPLE_BITS     16 //16 bit per channel
+#define UAC_MAX_VOLUME MAX_VOLUME_0DB
+#define UAC_MIN_VOLUME 80
+
 
 #define BMCONTROL (AUDIO_V2_FU_CONTROL_MUTE | AUDIO_V2_FU_CONTROL_VOLUME)
 
@@ -186,18 +189,37 @@ static const uint8_t default_sampling_freq_table[] = {
 #define TX_FIFO_PERIOD_COUNT            20
 #define TX_FIFO_SIZE                    AUDIO_OUT_PACKET*TX_FIFO_PERIOD_COUNT//3840
 
+void usbd_audio_iso_out_callback(uint8_t ep, uint32_t nbytes);
+
 struct audio_volume_mute {
     int volume;
     bool     mute;
 } usbd_volume_mute;
 
 uint8_t audio_fifo_tx[TX_FIFO_SIZE] __attribute__((aligned(64)));
-USB_NOCACHE_RAM_SECTION USB_MEM_ALIGNX uint8_t read_buffer[AUDIO_OUT_PACKET];
+static USB_NOCACHE_RAM_SECTION USB_MEM_ALIGNX uint8_t read_buffer[AUDIO_OUT_PACKET];
 
 aic_audio_ctrl audio_ctrl0;
 volatile bool rx_flag = 0;
 uint32_t total_len = 0;
 uint8_t usbd_start_flag = 0;
+
+static struct usbd_endpoint audio_out_ep = {
+    .ep_cb = usbd_audio_iso_out_callback,
+    .ep_addr = AUDIO_OUT_EP
+};
+
+struct usbd_interface uac_intf0;
+struct usbd_interface uac_intf1;
+
+struct audio_entity_info audio_entity_table[] = {
+    { .bEntityId = AUDIO_OUT_CLOCK_ID,
+      .bDescriptorSubtype = AUDIO_CONTROL_CLOCK_SOURCE,
+      .ep = AUDIO_OUT_EP },
+    { .bEntityId = AUDIO_OUT_FU_ID,
+      .bDescriptorSubtype = AUDIO_CONTROL_FEATURE_UNIT,
+      .ep = AUDIO_OUT_EP },
+};
 
 void usbd_clear_buffer(void)
 {
@@ -208,7 +230,11 @@ void usbd_clear_buffer(void)
     }
 }
 
+#ifdef LPKG_CHERRYUSB_DEVICE_COMPOSITE
+void usbd_comp_uac_event_handler(uint8_t event)
+#else
 void usbd_event_handler(uint8_t event)
+#endif
 {
     switch (event) {
         case USBD_EVENT_RESET:
@@ -244,9 +270,8 @@ int usbd_audio_get_volume(uint8_t ep, uint8_t ch)
 {
     int reg_volume;
     USB_LOG_DBG("get volume:%d\r\n", usbd_volume_mute.volume);
-    reg_volume = usbd_volume_mute.volume * MAX_VOLUME_0DB / 100;
+    reg_volume = usbd_volume_mute.volume * (UAC_MAX_VOLUME - UAC_MIN_VOLUME) / 100 + UAC_MIN_VOLUME;
     hal_audio_set_playback_volume(&audio_ctrl0, reg_volume);
-
     return usbd_volume_mute.volume;
 }
 
@@ -264,7 +289,7 @@ void usbd_audio_open(uint8_t intf)
 {
     rx_flag = 1;
     /* setup first out ep read transfer */
-    usbd_ep_start_read(AUDIO_OUT_EP, read_buffer, AUDIO_OUT_PACKET);
+    usbd_ep_start_read(audio_out_ep.ep_addr, read_buffer, AUDIO_OUT_PACKET);
     USB_LOG_DBG("OPEN\r\n");
 }
 
@@ -279,7 +304,7 @@ void usbd_audio_set_sampling_freq(uint8_t ep, uint32_t sampling_freq)
 {
     uint16_t packet_size = 0;
     USB_LOG_DBG("usb device audio sampling_freq %ld,\r\n", sampling_freq);
-    if (ep == AUDIO_OUT_EP) {
+    if (ep == audio_out_ep.ep_addr) {
         packet_size = ((sampling_freq * 2 * OUT_CHANNEL_NUM) / 1000);
         audio_v2_descriptor[18 + USB_AUDIO_CONFIG_DESC_SIZ - 11] = packet_size;
         audio_v2_descriptor[18 + USB_AUDIO_CONFIG_DESC_SIZ - 10] = packet_size >> 8;
@@ -288,7 +313,7 @@ void usbd_audio_set_sampling_freq(uint8_t ep, uint32_t sampling_freq)
 
 void usbd_audio_get_sampling_freq_table(uint8_t ep, uint8_t **sampling_freq_table)
 {
-    if (ep == AUDIO_OUT_EP) {
+    if (ep == audio_out_ep.ep_addr) {
         *sampling_freq_table = (uint8_t *)default_sampling_freq_table;
     }
 }
@@ -428,35 +453,40 @@ void usbd_audio_hal_init(void)
 void usbd_audio_iso_out_callback(uint8_t ep, uint32_t nbytes)
 {
     usbd_audio_data_process(read_buffer);
-    usbd_ep_start_read(AUDIO_OUT_EP, read_buffer, AUDIO_OUT_PACKET);
+    usbd_ep_start_read(audio_out_ep.ep_addr, read_buffer, AUDIO_OUT_PACKET);
 }
 
-static struct usbd_endpoint audio_out_ep = {
-    .ep_cb = usbd_audio_iso_out_callback,
-    .ep_addr = AUDIO_OUT_EP
-};
 
-struct usbd_interface intf0;
-struct usbd_interface intf1;
-
-struct audio_entity_info audio_entity_table[] = {
-    { .bEntityId = AUDIO_OUT_CLOCK_ID,
-      .bDescriptorSubtype = AUDIO_CONTROL_CLOCK_SOURCE,
-      .ep = AUDIO_OUT_EP },
-    { .bEntityId = AUDIO_OUT_FU_ID,
-      .bDescriptorSubtype = AUDIO_CONTROL_FEATURE_UNIT,
-      .ep = AUDIO_OUT_EP },
-};
-
-void audio_v2_init(void)
+#ifdef LPKG_CHERRYUSB_DEVICE_COMPOSITE
+#include "composite_template.h"
+int usbd_comp_uac_init(uint8_t *ep_table, void *data)
 {
-    usbd_desc_register(audio_v2_descriptor);
-    usbd_add_interface(usbd_audio_init_intf(&intf0, 0x0200, audio_entity_table, 2));
-    usbd_add_interface(usbd_audio_init_intf(&intf1, 0x0200, audio_entity_table, 2));
+    audio_entity_table[0].ep = ep_table[0];
+    audio_entity_table[1].ep = ep_table[0];
+    audio_out_ep.ep_addr = ep_table[0];
+    usbd_add_interface(usbd_audio_init_intf(&uac_intf0, 0x0200, audio_entity_table, 2));
+    usbd_add_interface(usbd_audio_init_intf(&uac_intf1, 0x0200, audio_entity_table, 2));
     usbd_add_endpoint(&audio_out_ep);
-    usbd_initialize();
+    return 0;
+}
+#endif
+
+int audio_v2_init(void)
+{
     audio_ringbuffer_init();
     usbd_audio_hal_init();
+#ifndef LPKG_CHERRYUSB_DEVICE_COMPOSITE
+    usbd_desc_register(audio_v2_descriptor);
+    usbd_add_interface(usbd_audio_init_intf(&uac_intf0, 0x0200, audio_entity_table, 2));
+    usbd_add_interface(usbd_audio_init_intf(&uac_intf1, 0x0200, audio_entity_table, 2));
+    usbd_add_endpoint(&audio_out_ep);
+    usbd_initialize();
+#else
+    usbd_comp_func_register(audio_v2_descriptor,
+                            usbd_comp_uac_event_handler,
+                            usbd_comp_uac_init, NULL);
+#endif
+    return 0;
 }
 
 #if defined(KERNEL_RTTHREAD)
@@ -473,5 +503,7 @@ int usbd_audio_v2_init(void)
         rt_thread_startup(usb_audio_tid);
     return 0;
 }
-INIT_DEVICE_EXPORT(usbd_audio_v2_init);
+#if !defined(LPKG_CHERRYUSB_DYNAMIC_REGISTRATION_MODE)
+INIT_APP_EXPORT(usbd_audio_v2_init);
+#endif
 #endif

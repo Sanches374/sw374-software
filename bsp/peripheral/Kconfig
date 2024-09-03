@@ -7,14 +7,30 @@ source "bsp/peripheral/nftl/Kconfig"
 # touch panel driver global option
 #--------------------------------------------
 
-menu "Touch Panel Support"
-source "bsp/peripheral/touch/gt911/Kconfig"
-source "bsp/peripheral/touch/ft7411/Kconfig"
-source "bsp/peripheral/touch/gsl1680/Kconfig"
-source "bsp/peripheral/touch/rtp/Kconfig"
-source "bsp/peripheral/touch/st16xx/Kconfig"
-source "bsp/peripheral/touch/axs15260/Kconfig"
-endmenu
+menuconfig AIC_USING_TOUCH
+    bool "Touch Panel Support"
+
+if AIC_USING_TOUCH
+    choice
+        prompt "Select touch device"
+            default AIC_USING_CTP
+
+        config AIC_USING_CTP
+            bool "CTP"
+
+        config AIC_USING_RTP
+            bool "RTP"
+            select AIC_RTP_DRV
+    endchoice
+
+if AIC_USING_CTP
+    source "bsp/peripheral/touch/Kconfig"
+endif
+
+if AIC_USING_RTP
+    source "bsp/peripheral/touch/rtp/Kconfig"
+endif
+endif
 
 #--------------------------------------------
 # Audio Codec driver option

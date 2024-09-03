@@ -487,14 +487,14 @@ static int cmd_mount(int argc, char **argv)
         struct dfs_filesystem *iter;
 
         /* display the mount history */
-        rt_kprintf("filesystem  device  mountpoint\n");
-        rt_kprintf("----------  ------  ----------\n");
+        rt_kprintf("filesystem     device     mountpoint\n");
+        rt_kprintf("----------  ------------  ----------\n");
         for (iter = &filesystem_table[0];
                 iter < &filesystem_table[DFS_FILESYSTEMS_MAX]; iter++)
         {
             if ((iter != NULL) && (iter->path != NULL))
             {
-                rt_kprintf("%-10s  %-6s  %-s\n",
+                rt_kprintf("%-10s  %-12s  %-s\n",
                            iter->ops->name, iter->dev_id->parent.name, iter->path);
             }
         }

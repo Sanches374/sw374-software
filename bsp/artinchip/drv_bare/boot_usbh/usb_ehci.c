@@ -1,7 +1,9 @@
 /*
- * Copyright (c) 2020-2022 Artinchip Technology Co., Ltd. All rights reserved.
+ * Copyright (c) 2020-2024, ArtInChip Technology Co., Ltd
  *
- * Dehuang Wu <dehuang.wu@artinchip.com>
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Authors:  Dehuang Wu <dehuang.wu@artinchip.com>
  */
 
 #include <stdio.h>
@@ -842,14 +844,13 @@ static int usb_ehci_wait_usbsts(int id, u32 maskbits, u32 donebits, u32 timeout)
 
 int usbh_portchange_wait(int id)
 {
-    u32 usbsts, pending, regval, timeout;
+    u32 usbsts, pending, regval, timeout = 1000;
     u64 start_us;
     volatile struct ehci_hcor_s *hcor;
 
-#ifdef AICUPG_UDISK_VERSION3_SUPPORT
-    timeout = 1000000; // Some Udisk need to wait for more than 1s
-#else
-    timeout = 1000;
+#ifdef AICUPG_UDISK_CHECK_TIMEOUT
+    // Some Udisk need to wait for more than 1s
+    timeout = max(timeout, (u32)AICUPG_UDISK_CHECK_TIMEOUT);
 #endif
 
     hcor = (struct ehci_hcor_s *)USB_EHCI_HCOR_BASE(id);

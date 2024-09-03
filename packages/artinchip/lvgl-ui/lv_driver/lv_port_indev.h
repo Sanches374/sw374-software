@@ -6,8 +6,9 @@
  * Change Logs:
  * Date           Author       Notes
  * 2021-10-18     Meco Man     The first version
- * 2023-05-102    Ning Fang    Add ArtInChip input event
+ * 2023-05-10     Ning Fang    Add ArtInChip input event
  */
+
 #ifndef LV_PORT_INDEV_H
 #define LV_PORT_INDEV_H
 

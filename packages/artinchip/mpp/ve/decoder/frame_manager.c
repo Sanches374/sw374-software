@@ -603,6 +603,33 @@ int fm_decoder_frame_to_render(struct frame_manager *fm, struct frame *frame, in
 	return 0;
 }
 
+int fm_decoder_reclaim_all_used_frame(struct frame_manager *fm)
+{
+    int i;
+    struct frame_impl *frm_impl;
+
+    aicos_mutex_take(fm->lock, AICOS_WAIT_FOREVER);
+
+    for (i = 0; i < fm->frame_count; i++) {
+        frm_impl = &fm->frame_node[i];
+        logd("frame ref_count: %d, id: %d, used_by_decoder: %d", frm_impl->ref_count,
+            frm_impl->node_id, frm_impl->used_by_decoder);
+        if (frm_impl->used_by_decoder) {
+            mpp_list_del_init(&frm_impl->list);
+            mpp_list_add_tail(&frm_impl->list, &fm->empty_list);
+            fm->empty_num++;
+            frm_impl->used_by_decoder = 0;
+            frm_impl->used_by_display = 0;
+            frm_impl->displayed = 1;
+            frm_impl->ref_count = 0;
+        }
+    }
+
+    aicos_mutex_give(fm->lock);
+
+    return 0;
+}
+
 struct frame *fm_get_frame_by_id(struct frame_manager *fm, int id)
 {
 	struct frame_impl *frm_impl;

@@ -12,6 +12,7 @@
 #define HUB_DEBOUNCE_STEP      25
 #define HUB_DEBOUNCE_STABLE    100
 #define DELAY_TIME_AFTER_RESET 200
+#define HUB_CLEAR_FEATURE_CNT  20
 
 #define EXTHUB_FIRST_INDEX 2
 
@@ -87,7 +88,7 @@ static int _usbh_hub_get_hub_descriptor(struct usbh_hub *hub, uint8_t *buffer)
     if (ret < 0) {
         return ret;
     }
-    memcpy(buffer, g_hub_buf, USB_SIZEOF_HUB_DESC);
+    memcpy(buffer, g_hub_buf[hub->bus->busid], USB_SIZEOF_HUB_DESC);
     return ret;
 }
 #if 0
@@ -184,7 +185,7 @@ static int _usbh_hub_set_depth(struct usbh_hub *hub, uint16_t depth)
 static int parse_hub_descriptor(struct usb_hub_descriptor *desc, uint16_t length)
 {
     if (desc->bLength != USB_SIZEOF_HUB_DESC) {
-        USB_LOG_ERR("invalid device bLength 0x%02x\r\n", desc->bLength);
+        USB_LOG_ERR("invalid hub bLength 0x%02x\r\n", desc->bLength);
         return -1;
     } else if (desc->bDescriptorType != HUB_DESCRIPTOR_TYPE_HUB) {
         USB_LOG_ERR("unexpected descriptor 0x%02x\r\n", desc->bDescriptorType);
@@ -288,7 +289,8 @@ static void usbh_hubport_release(struct usbh_hubport *child)
         }
         child->config.config_desc.bNumInterfaces = 0;
         usbh_kill_urb(&child->ep0_urb);
-        usb_osal_mutex_delete(child->mutex);
+        if (child->parent->is_roothub)
+            usb_osal_mutex_delete(child->mutex);
     }
 }
 
@@ -449,7 +451,7 @@ static void usbh_hub_events(struct usbh_hub *hub)
     uint16_t mask;
     uint16_t feat;
     uint8_t speed;
-    int ret;
+    int ret = 0, cnt = 0;
 
     if (!hub->connected) {
         return;
@@ -483,10 +485,14 @@ static void usbh_hub_events(struct usbh_hub *hub)
         mask = 1;
         feat = HUB_PORT_FEATURE_C_CONNECTION;
         while (portchange) {
+            /* To avoid dead loops when hub power failure */
+            if (cnt >= HUB_CLEAR_FEATURE_CNT)
+                break;
+            cnt++;
             if (portchange & mask) {
                 ret = usbh_hub_clear_feature(hub, port + 1, feat);
                 if (ret < 0) {
-                    USB_LOG_ERR("Failed to clear port %u, change mask:%04x, errorcode:%d\r\n", port + 1, mask, ret);
+                    USB_LOG_ERR("Failed to clear port %u, portchange:%04x, mask:%04x, feat:0x%x, errcode:%d\r\n", port + 1, portchange, mask, feat, ret);
                     continue;
                 }
                 portchange &= (~mask);
@@ -598,7 +604,13 @@ static void usbh_hub_events(struct usbh_hub *hub)
                     child->port = port + 1;
                     child->speed = speed;
                     child->bus = hub->bus;
-                    child->mutex = usb_osal_mutex_create();
+                    /* All child-hub share the same mutex. Otherwise if multiple child-hubs
+                     * communicate simultaneously, resources will not be protected.
+                     */
+                    if (hub->is_roothub)
+                        child->mutex = usb_osal_mutex_create();
+                    else
+                        child->mutex = hub->bus->hcd.roothub.child[0].mutex;
 
                     USB_LOG_INFO("New %s device on Bus %u, Hub %u, Port %u connected\r\n", speed_table[speed], hub->bus->busid, hub->index, port + 1);
 
@@ -650,7 +662,7 @@ static void usbh_hub_thread(void *argument)
 }
 
 #ifdef KERNEL_BAREMETAL
-#ifdef AIC_USING_USB0_HOST
+#if defined(AIC_USING_USB0_HOST) || defined(AIC_USING_USB0_OTG)
 extern struct usbh_bus *usb_ehci0_hs_bus;
 int usb_ehci0_init = 0;
 #endif
@@ -664,23 +676,15 @@ void usbh_hub_poll(void)
     struct usbh_hub *hub;
     struct usbh_bus *bus = NULL;
 
-#ifdef AIC_USING_USB0_HOST
+#if defined(AIC_USING_USB0_HOST) || defined(AIC_USING_USB0_OTG)
     bus = usb_ehci0_hs_bus;
-    if (usb_ehci0_init == 0) {
-        usb_ehci0_init = 1;
-        usb_hc_init(bus);
-    }
-    if (!usb_osal_mq_recv(bus->hub_mq, (uintptr_t *)&hub, USB_OSAL_WAITING_FOREVER))
+    if (bus->hub_mq && !usb_osal_mq_recv(bus->hub_mq, (uintptr_t *)&hub, 1000))
         usbh_hub_events(hub);
 #endif
 
 #ifdef AIC_USING_USB1_HOST
     bus = usb_ehci1_hs_bus;
-    if (usb_ehci1_init == 0) {
-        usb_ehci1_init = 1;
-        usb_hc_init(bus);
-    }
-    if (!usb_osal_mq_recv(bus->hub_mq, (uintptr_t *)&hub, USB_OSAL_WAITING_FOREVER))
+    if (bus->hub_mq && !usb_osal_mq_recv(bus->hub_mq, (uintptr_t *)&hub, 1000))
         usbh_hub_events(hub);
 #endif
 }
@@ -695,7 +699,8 @@ int usbh_hub_initialize(struct usbh_bus *bus)
 {
     char thread_name[32] = { 0 };
 
-    bus->hub_mq = usb_osal_mq_create(7);
+    if (bus->hub_mq == NULL)
+        bus->hub_mq = usb_osal_mq_create(7);
     if (bus->hub_mq == NULL) {
         USB_LOG_ERR("Failed to create hub mq\r\n");
         return -1;
@@ -708,6 +713,8 @@ int usbh_hub_initialize(struct usbh_bus *bus)
         USB_LOG_ERR("Failed to create hub thread\r\n");
         return -1;
     }
+#else
+    usb_hc_init(bus);
 #endif
     return 0;
 }
@@ -734,8 +741,10 @@ int usbh_hub_deinitialize(struct usbh_bus *bus)
     usb_hc_deinit(bus);
 
     usb_osal_leave_critical_section(flags);
-
+#ifndef KERNEL_BAREMETAL
     usb_osal_mq_delete(bus->hub_mq);
+    bus->hub_mq = NULL;
+#endif
     usb_osal_thread_delete(bus->hub_thread);
 
     return 0;

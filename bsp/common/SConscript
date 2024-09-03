@@ -6,7 +6,8 @@ cwd = GetCurrentDir()
 src = Glob('*.c')
 src += Glob('partition/*.c')
 src += Glob('private_param/*.c')
-src += Glob('crc32/*.c')
+if not GetDepend('LPKG_USING_ZLIB'):
+    src += Glob('crc32/*.c')
 src += Glob('utils/*.c')
 CPPPATH = [cwd + '/include', ]
 

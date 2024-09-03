@@ -665,6 +665,13 @@ MEM_SIZE and MEMP_NUM_XXX will be invalid */
 #define LWIP_PBUF_CUSTOM_DATA u32_t second; u32_t nanosecond;
 #endif
 
+#ifdef LPKG_LWIP_USING_HTTP
+#define LWIP_HTTPD_SSI    1
+#define LWIP_HTTPD_CGI    1
+#define LWIP_HTTPD_SSI_INCLUDE_TAG  0
+#endif
+
+
 #if 0
 
 

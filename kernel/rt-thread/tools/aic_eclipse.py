@@ -1,8 +1,8 @@
 #!/usr/bin/env python2
 # -*- coding:utf-8 -*-
-# SPDX-License-Identifier: GPL-2.0+
+# SPDX-License-Identifier: Apache-2.0
 #
-# Copyright (C) 2021-2023 ArtInChip Technology Co., Ltd
+# Copyright (C) 2021-2024 ArtInChip Technology Co., Ltd
 
 import xml.etree.ElementTree as etree
 from xml.etree.ElementTree import SubElement
@@ -346,7 +346,12 @@ def TargetEclipse(env, sdk=False, update=False):
         for f in glob.iglob(src_d + '/*'):
             des_f = os.path.basename(f)
             des_f = os.path.join(des_d, des_f)
-            shutil.copy(f, des_f)
+            if os.path.isdir(f):
+                if os.path.exists(des_f):
+                    shutil.rmtree(des_f)
+                shutil.copytree(f, des_f)
+            else:
+                shutil.copy(f, des_f)
         # copy  'bsp/artinchip/sys/chip/*.pbp'
         print('Copy .pbp file...')
         src_d = os.path.join(aic_root, 'bsp/artinchip/sys', prj_chip)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2023-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -72,7 +72,6 @@ enum aic_reboot_reason {
 
 void aic_set_reboot_reason(enum aic_reboot_reason reason);
 enum aic_reboot_reason aic_get_reboot_reason(void);
-void aic_clr_reboot_reason_rtc(void);
 void aic_clr_reboot_reason(void);
 void aic_show_gtc_time(char *tag, u32 val);
 void aic_show_startup_time(void);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -316,6 +316,53 @@ static rt_err_t spinand_mtd_block_markbad(struct rt_mtd_nand_device *device,
     return result;
 }
 
+static rt_uint32_t spinand_get_block_status(struct rt_mtd_nand_device *device,
+                                          rt_uint32_t block)
+{
+    rt_uint32_t result = RT_EOK;
+    struct aic_spinand *flash = (struct aic_spinand *)device->priv;
+
+    RT_ASSERT(device != RT_NULL);
+
+    if (block > device->block_end) {
+        pr_err("[Error] block:%d\n", block);
+        return -RT_MTD_EIO;
+    }
+
+    result = rt_mutex_take(flash->lock, RT_WAITING_FOREVER);
+    RT_ASSERT(result == RT_EOK);
+
+    result = spinand_get_status(flash, block);
+
+    rt_mutex_release(flash->lock);
+
+    return result;
+}
+
+static rt_err_t spinand_set_block_status(struct rt_mtd_nand_device *device,
+                                          rt_uint32_t block, rt_uint32_t block_pos,
+                                          rt_uint32_t status)
+{
+    rt_err_t result = RT_EOK;
+    struct aic_spinand *flash = (struct aic_spinand *)device->priv;
+
+    RT_ASSERT(device != RT_NULL);
+
+    if (block > device->block_end) {
+        pr_err("[Error] block:%d\n", block);
+        return -RT_MTD_EIO;
+    }
+
+    result = rt_mutex_take(flash->lock, RT_WAITING_FOREVER);
+    RT_ASSERT(result == RT_EOK);
+
+    result = spinand_set_status(flash, block, block_pos, status);
+
+    rt_mutex_release(flash->lock);
+
+    return result;
+}
+
 static int nand_read_data(void *dev, unsigned long offset, void *buf,
                           unsigned long len)
 {
@@ -339,6 +386,10 @@ static char *aic_spinand_get_partition_string(struct aic_spinand *flash)
     char *parts = NULL;
     void *res_addr = NULL;
 
+#ifdef AIC_SECONED_FLASH_NAND
+    parts = rt_strdup(IMAGE_CFG_JSON_PARTS_MTD);
+    return parts;
+#endif
     res_addr = aic_get_boot_resource_from_nand(flash, flash->info->page_size,
                                                nand_read_data);
     parts = private_get_partition_string(res_addr);
@@ -356,17 +407,31 @@ static struct rt_mtd_nand_driver_ops spinand_ops = {
     spinand_read_id,           spinand_mtd_read,
     spinand_mtd_write,         NULL,
     spinand_mtd_erase,         spinand_mtd_block_isbad,
-    spinand_mtd_block_markbad, spinand_mtd_continuous_read
+    spinand_mtd_block_markbad, spinand_mtd_continuous_read,
+    spinand_set_block_status, spinand_get_block_status
 };
+
+static uint32_t get_spinand_bus_id(void)
+{
+#if defined(AIC_SECONED_FLASH_NAND)
+#if defined(AIC_QSPI1_DEVICE_SPINAND)
+    return 1;
+#elif defined(AIC_QSPI2_DEVICE_SPINAND)
+    return 2;
+#endif
+#endif
+    return 0;
+}
 
 rt_err_t rt_hw_mtd_spinand_init(struct aic_spinand *flash)
 {
+    struct nftl_mtd *nftl_parts = NULL;
     struct mtd_partition *parts, *p;
     rt_uint32_t blocksize;
-    int i = 0, cnt;
-    rt_err_t result;
     char *partstr = NULL;
-    struct nftl_mtd *nftl_parts = NULL;
+    uint32_t spi_bus = 0;
+    rt_err_t result;
+    int i = 0, cnt;
 
     if (flash->IsInited)
         return RT_EOK;
@@ -387,7 +452,8 @@ rt_err_t rt_hw_mtd_spinand_init(struct aic_spinand *flash)
     nftl_parts = build_nftl_list(IMAGE_CFG_JSON_PARTS_NFTL);
 #endif
 
-    parts = mtd_parts_parse(partstr);
+    spi_bus = get_spinand_bus_id();
+    parts = mtd_parts_parse(partstr, spi_bus);
     if (partstr)
         free(partstr);
     p = parts;
@@ -841,6 +907,17 @@ static int rt_hw_spinand_register(void)
                                RT_NULL, RT_NULL);
     rt_hw_mtd_spinand_register("spinand0", AIC_QSPI0_DEVICE_SPINAND_FREQ);
 #endif
+#if defined(AIC_SECONED_FLASH_NAND)
+#if defined(AIC_QSPI2_DEVICE_SPINAND)
+    aic_qspi_bus_attach_device("qspi2", "spinand1", 0, AIC_QSPI2_BUS_WIDTH,
+                               RT_NULL, RT_NULL);
+    rt_hw_mtd_spinand_register("spinand1", AIC_QSPI2_DEVICE_SPINAND_FREQ);
+#elif defined(AIC_QSPI1_DEVICE_SPINAND)
+    aic_qspi_bus_attach_device("qspi1", "spinand1", 0, AIC_QSPI1_BUS_WIDTH,
+                               RT_NULL, RT_NULL);
+    rt_hw_mtd_spinand_register("spinand1", AIC_QSPI1_DEVICE_SPINAND_FREQ);
+#endif
+#endif // AIC_SECONED_FLASH_NAND
     return RT_EOK;
 }
 

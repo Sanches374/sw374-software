@@ -5,8 +5,10 @@ from building import *
 cwd = GetCurrentDir()
 CPPPATH = []
 src = []
-if GetDepend('RT_USING_FINSH') and GetDepend('AIC_PM_DRV_TEST'):
-    src = Glob('*.c')
+if GetDepend('RT_USING_FINSH') and GetDepend('AIC_PM_DEMO'):
+    src += Glob('pm_demo.c')
+if GetDepend('RT_USING_FINSH') and GetDepend('AIC_PM_TEST'):
+    src += Glob('test_pm.c')
 
 group = DefineGroup('test-pm', src, depend = [''], CPPPATH = CPPPATH)
 

@@ -154,7 +154,9 @@ int fal_partition_init(void)
         partition_table = aic_part;
         if (check_and_update_part_cache(partition_table, partition_table_len) == 0) {
             init_ok = 1;
+#if !defined(AIC_FLASH_NUM_TWO)
             return partition_table_len;
+#endif
         }
     }
 #ifdef FAL_PART_HAS_TABLE_CFG

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -61,6 +61,13 @@ int aic_ota_find_part(char *partname)
 
             if ((strncmp(partname, "blk_data", 9) == 0) || (strncmp(partname, "blk_data_r", 11) == 0)) {
                 g_nftl_flag = 1;
+                char *nftl_name = strstr(partname, "data");
+                nand_mtd = (struct rt_mtd_nand_device *)rt_device_find(nftl_name);
+                if (nand_mtd == RT_NULL) {
+                    LOG_E("Firmware download failed! nftl Partition (%s) find error!",
+                        nftl_name);
+                    return -RT_ERROR;
+                }
             } else {
                 nand_mtd = (struct rt_mtd_nand_device *)nand_dev;
                 g_nftl_flag = 0;
@@ -68,30 +75,10 @@ int aic_ota_find_part(char *partname)
             break;
 #endif
         case BD_SDMC0:
-            if (!strncmp(partname, "os", 3)) {
-                mmc_dev = rt_device_find("mmc0p3");
-                if (mmc_dev == RT_NULL) {
-                    LOG_E("can't find mmc0p3 device!");
-                    return RT_ERROR;
-                }
-            } else if (!strncmp(partname, "os_r", 5)) {
-                mmc_dev =rt_device_find("mmc0p4");
-                if (mmc_dev == RT_NULL) {
-                    LOG_E("can't find mmc0p4 device!");
-                    return RT_ERROR;
-                }
-            } else if (!strncmp(partname, "rodata", 7)) {
-                mmc_dev =rt_device_find("mmc0p5");
-                if (mmc_dev == RT_NULL) {
-                    LOG_E("can't find mmc0p5 device!");
-                    return RT_ERROR;
-                 }
-            } else if (!strncmp(partname, "rodata_r", 9)) {
-                mmc_dev =rt_device_find("mmc0p6");
-                if (mmc_dev == RT_NULL) {
-                    LOG_E("can't find mmc0p6 device!");
-                    return RT_ERROR;
-                }
+            mmc_dev = rt_device_find(partname);
+            if (mmc_dev == RT_NULL) {
+                LOG_E("can't find %s device!", partname);
+                return RT_ERROR;
             }
             break;
         default:
@@ -122,11 +109,6 @@ int aic_ota_nor_erase_part(void)
 int aic_ota_nand_erase_part(void)
 {
     unsigned long blk_offset = 0;
-
-    if (g_nftl_flag) {
-        LOG_I("NFTL partition not need to erase!");
-        return 0;
-    }
 
     LOG_I("Start erase nand flash partition!");
 

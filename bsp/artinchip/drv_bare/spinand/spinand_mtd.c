@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -166,6 +166,8 @@ static int mtd_spinand_block_markbad(struct mtd_dev *mtd, u32 offset)
     err = spinand_block_markbad(flash, blk);
     if (err != 0) {
         pr_err("Mark badblock %d failed.\n", blk);
+    } else {
+        pr_info("Mark badblock %d succeed.\n", blk);
     }
     return err;
 }
@@ -344,7 +346,7 @@ struct aic_spinand *spinand_probe(u32 spi_bus)
     nftl_parts = build_nftl_list(IMAGE_CFG_JSON_PARTS_NFTL);
 #endif
 
-    part = mtd_parts_parse(partstr);
+    part = mtd_parts_parse(partstr, spi_bus);
     if (partstr)
         free(partstr);
     p = part;

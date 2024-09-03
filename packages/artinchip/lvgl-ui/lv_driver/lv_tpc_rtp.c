@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -327,7 +327,7 @@ void lv_rtp_calibrate(rt_device_t rtp_dev, int fb_width, int fb_height)
 
         rtp_get_fb_info();
 
-        memset(data, 0, sizeof(&data));
+        memset(data, 0, sizeof(*data));
         memset(&g_cal, 0, sizeof(g_cal));
 
         rtp_draw_cross(0, "Top left", height, width);

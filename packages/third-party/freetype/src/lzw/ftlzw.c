@@ -392,9 +392,6 @@
   }
 
 
-#include "ftzopen.c"
-
-
 #else  /* !FT_CONFIG_OPTION_USE_LZW */
 
 

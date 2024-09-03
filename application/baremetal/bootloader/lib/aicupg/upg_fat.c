@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Artinchip Technology Co., Ltd
+ * Copyright (c) 2023-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -14,10 +14,17 @@
 #include <aic_core.h>
 #include <aicupg.h>
 #include <fatfs.h>
-#include <progress_bar.h>
+
+extern size_t config_ram_size;
 
 static u32 image_size = 0;
 static u64 write_size = 0;
+static progress_cb g_progress_cb = NULL;
+
+void aicupg_fat_set_process_cb(progress_cb cb)
+{
+    g_progress_cb = cb;
+}
 
 static void *upg_fat_malloc_align(struct fwc_info *fwc, u32 *size, size_t align)
 {
@@ -84,7 +91,10 @@ static s32 media_device_write(char *image_name, struct fwc_meta *pmeta)
     media_data_write_start(fwc);
 
     /*config write size once*/
-    write_once_size = DATA_WRITE_ONCE_MAX_SIZE;
+    if (config_ram_size <= 0x100000)
+        write_once_size = DATA_WRITE_ONCE_MIN_SIZE;
+    else
+        write_once_size = DATA_WRITE_ONCE_MAX_SIZE;
 
     /*malloc buf memory*/
     buf = upg_fat_malloc_align(fwc, &write_once_size, FRAME_LIST_SIZE);
@@ -120,7 +130,8 @@ static s32 media_device_write(char *image_name, struct fwc_meta *pmeta)
 
         write_size += ret;
         percent = write_size * 100 / image_size;
-        aicfb_draw_bar(percent);
+        if (g_progress_cb)
+            g_progress_cb(percent);
     }
 
     /*write data end*/
@@ -181,7 +192,8 @@ s32 aicupg_fat_write(char *image_name, char *protection,
         goto err;
     }
 
-    aicfb_draw_bar(0);
+    if (g_progress_cb)
+        g_progress_cb(0);
     image_size = header->file_size;
 
     p = pmeta;
@@ -201,7 +213,8 @@ s32 aicupg_fat_write(char *image_name, char *protection,
         p++;
         write_len += ret;
     }
-    aicfb_draw_bar(100);
+    if (g_progress_cb)
+        g_progress_cb(100);
 
     total_len = write_len;
     start_us = aic_get_time_us() - start_us;

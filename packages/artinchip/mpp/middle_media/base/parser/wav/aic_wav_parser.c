@@ -1,9 +1,11 @@
 /*
-* Copyright (C) 2020-2023 ArtInChip Technology Co. Ltd
-*
-*  author: <jun.ma@artinchip.com>
-*  Desc: aic_wav_parser
-*/
+ * Copyright (C) 2020-2024 ArtInChip Technology Co. Ltd
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Author: <jun.ma@artinchip.com>
+ * Desc: aic wav parser
+ */
 
 #include <malloc.h>
 #include <string.h>
@@ -86,7 +88,7 @@ s32 aic_wav_parser_create(unsigned char *uri, struct aic_parser **parser)
     }
     memset(wav_parser, 0, sizeof(struct aic_wav_parser));
 
-    if (aic_stream_open((char *)uri, &wav_parser->stream) < 0) {
+    if (aic_stream_open((char *)uri, &wav_parser->stream, O_RDONLY) < 0) {
         loge("stream open fail");
         ret = -1;
         goto exit;

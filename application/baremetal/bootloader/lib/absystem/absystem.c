@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -121,6 +121,7 @@ aic_set_upgrade_status_err:
 int aic_get_os_to_startup(char *target_os)
 {
     char *next = NULL;
+    char *status = NULL;
     int ret = 0;
 
     if (fw_env_open()) {
@@ -142,13 +143,68 @@ int aic_get_os_to_startup(char *target_os)
     } else {
         ret = -1;
         pr_err("Invalid osAB_next\n");
-        goto err_write_next_os;
     }
 
     if (ret) {
         pr_err("osAB_now write fail\n");
         goto err_write_next_os;
     }
+
+    next = fw_getenv("rodataAB_next");
+#ifdef AIC_ENV_DEBUG
+    printf("rodataAB_next = %s\n", next);
+#endif
+    if (strncmp(next, "A", 2) == 0) {
+        ret = fw_env_write("rodataAB_now", "A");
+    } else if (strncmp(next, "B", 2) == 0) {
+        ret = fw_env_write("rodataAB_now", "B");
+    } else {
+        ret = -1;
+        pr_err("Invalid rodataAB_next\n");
+    }
+
+    if (ret) {
+        pr_err("rodataAB_now write fail\n");
+        goto err_write_next_os;
+    }
+
+    next = fw_getenv("dataAB_next");
+#ifdef AIC_ENV_DEBUG
+    printf("dataAB_next = %s\n", next);
+#endif
+    if (strncmp(next, "A", 2) == 0) {
+        ret = fw_env_write("dataAB_now", "A");
+    } else if (strncmp(next, "B", 2) == 0) {
+        ret = fw_env_write("dataAB_now", "B");
+    } else {
+        ret = -1;
+        pr_err("Invalid dataAB_next\n");
+    }
+
+    if (ret) {
+        pr_err("dataAB write fail\n");
+        goto err_write_next_os;
+    }
+
+    status = fw_getenv("upgrade_available");
+#ifdef AIC_ENV_DEBUG
+    printf("upgrade_available = %s\n", status);
+#endif
+    if (strncmp(status, "1", 2) == 0) {
+        ret = fw_env_write("upgrade_available", "0");
+        if (ret) {
+            pr_err("Env write fail\n");
+            goto err_write_next_os;
+        }
+        fw_env_flush();
+    } else if (strncmp(status, "0", 2) == 0) {
+        ret = 0;
+    } else {
+        pr_err("Invalid upgrade_available\n");
+        ret = -1;
+        goto err_write_next_os;
+    }
+
     fw_env_flush();
 
 err_write_next_os:

@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2023-2024, ArtInChip Technology Co., Ltd
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 #include "usbd_core.h"
 #include "usbd_cdc.h"
 
@@ -74,7 +80,7 @@ __ALIGN_BEGIN const uint8_t WINUSB_WCIDDescriptor[64] __ALIGN_END = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00,             /* bReserved_6 */
 };
 #endif
-__ALIGN_BEGIN const uint8_t WINUSB_IF0_WCIDProperties [142] __ALIGN_END = {
+__ALIGN_BEGIN const uint8_t WINUSB_IF0_WCIDProperties[142] __ALIGN_END = {
   ///////////////////////////////////////
   /// WCID property descriptor
   ///////////////////////////////////////
@@ -82,7 +88,7 @@ __ALIGN_BEGIN const uint8_t WINUSB_IF0_WCIDProperties [142] __ALIGN_END = {
   0x00, 0x01,                                       /* bcdVersion */
   0x05, 0x00,                                       /* wIndex */
   0x01, 0x00,                                       /* wCount */
-  
+
   ///////////////////////////////////////
   /// registry propter descriptor
   ///////////////////////////////////////
@@ -109,7 +115,7 @@ __ALIGN_BEGIN const uint8_t WINUSB_IF0_WCIDProperties [142] __ALIGN_END = {
   '6', 0x00, '}', 0x00, 0x00, 0x00,                 /* wcData_39 */
 };
 #define  WINUSB_IF1_WCID_PROPERTIES_SIZE  (142)
-__ALIGN_BEGIN const uint8_t WINUSB_IF1_WCIDProperties [142] __ALIGN_END = {
+__ALIGN_BEGIN const uint8_t WINUSB_IF1_WCIDProperties[142] __ALIGN_END = {
   ///////////////////////////////////////
   /// WCID property descriptor
   ///////////////////////////////////////
@@ -117,7 +123,7 @@ __ALIGN_BEGIN const uint8_t WINUSB_IF1_WCIDProperties [142] __ALIGN_END = {
   0x00, 0x01,                                       /* bcdVersion */
   0x05, 0x00,                                       /* wIndex */
   0x01, 0x00,                                       /* wCount */
-  
+
   ///////////////////////////////////////
   /// registry propter descriptor
   ///////////////////////////////////////
@@ -154,7 +160,7 @@ struct usb_msosv1_descriptor msosv1_desc = {
     .vendor_code = WCID_VENDOR_CODE,
     .compat_id = WINUSB_WCIDDescriptor,
 #if DOUBLE_WINUSB == 0
-    .comp_id_property = &WINUSB_IF0_WCIDProperties,
+    .comp_id_property = WINUSB_IFx_WCIDProperties,
 #else
     .comp_id_property = WINUSB_IFx_WCIDProperties,
 #endif
@@ -366,7 +372,7 @@ void usbd_event_handler(uint8_t event)
 
 void usbd_winusb_out(uint8_t ep, uint32_t nbytes)
 {
-    USB_LOG_RAW("actual out len:%d\r\n", nbytes);
+    USB_LOG_RAW("actual out len:%d\r\n", (unsigned int)nbytes);
     // for (int i = 0; i < 100; i++) {
     //     printf("%02x ", read_buffer[i]);
     // }
@@ -378,7 +384,7 @@ void usbd_winusb_out(uint8_t ep, uint32_t nbytes)
 
 void usbd_winusb_in(uint8_t ep, uint32_t nbytes)
 {
-    USB_LOG_RAW("actual in len:%d\r\n", nbytes);
+    USB_LOG_RAW("actual in len:%d\r\n", (unsigned int)nbytes);
 
     if ((nbytes % WINUSB_EP_MPS) == 0 && nbytes) {
         /* send zlp */
@@ -454,3 +460,16 @@ void winusb_init(void)
 #endif
     usbd_initialize();
 }
+#if defined(KERNEL_RTTHREAD)
+#include <rtthread.h>
+#include <rtdevice.h>
+
+int usbd_winusb_init(void)
+{
+    winusb_init();
+    return 0;
+}
+
+INIT_DEVICE_EXPORT(usbd_winusb_init);
+#endif
+

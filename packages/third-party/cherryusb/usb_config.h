@@ -47,7 +47,7 @@
 /* ================= USB Device Stack Configuration ================ */
 
 /* Ep0 max transfer buffer, specially for receiving data from ep0 out */
-#define CONFIG_USBDEV_REQUEST_BUFFER_LEN 256
+#define CONFIG_USBDEV_REQUEST_BUFFER_LEN 1024
 
 /* Setup packet log for debug */
 // #define CONFIG_USBDEV_SETUP_LOG_PRINT
@@ -164,7 +164,7 @@
 
 /* ================ USB Device Port Configuration ================*/
 
-#ifdef AIC_USING_USB0_DEVICE
+#if defined(AIC_USING_USB0_DEVICE) || defined(AIC_USING_USB0_OTG)
 /* AIC Device Controller Configuration */
 #define CONFIG_USB_AIC_DC_PORT      1  /* 0 = FullSpeed, 1 = HighSpeed */
 #define CONFIG_USB_AIC_DC_BASE      (USB_DEV_BASE)

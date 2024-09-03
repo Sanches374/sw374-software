@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -34,7 +34,7 @@ struct aic_tsen_ch aic_tsen_chs[] = {
         .lta_enable = 0,
         .otp_enable = 0,
 #ifndef CONFIG_FPGA_BOARD_ARTINCHIP
-        .slope  = -1134,
+        .slope  = -1132,
         .offset = 2439001,
 #endif
     },
@@ -50,7 +50,7 @@ struct aic_tsen_ch aic_tsen_chs[] = {
         .lta_enable = 0,
         .otp_enable = 0,
 #ifndef CONFIG_FPGA_BOARD_ARTINCHIP
-        .slope  = -1139,
+        .slope  = -1159,
         .offset = 2450566,
 #endif
     }
@@ -76,6 +76,8 @@ static rt_size_t aic_tsen_fetch(struct rt_sensor_device *sensor,
     pr_debug("The ch%d is obtaining data\n", chan->id);
 #ifdef AIC_SID_DRV
     hal_tsen_curve_fitting(chan);
+#else
+    pr_warn("The eFuse is not enabled\n");
 #endif
     data->type = RT_SENSOR_CLASS_TEMP;
     data->timestamp = rt_sensor_get_ts();

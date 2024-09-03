@@ -24,7 +24,7 @@ if GetDepend('AIC_CMU_DRV'):
 
 # GPIO driver
 if GetDepend('AIC_GPIO_DRV'):
-    if GetDepend('DRIVER_DRV_EN'):
+    if GetDepend('DRIVER_DRV_EN') or GetDepend('DRIVER_BARE_DRV_EN'):
         src += Glob('drv/gpio/*.c')
     if GetDepend('DRIVER_HAL_EN'):
         src += Glob('hal/gpio/*.c')
@@ -111,16 +111,25 @@ if GetDepend('AIC_AXICFG_DRV'):
         src += Glob('drv_bare/axicfg/*.c')
 
 if GetDepend('AIC_WRI_DRV'):
+    ver = GetConfigValue('AIC_WRI_DRV_VER')
+    ver = ver.replace('"','')
     if GetDepend('DRIVER_DRV_EN'):
         src += Glob('drv/wri/*.c')
     if GetDepend('DRIVER_HAL_EN'):
-        src += Glob('hal/wri/*.c')
+        src += Glob('hal/wri/*.c', exclude=['hal/wri/*_v*.c'])
+        ver_num = int(ver)
+        if ver_num == 13:
+            src += Glob('hal/wri/*_v13.c')
+        else:
+            src += Glob('hal/wri/*_v10*.c')
 
 if GetDepend('AIC_RTC_DRV'):
     if GetDepend('DRIVER_DRV_EN'):
         src += Glob('drv/rtc/*.c')
     if GetDepend('DRIVER_HAL_EN'):
         src += Glob('hal/rtc/*.c')
+    if GetDepend('DRIVER_BARE_DRV_EN'):
+        src += Glob('drv_bare/rtc/*.c')
 
 if GetDepend('AIC_WDT_DRV'):
     if GetDepend('DRIVER_DRV_EN'):
@@ -216,7 +225,9 @@ if GetDepend('AIC_DISP_MIPI_DBI'):
 
 # Display Engine driver
 if GetDepend('AIC_DISP_DE_DRV'):
-    src += Glob('drv/display/drv_de.c')
+    src += Glob('drv/display/drv_de_core.c')
+    src += Glob('drv/display/drv_de_vi_layer.c')
+    src += Glob('drv/display/drv_de_ui_layer.c')
     src += Glob('hal/display/aic_hal_de.c')
 
 # Panel driver
@@ -254,6 +265,9 @@ if GetDepend('AIC_PANEL_DSI_HX8394'):
 
 if GetDepend('AIC_PANEL_DSI_JD9365'):
     src += Glob('drv/display/panel/panel_dsi_jd9365.c')
+
+if GetDepend('AIC_PANEL_DSI_AXS15231B'):
+    src += Glob('drv/display/panel/panel_dsi_axs15231b.c')
 #
 # MIPI-DBI Type B I8080 Panel Driver
 #
@@ -281,6 +295,12 @@ if GetDepend('AIC_PANEL_RGB_ST7701S'):
 
 if GetDepend('AIC_PANEL_RGB_GC9A01A'):
     src += Glob('drv/display/panel/panel_rgb_gc9a01a.c')
+
+if GetDepend('AIC_PANEL_RGB_NT35560'):
+    src += Glob('drv/display/panel/panel_rgb_nt35560.c')
+
+if GetDepend('AIC_PANEL_RGB_ST77922'):
+    src += Glob('drv/display/panel/panel_rgb_st77922.c')
 #
 # SRGB Panel Driver
 #
@@ -414,6 +434,15 @@ if GetDepend('AIC_CE_DRV'):
     if GetDepend('DRIVER_HAL_EN'):
         src += Glob('hal/ce/*.c')
 
+# TOUCH driver
+if GetDepend('AIC_USING_TOUCH') and GetDepend('KERNEL_BAREMETAL'):
+    if GetDepend('DRIVER_BARE_DRV_EN'):
+        src += Glob('drv_bare/touch/*.c')
+        CPPPATH.append(cwd + '/drv_bare/touch')
+    if GetDepend('AIC_TOUCH_GT911'):
+        src += Glob('drv_bare/touch/gt911/*.c')
+        CPPPATH.append(cwd + '/drv_bare/touch/gt911')
+
 # I2S driver
 if GetDepend('AIC_I2S_DRV'):
     if GetDepend('DRIVER_DRV_EN'):
@@ -438,10 +467,7 @@ if GetDepend('AIC_PM_DRV'):
         ver = ver.replace('"', '')
         src += Glob('drv/pm/drv_pm_v%s.c' % ver)
         src += Glob('drv/pm/suspend_v%s.S' % ver)
-        if GetDepend('AIC_PM_POWER_KEY'):
-            src += Glob('drv/pm/pm_key.c')
-        if GetDepend('AIC_PM_POWER_TOUCH_WAKEUP'):
-            src += Glob('drv/pm/pm_touch_timer.c')
+        src += Glob('drv/pm/pm_pin.c')
 
 if GetDepend('AIC_PSADC_DRV'):
     if GetDepend('DRIVER_DRV_EN'):

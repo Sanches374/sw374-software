@@ -49,6 +49,7 @@ PROVIDE (__dram_sw_start          = __dram_start);
 PROVIDE (__dram_sw_end            = __dram_end - AIC_DRAM_CMA_SIZE);
 PROVIDE (__dram_cma_start         = __dram_sw_end);
 PROVIDE (__dram_cma_end           = __dram_end);
+PROVIDE (__dtb_pos_f              = __dram_end - 0x40000);
 
 PROVIDE (__dram_cma_heap_end      = __dram_cma_end);
 PROVIDE (__dram_sw_heap_end       = __dram_sw_end);

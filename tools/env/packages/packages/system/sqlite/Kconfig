@@ -17,7 +17,7 @@ if PKG_USING_SQLITE
 
     config PKG_SQLITE_SQL_MAX_LEN
         int "SQL statements max length"
-        default 512
+        default 1024
 
     config PKG_SQLITE_DB_NAME_MAX_LEN
         int "Database filename(fullpath) length"
@@ -26,11 +26,8 @@ if PKG_USING_SQLITE
 
     config PKG_SQLITE_DAO_EXAMPLE
         bool "Enable example"
-            default n
+            default y
 
-    config PKG_SQLITE_RECIPE_EXAMPLE
-        bool "Enable recipeData test example"
-            default n
     choice
         prompt "version"
         help

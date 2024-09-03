@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -50,21 +50,31 @@
 #define DVP_CTL_EN                  BIT(0)
 
 #define DVP_IRQ_EN_UPDATE_DONE      BIT(7)
+#define DVP_IRQ_EN_HNUM             BIT(2)
 #define DVP_IRQ_EN_FRAME_DONE       BIT(1)
 
 #define DVP_IRQ_STA_UPDATE_DONE     BIT(7)
 #define DVP_IRQ_STA_XY_CODE_ERR     BIT(6)
-#define DVP_IRQ_STA_FIFO_FULL       BIT(3)
+#define DVP_IRQ_STA_BUF_FULL        BIT(3)
 #define DVP_IRQ_STA_HNUM            BIT(2)
 #define DVP_IRQ_STA_FRAME_DONE      BIT(1)
 
 #define DVP_IRQ_CFG_HNUM_MASK       GENMASK(30, 16)
 #define DVP_IRQ_CFG_HNUM_SHIFT      16
 
-#define DVP_IN_CFG_FILED_POL_NORMAL             BIT(3)
-#define DVP_IN_CFG_VSYNC_POL_ACTIVE_HIGH        BIT(2)
+#define DVP_IN_CFG_FILED_POL_ACTIVE_LOW         BIT(3)
+#define DVP_IN_CFG_VSYNC_POL_FALLING            BIT(2)
 #define DVP_IN_CFG_HREF_POL_ACTIVE_HIGH         BIT(1)
-#define DVP_IN_CFG_PCLK_POL_RISING_EDGE         BIT(0)
+#define DVP_IN_CFG_PCLK_POL_FALLING             BIT(0)
+
+/* The field definition of IN_HOR_SIZE */
+#define DVP_IN_HOR_SIZE_IN_HOR_MASK         GENMASK(30, 16)
+#define DVP_IN_HOR_SIZE_IN_HOR_SHIFT        (16)
+#define DVP_IN_HOR_SIZE_XY_CODE_ERR_MASK    GENMASK(15, 8)
+#define DVP_IN_HOR_SIZE_XY_CODE_ERR_SHIFT   (8)
+#define DVP_IN_HOR_SIZE_XY_CODE_MASK        GENMASK(7, 0)
+#define DVP_IN_HOR_SIZE_XY_CODE_SHIFT       (0)
+#define DVP_IN_HOR_SIZE_XY_CODE_F           BIT(6)
 
 #define DVP_OUT_HOR_NUM(w)              (((w) * 2 - 1) << 16)
 #define DVP_OUT_VER_NUM(h)              (((h) - 1) << 16)
@@ -119,6 +129,7 @@ struct aic_dvp_config {
     enum dvp_input          input;
     enum dvp_input_yuv_seq  input_seq;
     u32                     flags;
+    u32                     interlaced;
 
     /* Output format */
     enum dvp_output output;
@@ -129,17 +140,22 @@ struct aic_dvp_config {
 };
 
 /* Some API of register, Defined in hal_dvp.c */
-void aich_dvp_enable(int enable);
-void aich_dvp_capture_start(void);
-void aich_dvp_capture_stop(void);
-void aich_dvp_clr_fifo(void);
-int aich_dvp_clr_int(void);
-void aich_dvp_enable_int(int enable);
-void aich_dvp_set_pol(u32 flags);
-void aich_dvp_set_cfg(struct aic_dvp_config *cfg);
-void aich_dvp_update_buf_addr(dma_addr_t y, dma_addr_t uv);
-void aich_dvp_update_ctl(void);
-void aich_dvp_record_mode(void);
-void aich_dvp_qos_cfg(u32 high, u32 low, u32 inc_thd, u32 dec_thd);
+void hal_dvp_enable(struct aic_dvp_config *cfg, int enable);
+void hal_dvp_capture_start(void);
+void hal_dvp_capture_stop(void);
+void hal_dvp_clr_fifo(void);
+int  hal_dvp_clr_int(void);
+void hal_dvp_enable_int(struct aic_dvp_config *cfg, int enable);
+void hal_dvp_set_pol(u32 flags);
+void hal_dvp_set_cfg(struct aic_dvp_config *cfg);
+void hal_dvp_update_buf_addr(dma_addr_t y, dma_addr_t uv, u32 offset);
+void hal_dvp_update_ctl(void);
+void hal_dvp_record_mode(void);
+void hal_dvp_qos_cfg(u32 high, u32 low, u32 inc_thd, u32 dec_thd);
+
+u32 hal_dvp_get_current_xy(void);
+u32 hal_dvp_is_top_field(void);
+u32 hal_dvp_is_bottom_field(void);
+void hal_dvp_field_tag_clr(void);
 
 #endif /* _ARTINCHIP_HAL_DVP_H_ */

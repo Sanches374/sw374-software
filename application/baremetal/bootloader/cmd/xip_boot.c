@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Artinchip Technology Co., Ltd
+ * Copyright (c) 2023-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -21,6 +21,7 @@
 #include <aic_core.h>
 #include <aic_flash_xip_def.h>
 #include "fitimage.h"
+#include "of.h"
 
 #if defined(AIC_BOOTLOADER_CMD_XIP_BOOT) && defined(AIC_QSPI_DRV_V11)
 
@@ -109,6 +110,9 @@ static int do_xip_boot(int argc, char *argv[])
     ret = spl_load_simple_fit(&info, &entry_point);
     if (ret < 0)
         goto out;
+
+    /* Read dtb from config partition */
+    of_fdt_dt_init_bare_nornand();
 
     /* boot */
     aicos_dcache_clean();

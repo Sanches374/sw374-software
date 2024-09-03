@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -14,7 +14,7 @@
 int hal_adcim_calibration_set(unsigned int val);
 s32 hal_adcim_probe(void);
 u32 hal_adcim_auto_calibration(void);
-int hal_adcim_adc2voltage(int val, u32 cal_data, int scale, float def_voltage);
+int hal_adcim_adc2voltage(u16 *val, u32 cal_data, int scale, float def_voltage);
 
 #ifdef AIC_ADCIM_DM_DRV
 void hal_dm_chan_show(void);

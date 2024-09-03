@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -99,9 +99,11 @@
 #define TX_SDM_CH0_MASK						TX_SDM_CH0_EN
 
 #define TX_PWM_CTRL_REG                                         (0x2C)
+#define TX_PDM1_EN                                              BIT(6)
 #define TX_PWM1_DIFEN                                           BIT(5)
 #define TX_PWM1_EN                                              BIT(4)
 #define TX_PWM1_MASK                                            (3 << 4)
+#define TX_PDM0_EN                                              BIT(2)
 #define TX_PWM0_DIFEN                                           BIT(1)
 #define TX_PWM0_EN                                              BIT(0)
 #define TX_PWM0_MASK                                            (3)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -307,15 +307,21 @@ void lv_port_disp_init(void)
 
     int result;
     g_fb = mpp_fb_open();
-    if (g_fb == 0) {
+    if (!g_fb) {
         LV_LOG_ERROR("can't find aic framebuffer device!");
-        return;
+#ifdef KERNEL_RTTHREAD
+        rt_thread_suspend(rt_thread_self()); /* permanently suspended */
+        rt_schedule();
+#endif
     }
 
     result = mpp_fb_ioctl(g_fb, AICFB_GET_SCREENINFO, &info);
-    if (result) {
+    if (result < 0) {
         LV_LOG_ERROR("get device fb info failed!");
-        return;
+#ifdef KERNEL_RTTHREAD
+        rt_thread_suspend(rt_thread_self());
+        rt_schedule();
+#endif
     }
 
     fbdev_open();
@@ -324,7 +330,10 @@ void lv_port_disp_init(void)
     g_ge = mpp_ge_open();
     if (!g_ge) {
         LV_LOG_ERROR("ge open fail\n");
-        return;
+#ifdef KERNEL_RTTHREAD
+        rt_thread_suspend(rt_thread_self());
+        rt_schedule();
+#endif
     }
 
 #ifdef USE_DRAW_BUF
@@ -376,16 +385,11 @@ void lv_port_disp_init(void)
 #endif
 
 #ifndef AIC_MONKEY_TEST
-#ifdef KERNEL_RTTHREAD
-    /* run touch panel */
-#ifdef AIC_TOUCH_PANEL_GT911
-    tpc_run("gt911", info.width, info.height);
-#elif defined(AIC_USING_RTP)
-    tpc_run("aic-rtp", info.width, info.height);
-#else
-    LV_LOG_INFO("can't find touch panel\n");
-#endif
-
+#if defined(KERNEL_RTTHREAD) && defined(AIC_USING_TOUCH)
+    result = tpc_run(AIC_TOUCH_PANEL_NAME, info.width, info.height);
+    if (result) {
+        LV_LOG_INFO("can't find touch panel\n");
+    }
 #endif
 #endif
 }

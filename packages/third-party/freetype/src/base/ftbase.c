@@ -18,24 +18,5 @@
 
 #define  FT_MAKE_OPTION_SINGLE_OBJECT
 
-#include "ftadvanc.c"
-#include "ftcalc.c"
-#include "ftcolor.c"
-#include "ftdbgmem.c"
-#include "fterrors.c"
-#include "ftfntfmt.c"
-#include "ftgloadr.c"
-#include "fthash.c"
-#include "ftlcdfil.c"
-#include "ftmac.c"
-#include "ftobjs.c"
-#include "ftoutln.c"
-#include "ftpsprop.c"
-#include "ftrfork.c"
-#include "ftsnames.c"
-#include "ftstream.c"
-#include "fttrigon.c"
-#include "ftutil.c"
-
 
 /* END */

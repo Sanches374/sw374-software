@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -368,7 +368,7 @@ int hal_pwm_disable(u32 ch)
 int hal_pwm_init(void)
 {
     int i, ret = 0;
-    int clock_rete;
+    int clock_rate;
 
     ret = hal_clk_set_freq(CLK_PWM, PWM_CLK_RATE);
     if (ret < 0) {
@@ -376,8 +376,8 @@ int hal_pwm_init(void)
         return -1;
     }
 
-    clock_rete = hal_clk_get_freq(CLK_PWM);
-    if (clock_rete < 0) {
+    clock_rate = hal_clk_get_freq(CLK_PWM);
+    if (clock_rate < 0) {
         hal_log_err("Failed to get PWM clk\n");
         return -1;
     }
@@ -401,7 +401,7 @@ int hal_pwm_init(void)
         g_pwm_args[i].id = i;
         g_pwm_args[i].mode = PWM_MODE_UP_COUNT;
         g_pwm_args[i].tb_clk_rate = PWM_DEFAULT_TB_CLK_RATE;
-        g_pwm_args[i].clk_rate = clock_rete;
+        g_pwm_args[i].clk_rate = clock_rate;
     }
 
     return 0;

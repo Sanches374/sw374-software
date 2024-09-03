@@ -7,6 +7,7 @@
  * Date           Author       Notes
  * 2021-01-13     RiceChen     the first version
  */
+
 #include <rtconfig.h>
 #ifdef KERNEL_RTTHREAD
 #include <rtdevice.h>
@@ -48,9 +49,7 @@ static void touch_panel_gt911_read_info(void)
 
 static void touch_entry(void *parameter) /* touch panel control entry */
 {
-#ifdef AIC_TOUCH_PANEL_GT911
     rt_device_control(dev, RT_TOUCH_CTRL_GET_INFO, &info);
-#endif
 #ifdef AIC_USING_RTP /* by default, only one point is supported */
     info.point_num = 1;
 #endif
@@ -61,9 +60,9 @@ static void touch_entry(void *parameter) /* touch panel control entry */
     {
         rt_sem_take(touch_sem, RT_WAITING_FOREVER);
         int num = rt_device_read(dev, 0, read_data, info.point_num);
-        if (num == info.point_num)
+        if (num > 0)
         {
-            for (rt_uint8_t i = 0; i < info.point_num; i++)
+            for (rt_uint8_t i = 0; i < num; i++)
             {
                 if (read_data[i].event == RT_TOUCH_EVENT_DOWN
                         || read_data[i].event == RT_TOUCH_EVENT_UP
@@ -89,20 +88,11 @@ static void touch_entry(void *parameter) /* touch panel control entry */
 
 static rt_err_t rx_callback(rt_device_t dev, rt_size_t size)
 {
-#ifdef AIC_PM_POWER_TOUCH_WAKEUP
-    rt_uint8_t sleep_mode;
-#endif
     rt_sem_release(touch_sem);
     rt_device_control(dev, RT_TOUCH_CTRL_DISABLE_INT, RT_NULL);
-#ifdef AIC_PM_POWER_TOUCH_WAKEUP
-    sleep_mode = rt_pm_get_sleep_mode();
-    if (sleep_mode != PM_SLEEP_MODE_NONE && !wakeup_triggered)
-    {
-        rt_pm_module_request(PM_POWER_ID, PM_SLEEP_MODE_NONE);
-        wakeup_triggered = 1;
-    }
-    /* touch timer restart */
-    rt_timer_start(touch_timer);
+#ifdef AIC_PM_DEMO
+    extern struct rt_event pm_event;
+    rt_event_send(&pm_event, 2);
 #endif
     return 0;
 }
@@ -118,21 +108,21 @@ int tpc_run(const char *name, rt_uint16_t x, rt_uint16_t y)
 
     if (rt_device_open(dev, RT_DEVICE_FLAG_INT_RX) != RT_EOK)
     {
-        rt_kprintf("open device failed!\n");
-        return -1;
+        rt_kprintf("dev %s is occupied by someone!\n", name);
     } else {
         rt_kprintf("lvgl is occupying %s device\n", name);
-    }
 
 #ifdef AIC_USING_RTP
-    extern void lv_rtp_calibrate(rt_device_t rtp_dev, int fb_width, int fb_height);
-    lv_rtp_calibrate(dev, x, y);
+        extern void lv_rtp_calibrate(rt_device_t rtp_dev, int fb_width, int fb_height);
+        lv_rtp_calibrate(dev, x, y);
 #endif
-
+    
 #ifdef AIC_TOUCH_PANEL_GT911
-    touch_panel_gt911_read_info();
+        touch_panel_gt911_read_info();
 #endif
-    rt_device_set_rx_indicate(dev, rx_callback);
+        rt_device_set_rx_indicate(dev, rx_callback);
+    }
+
     touch_sem = rt_sem_create("touch_sem", 0, RT_IPC_FLAG_FIFO);
     if (touch_sem == RT_NULL)
     {
@@ -151,5 +141,23 @@ int tpc_run(const char *name, rt_uint16_t x, rt_uint16_t y)
         rt_thread_startup(touch_thread);
 
     return 0;
+}
+
+static rt_err_t (*bak_callback)(rt_device_t, rt_size_t);
+
+void lvgl_get_tp(void)
+{
+    if (bak_callback == NULL) {
+        bak_callback = dev->rx_indicate;
+        rt_device_set_rx_indicate(dev, rx_callback);
+    }
+}
+
+void lvgl_put_tp(void)
+{
+    if (bak_callback != NULL) {
+        rt_device_set_rx_indicate(dev, bak_callback);
+        bak_callback = NULL;
+    }
 }
 #endif

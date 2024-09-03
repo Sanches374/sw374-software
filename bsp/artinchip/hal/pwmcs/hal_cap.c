@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -64,6 +64,9 @@
 #define CAP_FLG_CLR_CMP         BIT(7)
 #define CAP_FLG_CLR_PRD         BIT(6)
 
+#define CAP_IN_FLT_SEL_MASK     GENMASK(3, 0)
+#define CAP_IN_FLT_SEL_SHIFT    0
+
 // #define CAP_USE_CMP_INT
 
 struct aic_cap_arg {
@@ -79,7 +82,7 @@ static int g_cap_inited = 0;
 
 static void _cap_ch_info(char *buf, u32 ch, u32 en, struct aic_cap_arg *arg)
 {
-    sprintf(buf, "%2d %2d %9d %10d/%-10d %10d\n",
+    snprintf(buf, 128, "%2d %2d %9d %10d/%-10d %10d\n",
             ch, en & GLB_CLK_CTL_CAP_EN(ch) ? 1 : 0,
             arg->freq, readl(CAP_CNT_PRDV(ch)), arg->prd, arg->irq_cnt);
 }
@@ -161,6 +164,11 @@ u32 hal_cap_is_pending(u32 ch)
 #endif
 
     return pending;
+}
+
+void hal_cap_in_flt_sel(u32 ch, u8 flt_sel)
+{
+    writel_bits(flt_sel, CAP_IN_FLT_SEL_MASK, CAP_IN_FLT_SEL_SHIFT, CAP_IN_FLT(ch));
 }
 
 int hal_cap_in_config(u32 ch)

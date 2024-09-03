@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Artinchip Technology Co., Ltd
+ * Copyright (c) 2023-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -26,7 +26,9 @@
 #include <upg_uart.h>
 #include <hal_rtc.h>
 #include <wdt.h>
+#include <progress_bar.h>
 
+#define WAIT_UPG_MODE_TMO_US 2000000
 #define AICUPG_HELP                                                      \
     "ArtInChip upgrading command:\n"                                     \
     "aicupg [devtype] [interface]\n"                                     \
@@ -66,6 +68,17 @@ static int ctrlc(void)
     return 0;
 }
 
+static void reboot_device(void)
+{
+#ifdef AIC_WDT_DRV
+    wdt_init();
+    printf("Going to reboot ...\n");
+    wdt_expire_now();
+    while(1)
+        continue;
+#endif
+}
+
 #if defined(AIC_BOOTLOADER_FATFS_SUPPORT)
 static int image_header_check(struct image_header_pack *header)
 {
@@ -79,49 +92,147 @@ static int image_header_check(struct image_header_pack *header)
 }
 #endif
 
-static int do_uart_protocol_upg(int intf)
+#define CHECK_MODE_WAITING 0
+#define CHECK_MODE_OK    1
+#define CHECK_MODE_TIMEOUT 2
+
+int check_upg_mode(u64 start_tm, long tmo)
+{
+    u64 cur_tm, tm;
+    int mode;
+
+    cur_tm = aic_get_time_us();
+    tm = (cur_tm - start_tm);
+
+    mode = aicupg_get_upg_mode();
+    if (mode == UPG_MODE_BURN_USER_ID)
+        return CHECK_MODE_OK;
+    if (mode == UPG_MODE_BURN_IMG_FORCE)
+        return CHECK_MODE_OK;
+
+    if (tm < tmo)
+        return CHECK_MODE_WAITING;
+
+    return CHECK_MODE_TIMEOUT;
+}
+
+static int do_uart_protocol_upg(int intf, char *mode)
 {
     int ret = 0;
 
 #if defined(AICUPG_UART_ENABLE)
+    struct upg_init init;
+    int need_ckmode = 0;
+    u64 start_tm;
+
+    init.mode_bits = INIT_MODE(UPG_MODE_FULL_DISK_UPGRADE);
+    if (mode) {
+        if (!strcmp(mode, "userid")) {
+            need_ckmode = 1;
+            init.mode_bits = INIT_MODE(UPG_MODE_BURN_USER_ID);
+        }
+    }
+    aicupg_initialize(&init);
+
     stdio_unset_uart(intf);
     aic_upg_uart_init(intf);
+    start_tm = aic_get_time_us();
+
     while (1) {
         if (ctrlc())
             break;
         aic_upg_uart_loop();
+        if (need_ckmode) {
+            /* Need to check the correct upg mode for Burn UserID
+             * and Force Image upgrading
+             */
+            /* Wait 2s for UserID burn */
+            int rst = check_upg_mode(start_tm, 10 * WAIT_UPG_MODE_TMO_US);
+            if (rst == CHECK_MODE_TIMEOUT) {
+                /* Host tool not set the mode in WAIT_UPG_MODE_TMO_US
+                 * exit upg loop and boot kernel
+                 */
+                ret = -1;
+                break;
+            } else if (rst == CHECK_MODE_OK) {
+                /* Update the start time.
+                 * Host tool may change the mode to exit loop
+                 */
+                start_tm = aic_get_time_us();
+            }
+        }
     }
 #endif
 
     return ret;
 }
 
-static int do_usb_protocol_upg(int intf)
+static int do_usb_protocol_upg(int intf, char *mode)
 {
     int ret = 0;
 
 #if defined(AICUPG_USB_ENABLE)
     struct upg_init init;
+    int need_ckmode = 0;
+    u64 start_tm;
+
 #ifndef AIC_SYSCFG_DRV_V12
     syscfg_usb_phy0_sw_host(0);
 #endif
-    init.mode = INIT_MODE(UPG_MODE_FULL_DISK_UPGRADE);
+    init.mode_bits = INIT_MODE(UPG_MODE_FULL_DISK_UPGRADE);
+    if (mode) {
+        if (!strcmp(mode, "userid")) {
+            need_ckmode = 1;
+            init.mode_bits = INIT_MODE(UPG_MODE_BURN_USER_ID);
+        }
+    }
     aicupg_initialize(&init);
     aic_udc_init(&usbupg_device);
+    start_tm = aic_get_time_us();
     while (1) {
         if (ctrlc())
             break;
         aic_udc_state_loop();
+        if (need_ckmode) {
+            /* Need to check the correct upg mode for Burn UserID
+             * and Force Image upgrading
+             */
+            int rst = check_upg_mode(start_tm, WAIT_UPG_MODE_TMO_US);
+            if (rst == CHECK_MODE_TIMEOUT) {
+                /* Host tool not set the mode in WAIT_UPG_MODE_TMO_US
+                 * exit upg loop and boot kernel
+                 */
+                ret = -1;
+                break;
+            } else if (rst == CHECK_MODE_OK) {
+                /* Update the start time.
+                 * Host tool may change the mode to exit loop
+                 */
+                start_tm = aic_get_time_us();
+            }
+        }
     }
 #endif
 
     return ret;
+}
+
+static void fat_upg_progress(u32 percent)
+{
+    /* Show to screen */
+    aicfb_draw_bar(percent);
+
+    /*
+     * User can add more code to show the progress in customize way
+     */
+    printf("progress: %d%%\n", percent);
 }
 
 static int do_sdcard_upg(int intf)
 {
     int ret = 0;
 
+    /* Use SDFAT32 instead of it */
     return ret;
 }
 
@@ -193,7 +304,7 @@ int boot_cfg_parse_direct_mode_val(char *strofs, char *name, u32 *offset,
  */
 static int do_fat_upg_in_direct_mode(char *cfg, u32 clen)
 {
-    u32 i, ret, maxlen, offset, intf_id;
+    u32 i, ret, maxlen, offset, intf_id, per, cnt;
     char keyname[16], keyval[IMG_NAME_MAX_SIZ], type[16], fname[32], attr[16];
 
     maxlen = IMG_NAME_MAX_SIZ;
@@ -214,26 +325,50 @@ static int do_fat_upg_in_direct_mode(char *cfg, u32 clen)
         intf_id = strtoul(keyval, NULL, 0);
     }
     printf("Going to program %s on controller %d\n", type, intf_id);
+
+    /* Get the program item count */
+    cnt = 0;
+    per = 0;
+    ret = boot_cfg_get_key_val(cfg, clen, "writeboot", 9, keyval, maxlen);
+    if (ret > 0)
+        cnt++;
+    for (i = 0; i < 32; i++) {
+        snprintf(keyname, 16, "write%d", i);
+        ret = boot_cfg_get_key_val(cfg, clen, keyname, strlen(keyname), keyval,
+                                   maxlen);
+        if (ret == 0)
+            break;
+        cnt++;
+    }
+
+    if (cnt == 0)
+        goto out;
+
+    fat_upg_progress(0);
     ret = boot_cfg_get_key_val(cfg, clen, "writeboot", 9, keyval, maxlen);
     if (ret > 0) {
         memset(fname, 0, 32);
         boot_cfg_parse_direct_mode_val(keyval, fname, &offset, NULL);
         aicupg_fat_direct_write(type, intf_id, fname, offset, 1, NULL);
+        per = 100 / cnt;
+        fat_upg_progress(per);
     }
 
     for (i = 0; i < 32; i++) {
         snprintf(keyname, 16, "write%d", i);
         ret = boot_cfg_get_key_val(cfg, clen, keyname, strlen(keyname), keyval,
                                    maxlen);
-        if (ret == 0) {
+        if (ret == 0)
             goto out;
-        }
         memset(fname, 0, 32);
         memset(attr, 0, 16);
         boot_cfg_parse_direct_mode_val(keyval, fname, &offset, attr);
         aicupg_fat_direct_write(type, intf_id, fname, offset, 0, attr);
+        per += (100 / cnt);
+        fat_upg_progress(per);
     }
 
+    fat_upg_progress(100);
 out:
     printf("Done\n");
     return 0;
@@ -348,6 +483,8 @@ static int do_fat_upg(int intf, char *const blktype)
     ret = boot_cfg_get_boot0(file_buf, actread, image_name, IMG_NAME_MAX_SIZ,
                              &offset, &bootlen);
 
+    aicupg_fat_set_process_cb(fat_upg_progress);
+
     if (offset > 0) {
         /* Perform upgrading from image file */
         ret = boot_cfg_get_protection(file_buf, actread, protection,
@@ -361,6 +498,28 @@ static int do_fat_upg(int intf, char *const blktype)
         ret = do_fat_upg_in_direct_mode(file_buf, actread);
     }
 
+    if (!ret) {
+        printf("\nPlug-out SDCard/UDISK to reboot device.\n");
+        printf(" CTRL+C exit to command line.\n");
+
+        /* Reboot when SDCard/UDISK plug-out */
+        while (1) {
+            /* If failed to read data, reboot */
+            ret = aic_fat_read_file("bootcfg.txt", (void *)file_buf, 0, 2048,
+                                    &actread);
+            if (actread == 0 || ret) {
+                reboot_device();
+            }
+
+            if (ctrlc()) {
+                /* Exit to cmd line */
+                ret = 0;
+                break;
+            }
+            aicos_mdelay(100);
+        }
+    }
+
 err:
     if (file_buf)
         aicos_free_align(0, file_buf);
@@ -372,22 +531,15 @@ static void do_brom_upg(void)
 {
     aic_set_reboot_reason(REBOOT_REASON_UPGRADE);
 
-#ifdef AIC_WDT_DRV
-    wdt_init();
-    printf("Going to reboot ...\n");
-    wdt_expire_now();
-    while(1)
-        continue;
-#endif
+    reboot_device();
 }
 
 static int do_aicupg(int argc, char *argv[])
 {
-    char *devtype = NULL;
+    char *devtype = NULL, *mode;
     int intf, ret = 0;
 
-    aic_get_reboot_reason();
-
+    mode = NULL;
     if ((argc == 1) || ((argc == 2) && (!strcmp(argv[1], "brom")))) {
         do_brom_upg();
         return 0;
@@ -403,10 +555,16 @@ static int do_aicupg(int argc, char *argv[])
 
     if (devtype == NULL)
         goto help;
-    if (!strcmp(devtype, "uart"))
-        ret = do_uart_protocol_upg(intf);
-    if (!strcmp(devtype, "usb"))
-        ret = do_usb_protocol_upg(intf);
+    if (!strcmp(devtype, "uart")) {
+        if (argc >= 4)
+            mode = argv[3];
+        ret = do_uart_protocol_upg(intf, mode);
+    }
+    if (!strcmp(devtype, "usb")) {
+        if (argc >= 4)
+            mode = argv[3];
+        ret = do_usb_protocol_upg(intf, mode);
+    }
     if (!strcmp(devtype, "mmc"))
         ret = do_sdcard_upg(intf);
     if (!strcmp(devtype, "fat"))

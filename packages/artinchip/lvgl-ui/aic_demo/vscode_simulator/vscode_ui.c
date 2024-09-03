@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2023-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -8,17 +8,17 @@
 
 #include "aic_ui.h"
 
-#define USE_HELLO_DEMO
+#define USE_TEMPLATE_DEMO
 
 void vscode_ui_init(void)
 {
-#ifdef USE_SLIDE_DEMO
-    extern void slide_ui_init();
-	slide_ui_init();
+#ifdef USE_BASE_DEMO
+    void base_ui_init();
+    base_ui_init();
 #endif
 
-#ifdef USE_HELLO_DEMO
-    extern void hello_ui_init();
-    hello_ui_init();
+#ifdef USE_TEMPLATE_DEMO
+    extern void template_ui_init();
+    template_ui_init();
 #endif
 }

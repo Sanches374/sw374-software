@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -122,15 +122,15 @@ void aic_memheap_free(int type, void *rmem)
  */
 void rt_hw_board_init(void)
 {
-    aic_board_sysclk_init();
-    aic_board_pinmux_init();
-
 #ifdef RT_USING_HEAP
     rt_system_heap_init((void *)&__heap_start, (void *)&__heap_end);
 #if (!defined(QEMU_RUN) && defined(RT_USING_MEMHEAP))
     aic_memheap_init();
 #endif
 #endif
+
+    aic_board_sysclk_init();
+    aic_board_pinmux_init();
 
 #ifdef RT_USING_COMPONENTS_INIT
     rt_components_board_init();
@@ -167,6 +167,9 @@ static const struct romfs_dirent _mountpoint_root[] =
     {ROMFS_DIRENT_DIR, "rodata", RT_NULL, 0},
     {ROMFS_DIRENT_DIR, "sdcard", RT_NULL, 0},
     {ROMFS_DIRENT_DIR, "udisk", RT_NULL, 0},
+#if defined(AIC_FLASH_NUM_TWO)
+    {ROMFS_DIRENT_DIR, "extra", RT_NULL, 0},
+#endif
 };
 const struct romfs_dirent romfs_root =
 {
@@ -194,8 +197,14 @@ const struct dfs_mount_tbl mount_table[] = {
 #ifdef AIC_USING_SDMC1
     {"sd0", "/sdcard", "elm", 0, 0, 0},
 #endif
-#if (defined(AIC_USING_USB0_HOST) || defined(AIC_USING_USB1_HOST))
+#if (defined(AIC_USING_USB0_HOST) || defined(AIC_USING_USB0_OTG) || defined(AIC_USING_USB1_HOST))
     {"udisk", "/udisk", "elm", 0, 0, 0xFF},
+#endif
+#ifdef AIC_SECONED_FLASH_NOR
+    {"extra", "/extra", "lfs", 0, 0, 0},
+#endif
+#ifdef AIC_SECONED_FLASH_NAND
+    {"blk_extra", "/extra", "elm", 0, 0, 0},
 #endif
     {0}
 };

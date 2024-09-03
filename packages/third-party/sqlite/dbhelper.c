@@ -20,13 +20,13 @@
 #define DBG_COLOR
 #include <rtdbg.h>
 
-#if PKG_SQLITE_DB_NAME_MAX_LEN < 8
+#if LPKG_SQLITE_DB_NAME_MAX_LEN < 8
 #error "the database name length is too short"
 #endif
 #define DEFAULT_DB_NAME "/data/rt.db"
 
 static rt_mutex_t db_mutex_lock = RT_NULL;
-static char db_name[PKG_SQLITE_DB_NAME_MAX_LEN + 1] = DEFAULT_DB_NAME;
+static char db_name[LPKG_SQLITE_DB_NAME_MAX_LEN + 1] = DEFAULT_DB_NAME;
 
 /**
  * This function will initialize SQLite3 create a mutex as a lock.
@@ -551,10 +551,10 @@ int db_connect(char *name)
 {
     int32_t len = 0;
     rt_mutex_take(db_mutex_lock, RT_WAITING_FOREVER);
-    len = rt_strnlen(name, PKG_SQLITE_DB_NAME_MAX_LEN + 1);
-    if (len >= PKG_SQLITE_DB_NAME_MAX_LEN + 1)
+    len = rt_strnlen(name, LPKG_SQLITE_DB_NAME_MAX_LEN + 1);
+    if (len >= LPKG_SQLITE_DB_NAME_MAX_LEN + 1)
     {
-        LOG_E("the database name '(%s)' lengh is too long(max:%d).", name, PKG_SQLITE_DB_NAME_MAX_LEN);
+        LOG_E("the database name '(%s)' lengh is too long(max:%d).", name, LPKG_SQLITE_DB_NAME_MAX_LEN);
         rt_mutex_release(db_mutex_lock);
         return -RT_ERROR;
     }
@@ -589,10 +589,10 @@ int db_set_name(char *name)
 {
     int32_t len = 0;
     rt_mutex_take(db_mutex_lock, RT_WAITING_FOREVER);
-    len = rt_strnlen(name, PKG_SQLITE_DB_NAME_MAX_LEN + 1);
-    if (len >= PKG_SQLITE_DB_NAME_MAX_LEN + 1)
+    len = rt_strnlen(name, LPKG_SQLITE_DB_NAME_MAX_LEN + 1);
+    if (len >= LPKG_SQLITE_DB_NAME_MAX_LEN + 1)
     {
-        LOG_E("the database name '(%s)' lengh is too long(max:%d).", name, PKG_SQLITE_DB_NAME_MAX_LEN);
+        LOG_E("the database name '(%s)' lengh is too long(max:%d).", name, LPKG_SQLITE_DB_NAME_MAX_LEN);
         rt_mutex_release(db_mutex_lock);
         return -RT_ERROR;
     }
@@ -610,7 +610,7 @@ int db_set_name(char *name)
  */
 char *db_get_name(void)
 {
-    static char name[PKG_SQLITE_DB_NAME_MAX_LEN + 1];
+    static char name[LPKG_SQLITE_DB_NAME_MAX_LEN + 1];
     size_t len = rt_strlen(db_name);
     rt_strncpy(name, db_name, len);
     name[len] = '\0';

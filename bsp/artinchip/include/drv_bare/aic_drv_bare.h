@@ -1,7 +1,9 @@
 /*
- * Copyright (c) 2022, Artinchip Technology Co., Ltd
+ * Copyright (c) 2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
+ *
+ * Authors: Weihui.Xu <weihui.xu@artinchip.com>
  */
 
 #ifndef _ARTINCHIP_AIC_DRV_BARE_H_
@@ -18,6 +20,7 @@ extern "C" {
 #include "heap.h"
 #include "aic_stdio.h"
 #include "console.h"
+#include "drv_rtc.h"
 #include "uart.h"
 #include "mmc.h"
 #include "mtd.h"

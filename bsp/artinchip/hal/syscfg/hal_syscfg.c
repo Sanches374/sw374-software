@@ -346,12 +346,12 @@ static void syscfg_fpga_gmac_clk_sel(u32 id)
 
 static s32 syscfg_usb_init(void)
 {
-#if defined(AIC_USING_USB0_HOST) || defined(AIC_USING_USB1_HOST) || defined(AIC_USING_USB0_OTG) || defined(AIC_USING_USB1_OTG)
+#if defined(AIC_USING_USB0_HOST) || defined(AIC_USING_USB1_HOST) || defined(AIC_USING_USB0_OTG) || defined(AIC_USING_USB1_OTG) || defined(AICUPG_UDISK_ENABLE)
     u32 cfg_reg = 0;
     s32 cfg = 0;
 #endif
 
-#if defined(AIC_USING_USB0_HOST) || defined(AIC_USING_USB0_OTG)
+#if defined(AIC_USING_USB0_HOST) || defined(AIC_USING_USB0_OTG) || defined(AICUPG_UDISK_ENABLE)
     cfg_reg = SYSCFG_USB0_REXT;
     cfg = syscfg_readl(cfg_reg);
     cfg &= ~SYSCFG_USB_RES_CAL_VAL_MASK;
@@ -360,7 +360,7 @@ static s32 syscfg_usb_init(void)
     syscfg_writel(cfg, cfg_reg);
 #endif
 
-#if defined(AIC_USING_USB1_HOST) || defined(AIC_USING_USB1_OTG)
+#if defined(AIC_USING_USB1_HOST) || defined(AIC_USING_USB1_OTG) || defined(AICUPG_UDISK_ENABLE)
     cfg_reg = SYSCFG_USB1_REXT;
     cfg = syscfg_readl(cfg_reg);
     cfg &= ~SYSCFG_USB_RES_CAL_VAL_MASK;

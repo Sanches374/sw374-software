@@ -6,18 +6,9 @@ cwd = GetCurrentDir()
 CPPPATH = []
 src = []
 if GetDepend('AIC_TP_DRV_TEST'):
-    src = []
-    if GetDepend('AIC_TOUCH_PANEL_GT911'):
-        src += Glob('test_gt911.c')
-    if GetDepend('AIC_TOUCH_PANEL_FT7411'):
-        src += Glob('test_ft7411.c')
-    if GetDepend('AIC_TOUCH_PANEL_GSL1680'):
-        src += Glob('test_gsl1680.c')
-    if GetDepend('AIC_TOUCH_PANEL_ST16XX'):
-        src += Glob('test_st16xx.c')
-    if GetDepend('AIC_TOUCH_PANEL_AXS15260'):
-        src += Glob('test_axs15260.c')
+    src = Glob('*.c')
 
-group = DefineGroup('test-ctp', src, depend = [''], CPPPATH = CPPPATH)
+
+group = DefineGroup('test-touch', src, depend = [''], CPPPATH = CPPPATH)
 
 Return('group')

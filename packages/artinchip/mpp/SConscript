@@ -26,13 +26,31 @@ if GetDepend(['AIC_MPP_PLAYER_INTERFACE']):
     path += [cwd + '/middle_media/base/parser/wav']
     path += [cwd + '/middle_media/base/parser/avi']
 
-    #openmax
-    path += [cwd + '/middle_media/openmax/component']
-    path += [cwd + '/middle_media/openmax/include']
+    #mm
+    path += [cwd + '/middle_media/component/src']
+    path += [cwd + '/middle_media/component/include']
 
     #player
     path += [cwd + '/middle_media/player/include']
     path += [cwd + '/middle_media/mini_audio_player']
+
+
+if GetDepend(['AIC_MPP_RECORDER_INTERFACE']):
+    path += [cwd + '/middle_media/audio_decoder/include']
+    #base
+    path += [cwd + '/middle_media/base/include']
+    path += [cwd + '/middle_media/base/comm']
+    path += [cwd + '/middle_media/base/muxer']
+    path += [cwd + '/middle_media/base/muxer/mp4']
+    path += [cwd + '/middle_media/base/stream/file']
+
+    #mm
+    path += [cwd + '/middle_media/component/src']
+    path += [cwd + '/middle_media/component/include']
+
+    #recoder
+    path += [cwd + '/middle_media/recorder/include']
+
 
 src = []
 
@@ -49,13 +67,16 @@ if GetDepend(['LPKG_MPP']):
     src += Glob('ve/decoder/png/*.c')
     src += Glob('ve/decoder/h264/*.c')
     src += Glob('ve/decoder/zlib/*.c')
+    src += Glob('ve/encoder/*.c')
+    src += Glob('ve/encoder/jpeg/*.c')
 
 
-if GetDepend(['KERNEL_RTTHREAD']) and GetDepend(['LPKG_MPP']):
+if GetDepend(['KERNEL_RTTHREAD']) and GetDepend(['LPKG_MPP']) and GetDepend(['AIC_VE_TEST']):
     src += Glob('./mpp_test/pic_dec_test.c')
     src += Glob('./mpp_test/mpp_dec_test.c')
     src += Glob('./mpp_test/bit_stream_parser.c')
     src += Glob('./mpp_test/pic_crop_test.c')
+    src += Glob('./mpp_test/jpeg_encode_test.c')
 
 if GetDepend(['KERNEL_RTTHREAD']) and GetDepend(['LPKG_MPP']) and GetDepend(['AIC_GE_TEST']):
     src += Glob('./mpp_test/ge_test/public/*.c')
@@ -86,9 +107,14 @@ if GetDepend(['AIC_MPP_PLAYER_INTERFACE']):
     src += Glob('middle_media/base/parser/wav/aic_wav_parser.c')
     src += Glob('middle_media/base/parser/wav/wav.c')
 
-    #openmax
-    src += Glob('middle_media/openmax/component/*.c')
-    src += Glob('middle_media/openmax/OMX_Core.c')
+    #component
+    src += Glob('middle_media/component/src/mm_demuxer_component.c')
+    src += Glob('middle_media/component/src/mm_adec_component.c')
+    src += Glob('middle_media/component/src/mm_vdec_component.c')
+    src += Glob('middle_media/component/src/mm_video_render_component.c')
+    src += Glob('middle_media/component/src/mm_audio_render_component.c')
+    src += Glob('middle_media/component/src/mm_clock_component.c')
+    src += Glob('middle_media/component/mm_core.c')
 
     #player
     src += Glob('middle_media/player/aic_player.c')
@@ -96,9 +122,35 @@ if GetDepend(['AIC_MPP_PLAYER_INTERFACE']):
     src += Glob('middle_media/mini_audio_player/mini_audio_player.c')
     src += Glob('middle_media/mini_audio_player/mini_audio_player_demo.c')
 
+if GetDepend(['AIC_MPP_PLAYER_VE_USE_FILL_FB']):
+    src += Glob('middle_media/player/player_dec_share_test.c')
+
 if GetDepend(['AIC_MPP_AVI_DEMUX']):
     src += Glob('middle_media/base/parser/avi/aic_avi_parser.c')
     src += Glob('middle_media/base/parser/avi/avi.c')
+
+
+if GetDepend(['AIC_MPP_RECORDER_INTERFACE']):
+    # base
+    src += Glob('middle_media/base/message/aic_message.c')
+    src += Glob('middle_media/base/comm/aic_tag.c')
+    src += Glob('middle_media/base/stream/aic_stream.c')
+    src += Glob('middle_media/base/stream/file/aic_file_stream.c')
+    src += Glob('middle_media/base/muxer/aic_muxer.c')
+    src += Glob('middle_media/base/muxer/mp4/aic_mp4_muxer.c')
+    src += Glob('middle_media/base/muxer/mp4/mp4_muxer.c')
+
+    #component
+    src += Glob('middle_media/component/src/mm_vin_component.c')
+    src += Glob('middle_media/component/src/mm_muxer_component.c')
+    src += Glob('middle_media/component/src/mm_venc_component.c')
+    src += Glob('middle_media/component/mm_core.c')
+
+    #recoder
+    src += Glob('middle_media/recorder/aic_recorder.c')
+    src += Glob('middle_media/recorder/recorder_demo.c')
+
+
 
 if GetDepend(['AIC_MPP_VIN']):
     src += Glob('vin/mpp_vin_vb.c')

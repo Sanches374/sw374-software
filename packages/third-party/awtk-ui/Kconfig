@@ -8,24 +8,6 @@ menuconfig LPKG_USING_AWTK
 if LPKG_USING_AWTK
 
 menu "AWTK common function config"
-    config WITH_G2D
-        depends on AIC_USING_GE
-        bool "Use g2d"
-        default y
-        select WITH_AIC_G2D
-
-    config WITH_AIC_G2D
-        depends on WITH_G2D
-        bool "Use aic g2d"
-        default y
-
-    config WITH_DEC_IMAGE
-        depends on WITH_G2D
-        depends on AIC_USING_DE
-        depends on WITH_FS_RES
-        bool "Use decoding image"
-        default y
-
     config APP_RES_ROOT
         depends on WITH_FS_RES
         string "Set app resource root"
@@ -48,6 +30,21 @@ menu "AWTK common function config"
     config WITH_LCD_SWAP_EX
         bool "swap_ex mode"
 
+    config WITH_LCD_FLUSH_AND_SWAP
+        bool "flash and swap mode"
+
+    endchoice
+
+    choice
+        prompt "Choice log level"
+        default NDEBUG
+
+    config WITH_DEBUG
+        bool "log level debug"
+
+    config NDEBUG
+        bool "log level info"
+
     endchoice
 
 endmenu
@@ -62,6 +59,10 @@ menu "AWTK cropping config"
         bool "use STB image lib"
         default y
 
+    config HAS_STD_MALLOC
+        bool "use std malloc"
+        default y
+
     config WITH_STB_FONT
         depends on WITH_STB_IMAGE
         bool "Support truetype fonts"
@@ -74,18 +75,6 @@ menu "AWTK cropping config"
     config WITHOUT_WINDOW_ANIMATOR_CACHE
         bool "Don't use window animation cache and default open don't use dialog hightlighter "
         default y
-
-    choice
-        prompt "Choice log level"
-        default NDEBUG
-
-    config WITH_DEBUG
-        bool "log level debug"
-
-    config NDEBUG
-        bool "log level info"
-
-    endchoice
 
     choice
         prompt "Select input method"

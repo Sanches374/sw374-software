@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -31,6 +31,7 @@
 
 struct aic_cap_data {
     u8 id;
+    u8 flt_sel;
     u32 freq;
     float duty;
 };
@@ -44,6 +45,7 @@ u32 hal_cap_is_pending(u32 ch);
 int hal_cap_set_freq(u32 ch, u32 freq);
 int hal_cap_set_cnt(u32 ch, u32 cnt);
 int hal_cap_get(u32 ch);
+void hal_cap_in_flt_sel(u32 ch, u8 flt_sel);
 int hal_cap_in_config(u32 ch);
 u32 hal_cap_reg0(u32 ch);
 u32 hal_cap_reg1(u32 ch);

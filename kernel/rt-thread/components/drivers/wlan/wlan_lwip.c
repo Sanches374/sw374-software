@@ -370,20 +370,28 @@ static rt_err_t rt_wlan_lwip_protocol_send(rt_device_t device, struct pbuf *p)
 
 #ifdef RT_WLAN_PROT_LWIP_PBUF_FORCE
     {
-        rt_wlan_prot_transfer_dev(wlan, p, p->tot_len);
+#ifdef AIC_WLAN_ASR
+        return rt_wlan_prot_transfer_dev(wlan, p, p->tot_len);
+#else
         return RT_EOK;
+#endif
     }
 #else
     {
         rt_uint8_t *frame;
+        int ret = RT_EOK;
 
         /* sending data directly */
         if (p->len == p->tot_len)
         {
             frame = (rt_uint8_t *)p->payload;
+#ifdef AIC_WLAN_ASR
+            ret = rt_wlan_prot_transfer_dev(wlan, frame, p->tot_len);
+#else
             rt_wlan_prot_transfer_dev(wlan, frame, p->tot_len);
+#endif
             LOG_D("F:%s L:%d run len:%d", __FUNCTION__, __LINE__, p->tot_len);
-            return RT_EOK;
+            return ret;
         }
         frame = rt_malloc(p->tot_len);
         if (frame == RT_NULL)
@@ -394,10 +402,14 @@ static rt_err_t rt_wlan_lwip_protocol_send(rt_device_t device, struct pbuf *p)
         /*copy pbuf -> data dat*/
         pbuf_copy_partial(p, frame, p->tot_len, 0);
         /* send data */
+#ifdef AIC_WLAN_ASR
+        ret = rt_wlan_prot_transfer_dev(wlan, frame, p->tot_len);
+#else
         rt_wlan_prot_transfer_dev(wlan, frame, p->tot_len);
+#endif
         LOG_D("F:%s L:%d run len:%d", __FUNCTION__, __LINE__, p->tot_len);
         rt_free(frame);
-        return RT_EOK;
+        return ret;
     }
 #endif
 }

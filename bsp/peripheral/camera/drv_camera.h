@@ -15,7 +15,7 @@ extern "C" {
 
 #include "rtdef.h"
 
-#define CAMERA_NAME_OV      "ov-cam"
+#define CAMERA_DEV_NAME     "camera"
 
 #define CAMERA_CMD_START    (RT_DEVICE_CTRL_BASE(CAMERA) + 0x01)
 #define CAMERA_CMD_STOP     (RT_DEVICE_CTRL_BASE(CAMERA) + 0x02)

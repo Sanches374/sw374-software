@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -21,6 +21,9 @@ extern "C" {
 #define WDT_MAX_TIMEOUT         (60 * 60)
 #define WDT_MIN_TIMEOUT         1
 #define WDT_DEFAULT_TIMEOUT     10
+
+#define WREG_PROTECT_EN         1
+#define WREG_PROTECT_DIS        0
 
 #ifdef AIC_WDT_DRV_V11
 #define RST_CPU                 1
@@ -49,6 +52,7 @@ void hal_wdt_thd_get(u32 ch, struct aic_wdt *wdt);
 int hal_wdt_clr_int(void);
 
 void hal_wdt_status_show(u32 ch);
+void hal_wdt_reg_protect(u8 enable);
 
 #ifdef AIC_WDT_DRV_V11
 void hal_wdt_rst_type_set(u32 rst);

@@ -1,7 +1,9 @@
 /*
- * Copyright (C) 2023-2024 ArtinChip Technology Co., Ltd.
- * Authors:  jun.ma <jun.ma@artinchip.com>
+ * Copyright (c) 2023-2024, ArtInChip Technology Co., Ltd
  *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Authors:  Authors:  jun.ma <jun.ma@artinchip.com>
  */
 
 #include <unistd.h>

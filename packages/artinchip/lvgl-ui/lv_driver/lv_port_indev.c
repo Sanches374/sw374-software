@@ -9,6 +9,7 @@
  * 2021-12-17     Wayne        Add input event
  * 2023-05-02     Ning Fang    Add ArtInChip input event
  */
+
 #include <rtconfig.h>
 #ifdef KERNEL_RTTHREAD
 #include <lvgl.h>

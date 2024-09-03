@@ -40,9 +40,8 @@
 #define GSL1680_CLK_REG                     0xe4
 #define GSL1680_PAGE_REG                    0xf0
 
-#define GSL1680_I2C_CHAN    AIC_TOUCH_PANEL_GSL1680_I2C_CHA
-#define GSL1680_RST_PIN     AIC_TOUCH_PANEL_GSL1680_RST_PIN
-#define GSL1680_INT_PIN     AIC_TOUCH_PANEL_GSL1680_INT_PIN
+#define AIC_TOUCH_PANEL_GSL1680_X_RANGE     480
+#define AIC_TOUCH_PANEL_GSL1680_Y_RANGE     272
 
 int rt_hw_gsl1680_init(const char *name, struct rt_touch_config *cfg);
 void gsl1680_power_up(struct rt_i2c_bus_device *bus);

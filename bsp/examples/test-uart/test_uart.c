@@ -101,12 +101,11 @@ void serial_thread_entry(void *parameter)
             }
         }
     }
-
+    g_exit = 1;
     printf("test_uart received %d bytes, then exit\n", cnt);
     rt_sem_detach(&rx_sem);
-    rt_thread_delete(rt_thread_self());
     rt_device_close(serial);
-    g_exit = 1;
+    rt_thread_delete(rt_thread_self());
 }
 
 

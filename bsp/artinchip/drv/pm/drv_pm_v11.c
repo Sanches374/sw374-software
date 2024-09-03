@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -24,9 +24,6 @@ void aic_pm_enter_idle(void)
 
 void aic_pm_enter_light_sleep(void)
 {
-    rt_base_t level;
-
-    level = rt_hw_interrupt_disable();
     /* change bus frequency to 24M */
     hal_clk_set_parent(CLK_AXI0, CLK_OSC24M);
     hal_clk_set_parent(CLK_AHB0, CLK_OSC24M);
@@ -37,17 +34,10 @@ void aic_pm_enter_light_sleep(void)
     hal_clk_disable(CLK_PLL_FRA2);
     /* disable PLL_INT0: cpu pll */
     hal_clk_disable(CLK_PLL_INT0);
-    rt_hw_interrupt_enable(level);
-    /* reset all pins */
-    //TO DO
-    while (1)
-    {
-        if (wakeup_triggered)
-            break;
-    }
+
+    __WFI();
 
     /* wakeup flow */
-    level = rt_hw_interrupt_disable();
     /* enable PLL_INT0: cpu pll */
     hal_clk_enable(CLK_PLL_INT0);
     /* change cpu frequency to pll */
@@ -57,15 +47,12 @@ void aic_pm_enter_light_sleep(void)
     hal_clk_set_parent(CLK_APB0, CLK_APB0_SRC1);
     /* enable PLL_FRA2: display pll */
     hal_clk_enable(CLK_PLL_FRA2);
-    rt_hw_interrupt_enable(level);
 }
 
 void aic_pm_enter_deep_sleep(void)
 {
-    rt_base_t level;
     uint32_t fra0_freq;
 
-    level = rt_hw_interrupt_disable();
     /* change bus frequency to 24M */
     hal_clk_set_parent(CLK_AXI0, CLK_OSC24M);
     hal_clk_set_parent(CLK_AHB0, CLK_OSC24M);
@@ -101,7 +88,6 @@ void aic_pm_enter_deep_sleep(void)
     hal_clk_set_parent(CLK_APB0, CLK_APB0_SRC1);
     /* enable PLL_FRA2: display pll */
     hal_clk_enable(CLK_PLL_FRA2);
-    rt_hw_interrupt_enable(level);
 }
 
 
@@ -225,7 +211,7 @@ int aic_pm_hw_init(void)
 #ifdef AIC_PM_POWER_DEFAULT_LIGHT_MODE
     rt_pm_default_set(PM_SLEEP_MODE_LIGHT);
 #endif
-    timer_mask = 1UL << PM_SLEEP_MODE_DEEP;
+    timer_mask = 3UL << PM_SLEEP_MODE_LIGHT;
     /* initialize system pm module */
     rt_system_pm_init(&aic_pm_ops, timer_mask, RT_NULL);
 

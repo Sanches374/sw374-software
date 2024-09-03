@@ -1,8 +1,8 @@
 #!/usr/bin/env python2
 # -*- coding:utf-8 -*-
-# SPDX-License-Identifier: GPL-2.0+
+# SPDX-License-Identifier: Apache-2.0
 #
-# Copyright (C) 2021-2023 ArtInChip Technology Co., Ltd
+# Copyright (C) 2021-2024 ArtInChip Technology Co., Ltd
 
 import os
 import re
@@ -83,7 +83,7 @@ def list_defconfig(aic_root):
         if root != path:
             break
         for f in files:
-            if 'defconfig' in f:
+            if f.endswith('_defconfig') and 'bootloader' not in f:
                 v.append(f)
                 if len(f) > maxlen:
                     maxlen = len(f)
@@ -224,6 +224,87 @@ def show_info_cmd(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defcon
         exit(0)
 
 
+def add_board_get_chip(chips):
+    while 1:
+        index = 0
+        print("Chip list:")
+        for c in chips:
+            print('%3d: %s' % (index, c))
+            index += 1
+        i = raw_input("Select chip for new board(number): ")
+        if i == 'q':
+            exit(0)
+        if not i.isdigit():
+            print("Please enter the number!")
+            continue
+        i = int(i, 10)
+        if i >= len(chips):
+            print("Input number is invalid!")
+            continue
+        break
+    return i
+
+
+def add_board_get_defconfig(configs):
+    while 1:
+        index = 0
+        print("Reference defconfig:(Create new board base on selected defconfig):")
+        for c in configs:
+            print('%3d: %s' % (index, c))
+            index += 1
+        i = raw_input("Select reference defconfig for new board(number): ")
+        if i == 'q':
+            exit(0)
+        if not i.isdigit():
+            print("Please enter the number!")
+            continue
+        i = int(i, 10)
+        if i >= len(configs):
+            print("Input number is invalid!")
+            continue
+        break
+    return i
+
+
+def add_board_get_board_name():
+    while 1:
+        i = raw_input("Input new board's name: ")
+        i = i.strip()
+        if i == 'q':
+            exit(0)
+        if '_' in i or ' ' in i:
+            print("Input name can't contain '_' or ' ' !")
+            continue
+        if i != '':
+            break
+    return i
+
+
+def add_board_get_app_name(app):
+    while 1:
+        i = raw_input("Input new app's name: (default {}) ".format(app))
+        i = i.strip()
+        if i == 'q':
+            exit(0)
+        if '_' in i or ' ' in i:
+            print("Input name can't contain '_' or ' ' !")
+            continue
+        if i == '':
+            i = app
+        break
+    return i
+
+
+def add_board_get_manufacturer_name():
+    while 1:
+        i = raw_input("Input manufacturer's name: ")
+        i = i.strip()
+        if i == 'q':
+            exit(0)
+        break
+    return i
+
+
 # cmd-option: add board
 def add_board_cmd(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defconfig):
     AddOption('--add-board', dest='add_board', action='store_true',
@@ -233,45 +314,13 @@ def add_board_cmd(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defcon
         path = os.path.join(aic_root, 'target')
         # select chip
         chips = get_all_chip(path)
-        while 1:
-            index = 0
-            print("Chip list:")
-            for c in chips:
-                print('%3d: %s' % (index, c))
-                index += 1
-            i = raw_input("Select chip for new board(number): ")
-            if i == 'q':
-                exit(0)
-            if not i.isdigit():
-                print("Please enter the number!")
-                continue
-            i = int(i, 10)
-            if i >= len(chips):
-                print("Input number is invalid!")
-                continue
-            break
+        i = add_board_get_chip(chips)
         chip = chips[i]
         print("{} \n".format(chip))
         # select reference board
         configs, maxlen = list_defconfig(aic_root)
         configs = list(filter(lambda x: chip in x and 'bootloader' not in x, configs))
-        while 1:
-            index = 0
-            print("Reference defconfig:(Create new board base on selected defconfig):")
-            for c in configs:
-                print('%3d: %s' % (index, c))
-                index += 1
-            i = raw_input("Select reference defconfig for new board(number): ")
-            if i == 'q':
-                exit(0)
-            if not i.isdigit():
-                print("Please enter the number!")
-                continue
-            i = int(i, 10)
-            if i >= len(configs):
-                print("Input number is invalid!")
-                continue
-            break
+        i = add_board_get_defconfig(configs)
         ref_cfg = configs[i]
         print("{} \n".format(ref_cfg))
         def_elements = ref_cfg.split('_')
@@ -283,39 +332,15 @@ def add_board_cmd(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defcon
         kernel = def_elements[2]
         app = def_elements[3]
         # input new board name
-        while 1:
-            i = raw_input("Input new board's name: ")
-            i = i.strip()
-            if i == 'q':
-                exit(0)
-            if '_' in i or ' ' in i:
-                print("Input name can't contain '_' or ' ' !")
-                continue
-            if i != '':
-                break
+        i = add_board_get_board_name()
         new_board = i
         print("{} \n".format(new_board))
         # input new app name
-        while 1:
-            i = raw_input("Input new app's name: (default {}) ".format(app))
-            i = i.strip()
-            if i == 'q':
-                exit(0)
-            if '_' in i or ' ' in i:
-                print("Input name can't contain '_' or ' ' !")
-                continue
-            if i == '':
-                i = app
-            break
+        i = add_board_get_app_name(app)
         new_app = i
         print("{} \n".format(new_app))
         # input manufacturer name
-        while 1:
-            i = raw_input("Input manufacturer's name: ")
-            i = i.strip()
-            if i == 'q':
-                exit(0)
-            break
+        i = add_board_get_manufacturer_name()
         manuf_name = i
         print("{} \n".format(manuf_name))
         # copy xxx_defconfig
@@ -1114,6 +1139,7 @@ def mkimage_gen_mkfs_action(img_id):
         imgname_opt = 'CONFIG_AIC_FS_IMAGE_NAME_{}'.format(img_id)
         imgname = get_config(prj_root_dir + '.config', imgname_opt).replace('"', '')
         auto_opt = 'CONFIG_AIC_FATFS_AUTO_SIZE_FOR_{}'.format(img_id)
+        volab_opt = 'CONFIG_AIC_FATFS_DEFAULT_VOLAB_{}'.format(img_id)
         srcdir_opt = 'CONFIG_AIC_FS_IMAGE_DIR_{}'.format(img_id)
         srcdir = get_config(prj_root_dir + '.config', srcdir_opt).replace('"', '')
         os.environ["aic_fs_image_dir"] = srcdir
@@ -1128,33 +1154,35 @@ def mkimage_gen_mkfs_action(img_id):
             auto_siz = get_config(prj_root_dir + '.config', auto_opt).replace('"', '')
         else:
             auto_siz = 'n'
+        # when CONFIG_AIC_FATFS_DEFAULT_LABEL_0 is not set, should be check None
+        if get_config(prj_root_dir + '.config', volab_opt) is not None:
+            volab = 'default'
+        else:
+            volab = 'CONFIG_AIC_FATFS_VOLAB_{}'.format(img_id)
+            volab = get_config(prj_root_dir + '.config', volab)
 
         cluster_size = 'CONFIG_AIC_USING_FS_IMAGE_TYPE_FATFS_CLUSTER_SIZE'
         cluster = int(get_config(prj_root_dir + '.config', cluster_size))
+
+        cmdstr = 'python3 ' + aic_script_dir + 'makefatfs.py '
         if auto_siz == 'y':
             sector_siz = 512
-            cmdstr = 'python3 ' + aic_script_dir + 'makefatfs.py '
             cmdstr += '--auto '
-            cmdstr += '--cluster {} '.format(cluster)
-            cmdstr += '--sector {} '.format(sector_siz)
-            cmdstr += '--tooldir {} '.format(aic_script_dir)
-            cmdstr += '--inputdir {} '.format(srcdir)
-            cmdstr += '--outfile {}\n'.format(outimg)
-            mkfscmd += cmdstr
         else:
             sector_opt = 'CONFIG_AIC_FATFS_SECTOR_SIZE_FOR_{}'.format(img_id)
             sector_siz = int(get_config(prj_root_dir + '.config', sector_opt))
             sectcnt_opt = 'CONFIG_AIC_FATFS_SECTOR_COUNT_FOR_{}'.format(img_id)
             sector_cnt = int(get_config(prj_root_dir + '.config', sectcnt_opt))
             data_siz = sector_siz * sector_cnt
-            cmdstr = 'python3 ' + aic_script_dir + 'makefatfs.py '
             cmdstr += '--imgsize {} '.format(data_siz)
-            cmdstr += '--cluster {} '.format(cluster)
-            cmdstr += '--sector {} '.format(sector_siz)
-            cmdstr += '--tooldir {} '.format(aic_script_dir)
-            cmdstr += '--inputdir {} '.format(srcdir)
-            cmdstr += '--outfile {}\n'.format(outimg)
-            mkfscmd += cmdstr
+
+        cmdstr += '--volab {} '.format(volab)
+        cmdstr += '--cluster {} '.format(cluster)
+        cmdstr += '--sector {} '.format(sector_siz)
+        cmdstr += '--tooldir {} '.format(aic_script_dir)
+        cmdstr += '--inputdir {} '.format(srcdir)
+        cmdstr += '--outfile {}\n'.format(outimg)
+        mkfscmd += cmdstr
     if get_config(prj_root_dir + '.config', littlefs_enable) == 'y':
         imgname_opt = 'CONFIG_AIC_FS_IMAGE_NAME_{}'.format(img_id)
         imgname = get_config(prj_root_dir + '.config', imgname_opt).replace('"', '')
@@ -1513,7 +1541,6 @@ def mkimage_cpio(aic_root, prj_chip, prj_kernel, prj_app, prj_defconfig, rtconfi
                 + aic_pack_dir + 'ota-subimgs.cfg' + ' \n'
         return CPIO_POST_ACTION
 
-    os.system('cp ' + aic_pack_dir + 'ota-subimgs.cfg ' + prj_out_dir)
     aic_system = platform.system()
 
     CPIO_POST_ACTION += '@echo ' + 'make CPIO image begin...\n'

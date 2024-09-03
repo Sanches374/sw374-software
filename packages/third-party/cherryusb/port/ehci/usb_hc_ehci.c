@@ -47,7 +47,7 @@ static int usb_ehci_buf_alloc(struct ehci_qtd_hw *qtd, uint32_t len)
         qtd->align_buffer_len = len;
 
     if (qtd->align_buffer_len > CONFIG_USB_EHCI_FRAME_LIST_SIZE) {
-        USB_LOG_INFO("Need alloc %d buf for cacheline algined\n",
+        USB_LOG_DBG("Need alloc %d buf for cacheline algined\n",
                      (unsigned int)qtd->align_buffer_len);
         qtd->align_buffer = aicos_malloc_align(0, qtd->align_buffer_len,
                                                CONFIG_USB_ALIGN_SIZE);
@@ -789,7 +789,6 @@ static void ehci_urb_waitup(struct usbh_bus *bus, struct usbh_urb *urb)
     qh->remove_in_iaad = 0;
 
     if (urb->timeout) {
-        urb->timeout = 0;
         usb_osal_sem_give(qh->waitsem);
     } else {
         ehci_qh_free(bus, qh);
@@ -849,7 +848,7 @@ static void ehci_check_qh(struct usbh_bus *bus, struct ehci_qh_hw *qhead, struct
 
         token = qtd->hw.token;
 
-        if (token & QTD_TOKEN_STATUS_ERRORS) {
+        if (token & (QTD_TOKEN_STATUS_HALTED || QTD_TOKEN_STATUS_BABBLE)) {
             break;
         } else if (token & QTD_TOKEN_STATUS_ACTIVE) {
             return;
@@ -860,23 +859,30 @@ static void ehci_check_qh(struct usbh_bus *bus, struct ehci_qh_hw *qhead, struct
 
     urb = qh->urb;
 
-    if ((token & QTD_TOKEN_STATUS_ERRORS) == 0) {
+    if (token & QTD_TOKEN_STATUS_HALTED) {
+        USB_LOG_ERR("QTD_TOKEN_STATUS_HALTED, token(0x%08x)\n", (unsigned int)token);
+        urb->errorcode = -USB_ERR_STALL;
+        urb->data_toggle = 0;
+    } else if (token & QTD_TOKEN_STATUS_BABBLE) {
+        USB_LOG_ERR("QTD_TOKEN_STATUS_BABBLE, token(0x%08x)\n", (unsigned int)token);
+        urb->errorcode = -USB_ERR_BABBLE;
+        urb->data_toggle = 0;
+    } else {
+        /* Data Buffer Error and XactErr should not interrupt transmit */
+        if (token & QTD_TOKEN_STATUS_DBERR) {
+            /* Report Data Buffer Error: non-fatal but useful */
+            USB_LOG_DBG("QTD_TOKEN_STATUS_DBERR, token(0x%08x)\n", (unsigned int)token);
+        } else if (token & QTD_TOKEN_STATUS_XACTERR) {
+            /* Ignore the XactErr if token is not in STALL */
+            USB_LOG_DBG("QTD_TOKEN_STATUS_XACTERR, token(0x%08x)\n", (unsigned int)token);
+        }
+
         if (qh->hw.overlay.token & QTD_TOKEN_TOGGLE) {
             urb->data_toggle = true;
         } else {
             urb->data_toggle = false;
         }
         urb->errorcode = 0;
-    } else {
-        if (token & QTD_TOKEN_STATUS_BABBLE) {
-            urb->errorcode = -USB_ERR_BABBLE;
-            urb->data_toggle = 0;
-        } else if (token & QTD_TOKEN_STATUS_HALTED) {
-            urb->errorcode = -USB_ERR_STALL;
-            urb->data_toggle = 0;
-        } else if (token & (QTD_TOKEN_STATUS_DBERR | QTD_TOKEN_STATUS_XACTERR)) {
-            urb->errorcode = -USB_ERR_IO;
-        }
     }
 
     ehci_qh_scan_qtds(bus, qhead, qh);
@@ -940,6 +946,10 @@ __WEAK void usb_hc_low_level_init(struct usbh_bus *bus)
 }
 
 __WEAK void usb_hc_low_level2_init(struct usbh_bus *bus)
+{
+}
+
+__WEAK void usb_hc_low_level_deinit(struct usbh_bus *bus)
 {
 }
 
@@ -1101,7 +1111,7 @@ int usb_hc_deinit(struct usbh_bus *bus)
         usb_osal_msleep(1);
         timeout++;
         if (timeout > 100) {
-            return -USB_ERR_TIMEOUT;
+            break;
         }
     }
 
@@ -1123,6 +1133,8 @@ int usb_hc_deinit(struct usbh_bus *bus)
         qh = &ehci_qh_pool[bus->hcd.hcd_id][index];
         usb_osal_sem_delete(qh->waitsem);
     }
+
+    usb_hc_low_level_deinit(bus);
 
     return 0;
 }
@@ -1386,6 +1398,10 @@ int usbh_submit_urb(struct usbh_urb *urb)
     }
     return ret;
 errout_timeout:
+    USB_LOG_ERR("urb submit timeout, ep:%d ep_type:%d dev_addr:0x%x\n\n",
+            urb->ep->bEndpointAddress,
+            USB_GET_ENDPOINT_TYPE(urb->ep->bmAttributes),
+            urb->hport->dev_addr);
     urb->timeout = 0;
     usbh_kill_urb(urb);
     return ret;

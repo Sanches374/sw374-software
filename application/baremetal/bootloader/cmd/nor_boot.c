@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Artinchip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -21,6 +21,7 @@
 #include <aic_utils.h>
 #include "aic_time.h"
 #include "fitimage.h"
+#include "of.h"
 
 #define APPLICATION_PART "os"
 
@@ -32,10 +33,11 @@ char target[32] = { 0 };
 
 static int do_nor_boot(int argc, char *argv[])
 {
-    int ret = 0;
+    char target[32] __attribute__((unused)) = { 0 };
+    struct spl_load_info info;
     struct mtd_dev *mtd;
     ulong entry_point;
-    struct spl_load_info info;
+    int ret = 0;
 
     mtd_probe();
 
@@ -69,6 +71,9 @@ static int do_nor_boot(int argc, char *argv[])
     ret = spl_load_simple_fit(&info, &entry_point);
     if (ret < 0)
         goto out;
+
+    /* Read dtb from config partition */
+    of_fdt_dt_init_bare_nornand();
 
     boot_app((void *)entry_point);
 

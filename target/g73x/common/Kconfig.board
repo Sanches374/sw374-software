@@ -252,7 +252,10 @@ config AIC_USING_CAP5
     default n
     select AIC_CAP_DRV
 
+source "bsp/artinchip/drv/cap/Kconfig"
+
 endmenu
+
 
 #---------------------------
 # CAN device global option
@@ -287,6 +290,10 @@ source "bsp/artinchip/drv/cir/Kconfig"
 # usb device global option
 #---------------------------
 
+config AIC_USB_OTG_DRV
+    bool
+    default n
+
 config AIC_USING_USB0
     bool "Using Usb0"
     default n
@@ -305,6 +312,7 @@ if AIC_USING_USB0
             bool "OTG"
             select AIC_USB_DEVICE_DRV
             select AIC_USB_HOST_EHCI_DRV
+            select AIC_USB_OTG_DRV
     endchoice
 endif
 
@@ -638,6 +646,21 @@ config AIC_USING_AUDIO
     select AIC_USING_DMA
 
 source "bsp/artinchip/drv/audio/Kconfig"
+
+#---------------------------
+# TOUCH device global option
+#---------------------------
+
+if KERNEL_BAREMETAL
+
+    config AIC_USING_TOUCH
+        bool "Using Touch"
+        default n
+        select AIC_TOUCH_DRV
+
+    source "bsp/artinchip/drv_bare/touch/Kconfig"
+
+endif
 
 #---------------------------
 # xxx device global option

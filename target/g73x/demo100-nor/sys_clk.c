@@ -27,7 +27,18 @@ struct aic_sysclk aic_sysclk_config[] = {
     {AIC_CLK_AHB0_FREQ, CLK_AHB0, CLK_AXI_AHB_SRC1},    /* 200000000 */
     {AIC_CLK_APB0_FREQ, CLK_APB0, CLK_APB0_SRC1},       /* 100000000 */
 //    {24000000, CLK_APB1, 0},
-   {25000000, CLK_OUT2, 0},
+#ifdef AIC_USING_CLK_OUT0
+   {AIC_CLK_OUT0_FREQ, CLK_OUT0, 0},
+#endif /* AIC_USING_CLK_OUT0 */
+#ifdef AIC_USING_CLK_OUT1
+   {AIC_CLK_OUT1_FREQ, CLK_OUT1, 0},
+#endif /* AIC_USING_CLK_OUT1 */
+#ifdef AIC_USING_CLK_OUT2
+   {AIC_CLK_OUT2_FREQ, CLK_OUT2, 0},
+#endif /* AIC_USING_CLK_OUT2 */
+#ifdef AIC_USING_CLK_OUT3
+   {AIC_CLK_OUT3_FREQ, CLK_OUT3, 0},
+#endif /* AIC_USING_CLK_OUT3 */
 };
 
 /*
@@ -66,8 +77,5 @@ void aic_board_sysclk_init(void)
     /* Enable sys clk */
     hal_clk_enable_deassertrst_iter(CLK_GPIO);
     hal_clk_enable_deassertrst_iter(CLK_GTC);
-#ifdef AIC_USING_GMAC0
-    hal_clk_enable_iter(CLK_OUT2);
-#endif
 }
 

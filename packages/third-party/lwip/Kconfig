@@ -219,6 +219,11 @@ if LPKG_USING_LWIP
         default n
         select LPKG_LWIP_TCP
 
+    config LPKG_LWIP_USING_HTTP
+        bool "Using http protocol"
+        default n
+        select LPKG_LWIP_TCP
+
     config LPKG_LWIP_USING_DHCPD
         bool "Using dhcp server"
         default n

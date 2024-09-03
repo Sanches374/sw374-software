@@ -1005,9 +1005,8 @@ __STATIC_INLINE void csi_dcache_invalid_range(phy_addr_t addr, u32 dsize)
         asm volatile (".long 0x02a7800b"); /* dcache.ipa a5 */
 #endif
 
-    __DSB();
-    __ISB();
     __SYNC_IS();
+    __DSB();
 #endif
 }
 
@@ -1048,9 +1047,8 @@ __STATIC_INLINE void csi_dcache_clean_range(phy_addr_t addr, u32 dsize)
         asm volatile (".long 0x0297800b"); /* dcache.cpa a5 */
 #endif
 
-    __DSB();
-    __ISB();
     __SYNC_IS();
+    __DSB();
 #endif
 
 }
@@ -1091,9 +1089,8 @@ __STATIC_INLINE void csi_dcache_clean_invalid_range(phy_addr_t addr, u32 dsize)
         asm volatile (".long 0x02b7800b"); /* dcache.cipa a5 */
 #endif
 
-    __DSB();
-    __ISB();
     __SYNC_IS();
+    __DSB();
 #endif
 }
 

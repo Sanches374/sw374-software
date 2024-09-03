@@ -1,9 +1,11 @@
 /*
-* Copyright (C) 2020-2023 ArtInChip Technology Co. Ltd
-*
-*  author: <jun.ma@artinchip.com>
-*  Desc: aic_message
-*/
+ * Copyright (C) 2020-2024 ArtInChip Technology Co. Ltd
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ *  Author: <jun.ma@artinchip.com>
+ *  Desc: aic_player api
+ */
 
 #ifndef __AIC_PLAYER_H__
 #define __AIC_PLAYER_H__
@@ -31,6 +33,14 @@ enum aic_player_event {
     AIC_PLAYER_EVENT_PLAY_TIME,        //pts = data1<<32|data2
     AIC_PLAYER_EVENT_DEMUXER_FORMAT_DETECTED,
     AIC_PLAYER_EVENT_DEMUXER_FORMAT_NOT_DETECTED
+};
+
+enum aic_player_command {
+    AIC_PLAYER_CMD_SET_VDEC_EXT_FRAME_ALLOCATOR = 0,
+    AIC_PLAYER_CMD_SET_VDEC_SET_CROP_INFO,
+    AIC_PLAYER_CMD_GET_VDEC_DECODER_FRAME,
+    AIC_PLAYER_CMD_PUT_VDEC_DECODER_FRAME,
+    AIC_PLAYER_CMD_SET_AUDIO_RENDER_SOUND_HANDLE,
 };
 
 struct aic_capture_info {
@@ -108,6 +118,8 @@ s32 aic_player_capture(struct aic_player *player, struct aic_capture_info *captu
 s32 aic_player_set_rotation(struct aic_player *player, int rotation_angle);
 
 s32 aic_player_get_rotation(struct aic_player *player);
+
+s32 aic_player_control(struct aic_player *player, enum aic_player_command cmd, void *data);
 #ifdef __cplusplus
 #if __cplusplus
 }

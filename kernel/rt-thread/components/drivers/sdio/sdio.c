@@ -266,8 +266,10 @@ rt_int32_t sdio_io_rw_extended_block(struct rt_sdio_function *func,
         while (left_size > func->cur_blk_size)
         {
             blks = left_size / func->cur_blk_size;
+#ifndef AIC_WLAN_ASR
             if (blks > max_blks)
                 blks = max_blks;
+#endif
             len = blks * func->cur_blk_size;
 
             ret = sdio_io_rw_extended(func->card, rw, func->num,

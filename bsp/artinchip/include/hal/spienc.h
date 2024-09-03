@@ -26,6 +26,11 @@ static inline void spienc_set_bypass(int status)
     hal_spienc_set_bypass(status);
 }
 
+static inline void spienc_select_tweak(int select)
+{
+    hal_spienc_select_tweak(select);
+}
+
 static inline void spienc_start(void)
 {
     hal_spienc_start();

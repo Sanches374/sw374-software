@@ -322,7 +322,7 @@ int rt_hw_gsl1680_init(const char *name, struct rt_touch_config *cfg)
     touch_device->info = ft_info;
     touch_device->ops = &ops;
 
-    if (rt_hw_touch_register(touch_device, name, RT_DEVICE_FLAG_RDONLY, RT_NULL) != RT_EOK)
+    if (rt_hw_touch_register(touch_device, name, RT_DEVICE_FLAG_INT_RX, RT_NULL) != RT_EOK)
     {
         return -RT_EIO;
     }
@@ -336,13 +336,13 @@ static int rt_gsl1680_gpio_cfg()
     long pin;
 
     // RST
-    pin = drv_pin_get(GSL1680_RST_PIN);
+    pin = drv_pin_get(AIC_TOUCH_PANEL_RST_PIN);
     g = GPIO_GROUP(pin);
     p = GPIO_GROUP_PIN(pin);
     hal_gpio_direction_input(g, p);
 
     // INT
-    pin = drv_pin_get(GSL1680_INT_PIN);
+    pin = drv_pin_get(AIC_TOUCH_PANEL_INT_PIN);
     g = GPIO_GROUP(pin);
     p = GPIO_GROUP_PIN(pin);
     hal_gpio_direction_input(g, p);
@@ -356,7 +356,7 @@ void gsl1680_power_down(void)
     rt_uint8_t rst_pin;
 
     rt_gsl1680_gpio_cfg();
-    rst_pin = drv_pin_get(GSL1680_RST_PIN);
+    rst_pin = drv_pin_get(AIC_TOUCH_PANEL_RST_PIN);
     /* power down the reset pin */
     rt_pin_mode(rst_pin, PIN_MODE_OUTPUT);
     rt_pin_write(rst_pin, 0);
@@ -368,7 +368,7 @@ void gsl1680_power_up(struct rt_i2c_bus_device *bus)
     int ret = 0;
 
     rt_gsl1680_gpio_cfg();
-    rst_pin = drv_pin_get(GSL1680_RST_PIN);
+    rst_pin = drv_pin_get(AIC_TOUCH_PANEL_RST_PIN);
 
     /* power up the reset pin */
     rt_pin_mode(rst_pin, PIN_MODE_OUTPUT);
@@ -402,9 +402,9 @@ static int rt_hw_gsl1680_port(void)
 
     rt_gsl1680_gpio_cfg();
 
-    rst_pin = drv_pin_get(GSL1680_RST_PIN);
-    cfg.dev_name = GSL1680_I2C_CHAN;
-    cfg.irq_pin.pin = drv_pin_get(GSL1680_INT_PIN);
+    rst_pin = drv_pin_get(AIC_TOUCH_PANEL_RST_PIN);
+    cfg.dev_name = AIC_TOUCH_PANEL_I2C_CHAN;
+    cfg.irq_pin.pin = drv_pin_get(AIC_TOUCH_PANEL_INT_PIN);
     cfg.irq_pin.mode = PIN_MODE_INPUT;
     cfg.user_data = &rst_pin;
 

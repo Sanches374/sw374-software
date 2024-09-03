@@ -1,7 +1,9 @@
-// SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2020-2023 ArtInChip Technology Co., Ltd.
- * Authors:  Matteo <duanmt@artinchip.com>
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Authors: matteo <duanmt@artinchip.com>
  */
 
 #include <string.h>
@@ -51,6 +53,9 @@ int mpp_vin_init(char *camera)
     if (aic_dvp_open())
         return -1;
 
+    if (aic_dvp_vb_init())
+        return -1;
+
     if (g_mpp_dvp_buf) {
         pr_info("DVP buffer is already malloced: 0x%lx\n", (ptr_t)g_mpp_dvp_buf);
         return 0;
@@ -79,6 +84,7 @@ void mpp_vin_deinit(void)
         g_mpp_dvp_buf = NULL;
     }
 
+    aic_dvp_vb_deinit();
     aic_dvp_close();
 #endif
 }
@@ -108,6 +114,8 @@ int mpp_dvp_ioctl(int cmd, void *arg)
     case DVP_STREAM_ON:
         if (g_camera_dev)
             rt_device_control(g_camera_dev, CAMERA_CMD_START, arg);
+        if (aic_dvp_open())
+            return -1;
         if (aic_dvp_stream_on())
             return -1;
         return 0;
@@ -115,7 +123,11 @@ int mpp_dvp_ioctl(int cmd, void *arg)
     case DVP_STREAM_OFF:
         if (g_camera_dev)
             rt_device_control(g_camera_dev, CAMERA_CMD_STOP, arg);
-        return aic_dvp_stream_off();
+        if (aic_dvp_stream_off())
+            return -1;
+        if (aic_dvp_close())
+            return -1;
+        return 0;
 #endif
 
     case DVP_REQ_BUF:

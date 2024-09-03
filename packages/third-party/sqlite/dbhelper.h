@@ -14,7 +14,7 @@
 #include <sqlite3.h>
 #include <rtthread.h>
 
-#define DB_SQL_MAX_LEN PKG_SQLITE_SQL_MAX_LEN
+#define DB_SQL_MAX_LEN LPKG_SQLITE_SQL_MAX_LEN
 
 int db_helper_init(void);
 int db_create_database(const char *sqlstr);

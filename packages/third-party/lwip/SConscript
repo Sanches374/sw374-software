@@ -177,7 +177,7 @@ src/apps/http/httpd.c
 
 # 8. MAKEFSDATA HTTP server host utility
 lwipmakefsdata_SRCS = Split("""
-src/apps/http/makefsdata/makefsdata.c
+src/apps/http/makefsdata/fsdata.c
 """)
 
 # 9. IPERF server
@@ -262,6 +262,7 @@ contrib/ports/drv/aic/sys/ethernetif.c
 lwipexample_SRCS = Split("""
 contrib/examples/example_app/test.c
 contrib/examples/example_app/netif_startup.c
+contrib/examples/httpd/ssi_example/ssi_example.c
 """)
 
 # 21. nettools
@@ -331,6 +332,9 @@ if GetDepend(['LPKG_USING_NETTOOLS']):
 
 if GetDepend(['LPKG_LWIP_USING_DHCPD']):
     src += lwipdhcpd_SRCS
+
+if GetDepend(['LPKG_LWIP_USING_HTTP']):
+    src += lwiphttp_SRCS
 
 group = DefineGroup('lwIP', src, depend = ['LPKG_USING_LWIP'], CPPPATH = path)
 

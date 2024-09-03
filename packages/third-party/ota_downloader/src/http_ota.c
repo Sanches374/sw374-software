@@ -46,12 +46,6 @@ static int http_ota_fw_download(const char *uri)
     struct webclient_session *session = RT_NULL;
     int file_size;
 
-    ret = aic_upgrade_start();
-    if (ret) {
-        LOG_E("Aic get os to upgrade");
-        return ret;
-    }
-
     ret = ota_init();
     if (ret != RT_EOK) {
         LOG_E("ota initialization failed.");

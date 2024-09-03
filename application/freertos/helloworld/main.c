@@ -169,6 +169,7 @@ int main(void)
 #endif
 #ifdef AIC_WRI_DRV
     aic_get_reboot_reason();
+    aic_clr_reboot_reason();
     aic_show_startup_time();
 #endif
 

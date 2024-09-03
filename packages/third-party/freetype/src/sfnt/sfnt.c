@@ -18,22 +18,5 @@
 
 #define FT_MAKE_OPTION_SINGLE_OBJECT
 
-#include "pngshim.c"
-#include "sfdriver.c"
-#include "sfobjs.c"
-#include "sfwoff.c"
-#include "sfwoff2.c"
-#include "ttbdf.c"
-#include "ttcmap.c"
-#include "ttcolr.c"
-#include "ttcpal.c"
-
-#include "ttkern.c"
-#include "ttload.c"
-#include "ttmtx.c"
-#include "ttpost.c"
-#include "ttsbit.c"
-#include "woff2tags.c"
-
 
 /* END */

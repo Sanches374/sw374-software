@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -165,9 +165,11 @@ const struct dfs_mount_tbl mount_table[] = {
 #ifdef LPKG_RAMDISK_TYPE_INITDATA
     {"ramdisk0", "/ram", "elm", 0, 0, 0},
 #endif
+#ifndef AIC_AB_SYSTEM_INTERFACE
 #if (defined(AIC_USING_FS_IMAGE_TYPE_FATFS_FOR_0) || defined(AIC_USING_FS_IMAGE_TYPE_FATFS_FOR_1))
     {"blk_rodata", "/rodata", "elm", 0, 0, 0},
     {"blk_data", "/data", "elm", 0, 0, 1},
+#endif
 #endif
 #ifdef LPKG_USING_DFS_UFFS
     {"data", "/data", "uffs", 0, 0, 1},
@@ -175,7 +177,7 @@ const struct dfs_mount_tbl mount_table[] = {
 #ifdef AIC_USING_SDMC1
     {"sd0", "/sdcard", "elm", 0, 0, 0},
 #endif
-#if (defined(AIC_USING_USB0_HOST) || defined(AIC_USING_USB1_HOST))
+#if (defined(AIC_USING_USB0_HOST) || defined(AIC_USING_USB0_OTG) || defined(AIC_USING_USB1_HOST))
     {"udisk", "/udisk", "elm", 0, 0, 0xFF},
 #endif
     {0}

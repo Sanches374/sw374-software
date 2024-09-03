@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -30,21 +30,14 @@ int test_ota()
         return -1;
     }
 
-    //1.Preparing to update environment variables
-    ret = aic_upgrade_start();
-    if (ret) {
-        printf("Aic get os to upgrade");
-        goto __exit;
-    }
-
-    //2.Buffer allocation required by OTA
+    //1.Buffer allocation required by OTA
     ret = ota_init();
     if (ret != RT_EOK) {
         printf("ota initialization failed.");
         goto __exit;
     }
 
-    //3.Read BUFFER_SIZE each time and update it into flash
+    //2.Read BUFFER_SIZE each time and update it into flash
     while (!feof(file)) {
         size = fread(buffer, 1, BUFFER_SIZE, file);
 
@@ -56,13 +49,13 @@ int test_ota()
         }
     }
 
-    //4.Update the environment variables
+    //3.Update the environment variables
     ret = aic_upgrade_end();
     if (ret) {
         printf("Aic upgrade end");
     }
 
-    //5. Reset the device, Start new firmware
+    //4. Reset the device, Start new firmware
     extern void rt_hw_cpu_reset(void);
     rt_hw_cpu_reset();
 

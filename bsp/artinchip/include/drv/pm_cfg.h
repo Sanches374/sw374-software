@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Authors: dwj <weijie.ding@artinchip.com>
+ */
 #ifndef _PM_CFG_H_
 #define _PM_CFG_H_
 
@@ -34,7 +41,16 @@ enum pm_module_id {
     PM_MODULE_MAX_ID, /* enum must! */
 };
 
-extern rt_timer_t touch_timer;
-extern volatile uint8_t wakeup_triggered;
+#ifdef AIC_USING_PM
+void rt_pm_set_pin_wakeup_source(rt_base_t pin);
+void rt_pm_clear_pin_wakeup_source(rt_base_t pin);
+void rt_pm_disable_pin_irq_nonwakeup(void);
+void rt_pm_resume_pin_irq(void);
+#else
+static inline void rt_pm_set_pin_wakeup_source(rt_base_t pin) {}
+static inline void rt_pm_clear_pin_wakeup_source(rt_base_t pin) {}
+static inline void rt_pm_disable_pin_irq_nonwakeup(void) {}
+static inline void rt_pm_resume_pin_irq(void) {}
+#endif
 
 #endif

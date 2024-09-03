@@ -109,6 +109,10 @@ void nor_fwc_start(struct fwc_info *fwc)
         goto err;
     }
 
+#ifdef AIC_USING_SPIENC
+    if (strstr(fwc->meta.name, "target.spl"))
+        spienc_select_tweak(AIC_SPIENC_HW_TWEAK);
+#endif
     fwc->block_size = 2048;
     fwc->burn_result = 0;
     fwc->run_result = 0;
@@ -212,6 +216,10 @@ void nor_fwc_data_end(struct fwc_info *fwc)
     if (!priv)
         return;
 
+#ifdef AIC_USING_SPIENC
+    if (strstr(fwc->meta.name, "target.spl"))
+        spienc_select_tweak(AIC_SPIENC_USER_TWEAK);
+#endif
     pr_debug("trans len all %d\n", fwc->trans_size);
     free(priv);
 }

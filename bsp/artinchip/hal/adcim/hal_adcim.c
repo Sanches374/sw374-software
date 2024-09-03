@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -106,7 +106,7 @@ int hal_adcim_calibration_set(unsigned int val)
 {
     int cal;
 
-    if (val > 2048) {
+    if (val > 4095) {
         pr_err("The calibration value %d is too big\n", val);
         return -EINVAL;
     }
@@ -160,10 +160,11 @@ u32 hal_adcim_auto_calibration(void)
     return data;
 }
 
-int hal_adcim_adc2voltage(int val, u32 cal_data, int scale, float def_voltage)
+int hal_adcim_adc2voltage(u16 *val, u32 cal_data, int scale, float def_voltage)
 {
-    int new_voltage;
+    int cal_voltage;
     int st_voltage = 0;
+    int cal_val = 0;
 
 #ifdef AIC_SYSCFG_DRV
     st_voltage = syscfg_read_ldo_cfg();
@@ -173,8 +174,17 @@ int hal_adcim_adc2voltage(int val, u32 cal_data, int scale, float def_voltage)
         st_voltage = (int)(def_voltage * AIC_VOLTAGE_ACCURACY);
     }
 
-    new_voltage = (val + ADCIM_CAL_ADC_STANDARD_VAL - cal_data + ADCIM_CAL_ADC_OFFSET_MISMATCH) * st_voltage / AIC_ADC_MAX_VAL;
-    return new_voltage;
+    cal_val = *val + ADCIM_CAL_ADC_STANDARD_VAL - cal_data + ADCIM_CAL_ADC_OFFSET_MISMATCH;
+    if (cal_val >= 0) {
+        *val = cal_val;
+        cal_voltage = *val * st_voltage / AIC_ADC_MAX_VAL;
+    } else {
+        pr_err("Out of the input voltage range - %d \n", cal_val);
+        *val = 0;
+        cal_voltage = 0;
+    }
+
+    return cal_voltage;
 }
 
 void adcim_status_show(void)
@@ -341,7 +351,7 @@ void hal_adcim_set_dcalmask(void)
     int val;
 
     val = adcim_readl(ADCIM_CALCSR);
-    val |= ADCIM_CALCSR_DCAL_MASK;
+    val = val | ADCIM_CALCSR_DCAL_MASK | ADCIM_CALCSR_ADC_ACQ_MASK;
     adcim_writel(val, ADCIM_CALCSR);
 }
 

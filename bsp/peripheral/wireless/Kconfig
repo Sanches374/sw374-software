@@ -21,3 +21,14 @@ menuconfig WIFI_USING_SDIOWIFI_ATBM
     source "bsp/peripheral/wireless/atbm603x/Kconfig.dev"
     endif
 
+menuconfig AIC_WLAN_ASR
+    bool "Using ASR wlan driver"
+    default n
+    depends on AIC_WIRELESS_LAN
+    select RT_USING_TIMER_SOFT
+    select RT_USING_WIFI
+    select RT_USING_SYSTEM_WORKQUEUE
+
+    if AIC_WLAN_ASR
+    source "bsp/peripheral/wireless/asr/Kconfig"
+    endif

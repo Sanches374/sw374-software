@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Artinchip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -20,22 +20,22 @@
 #include <boot.h>
 #include <aic_utils.h>
 #include "fitimage.h"
+#include "of.h"
 
 #define APPLICATION_PART "os"
 #define PAGE_MAX_SIZE    4096
 
 #ifdef AIC_AB_SYSTEM_INTERFACE
 #include <absystem.h>
-
-char target[32] = { 0 };
 #endif
 
 static int do_nand_boot(int argc, char *argv[])
 {
-    int ret = 0;
+    char target[32] __attribute__((unused)) = { 0 };
+    struct spl_load_info info;
     struct mtd_dev *mtd;
     ulong entry_point;
-    struct spl_load_info info;
+    int ret = 0;
 
     mtd_probe();
 
@@ -70,6 +70,9 @@ static int do_nand_boot(int argc, char *argv[])
     ret = spl_load_simple_fit(&info, &entry_point);
     if (ret < 0)
         goto out;
+
+    /* Read dtb from config partition */
+    of_fdt_dt_init_bare_nornand();
 
     boot_app((void *)entry_point);
 

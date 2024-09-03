@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -28,6 +28,11 @@
 #include "mpp_fb.h"
 #endif
 
+#ifdef AIC_USING_GE
+#define SUPPORT_ROTATION
+#include "mpp_ge.h"
+#endif
+
 /* Global macro and variables */
 
 #define VID_BUF_NUM             3
@@ -36,10 +41,11 @@
 
 static bool g_dvp_running = true;
 
-static const char sopts[] = "f:c:h";
+static const char sopts[] = "f:c:a:h";
 static const struct option lopts[] = {
     {"format",        required_argument, NULL, 'f'},
     {"capture",       required_argument, NULL, 'c'},
+    {"angle",         required_argument, NULL, 'a'},
     {"usage",               no_argument, NULL, 'h'},
     {0, 0, 0, 0}
 };
@@ -49,6 +55,7 @@ struct aic_dvp_data {
     int h;
     int frame_size;
     int frame_cnt;
+    int rotation;
     int dst_fmt;  // output format
     struct mpp_video_fmt src_fmt;
     uint32_t num_buffers;
@@ -60,6 +67,9 @@ static struct aic_dvp_data g_vdata = {0};
 static struct mpp_fb *g_fb = NULL;
 static struct aicfb_screeninfo g_fb_info = {0};
 #endif
+#ifdef SUPPORT_ROTATION
+static struct mpp_ge *g_ge_dev = NULL;
+#endif
 
 /* Functions */
 
@@ -68,7 +78,10 @@ static void usage(char *program)
     printf("Usage: %s [options]: \n", program);
     printf("\t -f, --format\t\tformat of input video, NV16/NV12 etc\n");
     printf("\t -c, --count\t\tthe number of capture frame.(0 means infinity) \n");
-    printf("\t -u, --usage \n");
+#ifdef SUPPORT_ROTATION
+    printf("\t -a, --angle\t\tthe angle of rotation \n");
+#endif
+    printf("\t -h, --usage \n");
     printf("\n");
     printf("Example: %s -f nv16 -c 1\n", program);
 }
@@ -270,6 +283,76 @@ int video_layer_disable(void)
     return ret;
 }
 
+#ifdef SUPPORT_ROTATION
+int do_rotate(struct aic_dvp_data *vdata, int index)
+{
+    struct ge_bitblt blt = {0};
+    struct mpp_buf  *src = &blt.src_buf;
+    struct mpp_buf  *dst = &blt.dst_buf;
+    struct vin_video_buf *binfo = &vdata->binfo;
+    int ret = 0;
+
+    if (vdata->dst_fmt == MPP_FMT_NV16) {
+        src->format = MPP_FMT_NV16;
+        dst->format = MPP_FMT_NV16;
+    } else {
+        src->format = MPP_FMT_NV12;
+        dst->format = MPP_FMT_NV12;
+    }
+
+    src->buf_type = MPP_PHY_ADDR;
+    src->phy_addr[0] = binfo->planes[index * VID_BUF_PLANE_NUM].buf;
+    src->phy_addr[1] = binfo->planes[index * VID_BUF_PLANE_NUM + 1].buf;
+    src->stride[0] = vdata->w;
+    src->stride[1] = vdata->w;
+    src->size.width = vdata->w;
+    src->size.height = vdata->h;
+
+    dst->buf_type = MPP_PHY_ADDR;
+    dst->phy_addr[0] = binfo->planes[VID_BUF_NUM * VID_BUF_PLANE_NUM].buf;
+    dst->phy_addr[1] = binfo->planes[VID_BUF_NUM * VID_BUF_PLANE_NUM + 1].buf;
+    if (vdata->rotation == MPP_ROTATION_0
+        || vdata->rotation == MPP_ROTATION_180) {
+        dst->stride[0] = vdata->w;
+        dst->stride[1] = vdata->w;
+        dst->size.width = vdata->w;
+        dst->size.height = vdata->h;
+    } else {
+        dst->stride[0] = vdata->h;
+        dst->stride[1] = vdata->h;
+        dst->size.width = vdata->h;
+        dst->size.height = vdata->w;
+    }
+    blt.ctrl.flags = vdata->rotation;
+#if 0
+    printf("GE: %d(%d) * %d -> %d * %d, canvas %d(%d) * %d\n",
+           src->size.width, src->stride[0],
+           src->size.height,
+           dst->crop.width, dst->crop.height,
+           dst->size.width, dst->stride[0],
+           dst->size.height);
+#endif
+    ret =  mpp_ge_bitblt(g_ge_dev, &blt);
+    if (ret < 0) {
+        pr_err("GE bitblt failed\n");
+        return -1;
+    }
+
+    ret = mpp_ge_emit(g_ge_dev);
+    if (ret < 0) {
+        pr_err("GE emit failed\n");
+        return -1;
+    }
+
+    ret = mpp_ge_sync(g_ge_dev);
+    if (ret < 0) {
+        pr_err("GE sync failed\n");
+        return -1;
+    }
+    return 0;
+}
+#endif
+
 int video_layer_set(struct aic_dvp_data *vdata, int index)
 {
 #ifdef AIC_DISPLAY_DRV
@@ -298,16 +381,24 @@ int video_layer_set(struct aic_dvp_data *vdata, int index)
     layer.pos.x = g_fb_info.width - vdata->w;
     layer.pos.y = 0;
 #endif
-    layer.buf.size.width = vdata->w;
-    layer.buf.size.height = vdata->h;
+    if (vdata->rotation == MPP_ROTATION_0
+        || vdata->rotation == MPP_ROTATION_180) {
+        layer.buf.size.width = vdata->w;
+        layer.buf.size.height = vdata->h;
+    } else {
+        layer.buf.size.width = vdata->h;
+        layer.buf.size.height = vdata->w;
+    }
+
     if (vdata->dst_fmt == MPP_FMT_NV16)
         layer.buf.format = MPP_FMT_NV16;
     else
         layer.buf.format = MPP_FMT_NV12;
+
     layer.buf.buf_type = MPP_PHY_ADDR;
 
     for (i = 0; i < VID_BUF_PLANE_NUM; i++) {
-        layer.buf.stride[i] = vdata->w;
+        layer.buf.stride[i] = layer.buf.size.width;
         layer.buf.phy_addr[i] = binfo->planes[index * VID_BUF_PLANE_NUM + i].buf;
     }
 
@@ -332,7 +423,7 @@ static void test_dvp_thread(void *arg)
     if (dvp_request_buf(&g_vdata.binfo) < 0)
         return;
 
-    for (i = 0; i < g_vdata.binfo.num_buffers; i++) {
+    for (i = 0; i < VID_BUF_NUM; i++) {
         if (dvp_queue_buf(i) < 0)
             return;
     }
@@ -358,8 +449,19 @@ static void test_dvp_thread(void *arg)
         if (dvp_dequeue_buf(&index) < 0)
             break;
         // pr_debug("Set the buf %d to video layer\n", index);
-        if (video_layer_set(&g_vdata, index) < 0)
-            break;
+        if (g_vdata.rotation) {
+#ifdef SUPPORT_ROTATION
+            if (do_rotate(&g_vdata, index) < 0)
+                break;
+
+            if (video_layer_set(&g_vdata, VID_BUF_NUM) < 0)
+                break;
+#endif
+        } else {
+            if (video_layer_set(&g_vdata, index) < 0)
+                break;
+        }
+
         dvp_queue_buf(index);
 
         if (i && (i % 1000 == 0)) {
@@ -378,9 +480,17 @@ static void test_dvp_thread(void *arg)
     if (g_fb) {
         video_layer_disable();
         mpp_fb_close(g_fb);
+        g_fb = NULL;
     }
 
-    pr_info("Total receive %d frames, so exit\n");
+#ifdef SUPPORT_ROTATION
+    if (g_ge_dev) {
+        mpp_ge_close(g_ge_dev);
+        g_ge_dev = NULL;
+    }
+#endif
+
+    pr_info("Total receive %d frames, so exit\n", i);
 }
 
 static void cmd_test_dvp(int argc, char **argv)
@@ -397,11 +507,17 @@ static void cmd_test_dvp(int argc, char **argv)
         case 'f':
             if (strncasecmp("nv12", optarg, strlen(optarg)) == 0)
                 g_vdata.dst_fmt = MPP_FMT_NV12;
-            continue;
+            break;
 
         case 'c':
             g_vdata.frame_cnt = str2int(optarg);
-            continue;
+            break;
+
+#ifdef SUPPORT_ROTATION
+        case 'a':
+            g_vdata.rotation = (str2int(optarg) % 360) / 90;
+            break;
+#endif
 
         case 'h':
             usage(argv[0]);
@@ -416,7 +532,7 @@ static void cmd_test_dvp(int argc, char **argv)
     pr_info("DVP out format: %s\n",
             g_vdata.dst_fmt == MPP_FMT_NV16 ? "NV16" : "NV12");
 
-    if (mpp_vin_init(CAMERA_NAME_OV))
+    if (mpp_vin_init(CAMERA_DEV_NAME))
         return;
 
     if (sensor_get_fmt() < 0)
@@ -436,16 +552,30 @@ static void cmd_test_dvp(int argc, char **argv)
         goto error_out;
     }
 
+#ifdef SUPPORT_ROTATION
+    if (g_vdata.rotation) {
+        g_ge_dev = mpp_ge_open();
+        if (!g_ge_dev)
+            goto error_out;
+        printf("Rotate %d by GE\n", g_vdata.rotation * 90);
+    }
+#endif
+
     if (get_fb_info() < 0)
         goto error_out;
 
-    if (set_ui_layer_alpha(15) < 0)
+    if (set_ui_layer_alpha(0) < 0)
         goto error_out;
 
     if (dvp_cfg(g_vdata.w, g_vdata.h, g_vdata.dst_fmt) < 0)
         goto error_out;
 
+#ifdef SUPPORT_ROTATION
+    /* Use the last buf connect GE and Video layer */
+    g_vdata.num_buffers = VID_BUF_NUM + 1;
+#else
     g_vdata.num_buffers = VID_BUF_NUM;
+#endif
 
     thid = aicos_thread_create("test_dvp", 4096, 0, test_dvp_thread, NULL);
     if (thid == NULL) {
@@ -456,7 +586,15 @@ static void cmd_test_dvp(int argc, char **argv)
 
 error_out:
     mpp_vin_deinit();
-    if (g_fb)
+#ifdef SUPPORT_ROTATION
+    if (g_ge_dev) {
+        mpp_ge_close(g_ge_dev);
+        g_ge_dev = NULL;
+    }
+#endif
+    if (g_fb) {
         mpp_fb_close(g_fb);
+        g_fb = NULL;
+    }
 }
 MSH_CMD_EXPORT_ALIAS(cmd_test_dvp, test_dvp, Test DVP and camera);

@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "usbd_core.h"
+#include "usb_otg.h"
 
 /* general descriptor field offsets */
 #define DESC_bLength         0 /** Length offset */
@@ -646,7 +647,9 @@ static bool usbd_std_endpoint_req_handler(struct usb_setup_packet *setup, uint8_
             break;
         case USB_REQUEST_CLEAR_FEATURE:
             if (setup->wValue == USB_FEATURE_ENDPOINT_HALT) {
+                #ifndef LPKG_CHERRYUSB_DEVICE_MSC
                 USB_LOG_ERR("ep:%02x clear halt\r\n", ep);
+                #endif
 
                 usbd_ep_clear_stall(ep);
                 break;
@@ -999,6 +1002,7 @@ void usbd_event_reset_handler(void)
 }
 
 extern uint8_t ep0_ctrl_stage;
+extern uint8_t ep0_ctlwr_rd_flg;
 
 void usbd_event_ep0_setup_complete_handler(uint8_t *psetup)
 {
@@ -1024,7 +1028,7 @@ void usbd_event_ep0_setup_complete_handler(uint8_t *psetup)
     /* handle class request when all the data is received */
     if (setup->wLength && ((setup->bmRequestType & USB_REQUEST_DIR_MASK) == USB_REQUEST_DIR_OUT)) {
         USB_LOG_DBG("[2]: Control write transfer start reading %d bytes from ep0\r\n", setup->wLength);
-        aicos_udelay(200);
+        ep0_ctlwr_rd_flg = 1;
         usbd_ep_start_read(USB_CONTROL_OUT_EP0, g_usbd_core.ep0_data_buf, setup->wLength);
         return;
     }
@@ -1223,12 +1227,19 @@ bool usb_device_is_configured(void)
 
 int usbd_initialize(void)
 {
-    return usb_dc_init();
+    int ret = 0;
+
+    #ifdef AIC_USING_USB0_OTG
+    ret = usb_otg_register_device(NULL);
+    #endif
+    if (!ret)
+        return usb_dc_init();
+    else
+        return 0;
 }
 
 int usbd_deinitialize(void)
 {
-    g_usbd_core.intf_offset = 0;
     usb_dc_deinit();
     return 0;
 }

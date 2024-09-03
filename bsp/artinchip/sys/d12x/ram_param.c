@@ -29,18 +29,26 @@ struct _psram_info {
     struct _psram_id psram_id;
 };
 
-#define PSRAM_TABLE_INFO                                        \
-{                                                               \
-    /* default 8M */                                            \
-    {0x00, PSRAM_PARALLEL, 0x800000, {APS3208K, 0x80c980c9}},   \
-    /* D122BAV 4M */                                            \
-    {0x01, PSRAM_SINGLE, 0x400000, {APS3208K, 0x80c980c9}},     \
-    /* D122BBV 8M */                                            \
-    {0x02, PSRAM_PARALLEL, 0x800000, {APS3208K, 0x80c980c9}},   \
-    /* D121BAV 4M */                                            \
-    {0x03, PSRAM_SINGLE, 0x400000, {APS3208K, 0x80c980c9}},     \
-    /* D121BBV 8M */                                            \
-    {0x04, PSRAM_PARALLEL, 0x800000, {APS3208K, 0x80c980c9}},   \
+#define PSRAM_TABLE_INFO                                                        \
+{                                                                               \
+    /* default 8M */                                                            \
+    {0x00, PSRAM_PARALLEL, 0x800000, {APS3208K, 0x80c980c9}},                   \
+    /* D122BAV 4M */                                                            \
+    {0x01, PSRAM_SINGLE, 0x400000, {APS3208K, 0x80c980c9}},                     \
+    /* D122BBV 8M */                                                            \
+    {0x02, PSRAM_PARALLEL, 0x800000, {APS3208K, 0x80c980c9}},                   \
+    /* D121BAV 4M */                                                            \
+    {0x03, PSRAM_SINGLE, 0x400000, {APS3208K, 0x80c980c9}},                     \
+    /* D121BBV 8M */                                                            \
+    {0x04, PSRAM_PARALLEL, 0x800000, {APS3208K, 0x80c980c9}},                   \
+    /* D122BCV1 16M SCKW18X128160AAE1 */                                        \
+    {0x05, PSRAM_PARALLEL, 0x1000000, {SCKW18_12816O, 0xc59ac59a}},  \
+    /* D122BCV2 16M AP12816 */                                                  \
+    {0x05, PSRAM_PARALLEL, 0x1000000, {APS12816O, 0xdd8ddd8d}},      \
+    /* TR230 8M */                                                              \
+    {0xA1, PSRAM_PARALLEL, 0x800000, {APS3208K, 0x80c980c9}},        \
+    /* JYX58 8M */                                                              \
+    {0xB1, PSRAM_PARALLEL, 0x800000, {APS3208K, 0x80c980c9}},        \
 }
 
 struct _psram_info psram_table_info[] = PSRAM_TABLE_INFO;

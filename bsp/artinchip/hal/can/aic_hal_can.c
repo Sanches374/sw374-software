@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Artinchip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -301,10 +301,13 @@ static void hal_can_bus_error_msg(can_handle *phandle)
     for (i = 0; i < ARRAY_SIZE(bus_err_dir); i++) {
         if (errdir == bus_err_dir[i].code) {
             hal_log_err("%s, ", bus_err_dir[i].msg);
-            if (i)
+            if (i) {
                 phandle->status.recverrcnt++;
-            else
+            } else {
                 phandle->status.snderrcnt++;
+                if (phandle->callback)
+                    phandle->callback(phandle, (void *)CAN_EVENT_TX_FAIL);
+            }
             break;
         }
     }
@@ -333,6 +336,14 @@ static void hal_can_bus_error_msg(can_handle *phandle)
     for (i = 0; i < ARRAY_SIZE(bus_err_code); i++) {
         if (errcode == bus_err_code[i].code) {
             hal_log_err("%s\n", bus_err_code[i].msg);
+            switch (i) {
+            case CAN_BUS_ERRCODE_CRCERRCNT:
+                phandle->status.crcerrcnt++;
+                break;
+            case CAN_BUS_ERRCODE_ACKERRCNT:
+                phandle->status.ackerrcnt++;
+                break;
+            }
             break;
         }
     }
@@ -561,7 +572,8 @@ static int hal_can_get_baudrate(can_handle *phandle, u32 *baudrate)
     return 0;
 }
 
-static int hal_can_set_filter(can_handle *phandle, can_filter_mode_t mode, can_filter_t *rxcode, can_filter_t *rxmask, u8 filter_ext)
+static int hal_can_set_filter(can_handle *phandle, can_filter_mode_t mode,
+                    can_filter_t *rxcode, can_filter_t *rxmask, u8 filter_ext)
 {
     u32 rxcode0, rxcode1, rxcode2, rxcode3;
     u32 rxmask0, rxmask1, rxmask2, rxmask3;
@@ -624,7 +636,7 @@ static int hal_can_set_filter(can_handle *phandle, can_filter_mode_t mode, can_f
             rxcode2 = (rxcode->dfs.id_filter1 >> 3) & 0xff;
             rxcode3 = ((rxcode->dfs.id_filter1 & 0x7) << 5) |
                       ((rxcode->dfs.rtr_filter1 & 0x1) << 4) |
-                      (rxcode->dfs.id_filter0 & 0xf);
+                      (rxcode->dfs.data0_filter0 & 0xf);
 
             rxmask0 = (rxmask->dfs.id_filter0 >> 3) & 0xff;
             rxmask1 = ((rxmask->dfs.id_filter0 & 0x7) << 5) |
@@ -633,7 +645,7 @@ static int hal_can_set_filter(can_handle *phandle, can_filter_mode_t mode, can_f
             rxmask2 = (rxmask->dfs.id_filter1 >> 3) & 0xff;
             rxmask3 = ((rxmask->dfs.id_filter1 & 0x7) << 5) |
                       ((rxmask->dfs.rtr_filter1 & 0x1) << 4) |
-                      (rxmask->dfs.id_filter0 & 0xf);
+                      (rxmask->dfs.data0_filter0 & 0xf);
         }
         break;
     case FILTER_CLOSE:

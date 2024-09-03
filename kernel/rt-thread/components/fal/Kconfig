@@ -49,6 +49,10 @@ if RT_USING_FAL
         config FAL_USING_NOR_FLASH_DEV_NAME
             string "The name of the device used by FAL"
             default "norflash0"
+        config FAL_USING_NOR_FLASH_DEV_NAME1
+            depends on AIC_SECONED_FLASH_NOR
+            string "The name of the device1 used by FAL"
+            default "norflash1"
     endif
 
     config FAL_BLK_DEVICE_RDONLY

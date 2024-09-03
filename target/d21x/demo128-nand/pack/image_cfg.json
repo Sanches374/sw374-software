@@ -2,13 +2,21 @@
     "spi-nand": { // Device, The name should be the same with string in image:info:media:type
         "size": "128m", // Size of SPI NAND
         "partitions": {
-            "spl": { "size": "1m" },
+            "spl":      { "size": "1m" },
             "env":      { "size": "256k" },
             "env_r":    { "size": "256k" },
-            "os":  { "size": "8m" },
-            "rodata":  { "size": "12m" },
+            "os":       { "size": "4m" },
+            "os_r":     { "size": "4m" },
+            "rodata":   { "size": "12m" },
+            "rodata_r": { "size": "12m" },
             "data": {
-                "size": "50m",
+                "size": "40m",
+                "nftl": { // Volume in NFTL device
+                    "data": { "size": "-" },
+                },
+            },
+            "data_r": {
+                "size": "40m",
                 "nftl": { // Volume in NFTL device
                     "data": { "size": "-" },
                 },
@@ -25,7 +33,7 @@
                 "device_id": 0,
                 "array_organization": [
                     { "page": "2k", "block": "128k", "oob": "64" },
-        //            { "page": "4k", "block": "256k", "oob": "128" },
+            //        { "page": "4k", "block": "256k", "oob": "128" },
                 ],
             }
         },
@@ -69,8 +77,8 @@
             },
         },
     },
-    "temporary": { // Pre-proccess to generate image components from raw data
-        "aicboot": {
+    "pre-process": { // Pre-proccess to generate image components from raw data
+        "aicimage": { // Create aic boot image
             "usbupg-ddr-init.aic": { // No loader, only PreBootProgram to initialize DDR
                 "head_ver": "0x00010001",
                 "resource": {
@@ -78,27 +86,38 @@
                     "pbp": "d21x.pbp",
                 },
             },
-            "bootloader.aic": {
+            "pbp_ext.aic": {
+                "head_ver": "0x00010001",
+                "resource": {
+                    "pbp": "d21x.pbp",
+                    "private": "ddr_init.bin",
+                },
+                // combine to use with loader.aic
+                "with_ext": "true",
+            },
+            "loader.aic": {
                 "head_ver": "0x00010001",
                 "loader": {
                     "file": "bootloader.bin",
-                    "load address": "0x42000000",
-                     "entry point":  "0x42000100",
+                    "load address": "0x40200000",
+                    "entry point":  "0x40200100", // 256 byte aic header
                 },
                 "resource": {
                     "private": "ddr_init.bin",
-                    "pbp": "d21x.pbp",
                 },
             },
         },
-        "uboot_env": {
+        "concatenate": { // cat files in order
+            "bootloader.aic": ["pbp_ext.aic", "loader.aic"],
+        },
+        "uboot_env": { // Create env data from txt
             "env.bin": {
                 "file": "env.txt",
                 "size": "4096",
                 "redundant": "enable",
             },
         },
-        "itb": {
+        "itb": { // Create itb image from its
             "d21x_os.itb": {
                 "its": "d21x_os.its"
             },

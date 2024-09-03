@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Artinchip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -80,7 +80,7 @@ static int spi_nor_write_sr1_and_check(sfud_flash *flash, uint8_t sr1)
     int ret;
     uint8_t status;
 
-    ret = sfud_write_status(flash, false, sr1);
+    ret = sfud_write_status(flash, true, sr1);
     if (ret)
         return ret;
 

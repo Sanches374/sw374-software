@@ -1,5 +1,8 @@
 /*
- * Copyright (C) 2023 ArtInChip Technology Co.,Ltd
+ * Copyright (C) 2023-2024 ArtInChip Technology Co.,Ltd
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
  * Author: Dehuang Wu <dehuang.wu@artinchip.com>
  */
 
@@ -11,6 +14,7 @@
  * Save boot parameters and context when save_boot_params is called.
  */
 union boot_params boot_params_stash __attribute__((section(".data")));
+struct boot_args boot_arg __attribute__((section(".data")));
 
 enum boot_reason aic_get_boot_reason(void)
 {
@@ -76,4 +80,9 @@ unsigned long aic_timer_get_us(void)
                    : "=r"(tick)::"memory"); /* 0xc01 is csr time. */
 
     return (tick >> 2);
+}
+
+void *aic_get_boot_args(void)
+{
+    return (void *)&boot_arg;
 }

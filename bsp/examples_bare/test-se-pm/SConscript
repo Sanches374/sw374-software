@@ -5,8 +5,8 @@ from building import *
 cwd = GetCurrentDir()
 CPPPATH = []
 src = []
-if GetDepend('KERNEL_BAREMETAL') and GetDepend('AIC_SE_PM_DRV_TEST'):
-    src += Glob('test_se_pm.c')
+if GetDepend('KERNEL_BAREMETAL') and GetDepend('AIC_PM_DRV_TEST'):
+    src += Glob('*.c')
 
 group = DefineGroup('test-se-pm', src, depend = [''], CPPPATH = CPPPATH)
 

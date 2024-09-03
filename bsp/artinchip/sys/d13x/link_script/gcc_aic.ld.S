@@ -117,6 +117,7 @@ PROVIDE (__psram_cma_start         = __psram_sw_end);
 PROVIDE (__psram_cma_end           = 0x40000000 + AIC_PSRAM_SIZE);
 PROVIDE (__psram_start             = 0x40000000);
 PROVIDE (__psram_end               = 0x40000000 + AIC_PSRAM_SIZE);
+PROVIDE (__dtb_pos_f               = __psram_end - 0x40000);
 
 #ifdef AIC_TCM_EN
 PROVIDE (__itcm_heap_end           = __itcm_end);

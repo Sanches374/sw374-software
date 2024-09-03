@@ -123,6 +123,9 @@
 #define CAN_TSEG_MIN                       7
 #define CAN_ERRP_THRESHOLD                 127
 
+#define CAN_BUS_ERRCODE_CRCERRCNT          13
+#define CAN_BUS_ERRCODE_ACKERRCNT          15
+
 typedef enum {
     ACTIVE_STATUS,
     WARNING_STATUS,
@@ -180,6 +183,8 @@ typedef struct can_status {
     u32    othererrcnt;
     u32    recvpkgcnt;
     u32    sndpkgcnt;
+    u32    ackerrcnt;
+    u32    crcerrcnt;
     u32    rxerr;
     u32    txerr;
 } can_status_t;

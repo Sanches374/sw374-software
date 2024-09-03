@@ -1,9 +1,9 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
- * Authors: Siyao.Li <lisy@artinchip.com>
+ * Authors: Siyao.Li <siyao.li@artinchip.com>
  */
 #include <stdlib.h>
 #include <string.h>
@@ -88,12 +88,13 @@ static int gpai_get_adc_period(struct aic_gpai_ch_info ch_info,
         rt_hw_interrupt_enable(level);
 
         for (int i = 0; i < ch_info.fifo_valid_cnt; i++) {
-            rt_kprintf("[%d] GPAI ch%d: %d\n", cnt, ch, ch_info.adc_values[i]);
             if (ch_info.adc_values[i]) {
-                voltage = hal_adcim_adc2voltage(ch_info.adc_values[i],
+                voltage = hal_adcim_adc2voltage(&ch_info.adc_values[i],
                                                 g_cal_param,
                                                 AIC_GPAI_VOLTAGE_ACCURACY,
                                                 def_voltage);
+                rt_kprintf("[%d] GPAI ch%d: %d\n", cnt, ch,
+                           ch_info.adc_values[i]);
                 rt_kprintf("GPAI voltage:%d.%04d v\n", voltage / scale,
                            voltage % scale);
             }
@@ -114,7 +115,7 @@ static int gpai_get_adc_single(struct aic_gpai_ch_info ch_info,
     int voltage = 0;
     int scale = AIC_GPAI_VOLTAGE_ACCURACY;
     int sample_cnt = g_sample_num;
-    int adc_val;
+    u16 adc_val;
     int ch = ch_info.chan_id;
 
     g_cal_param = hal_adcim_auto_calibration();
@@ -131,11 +132,11 @@ static int gpai_get_adc_single(struct aic_gpai_ch_info ch_info,
 
         aicos_msleep(10);
         adc_val = ch_info.adc_values[0];
-        rt_kprintf("[%d] GPAI ch%d: %d\n", cnt, ch, adc_val);
         if (adc_val) {
-            voltage = hal_adcim_adc2voltage(adc_val, g_cal_param,
+            voltage = hal_adcim_adc2voltage(&adc_val, g_cal_param,
                                             AIC_GPAI_VOLTAGE_ACCURACY,
                                             def_voltage);
+            rt_kprintf("[%d] GPAI ch%d: %d\n", cnt, ch, adc_val);
             rt_kprintf("GPAI voltage:%d.%04d v\n", voltage / scale,
                        voltage % scale);
         }

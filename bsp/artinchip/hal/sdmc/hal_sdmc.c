@@ -110,6 +110,7 @@ void hal_sdmc_idma_prepare(struct aic_sdmc_host *host,
     unsigned long ctrl;
     unsigned int i = 0, flags, cnt, blk_cnt = blks;
     ulong data_start, data_end;
+    unsigned int blk_cnt_in_page = PAGE_SIZE / blksize;
 
     data_start = (ulong)cur_idma;
     sdmc_writel(host, SDMC_IDMASADDR, (ulong)cur_idma);
@@ -117,11 +118,11 @@ void hal_sdmc_idma_prepare(struct aic_sdmc_host *host,
     do {
         flags = SDMC_IDMAC_OWN | SDMC_IDMAC_CH;
         flags |= (i == 0) ? SDMC_IDMAC_FS : 0;
-        if (blk_cnt <= 8) {
+        if (blk_cnt <= blk_cnt_in_page) {
             flags |= SDMC_IDMAC_LD;
             cnt = blksize * blk_cnt;
         } else {
-            cnt = blksize * 8;
+            cnt = blksize * blk_cnt_in_page;
         }
 
         hal_sdmc_idma_prepare_desc(cur_idma, flags, cnt,
@@ -129,9 +130,9 @@ void hal_sdmc_idma_prepare(struct aic_sdmc_host *host,
                                    (i * PAGE_SIZE));
 
         cur_idma++;
-        if (blk_cnt <= 8)
+        if (blk_cnt <= blk_cnt_in_page)
             break;
-        blk_cnt -= 8;
+        blk_cnt -= blk_cnt_in_page;
         i++;
     } while (1);
 

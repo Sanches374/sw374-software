@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Artinchip Technology Co., Ltd
+ * Copyright (c) 2022-2024, Artinchip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -13,7 +13,6 @@
 #include <console.h>
 #include "hal_tsen.h"
 #include "hal_adcim.h"
-#include "mpp_fb.h"
 #include "test_tsen.h"
 
 static void cmd_tsen_usage(void)

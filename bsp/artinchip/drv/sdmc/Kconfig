@@ -23,6 +23,10 @@ choice
         bool "sdmc 8-bit mode"
 endchoice
 
+    config AIC_SDMC0_DDR_MODE
+        bool "Using DDR mode"
+        default n
+
     config AIC_SDMC0_DRV_PHASE
         int "SDMC0 driver phase"
         range 0 3
@@ -32,6 +36,11 @@ endchoice
         int "SDMC0 sample phase"
         range 0 3
         default 0
+
+    config AIC_SDMC0_CLK_FREQ
+        int "SDMC0 CMU clock frequency"
+        range 31500000 200000000
+        default 100000000
 
 endmenu
 
@@ -68,6 +77,11 @@ endchoice
         range 0 3
         default 0
 
+    config AIC_SDMC1_CLK_FREQ
+        int "SDMC1 CMU clock frequency"
+        range 31500000 200000000
+        default 100000000
+
 endmenu
 
 # SDMC2 parameter
@@ -98,6 +112,11 @@ endchoice
         int "SDMC2 sample phase"
         range 0 3
         default 0
+
+    config AIC_SDMC2_CLK_FREQ
+        int "SDMC2 CMU clock frequency"
+        range 31500000 200000000
+        default 100000000
 
 endmenu
 

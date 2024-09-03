@@ -1,6 +1,7 @@
 /*
-* Copyright (C) 2020-2022 Artinchip Technology Co. Ltd
+* Copyright (C) 2020-2024 ArtInChip Technology Co. Ltd
 *
+*  SPDX-License-Identifier: Apache-2.0
 *  author: <qi.xu@artinchip.com>
 *  Desc: png decode
 *
@@ -347,6 +348,20 @@ static int decode_fctl_chunk(struct png_dec_ctx *s, uint32_t length)
 	return 0;
 }
 
+#ifdef AIC_VE_DRV_V10
+static int memset_last_row_data(struct png_dec_ctx *s)
+{
+    // if filter type of first line > 1.
+    // memset the last row buffer
+    unsigned char* addr = (unsigned char*)(unsigned long)s->curr_frame->mpp_frame.buf.phy_addr[0] + s->stride*(s->height-2);
+    memset(addr, 0, s->stride*2);
+    aicos_dcache_clean_range(addr, s->stride*2);
+    // ----- end ----------
+
+    return 0;
+}
+#endif
+
 static int decode_frame_common(struct png_dec_ctx *s)
 {
 	uint32_t tag, length;
@@ -449,7 +464,9 @@ exit_loop:
 		pm_reclaim_ready_packet(s->decoder.pm, s->curr_packet);
 		return DEC_NO_EMPTY_FRAME;
 	}
-
+#ifdef AIC_VE_DRV_V10
+	memset_last_row_data(s);
+#endif
 	logd("png_hardware_decode vir:%p phy: %lx %d", s->idat_mpp_buf->vir_addr,
 		s->idat_mpp_buf->phy_addr,s->idat_mpp_buf->size);
 

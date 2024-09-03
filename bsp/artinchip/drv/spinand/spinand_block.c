@@ -12,22 +12,12 @@
 #include "spinand.h"
 #include "spinand_block.h"
 #include "spinand_parts.h"
+#include <bbt.h>
 
 #ifdef AIC_NFTL_SUPPORT
 #include <nftl_api.h>
 #endif
 
-struct spinand_blk_device {
-    struct rt_device parent;
-    struct rt_device_blk_geometry geometry;
-    struct rt_mtd_nand_device *mtd_device;
-#ifdef AIC_NFTL_SUPPORT
-    struct nftl_api_handler_t *nftl_handler;
-#endif
-    char name[32];
-    enum part_attr attr;
-    u8 *pagebuf;
-};
 #ifdef AIC_NFTL_SUPPORT
 rt_size_t rt_spinand_read_nftl(rt_device_t dev, rt_off_t pos, void *buffer,
                                     rt_size_t size)
@@ -103,8 +93,9 @@ rt_size_t rt_spinand_read_nonftl(rt_device_t dev, rt_off_t pos,
     int ret = 0;
     struct spinand_blk_device *part = (struct spinand_blk_device *)dev;
     struct rt_mtd_nand_device *device = part->mtd_device;
-    int start_page;
     u8 *copybuf = NULL;
+    int start_page = 0;
+    u32 pos_block = 0;
     u16 copysize;
     rt_size_t sectors_read = 0;
     u8 sectors_per_page = device->page_size / part->geometry.bytes_per_sector;
@@ -114,19 +105,13 @@ rt_size_t rt_spinand_read_nonftl(rt_device_t dev, rt_off_t pos,
 
     pr_debug("pos = %d, size = %d\n", pos, size);
 
-    start_page =
-        pos / sectors_per_page + device->block_start * device->pages_per_block;
-
+    start_page = pos / sectors_per_page + device->block_start * device->pages_per_block;
     block = start_page / device->pages_per_block;
-    /* Search for the first good block after the given offset */
-    while (device->ops->check_block(device, block)) {
-        pr_warn("Find a bad block, pos adjust to the next block\n");
-        pos += device->pages_per_block * sectors_per_page;
-        block++;
-    }
-
-    start_page =
-        pos / sectors_per_page + device->block_start * device->pages_per_block;
+    pos_block = device->ops->get_block_status(device, block);
+    pr_debug("block = %d, pos_block = %d\n", block, pos_block);
+    block += pos_block;
+    pos += pos_block * device->pages_per_block * sectors_per_page;
+    start_page = pos / sectors_per_page + device->block_start * device->pages_per_block;
 
     /*pos is not aligned with page, read unalign part first*/
     if (pos % sectors_per_page) {
@@ -197,10 +182,10 @@ exit_rt_spinand_read_malloc:
     while (size > sectors_read) {
         if (start_page / device->pages_per_block != block) {
             block = start_page / device->pages_per_block;
-            while (device->ops->check_block(device, block)) {
-                pr_warn("Find a bad block, pos adjust to the next block\n");
-                block++;
-                start_page += device->pages_per_block;
+            if (device->ops->check_block(device, block)) {
+                pos_block = device->ops->get_block_status(device, block);
+                block += pos_block;
+                start_page += pos_block * device->pages_per_block;
             }
         }
 
@@ -236,6 +221,25 @@ rt_size_t rt_spinand_write_nonftl(rt_device_t dev, rt_off_t pos,
 
 rt_err_t rt_spinand_init_nonftl(rt_device_t dev)
 {
+    u32 bad_block_pos = 0;
+    struct spinand_blk_device *part = (struct spinand_blk_device *)dev;
+    struct rt_mtd_nand_device *device = part->mtd_device;
+    rt_uint32_t block;
+
+    assert(part != RT_NULL);
+
+    for (block = device->block_start; block < device->block_end; block++) {
+        if (device->ops->check_block(device, block)) {
+            pr_err("Find a bad block, block: %u.\n", block);
+            /* Find next good block. */
+            do {
+                bad_block_pos++;
+            } while (device->ops->check_block(device, block + bad_block_pos));
+            device->ops->set_block_status(device, block, bad_block_pos, BBT_BLOCK_FACTORY_BAD);
+        } else {
+            device->ops->set_block_status(device, block, bad_block_pos, BBT_BLOCK_GOOD);
+        }
+    }
     return 0;
 }
 
@@ -254,9 +258,8 @@ static rt_err_t rt_spinand_init(rt_device_t dev)
 #else
         return rt_spinand_init_nonftl(dev);
 #endif
-    } else {
-        return rt_spinand_init_nonftl(dev);
     }
+    return rt_spinand_init_nonftl(dev);
 }
 
 static rt_err_t rt_spinand_control(rt_device_t dev, int cmd, void *args)
@@ -303,9 +306,8 @@ static rt_size_t rt_spinand_write(rt_device_t dev, rt_off_t pos,
 #else
         return rt_spinand_write_nonftl(dev, pos, buffer, size);
 #endif
-    } else {
-        return rt_spinand_write_nonftl(dev, pos, buffer, size);
     }
+    return rt_spinand_write_nonftl(dev, pos, buffer, size);
 }
 
 static rt_size_t rt_spinand_read(rt_device_t dev, rt_off_t pos, void *buffer,
@@ -319,9 +321,8 @@ static rt_size_t rt_spinand_read(rt_device_t dev, rt_off_t pos, void *buffer,
 #else
         return rt_spinand_read_nonftl(dev, pos, buffer, size);
 #endif
-    } else {
-        return rt_spinand_read_nonftl(dev, pos, buffer, size);
     }
+    return rt_spinand_read_nonftl(dev, pos, buffer, size);
 }
 
 static rt_err_t rt_spinand_close(rt_device_t dev)
@@ -334,9 +335,8 @@ static rt_err_t rt_spinand_close(rt_device_t dev)
 #else
         return rt_spinand_nonftl_close(dev);
 #endif
-    } else {
-        return rt_spinand_nonftl_close(dev);
     }
+    return rt_spinand_nonftl_close(dev);
 }
 
 #ifdef RT_USING_DEVICE_OPS

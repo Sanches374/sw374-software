@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -22,6 +22,9 @@
 #ifdef AIC_DMA_DRV
 #include "drv_dma.h"
 #endif
+#ifdef AIC_GPIO_DRV
+#include "aic_drv_gpio.h"
+#endif
 
 #ifdef AIC_USING_SID
 #include "efuse.h"
@@ -29,6 +32,10 @@
 
 #ifdef AIC_OSR_CE_DRV
 #include <osrce.h>
+#endif
+
+#ifdef LPKG_CHERRYUSB_OTG
+#include <usb_otg.h>
 #endif
 
 #ifdef LPKG_CHERRYUSB_HOST
@@ -104,6 +111,14 @@ int main(void)
 
 #ifdef AIC_DMA_DRV
     drv_dma_init();
+#endif
+
+#ifdef AIC_RTC_DRV
+    drv_rtc_init();
+#endif
+
+#ifdef AIC_GPIO_DRV
+    drv_pin_init();
 #endif
 
 #ifdef TLSF_MEM_HEAP
@@ -188,15 +203,8 @@ int main(void)
 #endif
 #ifdef AIC_WRI_DRV
     aic_get_reboot_reason();
+    aic_clr_reboot_reason();
     aic_show_startup_time();
-#endif
-
-#ifdef LPKG_CHERRYUSB_HOST
-    usbh_init();
-    while(1)
-    {
-        usbh_hub_poll();
-    }
 #endif
 
 #ifdef LPKG_LWIP_EXAMPLES
@@ -210,14 +218,14 @@ int main(void)
 #endif /* LV_USE_LOG */
     lv_init();
     lv_port_disp_init();
-    int end_flag = 0;
-#ifdef AIC_LVGL_GIF_DEMO
-    void gif_ui_init(int *end_flag);
-    gif_ui_init(&end_flag);
-#else
     lv_user_gui_init();
+
+#ifdef AIC_LVGL_GIF_DEMO
+    extern int gif_check_finish(void);
+    while(!gif_check_finish())
+#else
+    while(1)
 #endif
-    while(!end_flag)
     {
         lv_task_handler();
         aicos_mdelay(1);
@@ -231,6 +239,10 @@ int main(void)
     while (1) {
         do_pic_dec_test(0,NULL);
     }
+#endif
+
+#ifdef LPKG_CHERRYUSB_OTG
+    usb_otg_init();
 #endif
 
 #ifdef LPKG_CHERRYUSB_DEVICE
@@ -259,6 +271,21 @@ int main(void)
 #ifdef AIC_SD_USING_HOTPLUG
     while (1) {
         sdcard_hotplug_act();
+    }
+#endif
+
+#ifdef LPKG_CHERRYUSB_HOST
+    usbh_init();
+    while(1)
+    {
+        #ifdef LPKG_CHERRYUSB_OTG
+        unsigned int auto_flg, mode;
+        usbh_otg_thread_poll(NULL);
+        usb_otg_get_mode(&auto_flg, &mode);
+        if (mode == OTG_MODE_DEVICE)
+            continue;
+        #endif
+        usbh_hub_poll();
     }
 #endif
 

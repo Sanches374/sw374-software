@@ -58,6 +58,11 @@ static void usbd_msc_reset(void)
     g_usbd_msc.readonly = false;
 }
 
+__WEAK bool usbd_msc_check_storage(void)
+{
+    return true;
+}
+
 static int msc_storage_class_interface_request_handler(struct usb_setup_packet *setup, uint8_t **data, uint32_t *len)
 {
     USB_LOG_DBG("MSC Class request: "
@@ -105,6 +110,15 @@ static void usbd_msc_bot_abort(void)
     }
     usbd_ep_set_stall(mass_ep_data[MSD_IN_EP_IDX].ep_addr);
     usbd_ep_start_read(mass_ep_data[0].ep_addr, (uint8_t *)&g_usbd_msc.cbw, USB_SIZEOF_MSC_CBW);
+}
+
+static void usb_msc_set_stall(void)
+{
+    if ((g_usbd_msc.cbw.bmFlags == 0) && (g_usbd_msc.cbw.dDataLength != 0)) {
+        usbd_ep_set_stall(mass_ep_data[MSD_OUT_EP_IDX].ep_addr);
+    }
+    usbd_ep_set_stall(mass_ep_data[MSD_IN_EP_IDX].ep_addr);
+    usbd_msc_thread_deinit();
 }
 
 static void usbd_msc_send_csw(uint8_t CSW_Status)
@@ -167,6 +181,13 @@ static bool SCSI_testUnitReady(uint8_t **data, uint32_t *len)
     }
     *data = NULL;
     *len = 0;
+
+    if (false == usbd_msc_check_storage()) {
+        g_usbd_msc.csw.dDataResidue = 0;
+        SCSI_SetSenseData(SCSI_KCQNR_MEDIANOTPRESENT);
+        usbd_msc_send_csw(CSW_STATUS_CMD_FAILED);
+    }
+
     return true;
 }
 
@@ -320,6 +341,7 @@ static bool SCSI_startStopUnit(uint8_t **data, uint32_t *len)
     {
         //SCSI_MEDIUM_EJECTED;
         g_usbd_msc.popup = true;
+        usbd_msc_set_popup();
     } else if ((g_usbd_msc.cbw.CB[4] & 0x3U) == 0x3U) /* START=1 and LOEJ Load Eject=1 */
     {
         //SCSI_MEDIUM_UNLOCKED;
@@ -421,6 +443,9 @@ static bool SCSI_readFormatCapacity(uint8_t **data, uint32_t *len)
         SCSI_SetSenseData(SCSI_KCQIR_INVALIDCOMMAND);
         return false;
     }
+
+    usbd_msc_get_cap(0, &g_usbd_msc.scsi_blk_nbr, &g_usbd_msc.scsi_blk_size);
+
     uint8_t format_capacity[SCSIRESP_READFORMATCAPACITIES_SIZEOF] = {
         0x00,
         0x00,
@@ -449,6 +474,8 @@ static bool SCSI_readCapacity10(uint8_t **data, uint32_t *len)
         return false;
     }
 
+    usbd_msc_get_cap(0, &g_usbd_msc.scsi_blk_nbr, &g_usbd_msc.scsi_blk_size);
+
     uint8_t capacity10[SCSIRESP_READCAPACITY10_SIZEOF] = {
         (uint8_t)(((g_usbd_msc.scsi_blk_nbr - 1) >> 24) & 0xff),
         (uint8_t)(((g_usbd_msc.scsi_blk_nbr - 1) >> 16) & 0xff),
@@ -460,6 +487,13 @@ static bool SCSI_readCapacity10(uint8_t **data, uint32_t *len)
         (uint8_t)((g_usbd_msc.scsi_blk_size >> 8) & 0xff),
         (uint8_t)((g_usbd_msc.scsi_blk_size >> 0) & 0xff),
     };
+
+    if (false == usbd_msc_check_storage()) {
+        g_usbd_msc.csw.dDataResidue = 0;
+        SCSI_SetSenseData(SCSI_KCQNR_MEDIANOTPRESENT);
+        usb_msc_set_stall();
+        usbd_msc_send_csw(CSW_STATUS_CMD_FAILED);
+    }
 
     memcpy(*data, (uint8_t *)capacity10, SCSIRESP_READCAPACITY10_SIZEOF);
     *len = SCSIRESP_READCAPACITY10_SIZEOF;
@@ -491,9 +525,20 @@ static bool SCSI_read10(uint8_t **data, uint32_t *len)
     }
     g_usbd_msc.stage = MSC_DATA_IN;
 #ifdef CONFIG_USBDEV_MSC_THREAD
-    usb_osal_mq_send(g_usbd_msc.usbd_msc_mq, MSC_DATA_IN);
+    if (g_usbd_msc.usbd_msc_mq != NULL) {
+        usb_osal_mq_send(g_usbd_msc.usbd_msc_mq, MSC_DATA_IN);
+    } else {
+        SCSI_SetSenseData(SCSI_KCQNR_MEDIANOTPRESENT);
+        usb_msc_set_stall();
+        usbd_msc_send_csw(CSW_STATUS_CMD_FAILED);
+    }
     return true;
 #else
+    if (false == usbd_msc_check_storage()) {
+        g_usbd_msc.csw.dDataResidue = 0;
+        SCSI_SetSenseData(SCSI_KCQNR_MEDIANOTPRESENT);
+        usbd_msc_send_csw(CSW_STATUS_CMD_FAILED);
+    }
     return SCSI_processRead();
 #endif
 }
@@ -523,7 +568,13 @@ static bool SCSI_read12(uint8_t **data, uint32_t *len)
     }
     g_usbd_msc.stage = MSC_DATA_IN;
 #ifdef CONFIG_USBDEV_MSC_THREAD
-    usb_osal_mq_send(g_usbd_msc.usbd_msc_mq, MSC_DATA_IN);
+    if (g_usbd_msc.usbd_msc_mq != NULL) {
+        usb_osal_mq_send(g_usbd_msc.usbd_msc_mq, MSC_DATA_IN);
+    } else {
+        SCSI_SetSenseData(SCSI_KCQNR_MEDIANOTPRESENT);
+        usb_msc_set_stall();
+        usbd_msc_send_csw(CSW_STATUS_CMD_FAILED);
+    }
     return true;
 #else
     return SCSI_processRead();
@@ -785,7 +836,14 @@ void mass_storage_bulk_out(uint8_t ep, uint32_t nbytes)
                 case SCSI_CMD_WRITE12:
 #ifdef CONFIG_USBDEV_MSC_THREAD
                     g_usbd_msc.nbytes = nbytes;
-                    usb_osal_mq_send(g_usbd_msc.usbd_msc_mq, MSC_DATA_OUT);
+                    if (g_usbd_msc.usbd_msc_mq != NULL) {
+                        usb_osal_mq_send(g_usbd_msc.usbd_msc_mq, MSC_DATA_OUT);
+                    } else {
+                        SCSI_SetSenseData(SCSI_KCQNR_MEDIANOTPRESENT);
+                        usb_msc_set_stall();
+                        usbd_msc_send_csw(CSW_STATUS_CMD_FAILED);
+                    }
+                    return;
 #else
                     if (SCSI_processWrite(nbytes) == false) {
                         usbd_msc_send_csw(CSW_STATUS_CMD_FAILED); /* send fail status to host,and the host will retry*/
@@ -809,7 +867,15 @@ void mass_storage_bulk_in(uint8_t ep, uint32_t nbytes)
                 case SCSI_CMD_READ10:
                 case SCSI_CMD_READ12:
 #ifdef CONFIG_USBDEV_MSC_THREAD
-                    usb_osal_mq_send(g_usbd_msc.usbd_msc_mq, MSC_DATA_IN);
+                    g_usbd_msc.nbytes = nbytes;
+                    if (g_usbd_msc.usbd_msc_mq != NULL) {
+                        usb_osal_mq_send(g_usbd_msc.usbd_msc_mq, MSC_DATA_IN);
+                    } else {
+                        SCSI_SetSenseData(SCSI_KCQNR_MEDIANOTPRESENT);
+                        usb_msc_set_stall();
+                        usbd_msc_send_csw(CSW_STATUS_CMD_FAILED);
+                        return;
+                    }
 #else
                     if (SCSI_processRead() == false) {
                         usbd_msc_send_csw(CSW_STATUS_CMD_FAILED); /* send fail status to host,and the host will retry*/
@@ -850,6 +916,8 @@ static void usbdev_msc_thread(void *argument)
             continue;
         }
         USB_LOG_DBG("%d\r\n", event);
+        if (false == usbd_msc_check_storage())
+            continue;
         if (event == MSC_DATA_OUT) {
             if (SCSI_processWrite(g_usbd_msc.nbytes) == false) {
                 usbd_msc_send_csw(CSW_STATUS_CMD_FAILED); /* send fail status to host,and the host will retry*/
@@ -863,6 +931,26 @@ static void usbdev_msc_thread(void *argument)
     }
 }
 #endif
+
+void usbd_msc_thread_deinit(void)
+{
+    #ifdef CONFIG_USBDEV_MSC_THREAD
+    if (g_usbd_msc.usbd_msc_thread) {
+        usb_osal_thread_delete(g_usbd_msc.usbd_msc_thread);
+    }
+    g_usbd_msc.usbd_msc_thread = NULL;
+    #endif
+}
+
+void usbd_msc_thread_init(void)
+{
+    #ifdef CONFIG_USBDEV_MSC_THREAD
+    g_usbd_msc.usbd_msc_thread = usb_osal_thread_create("usbd_msc", CONFIG_USBDEV_MSC_STACKSIZE, CONFIG_USBDEV_MSC_PRIO, usbdev_msc_thread, NULL);
+    if (g_usbd_msc.usbd_msc_thread == NULL) {
+        return ;
+    }
+    #endif
+}
 
 struct usbd_interface *usbd_msc_init_intf(struct usbd_interface *intf, const uint8_t out_ep, const uint8_t in_ep)
 {
@@ -879,6 +967,11 @@ struct usbd_interface *usbd_msc_init_intf(struct usbd_interface *intf, const uin
     usbd_add_endpoint(&mass_ep_data[MSD_OUT_EP_IDX]);
     usbd_add_endpoint(&mass_ep_data[MSD_IN_EP_IDX]);
 
+    #ifdef CONFIG_USBDEV_MSC_THREAD
+    if (g_usbd_msc.usbd_msc_mq != NULL)
+        usb_osal_mq_delete(g_usbd_msc.usbd_msc_mq);
+    #endif
+
     memset((uint8_t *)&g_usbd_msc, 0, sizeof(struct usbd_msc_priv));
 
     usbd_msc_get_cap(0, &g_usbd_msc.scsi_blk_nbr, &g_usbd_msc.scsi_blk_size);
@@ -888,16 +981,10 @@ struct usbd_interface *usbd_msc_init_intf(struct usbd_interface *intf, const uin
         return NULL;
     }
 
-#ifdef CONFIG_USBDEV_MSC_THREAD
+    #ifdef CONFIG_USBDEV_MSC_THREAD
     g_usbd_msc.usbd_msc_mq = usb_osal_mq_create(1);
-    if (g_usbd_msc.usbd_msc_mq == NULL) {
-        return NULL;
-    }
-    g_usbd_msc.usbd_msc_thread = usb_osal_thread_create("usbd_msc", CONFIG_USBDEV_MSC_STACKSIZE, CONFIG_USBDEV_MSC_PRIO, usbdev_msc_thread, NULL);
-    if (g_usbd_msc.usbd_msc_thread == NULL) {
-        return NULL;
-    }
-#endif
+    #endif
+
     return intf;
 }
 
@@ -908,5 +995,6 @@ void usbd_msc_set_readonly(bool readonly)
 
 bool usbd_msc_set_popup(void)
 {
+    usbd_msc_send_csw(CSW_STATUS_CMD_FAILED);
     return g_usbd_msc.popup;
 }

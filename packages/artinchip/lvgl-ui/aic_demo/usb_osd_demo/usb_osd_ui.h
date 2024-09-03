@@ -1,0 +1,59 @@
+/*
+ * Copyright (c) 2024, ArtInChip Technology Co., Ltd
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Authors:  Huahui Mai <huahui.mai@artinchip.com>
+ */
+
+#ifndef LV_DEMO_USB_OSD_H
+#define LV_DEMO_USB_OSD_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include "lvgl.h"
+#include "aic_ui.h"
+
+enum screen_lock_delay {
+    SECONDS_15_LOCK,
+    SECONDS_30_LOCK,
+
+    MINUTES_1_LOCK,
+    MINUTES_2_LOCK,
+    MINUTES_5_LOCK,
+    MINUTES_10_LOCK,
+
+    SCREEN_NEVER_LOCK,
+};
+
+enum screen_blank_delay {
+    MINUTES_5_BLANK,
+    MINUTES_10_BLANK,
+    MINUTES_15_BLANK,
+    MINUTES_30_BLANK,
+
+    SCREEN_NEVER_BLANK,
+};
+
+enum screen_lock_mode {
+    DISPLAY_LOGO,
+    DISPLAY_PICTURES,
+    //DISPLAY_VIDEO,
+    BLANK_SCREEN,
+
+    NEVER_LOCK_MODE,
+};
+
+#define USB_OSD_WAKEUP_KEY  LV_USB_OSD_SETTINGS_WAKEUP_KEY
+#define USB_OSD_UI_LOGO     LV_USB_OSD_LOGO_IMAGE
+
+void usb_osd_ui_init(void);
+bool is_usb_disp_suspend(void);
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
+
+#endif /*LV_DEMO_USB_OSD_H*/

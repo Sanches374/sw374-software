@@ -1,9 +1,11 @@
 /*
-* Copyright (C) 2020-2023 ArtInChip Technology Co. Ltd
-*
-*  author: <jun.ma@artinchip.com>
-*  Desc: player_demo
-*/
+ * Copyright (C) 2020-2024 ArtInChip Technology Co. Ltd
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ *  Author: <jun.ma@artinchip.com>
+ *  Desc: player demo
+ */
 
 #include <string.h>
 #include <malloc.h>
@@ -27,6 +29,7 @@
 #include "mpp_fb.h"
 #include "aic_message.h"
 #include "aic_player.h"
+#include "player_dec_share_test.h"
 
 #include <rthw.h>
 #include <rtthread.h>
@@ -243,7 +246,7 @@ static int do_rotation(struct video_player_ctx *player_ctx)
     index++;
     return 0;
 }
-
+#ifndef PLAYER_DEMO_USE_VE_FILL_FB
 static int cal_disp_size(struct aic_video_stream *media, struct mpp_rect *disp)
 {
     struct mpp_fb *fb = mpp_fb_open();
@@ -291,12 +294,12 @@ out:
     mpp_fb_close(fb);
     return 0;
 }
+#endif
 
 static int start_play(struct video_player_ctx *player_ctx)
 {
     int ret = -1;
     static struct av_media_info media_info;
-    struct mpp_size screen_size;
     struct video_player_ctx *ctx = player_ctx;
 
     ret = aic_player_start(ctx->player);
@@ -314,7 +317,7 @@ static int start_play(struct video_player_ctx *player_ctx)
     ctx->media_info = media_info;
     logd("aic_player_get_media_info duration:"FMT_x64",file_size:"FMT_x64"\n",media_info.duration,media_info.file_size);
 
-    logd("has_audio:%d,has_video:%d,"
+    printf("has_audio:%d,has_video:%d,"
         "width:%d,height:%d,\n"
         "bits_per_sample:%d,nb_channel:%d,sample_rate:%d\n"
         ,media_info.has_audio
@@ -325,6 +328,8 @@ static int start_play(struct video_player_ctx *player_ctx)
         ,media_info.audio_stream.nb_channel
         ,media_info.audio_stream.sample_rate);
 
+#ifndef PLAYER_DEMO_USE_VE_FILL_FB
+    struct mpp_size screen_size;
     if (media_info.has_video) {
         ret = aic_player_get_screen_size(ctx->player, &screen_size);
         if (ret != 0) {
@@ -351,6 +356,7 @@ static int start_play(struct video_player_ctx *player_ctx)
         if (ctx->rotation)
             do_rotation_common(ctx, ctx->rotation);
     }
+#endif
 
     if (media_info.has_audio) {
         ret = set_volume(ctx,ctx->volume);
@@ -530,8 +536,9 @@ static int process_command(struct video_player_ctx *player_ctx,char cmd)
 
 static int power_on_flag = 0;
 
-static void player_demo_test(int argc, char **argv)
+static int player_demo_test(int argc, char **argv)
 {
+    int ret = 0;
     int i = 0;
     int j = 0;
     char ch;
@@ -545,25 +552,28 @@ static void player_demo_test(int argc, char **argv)
     ctx = mpp_alloc(sizeof(struct video_player_ctx));
     if (!ctx) {
         loge("mpp_alloc fail!!!");
-        return;
+        return -1;
     }
     memset(ctx,0x00,sizeof(struct video_player_ctx));
     g_video_player_ctx = ctx;
 
     if (parse_options(ctx,argc,argv)) {
         loge("parse_options fail!!!\n");
+        ret = -1;
         goto _EXIT_;
     }
 
     render_dev = rt_device_find("aicfb");
     if (!render_dev) {
         loge("rt_device_find aicfb failed!");
+        ret = -1;
         goto _EXIT_;
     }
 
     uart_dev = rt_device_find(RT_CONSOLE_DEVICE_NAME);
     if (uart_dev == NULL) {
         loge("Failed to open %s\n", RT_CONSOLE_DEVICE_NAME);
+        ret = -1;
         goto _EXIT_;
     }
 
@@ -593,9 +603,16 @@ static void player_demo_test(int argc, char **argv)
     ctx->player = aic_player_create(NULL);
     if (ctx->player == NULL) {
         loge("aic_player_create fail!!!\n");
+        ret = -1;
         goto _EXIT_;
     }
 
+#ifdef PLAYER_DEMO_USE_VE_FILL_FB
+    if (player_vdec_share_frame_init(ctx->player) != 0) {
+        loge("player_vdec_share_frame_init fail!!!\n");
+        goto _EXIT_;
+    }
+#endif
     aic_player_set_event_callback(ctx->player,ctx,event_handle);
 
     for(i = 0;i < ctx->loop_time; i++) {
@@ -605,18 +622,21 @@ static void player_demo_test(int argc, char **argv)
             if (aic_player_set_uri(ctx->player,ctx->files.file_path[j])) {
                 loge("aic_player_prepare error!!!!\n");
                 aic_player_stop(ctx->player);
+                ret = -1;
                 continue;
             }
 
             if (aic_player_prepare_sync(ctx->player)) {
                 loge("aic_player_prepare error!!!!\n");
                 aic_player_stop(ctx->player);
+                ret = -1;
                 continue;
             }
 
             if (start_play(ctx) != 0) {
                 loge("start_play error!!!!\n");
                 aic_player_stop(ctx->player);
+                ret = -1;
                 continue;
             }
 
@@ -661,6 +681,9 @@ static void player_demo_test(int argc, char **argv)
     }
 
 _EXIT_:
+#ifdef PLAYER_DEMO_USE_VE_FILL_FB
+    player_vdec_share_frame_deinit();
+#endif
     if (ctx->player) {
         aic_player_destroy(ctx->player);
         ctx->player = NULL;
@@ -681,7 +704,7 @@ _EXIT_:
     mpp_free(ctx);
     g_video_player_ctx = ctx = NULL;
     logd("player_demo exit\n");
-    return;
+    return ret;
 }
 
 MSH_CMD_EXPORT_ALIAS(player_demo_test, player_demo, player demo);

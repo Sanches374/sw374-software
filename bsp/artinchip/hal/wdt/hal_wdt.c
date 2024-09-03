@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -7,7 +7,7 @@
  */
 
 #include "aic_core.h"
-
+#include "aic_hal_clk.h"
 #include "hal_wdt.h"
 
 #define WDT_REG_CTL             (WDT_BASE + 0x000)
@@ -31,6 +31,7 @@
 #define WDT_CFG_ID_MASK         GENMASK(27, 24)
 #define WDT_DBG_CNT_CONTINUE_SHIFT  1
 #define WDT_CNT_EN              BIT(0)
+#define WDT_REG_WR_DIS          BIT(28)
 
 #define WDT_OP_CNT_CLR_CMD0     0xA1C55555
 #define WDT_OP_CNT_CLR_CMD1     0xA1CAAAAA
@@ -102,6 +103,23 @@ u32 hal_wdt_remain(struct aic_wdt *wdt)
 
     val = WDT_CNT_TO_SEC(val);
     return wdt->timeout - val;
+}
+
+void hal_wdt_reg_protect(u8 enable)
+{
+    u32 val = 0;
+    if (enable) {
+        val = readl(WDT_REG_CTL);
+        writel(val | WDT_REG_WR_DIS, WDT_REG_CTL);
+
+        /* wdt clock protect */
+        val = 0;
+        val = readl(CMU_BASE + CLK_WDT_REG);
+        writel(val | (0x10000000), CMU_BASE + CLK_WDT_REG);
+    } else {
+        writel(WDT_OP_WR_EN_CMD0, WDT_REG_OP);
+        writel(WDT_OP_WR_EN_CMD1, WDT_REG_OP);
+    }
 }
 
 void hal_wdt_enable(u32 enable, u32 dbg_continue)

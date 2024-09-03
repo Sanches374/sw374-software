@@ -11,7 +11,6 @@
 
 #define AIC_IR_DEV      "aic-ir"
 #define DEFAULT_FREQ    38000
-#define US_PER_SEC      1000000UL
 
 /* Register definition */
 #define CIR_MCR_REG                     0x00

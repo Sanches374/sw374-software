@@ -16,6 +16,8 @@ struct dfs_partition part0;
 
 #ifdef USING_AIC_GET_PART
 #include <disk_part.h>
+#include <ff.h>
+#define HAVE_DIR_STRUCTURE
 #include <dfs_fs.h>
 static unsigned long usb_msc_read(struct blk_desc *blk_dev, u64 start, u64 blkcnt,
                                 const void *buffer)
@@ -23,7 +25,7 @@ static unsigned long usb_msc_read(struct blk_desc *blk_dev, u64 start, u64 blkcn
     int err;
 
     err = usbh_msc_scsi_read10(active_msc_class, start, buffer, blkcnt);
-    if (err == RT_EOK)
+    if (err == EOK)
         return blkcnt;
     return 0;
 }

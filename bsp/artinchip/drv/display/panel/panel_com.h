@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Artinchip Technology Co., Ltd
+ * Copyright (c) 2023-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -7,7 +7,7 @@
 #ifndef _PANEL_COM_H_
 #define _PANEL_COM_H_
 
-#include "../disp_com.h"
+#include "../drv_fb.h"
 
 struct gpio_desc {
     unsigned int g;
@@ -31,6 +31,7 @@ extern struct aic_panel dsi_st7703;
 extern struct aic_panel dsi_ili9881c;
 extern struct aic_panel dsi_hx8394;
 extern struct aic_panel dsi_jd9365;
+extern struct aic_panel dsi_axs15231b;
 
 /*
  * MIPI-DBI Type B I8080 Panel
@@ -50,6 +51,8 @@ extern struct aic_panel dbi_st77903;
  */
 extern struct aic_panel rgb_st7701s;
 extern struct aic_panel rgb_gc9a01a;
+extern struct aic_panel rgb_nt35560;
+extern struct aic_panel rgb_st77922;
 
 /*
  * SRGB Panel
@@ -93,6 +96,14 @@ struct panel_spi_device {
 void panel_spi_data_wr(u8 data);
 void panel_spi_cmd_wr(u8 cmd);
 void panel_spi_device_emulation(char *cs, char *sdi, char *scl);
+
+#define panel_spi_send_seq(command, seq...) do {                    \
+        static const u8 d[] = { seq };                              \
+        int i;                                                      \
+        panel_spi_cmd_wr(command);                                  \
+        for (i = 0; i < ARRAY_SIZE(d); i++)                         \
+            panel_spi_data_wr(d[i]);                                \
+    } while (0)
 #endif
 
 #endif /* _PANEL_COM_H_ */

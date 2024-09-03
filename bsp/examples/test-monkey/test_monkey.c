@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -245,7 +245,7 @@ static void gt911_entry(void *parameter)
     rt_device_control(dev, RT_TOUCH_CTRL_GET_INFO, &info);
 
     read_data = (struct rt_touch_data *)rt_malloc(sizeof(struct rt_touch_data) * info.point_num);
-    memset(read_data, 0, sizeof(&read_data));
+    memset(read_data, 0, sizeof(*read_data));
     rt_kprintf("Starting record %d points\n",g_total_point_drawn);
 
     while (point_cnt < g_total_point_drawn) {
@@ -297,27 +297,19 @@ static void gt911_entry(void *parameter)
         rt_device_control(dev, RT_TOUCH_CTRL_ENABLE_INT, RT_NULL);
     }
     free(cal_buf);
-    rt_thread_delete(gt911_thread);
     rt_sem_delete(gt911_sem);
     rt_device_close(dev);
     g_total_point_drawn = 0;
+    rt_thread_delete(gt911_thread);
 }
 
 static rt_err_t rx_callback(rt_device_t dev, rt_size_t size)
 {
-#ifdef AIC_PM_POWER_TOUCH_WAKEUP
-    rt_uint8_t sleep_mode;
-#endif
     rt_sem_release(gt911_sem);
     rt_device_control(dev, RT_TOUCH_CTRL_DISABLE_INT, RT_NULL);
-#ifdef AIC_PM_POWER_TOUCH_WAKEUP
-    sleep_mode = rt_pm_get_sleep_mode();
-    if (sleep_mode != PM_SLEEP_MODE_NONE && !wakeup_triggered)
-    {
-        rt_pm_module_request(PM_POWER_ID, PM_SLEEP_MODE_NONE);
-        wakeup_triggered = 1;
-    }
-    rt_timer_start(touch_timer);
+#ifdef AIC_PM_DEMO
+    extern struct rt_event pm_event;
+    rt_event_send(&pm_event, 2);
 #endif
     return 0;
 }

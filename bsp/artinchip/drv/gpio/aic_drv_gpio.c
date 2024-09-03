@@ -4,12 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <rtthread.h>
-#include <rthw.h>
-#include <rtdevice.h>
 #include <stdint.h>
 #include <aic_core.h>
 #include "aic_hal_gpio.h"
+#if defined(KERNEL_RTTHREAD)
+#include <rtthread.h>
+#include <rthw.h>
+#include <rtdevice.h>
+#endif
 
 #ifdef RT_USING_PIN
 
@@ -233,6 +235,58 @@ int drv_pin_init(void)
 }
 INIT_BOARD_EXPORT(drv_pin_init);
 
+#elif defined(KERNEL_BAREMETAL)
+
+#ifdef AIC_GPIO_IRQ_DRV_EN
+#define MAX_GPIO_IRQ_GROUP 8
+
+irqreturn_t drv_gpio_group_irqhandler(int irq, void * data)
+{
+    unsigned int g = irq - GPIO_IRQn;
+    unsigned int stat = 0;
+    unsigned int mask = 0;
+    unsigned int i = 0;
+    unsigned int gpio_irq = 0;
+
+    hal_gpio_group_get_irq_stat(g, &stat);
+    hal_gpio_group_get_irq_en(g, &mask);
+    stat &= mask;
+
+    for (i=0; i<32; i++) {
+        if (!(stat & (1U<<i)))
+            continue;
+
+        gpio_irq = AIC_GPIO_TO_IRQ(g*GPIO_GROUP_SIZE + i);
+        drv_irq_call_isr(gpio_irq);
+    }
+
+    hal_gpio_group_set_irq_stat(g, 0xFFFFFFFF);
+
+    return IRQ_HANDLED;
+}
+
+void drv_gpio_group_irq_init(void)
+{
+    int g = 0;
+
+    for (g = 0; g < MAX_GPIO_IRQ_GROUP; g++)
+    {
+        aicos_request_irq(GPIO_IRQn + g, drv_gpio_group_irqhandler, 0, "pin_group", NULL);
+        aicos_irq_enable(GPIO_IRQn + g);
+    }
+}
+#endif
+
+int drv_pin_init(void)
+{
+    int ret = 0;
+
+    #ifdef AIC_GPIO_IRQ_DRV_EN
+    drv_gpio_group_irq_init();
+    #endif
+
+    return ret;
+}
 #endif /*RT_USING_PIN */
 
 

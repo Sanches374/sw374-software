@@ -44,6 +44,7 @@ void rt_wqueue_add(rt_wqueue_t *queue, struct rt_wqueue_node *node);
 void rt_wqueue_remove(struct rt_wqueue_node *node);
 int  rt_wqueue_wait(rt_wqueue_t *queue, int condition, int timeout);
 void rt_wqueue_wakeup(rt_wqueue_t *queue, void *key);
+void rt_wqueue_wakeup_all(rt_wqueue_t *queue, void *key);
 
 #define DEFINE_WAIT_FUNC(name, function)                \
     struct rt_wqueue_node name = {                      \

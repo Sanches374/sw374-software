@@ -15,6 +15,8 @@
 #include <aic_core.h>
 #include "cpuport.h"
 
+#define RISCV_RT_STACK_ALIGN16 (16)
+
 #ifndef RT_USING_SMP
 volatile rt_ubase_t  rt_interrupt_from_thread = 0;
 volatile rt_ubase_t  rt_interrupt_to_thread   = 0;
@@ -57,6 +59,7 @@ struct rt_hw_stack_frame
     rt_ubase_t t6;         /* x31 - t6     - temporary register 6                */
 #ifdef ARCH_RISCV_DSP
     rt_ubase_t vxsat;      /* P-ext vxsat reg */
+    rt_ubase_t reserve;    /* for 8 bytes align */
 #endif
 #ifdef ARCH_RISCV_FPU
     rv_floatreg_t f0;      /* f0  */
@@ -114,7 +117,10 @@ rt_uint8_t *rt_hw_stack_init(void       *tentry,
     int                i;
 
     stk  = stack_addr + sizeof(rt_ubase_t);
-    stk  = (rt_uint8_t *)RT_ALIGN_DOWN((rt_ubase_t)stk, REGBYTES);
+
+    /*In the standard RISCV-V calling convention, the stack grows downward and
+      the stack pointer is always keep 16-byte aligned*/
+    stk  = (rt_uint8_t *)RT_ALIGN_DOWN((rt_ubase_t)stk, RISCV_RT_STACK_ALIGN16);
     stk -= sizeof(struct rt_hw_stack_frame);
 
     frame = (struct rt_hw_stack_frame *)stk;

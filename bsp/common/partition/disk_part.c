@@ -342,7 +342,7 @@ struct aic_partition *aic_disk_get_mbr_parts(struct blk_desc *dev_desc)
         }
         memset(n, 0, sizeof(*n));
         n->start = pp->start_sect * dev_desc->blksz;
-        n->size = pp->nr_sects * dev_desc->blksz;
+        n->size = (u64)pp->nr_sects * dev_desc->blksz;
 
         if (parts == NULL) {
             parts = n;

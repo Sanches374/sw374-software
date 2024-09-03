@@ -1,9 +1,11 @@
 /*
-* Copyright (C) 2020-2022 Artinchip Technology Co. Ltd
-*
-*  author: <qi.xu@artinchip.com>
-*  Desc: mpp_dec_type
-*/
+ * Copyright (C) 2020-2024 ArtInChip Technology Co. Ltd
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Author: <qi.xu@artinchip.com>
+ * Desc: mpp dec type
+ */
 
 #ifndef MPP_DEC_TYPE_H
 #define MPP_DEC_TYPE_H
@@ -58,13 +60,19 @@
 /**
  * struct mpp_packet - mpp packet buffer
  * @data: mpp packet virtual address
+ * @phy_addr: mpp packet physical address
  * @size: mpp packet buffer size
+ * @len: mpp packet data length
  * @pts: pts of packet
  * @flags: buffer flags
  */
 struct mpp_packet {
-	void *data;
+	union {
+		void *data;
+		unsigned int phy_addr;
+	};
 	int size;
+	int len;
 	long long pts;
 	unsigned int flag;
 };
@@ -76,8 +84,8 @@ struct mpp_packet {
  * (1- 1/2 scale; 2 - 1/4 scale; 3 - 1/8 scale)
  */
 struct mpp_scale_ratio {
-    int hor_scale;
-    int ver_scale;
+	int hor_scale;
+	int ver_scale;
 };
 
 /**
@@ -88,12 +96,12 @@ struct mpp_scale_ratio {
  * @crop_height: height of crop window
  */
 struct mpp_dec_crop_info {
-    int crop_x;
-    int crop_y;
-    int crop_width;
-    int crop_height;
-    int crop_out_x;
-    int crop_out_y;
+	int crop_x;
+	int crop_y;
+	int crop_width;
+	int crop_height;
+	int crop_out_x;
+	int crop_out_y;
 };
 
 /**
@@ -102,25 +110,26 @@ struct mpp_dec_crop_info {
  * @output_pos_y: start pos in y for output
  */
 struct mpp_dec_output_pos {
-    int output_pos_x;
-    int output_pos_y;
+	int output_pos_x;
+	int output_pos_y;
 };
 
 enum mpp_codec_type {
-    MPP_CODEC_VIDEO_DECODER_H264 = 0x1000,         // decoder
-    MPP_CODEC_VIDEO_DECODER_MJPEG,
-    MPP_CODEC_VIDEO_DECODER_PNG,
-    MPP_CODEC_VIDEO_DECODER_AICP,
+	MPP_CODEC_VIDEO_DECODER_H264 = 0x1000,		 // decoder
+	MPP_CODEC_VIDEO_DECODER_MJPEG,
+	MPP_CODEC_VIDEO_DECODER_PNG,
+	MPP_CODEC_VIDEO_DECODER_AICP,
 
-    MPP_CODEC_VIDEO_ENCODER_H264 = 0x2000,         // encoder
+	MPP_CODEC_VIDEO_ENCODER_H264 = 0x2000,		 // encoder
+	MPP_CODEC_VIDEO_ENCODER_MJPEG,
 };
 
 enum mpp_dec_cmd {
-    MPP_DEC_INIT_CMD_SET_EXT_FRAME_ALLOCATOR,            // frame buffer allocator
-    MPP_DEC_INIT_CMD_SET_ROT_FLIP_FLAG,
-    MPP_DEC_INIT_CMD_SET_SCALE,
-    MPP_DEC_INIT_CMD_SET_CROP_INFO,
-    MPP_DEC_INIT_CMD_SET_OUTPUT_POS,
+	MPP_DEC_INIT_CMD_SET_EXT_FRAME_ALLOCATOR,			// frame buffer allocator
+	MPP_DEC_INIT_CMD_SET_ROT_FLIP_FLAG,
+	MPP_DEC_INIT_CMD_SET_SCALE,
+	MPP_DEC_INIT_CMD_SET_CROP_INFO,
+	MPP_DEC_INIT_CMD_SET_OUTPUT_POS,
 };
 
 enum mpp_dec_errno {
@@ -134,15 +143,15 @@ enum mpp_dec_errno {
 
 	// if decode return DEC_NO_EMPTY_FRAME, we should wait a minute then call again
 	// it happen in decode faster than render
-	DEC_NO_EMPTY_FRAME 			= 2, //
+	DEC_NO_EMPTY_FRAME			= 2, //
 
 	// if mpp_dec_get_frame return DEC_NO_RENDER_FRAME, we should wait a minute then call again
 	// it happen in render faster than decode
-	DEC_NO_RENDER_FRAME 		= 1, //
+	DEC_NO_RENDER_FRAME			= 1, //
 
 	DEC_OK					= 0,
 	// decode
-	DEC_ERR_NOT_SUPPORT 			= -1,
+	DEC_ERR_NOT_SUPPORT			= -1,
 
 	DEC_ERR_NULL_PTR			= -2,
 

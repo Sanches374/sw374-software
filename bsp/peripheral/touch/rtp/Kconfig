@@ -1,10 +1,3 @@
-menu "RTP touch panel options"
-
-config AIC_USING_RTP
-    bool "Using touch panel RTP"
-    default n
-    select AIC_RTP_DRV
-
 config AIC_RTP_PERIOD_MS
     int "The sample period of RTP(in cycle mode)"
     range 18 1000
@@ -34,4 +27,6 @@ config AIC_RTP_DELAY
     default 0x4f00004f
     depends on AIC_USING_RTP
 
-endmenu
+config AIC_TOUCH_PANEL_NAME
+    string
+    default "aic-rtp"  if AIC_USING_RTP

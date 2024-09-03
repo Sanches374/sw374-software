@@ -52,6 +52,7 @@ ret_t application_init(void) {
     navigator_to(APP_BOTTOM_SYSTEM_BAR);
   }
 
+  /* window_manager_set_show_fps(window_manager(), 1); */
   /* release memory according to the theme, and release unused images after switching themes for 1 second */
   image_manager_unload_unused(image_manager(), 1);
   /* set images buffer size */

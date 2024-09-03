@@ -18,6 +18,7 @@ void drv_pin_drive_set(unsigned int pin, unsigned int strength);
 void drv_pin_mux_set(unsigned int pin, unsigned int func);
 unsigned int drv_pin_mux_get(unsigned int pin);
 long drv_pin_get(const char *name);
+int drv_pin_init(void);
 
 #ifdef __cplusplus
 }

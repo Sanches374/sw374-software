@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -554,6 +554,9 @@ int spinand_check_if_do_memcpy(struct aic_spinand *flash, u8 *data,
 {
     int flag = SPINAND_TRUE;
 
+    if (data == NULL) {
+        return flag;
+    }
     /*
      * When the user address is aligned to CACHE_LINE_SIZE,
      * if the user address and oob address are consecutive or the oob address is empty,
@@ -602,7 +605,7 @@ int spinand_read_page(struct aic_spinand *flash, u32 page, u8 *data,
 
     result = spinand_check_ecc_status(flash, status);
     if (result < 0) {
-        pr_err("Error ECC status error[0x%x].\n", status);
+        pr_err("Error ECC status error[0x%x], page: %u.\n", status, page);
         goto exit_spinand_read_page;
     } else if (result > 0) {
         pr_debug("with %d bit/page ECC corrections, status : [0x%x].\n", result,
@@ -621,7 +624,12 @@ int spinand_read_page(struct aic_spinand *flash, u32 page, u8 *data,
     }
 
     if (spare && spare_len) {
-        nbytes += flash->info->oob_size;
+        /* if use extra buf, read oob data size used spare_len */
+        if (data_copy_mode == SPINAND_FALSE)
+            nbytes += spare_len;
+        else
+            nbytes += flash->info->oob_size;
+
         if (!buf) {
             buf = flash->oobbuf;
             spare_only = SPINAND_TRUE;
@@ -690,31 +698,33 @@ bool spinand_isbad(struct aic_spinand *flash, u16 blk)
 
 int spinand_block_isbad(struct aic_spinand *flash, u16 blk)
 {
-    int status;
-
     if (!flash) {
         pr_err("flash is NULL\r\n");
         return -SPINAND_ERR;
     }
 
-    if (nand_bbt_is_initialized(flash)) {
-        status = nand_bbt_get_block_status(flash, blk);
-        if (status == NAND_BBT_BLOCK_STATUS_UNKNOWN) {
-            if (spinand_isbad(flash, blk))
-                status = NAND_BBT_BLOCK_FACTORY_BAD;
-            else
-                status = NAND_BBT_BLOCK_GOOD;
+    return spinand_isbad(flash, blk);
+}
 
-            nand_bbt_set_block_status(flash, blk, status);
-        }
-
-        if (status == NAND_BBT_BLOCK_FACTORY_BAD)
-            return true;
-
-        return false;
+int spinand_get_status(struct aic_spinand *flash, u16 blk)
+{
+    if (!flash) {
+        pr_err("flash is NULL\r\n");
+        return -SPINAND_ERR;
     }
 
-    return spinand_isbad(flash, blk);
+    return nand_bbt_get_block_status(flash, blk);
+}
+
+int spinand_set_status(struct aic_spinand *flash, u16 blk, u16 pos, u16 status)
+{
+    if (!flash) {
+        pr_err("flash is NULL\r\n");
+        return -SPINAND_ERR;
+    }
+
+    nand_bbt_set_block_status(flash, blk, pos, status);
+    return 0;
 }
 
 #ifdef AIC_SPINAND_CONT_READ
@@ -845,7 +855,13 @@ int spinand_write_page(struct aic_spinand *flash, u32 page, const u8 *data,
     }
 
     if (spare && spare_len) {
-        nbytes += flash->info->oob_size;
+        /* if use extra buf, write oob data size used spare_len */
+        if (!spinand_check_if_do_memcpy(flash, (u8 *)data, data_len,
+                                        (u8 *)spare, spare_len))
+            nbytes += spare_len;
+        else
+            nbytes += flash->info->oob_size;
+
         if (!buf) {
             memcpy(flash->oobbuf, spare, spare_len);
             buf = flash->oobbuf;
@@ -1060,7 +1076,7 @@ int spinand_erase(struct aic_spinand *flash, u32 offset, u32 size)
 
         err = spinand_block_erase(flash, blk);
         if (err != 0)
-            return err;
+            pr_err("Erase block %u failed, err: %d.\r\n", blk, err);
 
         cnt -= blk_size;
         off += blk_size;

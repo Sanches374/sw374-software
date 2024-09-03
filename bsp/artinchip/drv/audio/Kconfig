@@ -9,10 +9,15 @@ menu "Audio Parameter"
         bool "Using Playback"
         default y
 
+    config AIC_AUDIO_PDM_MODULATION_MODE
+        bool "Using PDM Mode Output"
+        default n
+        depends on AIC_AUDIO_PLAYBACK
+
     config AIC_AUDIO_PA_ENABLE_GPIO
-    string "PA enable pin"
-    default "PA.7"
-    depends on AIC_AUDIO_PLAYBACK
+        string "PA enable pin"
+        default "PA.7"
+        depends on AIC_AUDIO_PLAYBACK
 
     if AIC_AUDIO_PLAYBACK
         choice

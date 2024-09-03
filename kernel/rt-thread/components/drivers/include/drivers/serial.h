@@ -95,6 +95,7 @@
 #define RT_SERIAL_232_SUSPEND_DATA      0x84
 #define RT_SERIAL_SW_FLOW_CTRL          0x85
 #define RT_SERIAL_SW_RECEIVE_ON_OFF     0x86
+#define RT_SERIAL_SET_BAUDRATE          0x87
 
 typedef enum
 {
@@ -125,7 +126,8 @@ typedef enum
     0,                                     \
     0,                                     \
     0,                                     \
-    0x0F                                   \
+    0x0F,                                  \
+    48000000                               \
 }
 
 struct serial_configure
@@ -146,6 +148,7 @@ struct serial_configure
     rt_uint32_t flowctrl_cts_enable     :1;
     rt_uint32_t flowctrl_rts_enable     :1;
     rt_uint32_t uart_index              :4;
+    rt_uint32_t uart_freq;
 };
 
 /*

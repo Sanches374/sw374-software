@@ -1,15 +1,21 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
-# SPDX-License-Identifier: GPL-2.0+
+# SPDX-License-Identifier: Apache-2.0
 #
-# Copyright (C) 2023 ArtInChip Technology Co., Ltd
+# Copyright (C) 2023-2024 ArtInChip Technology Co., Ltd
 # Dehuang Wu <dehuang.wu@artinchip.com>
 
-import os, sys, re, subprocess, json, argparse
+import os
+import sys
+import re
+import subprocess
+import json
+import argparse
 from collections import namedtuple
 from collections import OrderedDict
 
 VERBOSE = False
+
 
 def parse_image_cfg(cfgfile):
     """ Load image configuration file
@@ -25,13 +31,14 @@ def parse_image_cfg(cfgfile):
                 continue
             slash_start = sline.find("//")
             if slash_start > 0:
-                jsonstr += sline[0:slash_start]
+                jsonstr += sline[0:slash_start].strip()
             else:
                 jsonstr += sline
         # Use OrderedDict is important, we need to iterate FWC in order.
         jsonstr = jsonstr.replace(",}", "}").replace(",]", "]")
         cfg = json.loads(jsonstr, object_pairs_hook=OrderedDict)
     return cfg
+
 
 def size_str_to_int(size_str):
     if "k" in size_str or "K" in size_str:
@@ -48,6 +55,7 @@ def size_str_to_int(size_str):
     if "-" in size_str:
         return 0
     return int(size_str, 10)
+
 
 def aic_create_part_file_string(cfg, start_offs):
     part_str = ""
@@ -84,6 +92,7 @@ def aic_create_part_file_string(cfg, start_offs):
                 sys.exit(1)
             part_str += "{},{},{}\n".format(part, fwc["file"], partitions[part]["part_size"])
     return part_str
+
 
 def aic_create_nand_part_file_string(cfg, start_offs):
     part_str = ""
@@ -139,6 +148,7 @@ def aic_create_nand_part_file_string(cfg, start_offs):
             part_str += "{},{},{}\n".format(part, fwc["file"], partitions[part]["part_size"])
     return part_str
 
+
 def aic_create_parts_string(cfg):
     part_str = ""
     media_type = cfg["image"]["info"]["media"]["type"]
@@ -171,5 +181,3 @@ if __name__ == "__main__":
         with open(args.outfile, "w+") as f:
             f.write(parts)
             f.close()
-
-

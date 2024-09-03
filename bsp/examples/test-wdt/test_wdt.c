@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -39,6 +39,7 @@ static void usage(char * program)
     #ifdef AIC_WDT_DRV_V11
     printf("\t -r, --change reset object \t change reset cpu or system\n");
     #endif
+    printf("\t -w, --write reg enable/disable\tEnable(1)/Disable(0) write protect reg function\n");
     printf("\t -u, --usage \n");
     printf("\n");
 }
@@ -47,14 +48,14 @@ void test_wdt(int argc, char **argv)
 {
     int opt;
     __unused int status;
-    int timeout = 0;
+    int wreg_switch,timeout = 0;
     rt_device_t wdt_dev = RT_NULL;
 
     wdt_dev =  rt_device_find("wdt");
     rt_device_init(wdt_dev);
 
     optind = 0;
-    while ((opt = getopt(argc, argv, "s:p:c:gkru")) != -1) {
+    while ((opt = getopt(argc, argv, "s:p:c:w:gkru")) != -1) {
         switch (opt) {
             case 'c':
                 timeout = strtoul(optarg, NULL, 10);
@@ -90,6 +91,15 @@ void test_wdt(int argc, char **argv)
                     rt_device_control(wdt_dev, RT_DEVICE_CTRL_WDT_SET_RST_CPU, RT_NULL);
                 break;
             #endif
+            case 'w':
+                wreg_switch = atoi(optarg);
+                rt_device_control(wdt_dev, RT_DEVICE_CTRL_WDT_EN_REG, &wreg_switch);
+
+                if (wreg_switch == 1)
+                    rt_kprintf("enable write protect reg function\n");
+                else if (wreg_switch == 0)
+                    rt_kprintf("disable write protect reg function\n");
+                break;
             case 'u':
             default:
                 usage(argv[0]);

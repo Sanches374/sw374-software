@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Artinchip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -40,48 +40,92 @@ struct aic_can aic_can_arr[] =
 #endif
 };
 
-static void aic_can_sw_filter_to_hw_filter(struct rt_can_filter_config *pfilter,
+static int aic_can_sw_filter_to_hw_filter(struct rt_can_filter_config *pfilter,
                                            can_filter_config_t *pfilter_cfg)
 {
-    int i;
+    RT_ASSERT(pfilter);
 
-    if (!pfilter)
+    /*
+     * If using one hardware filter, use Single Filter Mode.
+     * If using two hardware filters, use Dual Filter Mode.
+     * If pfilter->count == 0, close hardware filter, receiving all frames.
+     */
+    pfilter_cfg->filter_mode = pfilter->count;
+    pfilter_cfg->is_eff = pfilter->items[0].ide;
+
+    switch (pfilter_cfg->filter_mode)
     {
+    case SINGLE_FILTER_MODE:
+        if (pfilter_cfg->is_eff)
+        {
+            // Extended frame
+            pfilter_cfg->rxmask.sfe.id_filter = ~pfilter->items[0].mask;
+
+            pfilter_cfg->rxcode.sfe.id_filter = pfilter->items[0].id &
+                                                pfilter->items[0].mask;
+            pfilter_cfg->rxcode.sfe.rtr_filter = pfilter->items[0].rtr;
+        }
+        else
+        {
+            // Standard frame
+            pfilter_cfg->rxmask.sfs.data0_filter = 0xFF;
+            pfilter_cfg->rxmask.sfs.data1_filter = 0xFF;
+            pfilter_cfg->rxmask.sfs.id_filter = ~pfilter->items[0].mask;
+
+            pfilter_cfg->rxcode.sfs.id_filter = pfilter->items[0].id &
+                                                pfilter->items[0].mask;
+            pfilter_cfg->rxcode.sfs.rtr_filter = pfilter->items[0].rtr;
+        }
+        break;
+    case DUAL_FILTER_MODE:
+        if (pfilter->items[0].ide != pfilter->items[1].ide)
+        {
+            LOG_E("Both filters can only filter standard or extended"
+                        " frames at the same time\n");
+            return -RT_EINVAL;
+        }
+
+        if (pfilter_cfg->is_eff)
+        {
+            // Extended frame
+            LOG_I("In the dual filter mode, extended frames can only "
+                  "filter the bit28~bit13 of the frame ID\n");
+            pfilter_cfg->rxmask.dfe.id_filter0 =
+                                    ~pfilter->items[0].mask >> 13;
+            pfilter_cfg->rxmask.dfe.id_filter1 =
+                                    ~pfilter->items[1].mask >> 13;
+
+            pfilter_cfg->rxcode.dfe.id_filter0 =
+                    (pfilter->items[0].id & pfilter->items[0].mask) >> 13;
+            pfilter_cfg->rxcode.dfe.id_filter1 =
+                    (pfilter->items[1].id & pfilter->items[1].mask) >> 13;
+        }
+        else
+        {
+            // Standard frame
+            pfilter_cfg->rxmask.dfs.id_filter0 = ~pfilter->items[0].mask;
+            pfilter_cfg->rxmask.dfs.data0_filter0 = 0xFF;
+            pfilter_cfg->rxmask.dfs.id_filter1 = ~pfilter->items[1].mask;
+
+            pfilter_cfg->rxcode.dfs.id_filter0 =
+                            pfilter->items[0].id & pfilter->items[0].mask;
+            pfilter_cfg->rxcode.dfs.id_filter1 =
+                            pfilter->items[1].id & pfilter->items[1].mask;
+            pfilter_cfg->rxcode.dfs.rtr_filter0 = pfilter->items[0].rtr;
+            pfilter_cfg->rxcode.dfs.rtr_filter1 = pfilter->items[1].rtr;
+        }
+        break;
+    case FILTER_CLOSE:
+    default:
+        pfilter_cfg->filter_mode = SINGLE_FILTER_MODE;
         pfilter_cfg->rxmask.sfs.data0_filter = 0xFF;
         pfilter_cfg->rxmask.sfs.data1_filter = 0xFF;
         pfilter_cfg->rxmask.sfs.id_filter = 0xFFFF;
         pfilter_cfg->rxmask.sfs.rtr_filter = 0xF;
+        break;
     }
-    else
-    {
-        for (i = 0; i < pfilter->count; i++)
-        {
-            pfilter_cfg->filter_mode = SINGLE_FILTER_MODE;
-            if (pfilter->items[i].ide == 1)
-                pfilter_cfg->is_eff = 1;
 
-            if (pfilter_cfg->is_eff)
-            {
-                //Extended frame
-                pfilter_cfg->rxmask.sfe.id_filter = ~pfilter->items[i].mask;
-
-                pfilter_cfg->rxcode.sfe.id_filter = pfilter->items[i].id &
-                                                pfilter->items[i].mask;
-                pfilter_cfg->rxcode.sfe.rtr_filter = pfilter->items[i].rtr;
-            }
-            else
-            {
-                // Standard frame
-                pfilter_cfg->rxmask.sfs.data0_filter = 0xFF;
-                pfilter_cfg->rxmask.sfs.data1_filter = 0xFF;
-                pfilter_cfg->rxmask.sfs.id_filter = ~pfilter->items[i].mask;
-
-                pfilter_cfg->rxcode.sfs.id_filter = pfilter->items[i].id &
-                                                pfilter->items[i].mask;
-                pfilter_cfg->rxcode.sfs.rtr_filter = pfilter->items[i].rtr;
-            }
-        }
-    }
+    return 0;
 }
 
 static rt_err_t aic_can_control(struct rt_can_device *can, int cmd, void *arg)
@@ -93,6 +137,7 @@ static rt_err_t aic_can_control(struct rt_can_device *can, int cmd, void *arg)
     unsigned long baudrate;
     struct rt_can_filter_config *pfilter;
     can_filter_config_t filter_cfg;
+    rt_err_t ret;
 
     switch (cmd)
     {
@@ -120,17 +165,21 @@ static rt_err_t aic_can_control(struct rt_can_device *can, int cmd, void *arg)
         status->formaterrcnt = phandle->status.formaterrcnt;
         status->biterrcnt = phandle->status.biterrcnt;
         status->errcode = phandle->status.current_state;
+        status->ackerrcnt = phandle->status.ackerrcnt;
+        status->crcerrcnt = phandle->status.crcerrcnt;
         break;
     case RT_CAN_CMD_SET_FILTER:
         pfilter = (struct rt_can_filter_config *)arg;
-        if (pfilter->count > 1)
+        if (pfilter->count > 2)
         {
-            rt_kprintf("CAN of this version only support one filter\n");
+            LOG_E("CAN supports up to two filters!!!\n");
             return -RT_EINVAL;
         }
 
         rt_memset(&filter_cfg, 0, sizeof(can_filter_config_t));
-        aic_can_sw_filter_to_hw_filter(pfilter, &filter_cfg);
+        ret = aic_can_sw_filter_to_hw_filter(pfilter, &filter_cfg);
+        if (ret)
+            return ret;
 
         hal_can_ioctl(phandle, CAN_IOCTL_SET_FILTER, (void *)&filter_cfg);
         break;
@@ -239,6 +288,9 @@ void aic_can_callback(can_handle * phandle, void *arg)
     case CAN_EVENT_RXOF_IND:
         rt_hw_can_isr(pcan, RT_CAN_EVENT_RXOF_IND);
         break;
+    case CAN_EVENT_TX_FAIL:
+        rt_hw_can_isr(pcan, RT_CAN_EVENT_TX_FAIL);
+        break;
     default:
         break;
     }
@@ -297,7 +349,7 @@ int rt_hw_aic_can_init(void)
     config.privmode = RT_CAN_MODE_NOPRIV;
     config.ticks = 50;
 #ifdef RT_CAN_USING_HDR
-    config.maxhdr = 1;
+    config.maxhdr = 2;
 #endif
 
     for (i = 0; i < ARRAY_SIZE(aic_can_arr); i++)

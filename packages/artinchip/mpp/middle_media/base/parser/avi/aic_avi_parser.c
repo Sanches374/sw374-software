@@ -1,9 +1,12 @@
 /*
-* Copyright (C) 2020-2024 Artinchip Technology Co. Ltd
-*
-*  author: <che.jiang@artinchip.com>
-*  Desc: aic_avi_parser
-*/
+ * Copyright (C) 2020-2024 ArtInChip Technology Co. Ltd
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Author: <che.jiang@artinchip.com>
+ * Desc: aic avi parser
+ */
+
 #define LOG_TAG "avi_parse"
 
 #include <malloc.h>
@@ -149,7 +152,7 @@ s32 aic_avi_parser_create(unsigned char *uri, struct aic_parser **parser)
     }
     memset(avi_parser, 0, sizeof(struct aic_avi_parser));
 
-    if (aic_stream_open((char *)uri, &avi_parser->stream) < 0) {
+    if (aic_stream_open((char *)uri, &avi_parser->stream, O_RDONLY) < 0) {
         loge("stream open fail");
         ret = -1;
         goto exit;

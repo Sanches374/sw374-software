@@ -1,11 +1,19 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
-# SPDX-License-Identifier: GPL-2.0+
+# SPDX-License-Identifier: Apache-2.0
 #
-# Copyright (C) 2021 ArtInChip Technology Co., Ltd
+# Copyright (C) 2021-2024 ArtInChip Technology Co., Ltd
 # Dehuang Wu <dehuang.wu@artinchip.com>
 
-import os, sys, subprocess, math, re, zlib, json, struct, argparse
+import os
+import sys
+import subprocess
+import math
+import re
+import zlib
+import json
+import struct
+import argparse
 from collections import namedtuple
 from collections import OrderedDict
 
@@ -13,13 +21,14 @@ DATA_ALIGNED_SIZE = 2048
 META_ALIGNED_SIZE = 512
 VERBOSE = False
 
-DATA_SECT_TYPE_DRAM = int("0x41490001",16)
-DATA_SECT_TYPE_SYS_UART  = int("0x41490002",16)
-DATA_SECT_TYPE_SYS_JTAG  = int("0x41490003",16)
-DATA_SECT_TYPE_SYS_UPGMODE  = int("0x41490004",16)
-DATA_SECT_TYPE_PARTITION  = int("0x41490005",16)
-DATA_SECT_TYPE_PSRAM  = int("0x41490006",16)
-DATA_SECT_TYPE_END  = int("0x4149FFFF",16)
+DATA_SECT_TYPE_DRAM = int("0x41490001", 16)
+DATA_SECT_TYPE_SYS_UART = int("0x41490002", 16)
+DATA_SECT_TYPE_SYS_JTAG = int("0x41490003", 16)
+DATA_SECT_TYPE_SYS_UPGMODE = int("0x41490004", 16)
+DATA_SECT_TYPE_PARTITION = int("0x41490005", 16)
+DATA_SECT_TYPE_PSRAM = int("0x41490006", 16)
+DATA_SECT_TYPE_END = int("0x4149FFFF", 16)
+
 
 def parse_private_data_cfg(cfgfile):
     """ Load configuration file
@@ -43,8 +52,10 @@ def parse_private_data_cfg(cfgfile):
         cfg = json.loads(jsonstr, object_pairs_hook=OrderedDict)
     return cfg
 
+
 def int_to_u32_bytes(n):
     return n.to_bytes(4, byteorder='little', signed=False)
+
 
 def param_str_to_int(strval):
     val = 0
@@ -54,15 +65,19 @@ def param_str_to_int(strval):
         val = int(strval, 10)
     return val
 
+
 def param_str_to_u32_bytes(strval):
     return int_to_u32_bytes(param_str_to_int(strval))
 
-def get_bytes_by_str(cfg, name, defval_str = "0"):
+
+def get_bytes_by_str(cfg, name, defval_str="0"):
     if name in cfg:
         data = param_str_to_u32_bytes(cfg[name])
     else:
         data = param_str_to_u32_bytes(defval_str)
     return data
+
+
 """
 struct ddr {
     u32 ddr_type   ;
@@ -107,6 +122,8 @@ struct dram_data {
 };
 
 """
+
+
 def gen_ddr_init_data(dram):
     data_type = int_to_u32_bytes(DATA_SECT_TYPE_DRAM)
     entry_cnt = len(dram)
@@ -148,6 +165,7 @@ def gen_ddr_init_data(dram):
         data += get_bytes_by_str(entry, "tpr18")
     data_len = int_to_u32_bytes(len(data))
     return data_type + data_len + data
+
 
 """
 struct psram {
@@ -216,6 +234,8 @@ struct psram_data {
 };
 
 """
+
+
 def gen_psram_init_data(psram):
     data_type = int_to_u32_bytes(DATA_SECT_TYPE_PSRAM)
     entry_cnt = len(psram)
@@ -291,13 +311,16 @@ struct system_uart_data {
 };
 
 """
+
+
 def gen_system_uart_data(uart):
-    data =  get_bytes_by_str(uart, "uart_id")
+    data = get_bytes_by_str(uart, "uart_id")
     data += get_bytes_by_str(uart, "uart_tx_pin_cfg_reg")
     data += get_bytes_by_str(uart, "uart_tx_pin_cfg_val")
     data += get_bytes_by_str(uart, "uart_rx_pin_cfg_reg")
     data += get_bytes_by_str(uart, "uart_rx_pin_cfg_val")
     return data
+
 
 def gen_system_uart(sys_uart):
     data_type = int_to_u32_bytes(DATA_SECT_TYPE_SYS_UART)
@@ -327,8 +350,10 @@ struct system_jtag_data {
 };
 
 """
+
+
 def gen_system_jtag_data(jtag):
-    data =  get_bytes_by_str(jtag, "jtag_id")
+    data = get_bytes_by_str(jtag, "jtag_id")
     data += get_bytes_by_str(jtag, "jtag_do_pin_cfg_reg")
     data += get_bytes_by_str(jtag, "jtag_do_pin_cfg_val")
     data += get_bytes_by_str(jtag, "jtag_di_pin_cfg_reg")
@@ -338,6 +363,7 @@ def gen_system_jtag_data(jtag):
     data += get_bytes_by_str(jtag, "jtag_ck_pin_cfg_reg")
     data += get_bytes_by_str(jtag, "jtag_ck_pin_cfg_val")
     return data
+
 
 def gen_system_jtag(sys_jtag):
     data_type = int_to_u32_bytes(DATA_SECT_TYPE_SYS_JTAG)
@@ -350,6 +376,8 @@ def gen_system_jtag(sys_jtag):
             data += gen_system_jtag_data(sys_jtag[jtagi])
     data_len = int_to_u32_bytes(len(data))
     return data_type + data_len + data
+
+
 """
 struct system_upgmode {
     u32 upgmode_pin_cfg_reg;
@@ -365,20 +393,25 @@ struct system_jtag_data {
     struct system_upgmode;
 };
 """
+
+
 def gen_system_upgmode_data(upgmode):
-    data  = get_bytes_by_str(upgmode, "upgmode_pin_cfg_reg")
+    data = get_bytes_by_str(upgmode, "upgmode_pin_cfg_reg")
     data += get_bytes_by_str(upgmode, "upgmode_pin_cfg_val")
     data += get_bytes_by_str(upgmode, "upgmode_pin_input_reg")
     data += get_bytes_by_str(upgmode, "upgmode_pin_input_msk")
     data += get_bytes_by_str(upgmode, "upgmode_pin_input_val")
     data += get_bytes_by_str(upgmode, "upgmode_pin_pullup_dly", "500")
     return data
+
+
 def gen_system_upgmode(sys_upgmode):
     data = bytes()
     data_type = int_to_u32_bytes(DATA_SECT_TYPE_SYS_UPGMODE)
     data += gen_system_upgmode_data(sys_upgmode)
     data_len = int_to_u32_bytes(len(data))
     return data_type + data_len + data
+
 
 """
 struct system_jtag_data {
@@ -387,6 +420,8 @@ struct system_jtag_data {
     u8  part_str[];
 };
 """
+
+
 def gen_bytes_of_part_str(parts):
     part_str = ""
     if "type" not in parts:
@@ -397,6 +432,7 @@ def gen_bytes_of_part_str(parts):
         if t in parts:
             part_str += "{}={};".format(t, parts[t])
     return bytes(part_str, encoding="utf-8")
+
 
 def gen_partition_table(parts):
     data = bytes()
@@ -409,10 +445,12 @@ def gen_partition_table(parts):
     data_len = int_to_u32_bytes(len(data))
     return data_type + data_len + data
 
+
 def gen_end_flag():
     data_type = int_to_u32_bytes(DATA_SECT_TYPE_END)
     data_len = int_to_u32_bytes(0)
     return data_type + data_len
+
 
 def gen_private_data(cfg):
     data = bytes()
@@ -420,7 +458,6 @@ def gen_private_data(cfg):
         if item == "dram":
             data += gen_ddr_init_data(cfg[item])
         if item == "psram":
-            print("psram")
             data += gen_psram_init_data(cfg[item])
         if item == "partitions":
             data += gen_partition_table(cfg[item])
@@ -435,8 +472,10 @@ def gen_private_data(cfg):
     data += gen_end_flag()
     return data
 
+
 def list_of_strings(arg):
     return arg.split(',')
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -472,4 +511,3 @@ if __name__ == "__main__":
         f.write(data)
         f.flush()
         f.close()
-

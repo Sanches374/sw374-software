@@ -301,7 +301,7 @@ static void date(int argc, char **argv)
         rt_err_t err;
 
         tm_new.tm_year = atoi(argv[1]) - 1900;
-        tm_new.tm_mon = atoi(argv[2]) - 1; /* .tm_min's range is [0-11] */
+        tm_new.tm_mon = atoi(argv[2]) - 1; /* .tm_mon's range is [0-11] */
         tm_new.tm_mday = atoi(argv[3]);
         tm_new.tm_hour = atoi(argv[4]);
         tm_new.tm_min = atoi(argv[5]);
@@ -311,7 +311,7 @@ static void date(int argc, char **argv)
             rt_kprintf("year is out of range [1900-]\n");
             return;
         }
-        if (tm_new.tm_mon > 11) /* .tm_min's range is [0-11] */
+        if (tm_new.tm_mon > 11) /* .tm_mon's range is [0-11] */
         {
             rt_kprintf("month is out of range [1-12]\n");
             return;

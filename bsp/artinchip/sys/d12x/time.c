@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Artinchip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -33,7 +33,14 @@ void aic_mdelay(u32 ms)
 
 u64 aic_get_ticks(void)
 {
-    return (((u64)csi_coret_get_valueh() << 32U) | csi_coret_get_value());
+    u32 hi, lo;
+
+    do {
+        hi = csi_coret_get_valueh();
+        lo = csi_coret_get_value();
+    } while (hi != csi_coret_get_valueh());
+
+    return ((u64)hi << 32) | lo;
 }
 
 u64 aic_get_time_us(void)

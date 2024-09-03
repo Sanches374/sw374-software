@@ -1,10 +1,12 @@
 /*
-* Copyright (C) 2020-2022 Artinchip Technology Co. Ltd
-*
-*  author: <qi.xu@artinchip.com>
-*  Desc: jpeg decode context define
-*
-*/
+ * Copyright (C) 2020-2024 ArtInChip Technology Co. Ltd
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ *  author: <qi.xu@artinchip.com>
+ *  Desc: jpeg decode context define
+ *
+ */
 
 #ifndef MJPEG_DECODER_H
 #define MJPEG_DECODER_H
@@ -25,6 +27,16 @@
 #define JPEG422T	4
 #define JPEG400		5
 #define JPEGERR		6
+
+enum decoder_err{
+    JPEG_DECODER_ERROR_NONE = 0,         /* ok */
+    JPEG_DECODER_ERROR_INPUTLEN,         /* input packet too small */
+    JPEG_DECODER_ERROR_INPUTERROR,       /* input packet data error */
+    JPEG_DECODER_ERROR_INVPTR,           /* invalid (null) buffer pointer */
+    JPEG_DECODER_ERROR_NOEMPTYFRAME,     /* no empty frame for decoder */
+    JPEG_DECODER_ERROR_UNSUPPORTTYPE,    /* unsupport type */
+    JPEG_DECODER_ERROR_HARDWARE,         /* an error happen whlie hard decoder processing */
+};
 
 struct jpeg_huffman_table {
     unsigned short start_code[16]; 	// start_code[i], the minimum code of huffman code length i
@@ -91,6 +103,7 @@ struct mjpeg_dec_ctx {
     int h_offset[MAX_COMPONENTS];		// hor crop offset after post-process
     int v_offset[MAX_COMPONENTS];		// ver crop offset after post-process
     int extra_frame_num;
+    int error;
 };
 
 #endif /* MJPEG_DECODER_H */

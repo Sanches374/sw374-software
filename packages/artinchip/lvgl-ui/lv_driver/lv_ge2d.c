@@ -1,8 +1,9 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
+ * Authors:  Ning Fang <ning.fang@artinchip.com>
  */
 
 #include <stdlib.h>
@@ -208,24 +209,24 @@ static void transform_upscaled(const lv_draw_img_dsc_t *draw_dsc, int32_t xin,
     }
 }
 
-static void lv_img_buf_get_transformed_area(lv_area_t * res, lv_coord_t x, lv_coord_t y,
-                                            lv_coord_t w, lv_coord_t h,
+static void lv_img_buf_get_transformed_area(lv_area_t * res, lv_coord_t x1, lv_coord_t y1,
+                                            lv_coord_t x2, lv_coord_t y2,
                                             int16_t angle, uint16_t zoom,
                                             const lv_point_t * pivot)
 {
     if(angle == 0 && zoom == LV_IMG_ZOOM_NONE) {
-        res->x1 = 0;
-        res->y1 = 0;
-        res->x2 = w - 1;
-        res->y2 = h - 1;
+        res->x1 = x1;
+        res->y1 = y1;
+        res->x2 = x2;
+        res->y2 = y2;
         return;
     }
 
     lv_point_t p[4] = {
-        {x, y},
-        {w, y},
-        {x, h},
-        {w, h},
+        {x1, y1},
+        {x2, y1},
+        {x1, y2},
+        {x2, y2},
     };
     lv_point_transform(&p[0], angle, zoom, pivot);
     lv_point_transform(&p[1], angle, zoom, pivot);
@@ -237,10 +238,78 @@ static void lv_img_buf_get_transformed_area(lv_area_t * res, lv_coord_t x, lv_co
     res->y2 = LV_MAX4(p[0].y, p[1].y, p[2].y, p[3].y);
 }
 
-static int ge_run_blit(lv_draw_ctx_t * draw_ctx, const lv_draw_img_dsc_t *draw_dsc,
-                    struct mpp_frame *frame, const lv_area_t *clip_area, const lv_area_t *coords)
+static inline void ge_blit_set_src(struct ge_bitblt *blt, struct mpp_buf *frame,
+                                   int src_crop_x, int src_crop_y,
+                                   int src_crop_w, int src_crop_h)
+{
+    /* src buf */
+    blt->src_buf.buf_type = MPP_PHY_ADDR;
+    if (frame->format == MPP_FMT_ARGB_8888
+        || frame->format == MPP_FMT_RGBA_8888
+        || frame->format == MPP_FMT_RGB_888
+        || frame->format == MPP_FMT_RGB_565) {
+        blt->src_buf.phy_addr[0] = frame->phy_addr[0];
+        blt->src_buf.stride[0] = frame->stride[0];
+        blt->src_buf.format = frame->format;
+
+    } else if (frame->format == MPP_FMT_YUV420P
+        || frame->format == MPP_FMT_YUV444P
+        || frame->format == MPP_FMT_YUV422P) {
+        blt->src_buf.phy_addr[0] = frame->phy_addr[0];
+        blt->src_buf.phy_addr[1] = frame->phy_addr[1];
+        blt->src_buf.phy_addr[2] = frame->phy_addr[2];
+        blt->src_buf.stride[0] = frame->stride[0];
+        blt->src_buf.stride[1] = frame->stride[1];
+        blt->src_buf.stride[2] = frame->stride[2];
+        blt->src_buf.format = frame->format;
+    } else if (frame->format == MPP_FMT_NV12
+        || frame->format == MPP_FMT_NV21
+        || frame->format == MPP_FMT_NV16
+        || frame->format == MPP_FMT_NV61) {
+        blt->src_buf.phy_addr[0] = frame->phy_addr[0];
+        blt->src_buf.phy_addr[1] = frame->phy_addr[1];
+        blt->src_buf.stride[0] = frame->stride[0];
+        blt->src_buf.stride[1] = frame->stride[1];
+        blt->src_buf.format = frame->format;
+    }
+
+    blt->src_buf.size.width = frame->size.width;
+    blt->src_buf.size.height = frame->size.height;
+    blt->src_buf.crop_en = 1;
+    blt->src_buf.crop.x = src_crop_x;
+    blt->src_buf.crop.y = src_crop_y;
+    blt->src_buf.crop.width = src_crop_w;
+    blt->src_buf.crop.height = src_crop_h;
+    blt->src_buf.flags = frame->flags;
+}
+
+
+static inline int ge_blit_run(struct ge_bitblt *blt)
 {
     int ret;
+
+    ret = mpp_ge_bitblt(g_ge, blt);
+    if (ret < 0) {
+        LV_LOG_ERROR("bitblt fail");
+        return LV_RES_INV;
+    }
+    ret = mpp_ge_emit(g_ge);
+    if (ret < 0) {
+        LV_LOG_ERROR("emit fail");
+        return LV_RES_INV;
+    }
+    ret = mpp_ge_sync(g_ge);
+    if (ret < 0) {
+        LV_LOG_ERROR("sync fail");
+        return LV_RES_INV;
+    }
+
+    return LV_RES_OK;
+}
+
+static int ge_run_blit(lv_draw_ctx_t * draw_ctx, const lv_draw_img_dsc_t *draw_dsc,
+                    struct mpp_buf *frame, const lv_area_t *clip_area, const lv_area_t *coords)
+{
     lv_coord_t blend_w;
     lv_coord_t blend_h;
     int src_crop_x;
@@ -299,12 +368,12 @@ static int ge_run_blit(lv_draw_ctx_t * draw_ctx, const lv_draw_img_dsc_t *draw_d
 
         lv_area_t out_area;
         lv_img_buf_get_transformed_area(&out_area, src_crop_x, src_crop_y,
-                                        src_crop_w, src_crop_h, draw_dsc->angle,
+                                        x2_int, y2_int, draw_dsc->angle,
                                         draw_dsc->zoom, &draw_dsc->pivot);
 
         lv_area_move(&out_area, coords->x1, coords->y1);
-        dst_crop_x = out_area.x1;
-        dst_crop_y = out_area.y1;
+        dst_crop_x = LV_MAX(out_area.x1, 0);
+        dst_crop_y = LV_MAX(out_area.y1, 0);
         dst_crop_w = lv_area_get_width(&out_area);
         dst_crop_h = lv_area_get_height(&out_area);
 
@@ -316,43 +385,9 @@ static int ge_run_blit(lv_draw_ctx_t * draw_ctx, const lv_draw_img_dsc_t *draw_d
             return LV_RES_INV;
         }
     }
-    /* src buf */
-    blt.src_buf.buf_type = MPP_PHY_ADDR;
-    if (frame->buf.format == MPP_FMT_ARGB_8888
-        || frame->buf.format == MPP_FMT_RGBA_8888
-        || frame->buf.format == MPP_FMT_RGB_888
-        || frame->buf.format == MPP_FMT_RGB_565) {
-        blt.src_buf.phy_addr[0] = frame->buf.phy_addr[0];
-        blt.src_buf.stride[0] = frame->buf.stride[0];
-        blt.src_buf.format = frame->buf.format;
-    } else if (frame->buf.format == MPP_FMT_YUV420P
-        || frame->buf.format == MPP_FMT_YUV444P
-        || frame->buf.format == MPP_FMT_YUV422P) {
-        blt.src_buf.phy_addr[0] = frame->buf.phy_addr[0];
-        blt.src_buf.phy_addr[1] = frame->buf.phy_addr[1];
-        blt.src_buf.phy_addr[2] = frame->buf.phy_addr[2];
-        blt.src_buf.stride[0] = frame->buf.stride[0];
-        blt.src_buf.stride[1] = frame->buf.stride[1];
-        blt.src_buf.stride[2] = frame->buf.stride[2];
-        blt.src_buf.format = frame->buf.format;
-    } else if (frame->buf.format == MPP_FMT_NV12
-        || frame->buf.format == MPP_FMT_NV21
-        || frame->buf.format == MPP_FMT_NV16
-        || frame->buf.format == MPP_FMT_NV61) {
-        blt.src_buf.phy_addr[0] = frame->buf.phy_addr[0];
-        blt.src_buf.phy_addr[1] = frame->buf.phy_addr[1];
-        blt.src_buf.stride[0] = frame->buf.stride[0];
-        blt.src_buf.stride[1] = frame->buf.stride[1];
-        blt.src_buf.format = frame->buf.format;
-    }
 
-    blt.src_buf.size.width = frame->buf.size.width;
-    blt.src_buf.size.height = frame->buf.size.height;
-    blt.src_buf.crop_en = 1;
-    blt.src_buf.crop.x = src_crop_x;
-    blt.src_buf.crop.y = src_crop_y;
-    blt.src_buf.crop.width = src_crop_w;
-    blt.src_buf.crop.height = src_crop_h;
+    /* src buf */
+    ge_blit_set_src(&blt, frame, src_crop_x, src_crop_y, src_crop_w, src_crop_h);
 
     /* dst buf */
 #ifdef USE_DRAW_BUF
@@ -392,7 +427,7 @@ static int ge_run_blit(lv_draw_ctx_t * draw_ctx, const lv_draw_img_dsc_t *draw_d
 
     /* ctrl */
     blt.ctrl.flags = draw_dsc->angle / 900;
-    if(draw_dsc->opa >= LV_OPA_MAX && frame->buf.format != MPP_FMT_ARGB_8888)
+    if(draw_dsc->opa >= LV_OPA_MAX && frame->format != MPP_FMT_ARGB_8888)
         blt.ctrl.alpha_en = 0;
     else
         blt.ctrl.alpha_en = 1;
@@ -401,25 +436,17 @@ static int ge_run_blit(lv_draw_ctx_t * draw_ctx, const lv_draw_img_dsc_t *draw_d
     blt.ctrl.src_global_alpha = draw_dsc->opa;
 
 #ifdef AIC_GE_DITHER
-    if (AICFB_FORMAT == MPP_FMT_RGB_565 && draw_dsc->zoom == 256)
+    if (AICFB_FORMAT == MPP_FMT_RGB_565 && draw_dsc->zoom == 256) {
         blt.ctrl.dither_en = 1;
+        if (blt.ctrl.alpha_en)
+            blt.ctrl.dither_en = 0;
+    }
 #endif
+
     aicos_dcache_clean_invalid_range((ulong *)dest_buf, (ulong)ALIGN_UP(draw_buf_len(), CACHE_LINE_SIZE));
-    ret = mpp_ge_bitblt(g_ge, &blt);
-    if (ret < 0) {
-        LV_LOG_ERROR("bitblt fail\n");
+
+    if (ge_blit_run(&blt) == LV_RES_INV)
         return LV_RES_INV;
-    }
-    ret = mpp_ge_emit(g_ge);
-    if (ret < 0) {
-        LV_LOG_ERROR("emit fail\n");
-        return LV_RES_INV;
-    }
-    ret = mpp_ge_sync(g_ge);
-    if (ret < 0) {
-        LV_LOG_ERROR("sync fail\n");
-        return LV_RES_INV;
-    }
 
     return LV_RES_OK;
 }
@@ -437,7 +464,7 @@ static int get_bpp_by_fmt(enum mpp_pixel_format fmt)
 }
 
 static int ge_run_rotate(lv_draw_ctx_t * draw_ctx, const lv_draw_img_dsc_t *draw_dsc,
-                    struct mpp_frame *frame, const lv_area_t *blend_area, const lv_area_t *coords)
+                    struct mpp_buf *frame, const lv_area_t *blend_area, const lv_area_t *coords)
 
 {
     int ret;
@@ -461,26 +488,26 @@ static int ge_run_rotate(lv_draw_ctx_t * draw_ctx, const lv_draw_img_dsc_t *draw
 
     /* src buf */
     rot.src_buf.buf_type = MPP_PHY_ADDR;
-    if (frame->buf.format == MPP_FMT_ARGB_8888
-        || frame->buf.format == MPP_FMT_RGBA_8888
-        || frame->buf.format == MPP_FMT_RGB_888
-        || frame->buf.format == MPP_FMT_RGB_565) {
+    if (frame->format == MPP_FMT_ARGB_8888
+        || frame->format == MPP_FMT_RGBA_8888
+        || frame->format == MPP_FMT_RGB_888
+        || frame->format == MPP_FMT_RGB_565) {
 
         if (draw_dsc->zoom == LV_IMG_ZOOM_NONE) {
-            rot.src_buf.phy_addr[0] = frame->buf.phy_addr[0];
-            rot.src_buf.stride[0] = frame->buf.stride[0];
-            rot.src_buf.format = frame->buf.format;
-            rot.src_buf.size.width = frame->buf.size.width;
-            rot.src_buf.size.height = frame->buf.size.height;
+            rot.src_buf.phy_addr[0] = frame->phy_addr[0];
+            rot.src_buf.stride[0] = frame->stride[0];
+            rot.src_buf.format = frame->format;
+            rot.src_buf.size.width = frame->size.width;
+            rot.src_buf.size.height = frame->size.height;
             rot.src_rot_center.x = draw_dsc->pivot.x;
             rot.src_rot_center.y = draw_dsc->pivot.y;
         } else {
             struct ge_bitblt blt = { 0 };
-            int bpp = get_bpp_by_fmt(frame->buf.format);
+            int bpp = get_bpp_by_fmt(frame->format);
 
             zoom =  draw_dsc->zoom;
-            out_w = (frame->buf.size.width * zoom) >> 8;
-            out_h = (frame->buf.size.height * zoom) >> 8;
+            out_w = (frame->size.width * zoom) >> 8;
+            out_h = (frame->size.height * zoom) >> 8;
             out_pivot_x = (draw_dsc->pivot.x * zoom) >> 8;
             out_pivot_y = (draw_dsc->pivot.y * zoom) >> 8;
             out_stride = ALIGN_UP(out_w * bpp, 8);
@@ -496,17 +523,17 @@ static int ge_run_rotate(lv_draw_ctx_t * draw_ctx, const lv_draw_img_dsc_t *draw
 
             /* src buf */
             blt.src_buf.buf_type = MPP_PHY_ADDR;
-            blt.src_buf.phy_addr[0] = frame->buf.phy_addr[0];
-            blt.src_buf.stride[0] = frame->buf.stride[0];
-            blt.src_buf.format = frame->buf.format;
-            blt.src_buf.size.width = frame->buf.size.width;
-            blt.src_buf.size.height = frame->buf.size.height;
+            blt.src_buf.phy_addr[0] = frame->phy_addr[0];
+            blt.src_buf.stride[0] = frame->stride[0];
+            blt.src_buf.format = frame->format;
+            blt.src_buf.size.width = frame->size.width;
+            blt.src_buf.size.height = frame->size.height;
 
             /* dst buf */
             blt.dst_buf.buf_type = MPP_PHY_ADDR;
             blt.dst_buf.phy_addr[0] = out_addr_align;
             blt.dst_buf.stride[0] = out_stride;
-            blt.dst_buf.format = frame->buf.format;
+            blt.dst_buf.format = frame->format;
             blt.dst_buf.size.width = out_w;
             blt.dst_buf.size.height = out_h;
 
@@ -528,14 +555,14 @@ static int ge_run_rotate(lv_draw_ctx_t * draw_ctx, const lv_draw_img_dsc_t *draw
 
             rot.src_buf.phy_addr[0] = out_addr_align;
             rot.src_buf.stride[0] = out_stride;
-            rot.src_buf.format = frame->buf.format;
+            rot.src_buf.format = frame->format;
             rot.src_buf.size.width = out_w;
             rot.src_buf.size.height = out_h;
             rot.src_rot_center.x = out_pivot_x;
             rot.src_rot_center.y = out_pivot_y;
         }
     } else {
-        LV_LOG_ERROR("frame unsupport format:%d\n", frame->buf.format);
+        LV_LOG_ERROR("frame unsupport format:%d\n", frame->format);
         return LV_RES_INV;
     }
 
@@ -686,7 +713,7 @@ static int ge_run_fill(lv_draw_ctx_t * draw_ctx, unsigned int color, unsigned ch
 }
 
 bool is_fix_angle(int angle) {
-    if (angle == 0)
+    if (angle == 0 || angle == 900 || angle == 1800 || angle == 2700)
         return true;
     else
         return false;
@@ -743,9 +770,9 @@ static lv_res_t hw_decode(lv_draw_ctx_t * draw_ctx, const lv_draw_img_dsc_t *dra
     }
 
     if (is_fix_angle(draw_dsc->angle))
-        lv_ret = ge_run_blit(draw_ctx, draw_dsc, &frame, blend_area, coords);
+        lv_ret = ge_run_blit(draw_ctx, draw_dsc, &frame.buf, blend_area, coords);
     else if (draw_dsc->angle > 0 && draw_dsc->zoom == LV_IMG_ZOOM_NONE)
-        lv_ret = ge_run_rotate(draw_ctx, draw_dsc, &frame, blend_area, coords);
+        lv_ret = ge_run_rotate(draw_ctx, draw_dsc, &frame.buf, blend_area, coords);
     else
         lv_ret = LV_RES_INV;
 
@@ -758,8 +785,6 @@ free_img:
     return lv_ret;
 }
 
-static bool file_type = false;
-
 lv_res_t lv_draw_aic_draw_img(lv_draw_ctx_t * draw_ctx, const lv_draw_img_dsc_t * draw_dsc,
                               const lv_area_t * coords, const void *src)
 {
@@ -768,19 +793,15 @@ lv_res_t lv_draw_aic_draw_img(lv_draw_ctx_t * draw_ctx, const lv_draw_img_dsc_t 
     bool fake_image = false;
     char* ptr = NULL;
 
-    ptr = strrchr(src, '.');
-
-    if (lv_img_src_get_type(src) != LV_IMG_SRC_FILE) {
-        file_type = false;
-        return LV_RES_INV;
+    if (lv_img_src_get_type(src) == LV_IMG_SRC_FILE) {
+        ptr = strrchr(src, '.');
+        if (!strcmp(ptr, ".fake"))
+            fake_image = true;
+        else
+            return LV_RES_INV;
     } else {
-        file_type = true;
-    }
-
-    if (!strcmp(ptr, ".fake"))
-        fake_image = true;
-    else
         return LV_RES_INV;
+    }
 
     lv_area_copy(&draw_area, draw_ctx->clip_area);
 
@@ -841,7 +862,11 @@ LV_ATTRIBUTE_FAST_MEM void lv_draw_aic_sw_img_decoded(struct _lv_draw_ctx_t * dr
     struct mpp_frame frame;
     memcpy(&frame, src_buf, sizeof(frame));
 
-    if (frame.buf.format != MPP_FMT_ARGB_8888 && frame.buf.format != MPP_FMT_RGB_565) {
+    if (frame.buf.format == MPP_FMT_ARGB_8888) {
+        cf = LV_IMG_CF_TRUE_COLOR_ALPHA;
+    } else if (frame.buf.format == MPP_FMT_RGB_565) {
+        cf = LV_IMG_CF_TRUE_COLOR;
+    } else {
         LV_LOG_ERROR("unsupported format:%d\n", frame.buf.format);
         return;
     }
@@ -869,7 +894,7 @@ LV_ATTRIBUTE_FAST_MEM void lv_draw_aic_img_decoded(struct _lv_draw_ctx_t * draw_
     lv_area_t b_area;
     lv_draw_sw_blend_dsc_t blend_dsc;
 
-    if (!file_type) {
+    if (cf != LV_IMG_CF_RESERVED_16) {
         lv_draw_sw_img_decoded(draw_ctx, draw_dsc, coords, src_buf, cf);
         return;
     }
@@ -894,14 +919,21 @@ LV_ATTRIBUTE_FAST_MEM void lv_draw_aic_img_decoded(struct _lv_draw_ctx_t * draw_
         if (blend_dsc.mask_buf == NULL && blend_dsc.blend_mode == LV_BLEND_MODE_NORMAL
             && (dest_buf == disp->driver->draw_buf->buf1 || dest_buf == disp->driver->draw_buf->buf2)
             && disp->driver->set_px_cb == NULL ) {
-            struct mpp_frame frame;
+            struct mpp_buf frame;
             memcpy(&frame, src_buf, sizeof(frame));
 
-            if (!draw_dsc->antialias || !is_fix_angle(draw_dsc->angle))
+            if (!is_fix_angle(draw_dsc->angle)) {
                 ge_run_rotate(draw_ctx, draw_dsc, &frame, &blend_area, coords);
-            else
-                ge_run_blit(draw_ctx, draw_dsc, &frame, &blend_area, coords);
-
+            } else {
+                if (draw_dsc->antialias && draw_dsc->angle != 0) {
+                    if (frame.format >= MPP_FMT_YUV420P)
+                        ge_run_blit(draw_ctx, draw_dsc, &frame, &blend_area, coords);
+                    else
+                        ge_run_rotate(draw_ctx, draw_dsc, &frame, &blend_area, coords);
+                } else {
+                    ge_run_blit(draw_ctx, draw_dsc, &frame, &blend_area, coords);
+                }
+            }
         } else {
             lv_draw_aic_sw_img_decoded(draw_ctx, draw_dsc, coords, src_buf, cf);
         }

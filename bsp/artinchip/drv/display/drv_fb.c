@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2023, Artinchip Technology Co., Ltd
+ * Copyright (c) 2023-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #include <aic_core.h>
 #include <aic_hal_ge.h>
-#include "disp_com.h"
+#include "drv_fb.h"
 #ifdef AIC_FB_ROTATE_EN
 #include <aic_drv_ge.h>
 #endif
@@ -299,7 +299,6 @@ int aicfb_ioctl(int cmd, void *args)
     }
     case AICFB_GET_SCREENINFO:
     {
-        const struct display_timing *timing = fbi->panel->timings;
         struct aicfb_screeninfo *info;
 
         info = (struct aicfb_screeninfo *) args;
@@ -307,8 +306,8 @@ int aicfb_ioctl(int cmd, void *args)
         info->bits_per_pixel = fbi->bits_per_pixel;
         info->stride = fbi->stride;
         info->framebuffer = (unsigned char *)fbi->fb_start;
-        info->width = timing->hactive;
-        info->height = timing->vactive;
+        info->width = fbi->width;
+        info->height = fbi->height;
         info->smem_len = fbi->fb_size;
         break;
     }
@@ -512,7 +511,6 @@ rt_err_t aicfb_control(rt_device_t dev, int cmd, void *args)
         break;
     case RTGRAPHIC_CTRL_GET_INFO:
     {
-        const struct display_timing *timing = fbi->panel->timings;
         struct rt_device_graphic_info *info;
 
         info = (struct rt_device_graphic_info *) args;
@@ -520,8 +518,8 @@ rt_err_t aicfb_control(rt_device_t dev, int cmd, void *args)
         info->bits_per_pixel = fbi->bits_per_pixel;
         info->pitch = (rt_uint16_t)fbi->stride;
         info->framebuffer = (rt_uint8_t*)fbi->fb_start;
-        info->width = (rt_uint16_t)timing->hactive;
-        info->height = (rt_uint16_t)timing->vactive;
+        info->width = (rt_uint16_t)fbi->width;
+        info->height = (rt_uint16_t)fbi->height;
         info->smem_len = fbi->fb_size;
 
         return RT_EOK;

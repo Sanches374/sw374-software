@@ -34,16 +34,14 @@
 
 MEMORY
 {
-    DRAM_SW     : ORIGIN = 0x42000100, LENGTH = AIC_DRAM_TOTAL_SIZE - 0x2000000
+    DRAM_SW     : ORIGIN = (AIC_BOOTLOADER_TEXT_BASE), LENGTH = AIC_BOOTLOADER_TEXT_SIZE
 }
 
 PROVIDE (__dram_start             = 0x40000000);
 PROVIDE (__dram_end               = 0x40000000 + AIC_DRAM_TOTAL_SIZE);
-PROVIDE (__dram_sw_heap_end       = __dram_end);
-
 PROVIDE (__min_heap_size           = 0x200);
-PROVIDE (__heap_start              = __dram_sw_heap_start);
-PROVIDE (__heap_end                = __dram_sw_heap_end);
+PROVIDE (__heap_start              = AIC_BOOTLOADER_HEAP_BASE);
+PROVIDE (__heap_end                = AIC_BOOTLOADER_HEAP_BASE + AIC_BOOTLOADER_HEAP_SIZE);
 
 REGION_ALIAS("REGION_TEXT"          , DRAM_SW);
 REGION_ALIAS("REGION_RODATA"        , DRAM_SW);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -16,5 +16,5 @@
 #define RT_DEVICE_CTRL_WDT_SET_RST_CPU      (RT_DEVICE_CTRL_BASE(WDT) + 11)
 #define RT_DEVICE_CTRL_WDT_SET_RST_SYS      (RT_DEVICE_CTRL_BASE(WDT) + 12)
 #define RT_DEVICE_CTRL_WDT_GET_RST_EN       (RT_DEVICE_CTRL_BASE(WDT) + 13)
-
+#define RT_DEVICE_CTRL_WDT_EN_REG           (RT_DEVICE_CTRL_BASE(WDT) + 14)
 #endif /* _AIC_DRV_WDT_H_ */

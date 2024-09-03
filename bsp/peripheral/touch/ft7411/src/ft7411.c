@@ -226,8 +226,8 @@ static int rt_hw_ft7411_port(void)
     struct rt_touch_config cfg;
     rt_base_t rst_pin;
 
-    cfg.dev_name = AIC_TOUCH_PANEL_FT7411_I2C_CHA;
-    rst_pin = hal_gpio_name2pin(FT7411_RST_PIN);
+    cfg.dev_name = AIC_TOUCH_PANEL_I2C_CHAN;
+    rst_pin = hal_gpio_name2pin(AIC_TOUCH_PANEL_RST_PIN);
 
     rt_hw_ft7411_init("ft7411", &cfg, rst_pin);
 

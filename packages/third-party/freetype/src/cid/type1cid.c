@@ -18,11 +18,5 @@
 
 #define FT_MAKE_OPTION_SINGLE_OBJECT
 
-#include "cidgload.c"
-#include "cidload.c"
-#include "cidobjs.c"
-#include "cidparse.c"
-#include "cidriver.c"
-
 
 /* END */

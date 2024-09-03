@@ -24,15 +24,15 @@
 MEMORY
 {
     /* The last 256KB for bootloader */
-    SRAM_SW     : ORIGIN = 0x30100100, LENGTH = 0x40000
+    SRAM_SW     : ORIGIN = (AIC_BOOTLOADER_TEXT_BASE), LENGTH = AIC_BOOTLOADER_TEXT_SIZE
 }
 
 PROVIDE (__sram_start             = 0x30040000);
 PROVIDE (__sram_end               = 0x30040000 + AIC_SRAM_SIZE);
 
 PROVIDE (__min_heap_size           = 0x200);
-PROVIDE (__heap_start              = 0x300E0000);
-PROVIDE (__heap_end                = 0x300FF000);
+PROVIDE (__heap_start              = AIC_BOOTLOADER_HEAP_BASE);
+PROVIDE (__heap_end                = AIC_BOOTLOADER_HEAP_BASE + AIC_BOOTLOADER_HEAP_SIZE);
 REGION_ALIAS("REGION_TEXT"          , SRAM_SW);
 REGION_ALIAS("REGION_RODATA"        , SRAM_SW);
 REGION_ALIAS("REGION_DATA"          , SRAM_SW);

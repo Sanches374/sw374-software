@@ -1,10 +1,10 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
- *  author: <qi.xu@artinchip.com>
- *  Desc: log module
+ * Author: <qi.xu@artinchip.com>
+ * Desc: log module
  */
 
 #ifndef MPP_LOG_H
@@ -61,6 +61,11 @@ enum log_level {
 #define logd(fmt, arg...) mpp_log(MPP_LOGL_DEBUG, TAG_DEBUG, fmt, ##arg)
 #define logv(fmt, arg...) mpp_log(MPP_LOGL_VERBOSE, TAG_VERBOSE, fmt, ##arg)
 
+#define mpp_assert(cond) do { \
+	if (!(cond)) { \
+		loge("Assertion failed!"); \
+	} \
+} while (0)
 
 #define time_start(tag) unsigned int time_##tag##_start = aic_get_time_us()
 #define time_end(tag) unsigned int time_##tag##_end = aic_get_time_us();\

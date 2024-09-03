@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -139,6 +139,10 @@ static rt_err_t drv_wdt_control(rt_watchdog_t *wdt, int cmd, void *args)
 
     case RT_DEVICE_CTRL_WDT_STOP:
         drv_wdt_stop();
+        break;
+
+    case RT_DEVICE_CTRL_WDT_EN_REG:
+        hal_wdt_reg_protect(*(u32 *)args);
         break;
 
     /* IRQ_THD */

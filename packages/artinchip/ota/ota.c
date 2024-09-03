@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include <rtthread.h>
 #include <rtdevice.h>
 #include <finsh.h>
@@ -19,6 +20,7 @@
 #include <env.h>
 #include <absystem.h>
 #include <burn.h>
+#include <ctype.h>
 
 #define DBG_ENABLE
 #define DBG_SECTION_NAME "ota"
@@ -42,6 +44,13 @@ enum flag_cpio {
     FLAG_CPIO_HEAD4,
     FLAG_CPIO_HEAD,
     FLAG_CPIO_FILE,
+};
+
+struct fileinfo {
+    unsigned int file_size;
+    char file_version[32];
+    char file[MAX_CPIO_FILE_NAME][MAX_IMAGE_FNAME];
+    char device[MAX_CPIO_FILE_NAME][MAX_IMAGE_FNAME];
 };
 
 struct filehdr {
@@ -84,7 +93,6 @@ enum cpio_fields {
     C_NFIELDS
 };
 
-
 #ifdef OTA_DOWNLOADER_DEBUG
 static unsigned int test_sum = 0;
 static unsigned int test_leng = 0;
@@ -97,6 +105,7 @@ static unsigned char cpio_or_file = FLAG_CPIO_HEAD;
 static struct bufhdr bhdr = { 0 };  /*burn buffer*/
 static struct bufhdr shdr = { 0 };  /*head buffer*/
 static struct filehdr fhdr = { 0 }; /*upgrade file info*/
+static struct fileinfo finfo = { 0 }; /* cpio file info */
 
 unsigned int cpio_file_checksum(unsigned char *buffer, unsigned int length)
 {
@@ -109,7 +118,7 @@ unsigned int cpio_file_checksum(unsigned char *buffer, unsigned int length)
 #ifdef OTA_DOWNLOADER_DEBUG
     test_sum += sum;
     test_leng += length;
-    printf("%s sum = 0x%x length = %d\n", __func__, test_sum, test_leng);
+    printf("%s sum = 0x%x length = %u\n", __func__, test_sum, test_leng);
 #endif
     return sum;
 }
@@ -173,6 +182,221 @@ static void print_progress(size_t cur_size, size_t total_size)
     LOG_I("Download: [%s] %03d%%\033[1A", progress_sign, per);
 
     per_size = per;
+}
+
+static int parse_cpio_file_info(struct bufhdr *bhdr, struct filehdr *fhdr, struct fileinfo *finfo)
+{
+    int ret = RT_EOK;
+
+    if (fhdr->size != OTA_CPIO_INFO_LEN) {
+        LOG_E("please check the ota_info.bin size! error size:%d", fhdr->size);
+        return -1;
+    }
+
+    /*when the buffer len is insufficient, process after receive data next time*/
+    if (bhdr->buflen < OTA_CPIO_INFO_LEN)
+        return 0;
+
+    char *ptr = bhdr->buf;
+    char cpio_file_size[32] = {0};
+    char type[16] = {0};//store [image]or[file]...
+
+    /* ota_info.bin file parse code */
+    while(ptr < bhdr->buf + OTA_CPIO_INFO_LEN) {
+        if (*ptr == '[') {
+            if (strncmp(ptr, "[image]", 7) == 0) {
+                strncpy(type, ptr, 7);
+                ptr += strlen(type) + 1;//skip the type and zero
+                /* start to parse image content */
+                if (*ptr == 's' && *(ptr + 1) == 'i' && \
+                    *(ptr + 2) == 'z' && *(ptr + 3) == 'e') {
+                    ptr += 8;
+                    char *size_start = ptr;
+                    while (*ptr != '"' && (ptr < bhdr->buf + OTA_CPIO_INFO_LEN))
+                        ptr++;
+                    int size_len = ptr - size_start;
+                    strncpy(cpio_file_size, size_start, size_len);
+                    finfo->file_size = atoi(cpio_file_size);
+                    LOG_I("cpio file size:%d", finfo->file_size);
+                    ptr += 3;//skip the semicolon and zero
+                } else {
+                    LOG_E("no cpio file size content!");
+                }
+                if (*ptr == 'v' && *(ptr + 1) == 'e' && *(ptr + 2) == 'r' && *(ptr + 3) == 's' \
+                    && *(ptr + 4) == 'i' && *(ptr + 5) == 'o' && *(ptr + 6) == 'n') {
+                    ptr += 11;
+                    char *version_start = ptr;
+                    while (*ptr != '"' && (ptr < bhdr->buf + OTA_CPIO_INFO_LEN))
+                        ptr++;
+                    int version_len = ptr - version_start;
+                    strncpy(finfo->file_version, version_start, version_len);
+                    LOG_I("cpio file version:%s", finfo->file_version);
+                    ptr += 3;//skip the semicolon and zero
+                } else {
+                    LOG_E("no cpio file version content!");
+                }
+            } else if (strncmp(ptr, "[file]", 6) == 0) {
+                strncpy(type, ptr, 6);
+                ptr += strlen(type) + 1;//skip the type and zero
+                /* start to parse file content */
+                char *file_start = ptr;
+                char *deivce_start = NULL;
+                int colon_num = 0, semico_num = 0, file_name_len = 0, device_name_len = 0;
+                while (ptr < bhdr->buf + OTA_CPIO_INFO_LEN) {
+                    if (*ptr == ':') {
+                        file_name_len = ptr - file_start;
+                        strncpy(finfo->file[colon_num], file_start, file_name_len);
+                        finfo->file[colon_num][file_name_len] = '\0';
+                        ptr++;
+                        colon_num++;
+                        deivce_start = ptr;
+                        continue;
+                    }
+                    if (*ptr == ';') {
+                        device_name_len = ptr - deivce_start;
+                        strncpy(finfo->device[semico_num], deivce_start, device_name_len);
+                        ptr += 2;//skip the zero
+                        semico_num++;
+                        file_start = ptr;
+                        continue;
+                    }
+                    ptr++;
+                }
+            }
+        } else {
+            //not '['
+            ptr++;
+        }
+    }
+
+#ifdef OTA_DOWNLOADER_DEBUG
+    for (int i = 0; i < MAX_CPIO_FILE_NAME; i++)
+        printf("[%d]: file name= %s device info= %s\n", i, finfo->file[i], finfo->device[i]);
+#endif
+
+    rt_memcpy(bhdr->buf, bhdr->buf + OTA_CPIO_INFO_LEN,
+                  bhdr->buflen - OTA_CPIO_INFO_LEN);
+    bhdr->buflen -= OTA_CPIO_INFO_LEN;
+    /*transfer bhdr all data to shdr*/
+    ret = ota_buf_push(&shdr, bhdr->buf + bhdr->head, bhdr->buflen);
+    if (ret < 0) {
+        return ret;
+    } else {
+        /*bhdr all data has been passed to shdr*/
+        bhdr->buflen = 0;
+        bhdr->head = 0;
+    }
+
+    return 1;
+}
+
+/*
+ * mmc defaults to the next partition as the
+ * back up partition
+ */
+static void increment_last_digit(char *str)
+{
+    int len = strlen(str);
+
+    for (int i = len - 1; i >= 0; i--) {
+        int temp = (int)str[i];
+        if (isdigit(temp)) {
+            str[i]++;
+            break;
+        }
+    }
+}
+
+char *ota_upgrade_get_partname(char *file_name)
+{
+    int i = 0;
+    char *now = NULL;
+    char *ret = NULL;
+
+    if (strlen(file_name) > MAX_IMAGE_FNAME) {
+        LOG_E("file name %s is too long, max size %d", file_name, MAX_IMAGE_FNAME);
+        return ret;
+    }
+
+    for (i = 0; i < MAX_CPIO_FILE_NAME; i++) {
+        if (strncmp(file_name, finfo.file[i], strlen(file_name)) == 0)
+            break;
+    }
+
+    if (i == MAX_CPIO_FILE_NAME) {
+        LOG_E("not found the file:%s index", file_name);
+        return NULL;
+    }
+
+    enum boot_device boot_dev = aic_get_boot_device();
+
+    if (fw_env_open()) {
+        LOG_E("Open env failed");
+        return ret;
+    }
+
+    if (strncmp("rodata.fatfs", file_name, 12) == 0) {
+        now = fw_getenv("rodataAB_now");
+        LOG_I("rodataAB_now = %s", now);
+        if (strncmp(now, "A", 1) == 0) {
+            LOG_I("Upgrade B rodatafs");
+            if (boot_dev == BD_SDMC0)
+                increment_last_digit(finfo.device[i]);
+            else
+                strncat(finfo.device[i], "_r", sizeof(finfo.device[i]) - strlen(finfo.device[i]) - 1);
+
+            ret = finfo.device[i];
+        } else if (strncmp(now, "B", 1) == 0) {
+            LOG_I("Upgrade A rodatafs");
+            ret = finfo.device[i];
+        } else {
+            ret = NULL;
+            LOG_E("invalid rodataAB_now");
+        }
+    } else if (strncmp("data.fatfs", file_name, 10) == 0) {
+        now = fw_getenv("dataAB_now");
+        LOG_I("dataAB_now = %s", now);
+        if (strncmp(now, "A", 1) == 0) {
+            LOG_I("Upgrade B datafs");
+            if (boot_dev == BD_SDMC0)
+                increment_last_digit(finfo.device[i]);
+            else
+                strncat(finfo.device[i], "_r", sizeof(finfo.device[i]) - strlen(finfo.device[i]) - 1);
+
+            ret = finfo.device[i];
+        } else if (strncmp(now, "B", 1) == 0) {
+            LOG_I("Upgrade A datafs");
+            ret = finfo.device[i];
+        } else {
+            ret = NULL;
+            LOG_E("invalid dataAB_now");
+        }
+    } else if (strstr(file_name, ".itb") != NULL) {
+        now = fw_getenv("osAB_now");
+        LOG_I("osAB_now = %s", now);
+        if (strncmp(now, "A", 1) == 0) {
+            LOG_I("Upgrade B system");
+            if (boot_dev == BD_SDMC0)
+                increment_last_digit(finfo.device[i]);
+            else
+                strncat(finfo.device[i], "_r", sizeof(finfo.device[i]) - strlen(finfo.device[i]) - 1);
+
+            ret = finfo.device[i];
+        } else if (strncmp(now, "B", 1) == 0) {
+            LOG_I("Upgrade A system");
+            ret = finfo.device[i];
+        } else {
+            ret = NULL;
+            LOG_E("invalid osAB_now");
+        }
+    } else {
+        ret = NULL;
+        LOG_E("Get partname error, please check the file name!");
+    }
+
+    fw_env_close();
+
+    return ret;
 }
 
 /*
@@ -242,7 +466,6 @@ download_buf_pop_last:
     } else {
         bhdr->head += (burn_len + fhdr->size_align);
         bhdr->buflen -= (burn_len + fhdr->size_align);
-
         /*transfer bhdr all data to shdr*/
         ret = ota_buf_push(&shdr, bhdr->buf + bhdr->head, bhdr->buflen);
         if (ret < 0) {
@@ -348,7 +571,7 @@ int find_cpio_data(struct filehdr *fhdr, void *data, size_t len)
         fhdr->filename_align =
             ALIGN_xB_UP(file_end_offset, 4) - file_end_offset;
 #ifdef OTA_DOWNLOADER_DEBUG
-        printf("fhdr->filename_align = %d %d %d\n", fhdr->filename_align,
+        printf("fhdr->filename_align = %u %d %d\n", fhdr->filename_align,
                file_end_offset, ALIGN_xB_UP(file_end_offset, 4));
 #endif
 
@@ -365,7 +588,7 @@ int find_cpio_data(struct filehdr *fhdr, void *data, size_t len)
         fhdr->size_align = ALIGN_xB_UP(file_end_offset, 4) - file_end_offset;
 
 #ifdef OTA_DOWNLOADER_DEBUG
-        printf("fhdr->size_align = %d %d %d\n", fhdr->size_align,
+        printf("fhdr->size_align = %u %d %d\n", fhdr->size_align,
                file_end_offset, ALIGN_xB_UP(file_end_offset, 4));
         test_sum = 0;
         test_leng = 0;
@@ -508,57 +731,100 @@ int ota_shard_download_fun(char *buffer, int length)
             goto __download_exit;
         }
 
-        partname = aic_upgrade_get_partname(flag_cpio);
+        ret = rt_strncmp(fhdr.filename, "ota_info.bin", fhdr.filename_size);
+        if (ret == 0) {
+            ret = parse_cpio_file_info(&bhdr, &fhdr, &finfo);
+            if (ret < 0) {
+                LOG_E("Parsing cpio file info is error!\n");
+                goto __download_exit;
+            } else if (ret == 0) {
+#ifdef OTA_DOWNLOADER_DEBUG
+                printf("data is not enough to parse, continue to store data!\n");
+                printf("bhdr.buflen:%d bhdr.size:%d bhdr.head:%d\n", bhdr.buflen, bhdr.size, bhdr.head);
+#endif
+            } else {
+                LOG_I("Parsing cpio file info once is sufficient and successful!");
+                cpio_or_file = FLAG_CPIO_HEAD;
+                flag_cpio++;
+                ret = RT_EOK;
+                goto ota_shard_download_handle_last;
+            }
+        } else {
+            partname = ota_upgrade_get_partname(fhdr.filename);
+            if (partname == NULL)
+                goto __download_exit;
 
-        LOG_I("Start upgrade to %s, flag_cpio:%d!", partname, flag_cpio);
+            LOG_I("Start upgrade to %s, flag_cpio:%d!", partname, flag_cpio);
 
-        ret = aic_ota_find_part(partname);
-        if (ret)
-            goto __download_exit;
+            ret = aic_ota_find_part(partname);
+            if (ret)
+                goto __download_exit;
 
-        ret = aic_ota_erase_part();
-        if (ret)
-            goto __download_exit;
+            ret = aic_ota_erase_part();
+            if (ret)
+                goto __download_exit;
 
-        LOG_I("Start upgrade %s!", fhdr.filename);
+            LOG_I("Start upgrade %s!", fhdr.filename);
 
-        ret = download_buf_pop(&bhdr, &fhdr);
-        if (ret < 0) {
-            LOG_E("download_buf_pop error! len = %d\n", len);
-            goto __download_exit;
+            ret = download_buf_pop(&bhdr, &fhdr);
+            if (ret < 0) {
+                LOG_E("download_buf_pop error! len = %d\n", len);
+                goto __download_exit;
+            }
         }
-
         cpio_or_file = FLAG_CPIO_FILE;
     } else { /*Parse file content*/
         ret = ota_buf_push(&bhdr, buffer, length);
         if (ret)
             goto __download_exit;
 
-        ret = download_buf_pop(&bhdr, &fhdr);
-        if (ret < 0) {
-            LOG_E("download_buf_pop error! len = %d\n", len);
-            goto __download_exit;
-        }
-
-        if (fhdr.size <= fhdr.begin_offset) {
+        ret = rt_strncmp(fhdr.filename, "ota_info.bin", fhdr.filename_size);
+        if (ret == 0) {
+            ret = parse_cpio_file_info(&bhdr, &fhdr, &finfo);
+            if (ret < 0) {
+                LOG_E("parse cpio file info error!");
+                goto __download_exit;
+            } else if (ret == 0) {
 #ifdef OTA_DOWNLOADER_DEBUG
-            LOG_I("fhdr.size = %d fhdr.begin_offset = %d\n", fhdr.size,
-                  fhdr.begin_offset);
+                printf("data is not enough to parse, continue to store data!\n");
+                printf("bhdr.buflen:%d bhdr.size:%d bhdr.head:%d\n", bhdr.buflen, bhdr.size, bhdr.head);
 #endif
-            if (fhdr.sum == fhdr.chksum) {
-                LOG_I("Sum check success!");
-                LOG_I("download %s success!\n", fhdr.filename);
             } else {
-                LOG_E(
-                    "Sum check failed, fhdr->sum = 0x%x,fhdr->chksum = 0x%x\n",
-                    fhdr.sum, fhdr.chksum);
+                LOG_I("Parsing cpio file info is successful!");
+                cpio_or_file = FLAG_CPIO_HEAD;
+                flag_cpio++;
+                ret = RT_EOK;
+                goto ota_shard_download_handle_last;
+            }
+        } else {
+            ret = download_buf_pop(&bhdr, &fhdr);
+            if (ret < 0) {
+                LOG_E("download_buf_pop error! len = %d\n", len);
                 goto __download_exit;
             }
 
-            cpio_or_file = FLAG_CPIO_HEAD;
-            flag_cpio++;
+            if (fhdr.size <= fhdr.begin_offset) {
+#ifdef OTA_DOWNLOADER_DEBUG
+                LOG_I("fhdr.size = %d fhdr.begin_offset = %d\n", fhdr.size,
+                      fhdr.begin_offset);
+#endif
+                if (fhdr.sum == fhdr.chksum) {
+                    LOG_I("Sum check success!");
+                    LOG_I("download %s success!\n", fhdr.filename);
+                    aic_set_upgrade_status(fhdr.filename);
+                } else {
+                    LOG_E(
+                        "Sum check failed, fhdr->sum = 0x%x,fhdr->chksum = 0x%x\n",
+                        fhdr.sum, fhdr.chksum);
+                    ret = -RT_ERROR;
+                    goto __download_exit;
+                }
 
-            goto ota_shard_download_handle_last;
+                cpio_or_file = FLAG_CPIO_HEAD;
+                flag_cpio++;
+
+                goto ota_shard_download_handle_last;
+            }
         }
     }
 

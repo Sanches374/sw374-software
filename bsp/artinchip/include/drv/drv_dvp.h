@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -51,6 +51,8 @@ int aic_dvp_q_buf(u32 index);
 int aic_dvp_dq_buf(u32 *pindex);
 
 int aic_dvp_probe(void);
+int aic_dvp_vb_init(void);
+void aic_dvp_vb_deinit(void);
 int aic_dvp_open(void);
 int aic_dvp_close(void);
 

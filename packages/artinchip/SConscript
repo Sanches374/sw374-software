@@ -7,7 +7,13 @@ cwd = GetCurrentDir()
 objs = []
 list = os.listdir(cwd)
 
-for d in list:
+prio = ['ota', 'aic-startup-ui', 'lvgl-ui']
+remain_dirs = [d for d in list if d not in prio]
+
+for d in prio:
+    objs = objs + SConscript(os.path.join(d, 'SConscript'))
+
+for d in remain_dirs:
     path = os.path.join(cwd, d)
     if os.path.isfile(os.path.join(path, 'SConscript')):
         objs = objs + SConscript(os.path.join(d, 'SConscript'))

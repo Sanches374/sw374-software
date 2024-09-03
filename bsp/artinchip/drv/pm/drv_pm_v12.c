@@ -36,8 +36,8 @@ void aic_pm_enter_idle(void)
 #ifndef AIC_USING_SRAM
 void aic_ddr_sr_code_on_ddr(void)
 {
-    rt_kprintf("aic_suspend_resume_size: %d\n", aic_suspend_resume_size);
-    rt_kprintf("__sram_start: %x\n", (uint32_t)&__sram_start);
+    pr_debug("aic_suspend_resume_size: %d\n", aic_suspend_resume_size);
+    pr_debug("__sram_start: %x\n", (uint32_t)&__sram_start);
 
     rt_memcpy((void *)&__sram_start, aic_suspend_resume, aic_suspend_resume_size);
     aic_suspend_resume_fn = (void *)&__sram_start;
@@ -48,7 +48,7 @@ void aic_ddr_sr_code_on_ddr(void)
 #else
 void aic_ddr_sr_code_on_sram(void)
 {
-    rt_kprintf("aic_suspend_resume_size: %d\n", aic_suspend_resume_size);
+    pr_debug("aic_suspend_resume_size: %d\n", aic_suspend_resume_size);
     aic_suspend_resume_fn = aic_suspend_resume;
     aic_suspend_resume_fn();
 }

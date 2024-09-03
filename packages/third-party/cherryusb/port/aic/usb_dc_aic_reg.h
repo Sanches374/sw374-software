@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Artinchip Technology Co., Ltd
+ * Copyright (c) 2022-2024, Artinchip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -142,10 +142,19 @@ typedef struct {
 #define EPS_NUM                         5
 #define PERIOD_IN_EP_NUM                2
 #define TOTAL_FIFO_SIZE                 0x3f6
+#ifdef LPKG_CHERRYUSB_DEVICE_VIDEO_DVP_TEMPLATE
+/* video_dvp_template must use 2K Bytes period_tx_fifo */
+#define AIC_RX_FIFO_SIZE                0x99
+#define AIC_NP_TX_FIFO_SIZE             0x100
+#define AIC_PERIOD_TX_FIFO1_SIZE        0x200
+#define AIC_PERIOD_TX_FIFO2_SIZE        0x0
+#else
+/* default configuration */
 #define AIC_RX_FIFO_SIZE                0x119
 #define AIC_NP_TX_FIFO_SIZE             0x100
 #define AIC_PERIOD_TX_FIFO1_SIZE        0x100
 #define AIC_PERIOD_TX_FIFO2_SIZE        0xDD
+#endif
 
 #define DEPCTL_TXFNUM_0                 (0x0 << 22)
 #define DEPCTL_TXFNUM_1                 (0x1 << 22)

@@ -224,7 +224,7 @@ PendSV_Handler:
 #endif
 
 #ifdef ARCH_RISCV_DSP
-    addi    sp, sp, -33 * REGBYTES
+    addi    sp, sp, -34 * REGBYTES
 #else
     addi    sp, sp, -32 * REGBYTES
 #endif
@@ -328,7 +328,7 @@ PendSV_Handler:
     LOAD    x31, 31 * REGBYTES(sp)
 
 #ifdef ARCH_RISCV_DSP
-    addi    sp, sp, 33 * REGBYTES
+    addi    sp, sp, 34 * REGBYTES
 #else
     addi    sp, sp, 32 * REGBYTES
 #endif

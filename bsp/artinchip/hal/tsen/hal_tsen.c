@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -96,6 +96,8 @@
 #define TSEN_THS0_ADC_VAL_HIGH_OFFSET   0x20
 #define TSEN_THS0_ADC_VAL_HIGH_MASK     0xfff
 #define TSEN_THS0_ADC_VAL_LOW_MASK      0xfff
+#define TSEN_THS1_ADC_VAL_LOW_MASK      GENMASK(23, 12)
+#define TSEN_THS1_ADC_VAL_LOW_SHIFT     12
 #define TSEN_LDO30_BG_CTRL_MASK         0xff
 #define TSEN_THS_ENV_TEMP_HIGH_MASK     0xff
 #define TSEN_THS_ENV_TEMP_LOW_MASK      0Xf
@@ -103,7 +105,8 @@
 #define TSEN_THS_ENV_TEMP_LOW_SHIFT     16
 #define TSEN_THS_ENV_TEMP_HIGH_SHIFT    24
 #define TSEN_CP_VERSION_SHIFT           20
-#define TSEN_SINGLE_POINT_CALI_K        -1151
+#define TSEN_SINGLE_POINT_CALI_K_CPU    -1132
+#define TSEN_SINGLE_POINT_CALI_K_GPAI   -1159
 #elif defined(AIC_SID_DRV_V11)
 #define TSEN_CP_VERSION_OFFSET          0x1C
 #define TSEN_CP_VERSION_MASK            0x3f
@@ -113,11 +116,14 @@
 #define TSEN_THS0_ADC_VAL_HIGH_OFFSET   0x34
 #define TSEN_THS0_ADC_VAL_LOW_MASK      0xfff
 #define TSEN_THS0_ADC_VAL_HIGH_MASK     0xfff
+#define TSEN_THS1_ADC_VAL_LOW_MASK      GENMASK(23, 12)
+#define TSEN_THS1_ADC_VAL_LOW_SHIFT     12
 #define TSEN_THS_ENV_TEMP_LOW_MASK      0Xff
 #define TSEN_THS_ENV_TEMP_HIGH_MASK     0xff
 #define TSEN_THS_ENV_TEMP_LOW_SHIFT     24
 #define TSEN_THS_ENV_TEMP_HIGH_SHIFT    24
-#define TSEN_SINGLE_POINT_CALI_K        940
+#define TSEN_SINGLE_POINT_CALI_K_CPU    940
+#define TSEN_SINGLE_POINT_CALI_K_GPAI   940
 #elif defined(AIC_SID_DRV_V12)
 #define TSEN_CP_VERSION_OFFSET          0x1C
 #define TSEN_CP_VERSION_MASK            0x3f
@@ -127,7 +133,7 @@
 #define TSEN_THS0_ADC_VAL_LOW_MASK      0xfff
 #define TSEN_THS_ENV_TEMP_LOW_MASK      0Xff
 #define TSEN_THS_ENV_TEMP_LOW_SHIFT     24
-#define TSEN_SINGLE_POINT_CALI_K        950
+#define TSEN_SINGLE_POINT_CALI_K_CPU    950
 #endif
 
 #define TSEN_ORIGIN_STANDARD_VOLTAGE    3000 // = 3 * 1000
@@ -253,7 +259,7 @@ int hal_tsen_efuse_read(u32 addr, u32 *data, u32 size)
 /* The temperature obtained from nvmem contains sign bits.
  * For this purpose, this function converts data through sign bit mask
  */
-u8 hal_tsen_env_temp_cali(u8 sign_mask, u8 val)
+int hal_tsen_env_temp_cali(u8 sign_mask, u8 val)
 {
     if (val & sign_mask)
         return -(val & (sign_mask - 1));
@@ -274,18 +280,37 @@ void hal_tsen_single_point_cali(struct aic_tsen_ch *chan)
 
     cali_scale = THERMAL_CORE_TEMP_AMPN_SCALE * TSEN_CALIB_ACCURACY_SCALE;
 
+    /* The variable ths0_adc_val is the data result of the entire row for
+     * ths0_adc_val in the SID. */
     hal_tsen_efuse_read(TSEN_THS0_ADC_VAL_LOW_OFFSET, &ths0_adc_val, length);
     ths0_adc_val_low = ths0_adc_val & TSEN_THS0_ADC_VAL_LOW_MASK;
+
+#ifdef AIC_USING_TSEN_GPAI
+    u32 ths1_adc_val_low = (ths0_adc_val & TSEN_THS1_ADC_VAL_LOW_MASK) >> TSEN_THS1_ADC_VAL_LOW_SHIFT;
+#endif
 
     hal_tsen_efuse_read(TSEN_THS_ENV_TEMP_LOW_OFFSET, &ths_env_temp_low,
                         length);
     ths_env_temp_low = (ths_env_temp_low >> TSEN_THS_ENV_TEMP_LOW_SHIFT) & TSEN_THS_ENV_TEMP_LOW_MASK;
     env_temp_low += hal_tsen_env_temp_cali(TSEN_ENV_TEMP_LOW_SIGN_MASK,
                                            ths_env_temp_low);
-    hal_log_debug("env_temp_low:%d, ths0_adc_val_low:%d\n", env_temp_low, ths0_adc_val_low);
-    chan->slope = TSEN_SINGLE_POINT_CALI_K;
-    chan->offset = env_temp_low * cali_scale - chan->slope * ths0_adc_val_low;
-    hal_log_debug("k:%d, b:%d\n", chan->slope, chan->offset);
+    pr_debug("env_temp_low:%d, ths0_adc_val_low:%d\n", env_temp_low, ths0_adc_val_low);
+
+    switch (chan->id) {
+    case AIC_TSEN_SENSOR_CPU:
+        chan->slope = TSEN_SINGLE_POINT_CALI_K_CPU;
+        chan->offset = env_temp_low * cali_scale - chan->slope * ths0_adc_val_low;
+        break;
+#ifdef AIC_USING_TSEN_GPAI
+    case AIC_TSEN_SENSOR_GPAI:
+        chan->slope = TSEN_SINGLE_POINT_CALI_K_GPAI;
+        chan->offset = env_temp_low * cali_scale - chan->slope * ths1_adc_val_low;
+        break;
+#endif
+    default:
+        pr_err("The macro definition for the offset value of the corresponding sensor is missing");
+        return;
+    }
 
     return;
 }
@@ -313,13 +338,15 @@ void hal_tsen_single_point_cali_for_correct(struct aic_tsen_ch *chan)
     hal_tsen_efuse_read(TSEN_THS0_ADC_VAL_LOW_OFFSET, &ths0_adc_val, length);
     ths0_adc_val_low = ths0_adc_val & TSEN_THS0_ADC_VAL_LOW_MASK;
 
+#ifdef AIC_USING_TSEN_GPAI
+    u32 ths1_adc_val_low = (ths0_adc_val & TSEN_THS1_ADC_VAL_LOW_MASK) >> TSEN_THS1_ADC_VAL_LOW_SHIFT;
+#endif
+
     if (ldo30_bg_ctrl > TSEN_TRIM_VOLTAGE_BOUNDARY_VAL) {
         origin_voltage = standard_vol - (255 - ldo30_bg_ctrl) * vol_scale_unit;
     } else {
         origin_voltage = standard_vol + ldo30_bg_ctrl * vol_scale_unit;
     }
-
-    origin_adc = origin_voltage * ths0_adc_val_low / standard_vol;
 
     hal_tsen_efuse_read(TSEN_THS_ENV_TEMP_LOW_OFFSET, &ths_env_temp_low,
                         length);
@@ -327,7 +354,22 @@ void hal_tsen_single_point_cali_for_correct(struct aic_tsen_ch *chan)
     env_temp_low += hal_tsen_env_temp_cali(TSEN_ENV_TEMP_LOW_SIGN_MASK,
                                            ths_env_temp_low);
 
-    chan->slope = TSEN_SINGLE_POINT_CALI_K;
+    switch (chan->id) {
+    case AIC_TSEN_SENSOR_CPU:
+        chan->slope = TSEN_SINGLE_POINT_CALI_K_CPU;
+        origin_adc = origin_voltage * ths0_adc_val_low / standard_vol;
+        break;
+
+#ifdef AIC_USING_TSEN_GPAI
+    case AIC_TSEN_SENSOR_GPAI:
+        chan->slope = TSEN_SINGLE_POINT_CALI_K_GPAI;
+        origin_adc = origin_voltage * ths1_adc_val_low / standard_vol;
+        break;
+#endif
+    default:
+        pr_err("The macro definition for the offset value of the corresponding sensor is missing");
+        return;
+    }
     chan->offset = env_temp_low * cali_scale - chan->slope * origin_adc;
     hal_log_debug("k:%d, b:%d\n", chan->slope, chan->offset);
 
@@ -436,6 +478,7 @@ void hal_tsen_enable(int enable)
     else
         mcr &= ~TSEN_MCR_EN;
 
+    mcr |= TSEN_MCR_ACQ_MASK;
     tsen_writel(mcr, TSEN_MCR);
 }
 

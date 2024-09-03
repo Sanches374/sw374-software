@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Artinchip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -30,12 +30,10 @@ static void pm_timer_timeout(void *parameter)
     if (sleep_mode == PM_SLEEP_MODE_NONE)
     {
         rt_pm_module_release(PM_POWER_ID, PM_SLEEP_MODE_NONE);
-        wakeup_triggered = 0;
     }
     else
     {
         rt_pm_module_request(PM_POWER_ID, PM_SLEEP_MODE_NONE);
-        wakeup_triggered = 1;
     }
 }
 

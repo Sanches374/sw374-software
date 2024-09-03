@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Artinchip Technology Co., Ltd
+ * Copyright (c) 2023-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -217,8 +217,8 @@ int recv_buf_peek(struct dma_input *in)
             wait = false; /* all data recieved */
         } else if (in->head != DC1_SEND) {
             /* Status is wrong, debug checking point */
-            pr_err("Expect DC1_SEND but got 0x%x\n", in->head);
-            hexdump((unsigned char*)&uart_recv_buf[recv_buf_out_idx], newlen, 1);
+            pr_warn("Expect DC1_SEND but got 0x%x\n", in->head);
+            // hexdump((unsigned char*)&uart_recv_buf[recv_buf_out_idx], newlen, 1);
         }
     } while (wait && ((cur - start) < timeout));
 
@@ -282,7 +282,7 @@ static int uart_conn_normal_proc(void)
         cur_tm = aic_get_time_ms();
         delta = cur_tm - uart_upg.last_recv_time;
         if (delta >= 3000) {
-            pr_err("Long time no data input, need to check the connection.\n");
+            pr_info("Long time no data input, need to check the connection.\n");
             uart_upg.state = CONN_STATE_DETECTING;
             uart_upg.proc = uart_conn_detect_proc;
             recv_buf_reset(); /* Clear data */
@@ -495,19 +495,19 @@ read_ack:
         } while (ch == 0xFF && (cur - start) < 200);
 
         if ((cur - start) >= 200) {
-            pr_err("Failed to read ACK, resend data.\n");
+            pr_warn("Failed to read ACK, resend data.\n");
             resend_cnt++;
             goto resend;
         }
 
         if (ch == DC2_RECV) {
-            pr_err("Got DC2_RECV when waiting ACK.\n");
+            pr_warn("Got DC2_RECV when waiting ACK.\n");
             send_byte(upg_uart_id, ACK);
             goto read_ack;
         }
 
         if (ch != ACK) {
-            pr_err("Expect ACK but got 0x%x\n", ch);
+            pr_warn("Expect ACK but got 0x%x\n", ch);
             hexdump(pframe, slice, 1);
             resend_cnt++;
             goto resend;
@@ -540,7 +540,7 @@ static int wait_host_to_send_mode(void)
             pr_debug("Host switch to send mode.\n");
             break;
         } else {
-            pr_err("Send CAN\n");
+            pr_info("Send CAN\n");
             send_byte(upg_uart_id, CAN);
             recv_buf_reset();
         }
@@ -723,7 +723,7 @@ static int read_long_frame_data(u8 *buf, int len)
 
     /* Recv repeat frame, just skip it */
     if (blk1 == uart_upg.recv_blk_no) {
-        pr_err("Repeat frame.\n");
+        pr_warn("Repeat frame.\n");
         return UART_SKIP_DATA;
     }
     uart_upg.recv_blk_no = blk1;

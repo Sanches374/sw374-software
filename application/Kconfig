@@ -44,6 +44,13 @@ config AIC_FATFS_SECTOR_COUNT_FOR_0
     depends on !AIC_FATFS_AUTO_SIZE_FOR_0
     default 2048
 
+config AIC_FATFS_DEFAULT_VOLAB_0
+    bool "using default volume label"
+    default y
+config AIC_FATFS_VOLAB_0
+    string "volume label"
+    depends on !AIC_FATFS_DEFAULT_VOLAB_0
+    default "aic-disk"
 endif
 
 # Parameters for LittleFS
@@ -95,6 +102,14 @@ config AIC_FATFS_SECTOR_COUNT_FOR_1
     int "sector count"
     depends on !AIC_FATFS_AUTO_SIZE_FOR_1
     default 2048
+
+config AIC_FATFS_DEFAULT_VOLAB_1
+    bool "using default volume label"
+    default y
+config AIC_FATFS_VOLAB_1
+    string "volume label"
+    depends on !AIC_FATFS_DEFAULT_VOLAB_1
+    default "aic-disk"
 endif
 
 # Parameters for LittleFS
@@ -149,12 +164,6 @@ if LPKG_USING_LVGL
         int "Display refresh period (ms)"
         default 5 # official suggestion
 
-    config LPKG_USING_LVGL_VSCODE
-        bool "Support Vscode simulator import"
-        default n
-        help
-            "assets in packages/artinchip/lvgl-ui/aic_demo/vscode_simulator/hello_demo/lvgl_src"
-
     config LPKG_USING_LVGL_SQUARELINE
         bool "Support SquareLine Studio"
         default n
@@ -186,14 +195,31 @@ config AIC_LVGL_BASE_DEMO
 config AIC_LVGL_METER_DEMO
     bool "LVGL demo of meter"
 
+config AIC_LVGL_DEMO_HUB_DEMO
+    bool "LVGL demo hub"
+    help
+    "At present, only 1024x600, 480x272 resoulution in supported, and different resources are used for different resolutions"
+
+config AIC_LVGL_VSCODE_DEMO
+    bool "LVGL vscode emultarot import demo"
+    help
+    "assets in packages/artinchip/lvgl-ui/aic_demo/vscode_simulator/hello_demo/lvgl_src"
+
+config AIC_LVGL_86BOX_DEMO
+    bool "LVGL demo with 86 box demo"
+    help
+        "Need to open freetype and set lvgl thread stack size to 98304"
+
 config AIC_LVGL_LAUNCHER_DEMO
     bool "LVGL launcher demo"
 
 config AIC_LVGL_DASHBOARD_DEMO
     bool "LVGL dashboard demo"
 
-config AIC_LVGL_SHOWCASE_DEMO
-    bool "LVGL showcase demo"
+config AIC_LVGL_DASHBOARD_SMALL_DEMO
+    bool "LVGL dashboard small demo"
+    help
+        "suitable for resolution 480 * 272"
 
 config AIC_LVGL_ELEVATOR_DEMO
     bool "LVGL elevator demo"
@@ -204,10 +230,27 @@ config AIC_LVGL_SLIDE_DEMO
 config AIC_LVGL_SIMPLE_PLAYER_DEMO
     bool "LVGL simple player demo"
 
-if KERNEL_BAREMETAL
-    config AIC_LVGL_GIF_DEMO
-        bool "LVGL gif demo"
-endif
+config AIC_LVGL_GIF_DEMO
+    bool "LVGL gif demo"
+
+config AIC_LVGL_MUSIC_DEMO
+    bool "LVGL music demos"
+    select LPKG_LVGL_USING_DEMOS
+
+config AIC_LVGL_DEMO_WIDGETS
+    bool "LVGL widgets demos"
+    select LPKG_LVGL_USING_DEMOS
+
+config AIC_LVGL_DEMO_BENCHMARK
+    bool "LVGL demo benchmark"
+    select LPKG_LVGL_USING_DEMOS
+
+config AIC_LVGL_USB_OSD_DEMO
+    bool "LVGL usb osd demo"
+    select LPKG_LVGL_USING_DEMOS
+
+config AIC_LVGL_IMAGE_DEMO
+    bool "LVGL image demo"
 
 endchoice
 
@@ -226,12 +269,82 @@ if AIC_LVGL_METER_DEMO
         default n
 endif
 
+config AIC_USE_TOUCH_MONKEY_TEST
+    bool "LVGL use monkey touch test"
+    default n
+config AIC_USE_TOUCH_MONKEY_TEST_PERIOD_RANG_MIN
+    int "touch monkey period range min"
+    default 20
+    depends on AIC_USE_TOUCH_MONKEY_TEST
+config AIC_USE_TOUCH_MONKEY_TEST_PERIOD_RANG_MAX
+    int "touch monkey period range max"
+    default 50
+    depends on AIC_USE_TOUCH_MONKEY_TEST
+config AIC_USE_TOUCH_MONKEY_TEST_INPUT_RANG_MIN
+    int "touch monkey input range min"
+    default -10
+    depends on AIC_USE_TOUCH_MONKEY_TEST
+config AIC_USE_TOUCH_MONKEY_TEST_INPUT_RANG_MAX
+    int "touch monkey input range max"
+    default 10
+    depends on AIC_USE_TOUCH_MONKEY_TEST
+
 # Parameters for LVGL elevator demo
 if AIC_LVGL_ELEVATOR_DEMO
     config LV_ELEVATOR_UART_COMMAND
         bool "LVGL elevator demo use uart send command"
         default n
-endif
+endif # AIC_LVGL_ELEVATOR_DEMO
+
+# Parameters for LVGL usb osd demo
+if AIC_LVGL_USB_OSD_DEMO
+    config LV_USB_OSD_LOGO_IMAGE
+        string "LOGO Image Name"
+        default "logo.png"
+
+    config LV_USB_OSD_SCREEN_LOCK_TIME
+        int "Default Screen Lock Time(s), 0 to Never Lock"
+        default 15
+
+    choice
+        prompt "Default Screen Lock Mode"
+            default LV_USB_OSD_SCREEN_LOCK_DISP_LOGO
+
+        config LV_USB_OSD_SCREEN_LOCK_DISP_LOGO
+            bool "Display LOGO"
+        config LV_USB_OSD_SCREEN_LOCK_DISP_PIC
+            bool "Display Pictures"
+        # config LV_USB_OSD_SCREEN_LOCK_DISP_VIDEO
+        #     bool "Display Video"
+        config LV_USB_OSD_SCREEN_LOCK_BLANK
+            bool "Blank Screen"
+    endchoice
+
+    config LV_USB_OSD_SCREEN_LOCK_MODE
+        int
+        default 0 if LV_USB_OSD_SCREEN_LOCK_DISP_LOGO
+        default 1 if LV_USB_OSD_SCREEN_LOCK_DISP_PIC
+        #default 2 if LV_USB_OSD_SCREEN_LOCK_DISP_VIDEO
+        default 3 if LV_USB_OSD_SCREEN_LOCK_BLANK
+
+    if LV_USB_OSD_SCREEN_LOCK_DISP_LOGO
+        config LV_USB_OSD_SCREEN_BLANK_TIME_AFTER_LOCK
+            int "Screen Blank Time(s) After Screen Lock, 0 to Never"
+            default 300
+    endif #LV_USB_OSD_SCREEN_LOCK_DISP_LOGO
+
+    config LV_USB_OSD_SETTINGS_MENU
+        bool "Enbale USB OSD Settings Menu"
+        default y
+
+    if LV_USB_OSD_SETTINGS_MENU
+        config LV_USB_OSD_SETTINGS_WAKEUP_KEY
+            string "USB OSD Settings Menu Wakeup Key"
+            default "PD.6"
+    endif #LV_USB_OSD_SETTINGS_MENU
+
+endif # AIC_LVGL_USB_OSD_DEMO
+
 endif # AIC_LVGL_DEMO
 
 config LVGL_STORAGE_PATH

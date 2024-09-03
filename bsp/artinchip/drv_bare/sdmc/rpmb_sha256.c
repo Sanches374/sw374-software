@@ -1,9 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
-/*
- * FIPS-180-2 compliant SHA-256 implementation
- *
- * Copyright (C) 2001-2003  Christophe Devine
- */
+// SPDX-License-Identifier: Apache-2.0
 
 #include <string.h>
 #include <aic_common.h>

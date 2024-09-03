@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Artinchip Technology Co., Ltd
+ * Copyright (c) 2023-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -31,9 +31,11 @@ void usbc_soft_disconnect(void)
     writel(val, USB_DEV_DCTL);
 
     /*
-     * Delay 3 ms to ensure HOST can detect device disconnect
+     * Delay >=50 ms to ensure HOST can detect device disconnect
+     *
+     * Use 100ms for Win7
      */
-    aicos_mdelay(3);
+    aicos_mdelay(100);
 }
 
 void usbc_soft_connect(void)
@@ -461,7 +463,6 @@ void usbc_out_ctrl_ep_xfer_cfg(u32 setup_pkt_max, u32 pkt_cnt, u32 xfersiz)
     val |= ((pkt_cnt & 0x1) << 19);
     val |= ((xfersiz & 0x7f) << 0);
     val |= ((setup_pkt_max & 0x3) << 29);
-    ;
     writel(val, USB_DEV_DOEPTSIZ0);
 
     usbc_out_ctrl_ep_enable();

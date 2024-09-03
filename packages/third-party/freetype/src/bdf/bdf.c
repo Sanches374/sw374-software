@@ -27,8 +27,5 @@ THE SOFTWARE.
 
 #define FT_MAKE_OPTION_SINGLE_OBJECT
 
-#include "bdflib.c"
-#include "bdfdrivr.c"
-
 
 /* END */

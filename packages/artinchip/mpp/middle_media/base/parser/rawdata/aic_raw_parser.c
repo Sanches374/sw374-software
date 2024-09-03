@@ -1,14 +1,17 @@
 /*
-* Copyright (C) 2020-2023 ArtInChip Technology Co. Ltd
-*
-*  author: <qi.xu@artinchip.com>
-*  Desc: parser for H.264/H.265 raw data
-*/
+ * Copyright (C) 2020-2024 ArtInChip Technology Co. Ltd
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Author: <jun.ma@artinchip.com>
+ * Desc: aic raw parser
+ */
 
 #include <unistd.h>
 #include <string.h>
 #include <stddef.h>
 #include <stdlib.h>
+#include <fcntl.h>
 
 #include "aic_raw_parser.h"
 #include "mpp_log.h"
@@ -235,7 +238,7 @@ s32 aic_raw_parser_create(unsigned char *uri, struct aic_parser **parser)
 	}
 	impl->buf_len = STEAM_BUF_LEN;
 
-	if (aic_stream_open((char *)uri, &impl->stream) < 0) {
+	if (aic_stream_open((char *)uri, &impl->stream, O_RDONLY) < 0) {
 		loge("stream open fail");
 		goto exit;
 	}

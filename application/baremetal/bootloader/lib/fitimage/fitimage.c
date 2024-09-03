@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -17,7 +17,9 @@
 #include <aic_utils.h>
 #include <aic_crc32.h>
 #include "fitimage.h"
+#include <boot_param.h>
 
+extern struct boot_args boot_arg;
 //#define CRC32_MTD_READ
 
 int fit_find_config_node(const void *fdt)
@@ -66,6 +68,9 @@ int fit_find_config_node(const void *fdt)
 
 static int spl_simple_fit_parse(struct spl_fit_info *ctx)
 {
+    int len;
+    const char *version;
+
     /* Find the correct subnode under "/configurations" */
     ctx->conf_node = fit_find_config_node(ctx->fit);
     if (ctx->conf_node < 0)
@@ -82,6 +87,9 @@ static int spl_simple_fit_parse(struct spl_fit_info *ctx)
               ctx->images_node);
         return -1;
     }
+
+    version = fdt_getprop(ctx->fit, ctx->images_node, "version", &len);
+    strncpy(&boot_arg.image_version[0], version, 16);
 
     return 0;
 }
@@ -246,6 +254,10 @@ int fit_image_get_entry(const void *fit, int noffset, ulong *entry)
 static int spl_read(struct spl_load_info *info, ulong offset, void *buf, int size)
 {
     int rdlen = 0;
+
+    //determines whether the read length is 0
+    if (!size)
+        return size;
 
     if (info->dev_type == DEVICE_SPINAND || info->dev_type == DEVICE_SPINOR) {
 #if defined(AIC_MTD_BARE_DRV)

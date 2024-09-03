@@ -142,6 +142,7 @@ void nand_fwc_start(struct fwc_info *fwc)
     }
     memset(priv, 0, sizeof(struct aicupg_nand_priv));
     fwc->priv = priv;
+    priv->remain_len = fwc->meta.size;
 
     ret = nand_fwc_get_mtd_partitions(fwc, priv);
     if (ret) {
@@ -302,12 +303,53 @@ out:
     return ret;
 }
 
+s32 nand_fwc_mtd_erase_write(u32 dolen, struct mtd_dev *mtd, struct aicupg_nand_priv *priv, int i, u8 *buf)
+{
+    int ret = 0;
+
+    if (((priv->start_offset[i] + dolen) > priv->erase_offset[i])) {
+erase_err:
+        /* Erase the block, before write it. */
+        ret = mtd_erase(mtd, priv->erase_offset[i], ROUNDUP(dolen, mtd->erasesize));
+        if (ret) {
+            pr_err("Erase block is bad, mark it.\n");
+            ret = mtd_block_markbad(mtd, priv->erase_offset[i]);
+            if (ret)
+                pr_err("Mark block is bad.\n");
+            priv->erase_offset[i] += mtd->erasesize;
+            priv->start_offset[i] += mtd->erasesize;
+            goto erase_err;
+        }
+
+        /* Check the block before write it. */
+        if (mtd_block_isbad(mtd, priv->erase_offset[i])) {
+            pr_err("Check block is bad, !!! Unexecpt happened. !!!\n");
+            priv->erase_offset[i] += mtd->erasesize;
+            priv->start_offset[i] += mtd->erasesize;
+            goto erase_err;
+        }
+        priv->erase_offset[i] += mtd->erasesize;
+    }
+    pr_debug("priv->erase_offset: %lu, priv->start_offset: %lu, dolen: %u\n", priv->erase_offset[i], priv->start_offset[i], dolen);
+    ret = mtd_write(mtd, priv->start_offset[i], buf, dolen);
+    if (ret) {
+        pr_err("Write mtd %s block error, mark it.\n", mtd->name);
+        ret = mtd_block_markbad(mtd, priv->start_offset[i]);
+        if (ret)
+            pr_err("Mark block is bad.\n");
+        goto erase_err;
+    }
+    buf += dolen;
+    priv->start_offset[i] += dolen;
+    priv->remain_len -= dolen;
+    return 0;
+}
+
 s32 nand_fwc_mtd_write(struct fwc_info *fwc, u8 *buf, s32 len)
 {
     struct aicupg_nand_priv *priv;
     struct mtd_dev *mtd;
-    unsigned long offset, erase_offset;
-    int i, ret = 0;
+    int i;
 
     priv = (struct aicupg_nand_priv *)fwc->priv;
     for (i = 0; i < MAX_DUPLICATED_PART; i++) {
@@ -315,51 +357,32 @@ s32 nand_fwc_mtd_write(struct fwc_info *fwc, u8 *buf, s32 len)
         if (!mtd)
             continue;
 
-        offset = priv->start_offset[i];
-        if ((offset + len) > (mtd->size)) {
+        if ((priv->start_offset[i] + len) > (mtd->size)) {
             pr_err("Not enough space to write mtd %s\n", mtd->name);
             return 0;
         }
-
-        /* erase 1 sector when offset+len more than erased address */
-        erase_offset = priv->erase_offset[i];
-        while ((offset + len) > erase_offset) {
-            if (mtd_block_isbad(mtd, erase_offset)) {
-                pr_err("Erase block is bad, skip it.\n");
-                priv->erase_offset[i] = erase_offset + mtd->erasesize;
-                erase_offset = priv->erase_offset[i];
-                continue;
+        pr_debug("mtd: %s, len:%u, remain_len: %u\n", mtd->name, len, priv->remain_len);
+        u32 dolen = mtd->erasesize;
+        u32 count = len / mtd->erasesize;
+        int j = 0;
+        /* Len is lager than block size, handle the aligned part. */
+        if (len > mtd->erasesize) {
+            pr_debug("priv->erase_offset[i]: %lu, priv->start_offset[i]: %lu\n", priv->erase_offset[i], priv->start_offset[i]);
+            for (j = 0; j < count; j++) {
+                nand_fwc_mtd_erase_write(dolen, mtd, priv, i, buf);
+                buf += dolen;
             }
-
-            ret = mtd_erase(mtd, erase_offset, ROUNDUP(len, mtd->erasesize));
-            if (ret) {
-                pr_err("Erase block is bad, mark it.\n");
-                ret = mtd_block_markbad(mtd, erase_offset);
-                if (ret)
-                    pr_err("Mark block is bad.\n");
-
-                continue;
-            }
-            priv->erase_offset[i] = erase_offset + ROUNDUP(len, mtd->erasesize);
-            erase_offset = priv->erase_offset[i];
         }
 
-        if (mtd_block_isbad(mtd, erase_offset)) {
-            pr_err(" Write block is bad, skip it.\n");
-            priv->start_offset[i] = offset + mtd->erasesize;
-            offset = priv->start_offset[i];
+        /* Handle the part out of aligned. */
+        if (len % mtd->erasesize && (priv->remain_len == len)) {
+            pr_debug("priv->erase_offset[i]: %lu, priv->start_offset[i]: %lu\n", priv->erase_offset[i], priv->start_offset[i]);
+            dolen = len - (count * mtd->erasesize);
+            nand_fwc_mtd_erase_write(dolen, mtd, priv, i, buf);
+        } else if (len % mtd->erasesize && (priv->remain_len != len)) {     /* data len is not enough a blocksize */
+            dolen = len - (count * mtd->erasesize);
+            nand_fwc_mtd_erase_write(dolen, mtd, priv, i, buf);
         }
-
-        ret = mtd_write(mtd, offset, buf, len);
-        if (ret) {
-            pr_err("Write mtd %s block error, mark it.\n", mtd->name);
-            ret = mtd_block_markbad(mtd, erase_offset);
-            if (ret)
-                pr_err("Mark block is bad.\n");
-
-            continue;
-        }
-        priv->start_offset[i] = offset + len;
     }
 
     pr_debug("%s, data len %d, trans len %d\n", __func__, len, fwc->trans_size);

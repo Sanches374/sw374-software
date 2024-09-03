@@ -1,6 +1,5 @@
-
 /*
- * Copyright (c) 2023, Artinchip Technology Co., Ltd
+ * Copyright (c) 2023-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -36,7 +35,10 @@ static struct aic_panel *panels[] = {
     &dsi_hx8394,
 #endif
 #ifdef AIC_PANEL_DSI_JD9365
-	&dsi_jd9365,
+    &dsi_jd9365,
+#endif
+#ifdef AIC_PANEL_DSI_AXS15231B
+    &dsi_axs15231b,
 #endif
 #ifdef AIC_PANEL_DBI_ILI9488
     &dbi_ili9488,
@@ -58,6 +60,12 @@ static struct aic_panel *panels[] = {
 #endif
 #ifdef AIC_PANEL_RGB_GC9A01A
     &rgb_gc9a01a,
+#endif
+#ifdef AIC_PANEL_RGB_NT35560
+    &rgb_nt35560,
+#endif
+#ifdef AIC_PANEL_RGB_ST77922
+    &rgb_st77922,
 #endif
 #ifdef AIC_PANEL_SRGB_HX8238
     &srgb_hx8238,

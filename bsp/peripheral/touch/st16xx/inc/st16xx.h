@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024-2025, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -25,10 +25,6 @@
 #define ST16XX_CONTACTS_NUM_REG     0x3f
 #define ST16XX_MAX_TOUCH            5
 #define ST16XX_POINT_INFO_NUM       8
-
-#define ST16XX_RESET_PIN            AIC_TOUCH_PANEL_ST16XX_RST_PIN
-#define ST16XX_IRQ_PIN              AIC_TOUCH_PANEL_ST16XX_INT_PIN
-#define ST16XX_I2C_CHAN             AIC_TOUCH_PANEL_ST16XX_I2C_CHA
 
 int rt_hw_st16xx_init(const char *name, struct rt_touch_config *cfg);
 

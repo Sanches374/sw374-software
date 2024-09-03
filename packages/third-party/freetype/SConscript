@@ -1,58 +1,76 @@
 Import('AIC_ROOT')
 Import('PRJ_KERNEL')
+Import('PRJ_OUT_DIR')
 from building import *
 
 cwd = GetCurrentDir()
+
 path = [cwd + '/include']
+path += [cwd + '/include/freetype/config']
 path += [cwd + '/include/freetype']
+path += [cwd + '/include/freetype/internal']
+path += [cwd + '/src/autofit']
+path += [cwd + '/src/base']
+path += [cwd + '/src/bdf']
+path += [cwd + '/src/bzip2']
+path += [cwd + '/src/cache']
+path += [cwd + '/src/cff']
+path += [cwd + '/src/cid']
+path += [cwd + '/src/pfr']
+path += [cwd + '/src/psaux']
+path += [cwd + '/src/pshinter']
+path += [cwd + '/src/psnames']
+path += [cwd + '/src/raster']
+path += [cwd + '/src/sfnt']
+path += [cwd + '/src/smooth']
+path += [cwd + '/src/truetype']
+path += [cwd + '/src/type1']
+path += [cwd + '/src/type42']
+path += [cwd + '/src/winfonts']
+path += [cwd + '/src/lzw']
+path += [cwd + '/src/pcf']
+path += [cwd + '/src/gzip']
 
 src = []
 
 CPPDEFINES = []
 
-src += Glob('src/autofit/autofit.c')
-src += Glob('src/base/ftbase.c')
-src += Glob('src/base/ftbbox.c')
-src += Glob('src/base/ftbdf.c')
-src += Glob('src/base/ftbitmap.c')
-src += Glob('src/base/ftcid.c')
-src += Glob('src/base/ftfstype.c')
-src += Glob('src/base/ftgasp.c')
-src += Glob('src/base/ftglyph.c')
-src += Glob('src/base/ftgxval.c')
-src += Glob('src/base/ftinit.c')
-src += Glob('src/base/ftmm.c')
-src += Glob('src/base/ftotval.c')
-src += Glob('src/base/ftpatent.c')
-src += Glob('src/base/ftpfr.c')
-src += Glob('src/base/ftstroke.c')
-src += Glob('src/base/ftsynth.c')
-src += Glob('src/base/fttype1.c')
-src += Glob('src/base/ftwinfnt.c')
-src += Glob('src/bdf/bdf.c')
+src += Glob('src/autofit/*.c')
+src += Glob('src/base/*.c')
+src += Glob('src/bdf/*.c')
 src += Glob('src/bzip2/ftbzip2.c')
-src += Glob('src/cache/ftcache.c')
-src += Glob('src/cff/cff.c')
-src += Glob('src/cid/type1cid.c')
+src += Glob('src/cache/*.c')
+src += Glob('src/cid/*.c')
+src += Glob('src/pfr/*.c')
+src += Glob('src/psaux/*.c')
+src += Glob('src/pshinter/*.c')
+src += Glob('src/psnames/*.c')
+src += Glob('src/raster/*.c')
+src += Glob('src/smooth/*.c')
+src += Glob('src/truetype/*.c')
+src += Glob('src/type1/*.c')
+src += Glob('src/type42/*.c')
+src += Glob('src/winfonts/*.c')
+
 src += Glob('src/gzip/ftgzip.c')
+
+if not GetDepend('FT_CONFIG_OPTION_USE_LZW'):
+    src += Glob('src/lzw/ftzopen.c')
 src += Glob('src/lzw/ftlzw.c')
-src += Glob('src/pcf/pcf.c')
-src += Glob('src/pfr/pfr.c')
-src += Glob('src/psaux/psaux.c')
-src += Glob('src/pshinter/pshinter.c')
-src += Glob('src/psnames/psnames.c')
-src += Glob('src/raster/raster.c')
-src += Glob('src/sfnt/sfnt.c')
-src += Glob('src/smooth/smooth.c')
-src += Glob('src/truetype/truetype.c')
-src += Glob('src/type1/type1.c')
-src += Glob('src/type42/type42.c')
-src += Glob('src/winfonts/winfnt.c')
-src += Glob('src/base/ftdebug.c')
-src += Glob('src/base/ftsystem.c')
+
+src += Glob('src/cff/*.c')
+src += Glob('src/sfnt/*.c')
+src += Glob('src/pcf/*.c')
 
 LOCAL_CCFLAGS = ' -DHAVE_UNISTD_H -DHAVE_FCNTL_H'
 
-group = DefineGroup('freetype', src, depend = ['LPKG_USING_FREETYPE'], CPPPATH = path, LOCAL_CCFLAGS = LOCAL_CCFLAGS)
+if not GetDepend('LPKG_USING_FREETYPE_STATIC'):
+    group = DefineGroup('freetype', src, depend = ['LPKG_USING_FREETYPE'], CPPPATH = path, LOCAL_CCFLAGS = LOCAL_CCFLAGS)
+else:
+    lib_path = os.path.join(AIC_ROOT, PRJ_OUT_DIR)
+    lib_path = lib_path.replace('/images', '/libs')
+    DefineGroup(lib_path + '/libFREETYPE.a', src, depend = ['LPKG_USING_FREETYPE'],  CPPPATH = path, LOCAL_CCFLAGS = LOCAL_CCFLAGS, LIBRARY='')
 
+    src = []
+    group = DefineGroup('FREETYPE_lib', src, depend = ['LPKG_USING_FREETYPE'], CPPPATH = path, LIBS = ['FREETYPE'], LIBPATH = [lib_path])
 Return('group')

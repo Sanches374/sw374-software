@@ -1,9 +1,11 @@
 /*
-* Copyright (C) 2020-2022 Artinchip Technology Co. Ltd
-*
-*  author: <qi.xu@artinchip.com>
-*  Desc: jpeg/png decode demo
-*/
+ * Copyright (C) 2020-2024 ArtInChip Technology Co. Ltd
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ *  author: <qi.xu@artinchip.com>
+ *  Desc: jpeg/png decode demo
+ */
 
 #include <unistd.h>
 #include <stdio.h>
@@ -61,9 +63,9 @@ static int frame_buf_alloc(struct frame_allocator *p, struct mpp_frame* frame,
     if (ext->rect.x * (info->bits_per_pixel / 8) + stride > info->stride)
         offset_x = info->stride - stride;
     else
-        offset_x = (ext->rect.x - 1) * (info->bits_per_pixel / 8);
+        offset_x = ext->rect.x * (info->bits_per_pixel / 8);
 
-    offset = info->stride * (offset_y - 1) + offset_x;
+    offset = info->stride * offset_y + offset_x;
     if (offset % 8) {
         logi("The offset of (%d, %d) is not 8-byte aligned\n",
              ext->rect.x, ext->rect.y);

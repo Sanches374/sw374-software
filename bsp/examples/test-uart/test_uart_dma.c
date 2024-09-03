@@ -23,12 +23,12 @@ static int run_times = 1;
 static void cmd_uart_test_help(void)
 {
     rt_kprintf("Usage:\n");
-    rt_kprintf("\tuart_dma_test <serial_name> <run_times>\n");
+    rt_kprintf("\ttest_uart_dma <serial_name> <run_times>\n");
     rt_kprintf("\tdefault use uart2&execution once\n\n");
     rt_kprintf("\tFor example:\n");
-    rt_kprintf("\t\tuart_dma_test\n");
-    rt_kprintf("\t\tuart_dma_test uart1\n");
-    rt_kprintf("\t\tuart_dma_test uart1 10\n");
+    rt_kprintf("\t\ttest_uart_dma\n");
+    rt_kprintf("\t\ttest_uart_dma uart1\n");
+    rt_kprintf("\t\ttest_uart_dma uart1 10\n");
 }
 
 static rt_err_t uart_input(rt_device_t dev, rt_size_t size)
@@ -50,7 +50,7 @@ static void serial_rx_thread_entry(void *parameter)
     rt_err_t result;
     rt_uint32_t rx_length;
     static char rx_buffer[256];
-    rt_uint8_t current_times = 0;
+    rt_uint32_t current_times = 0;
 
     while (current_times < run_times) {
         rt_memset(&msg, 0, sizeof(msg));
@@ -71,7 +71,7 @@ static void serial_rx_thread_entry(void *parameter)
 
 static void serial_tx_thread_entry(void *parameter)
 {
-    rt_uint8_t current_times = 0;
+    rt_uint32_t current_times = 0;
     while(current_times < run_times) {
         rt_device_write(serial, 0, str, (sizeof(str)-1));
         rt_thread_mdelay(5);
@@ -81,7 +81,7 @@ static void serial_tx_thread_entry(void *parameter)
     rt_thread_delete(rt_thread_self());
 }
 
-static int uart_dma_test(int argc, char *argv[])
+static int test_uart_dma(int argc, char *argv[])
 {
     rt_err_t ret = RT_EOK;
     char uart_name[RT_NAME_MAX];
@@ -131,5 +131,5 @@ static int uart_dma_test(int argc, char *argv[])
 
     return ret;
 }
-MSH_CMD_EXPORT(uart_dma_test, uart device dma sample);
+MSH_CMD_EXPORT(test_uart_dma, uart device dma sample);
 

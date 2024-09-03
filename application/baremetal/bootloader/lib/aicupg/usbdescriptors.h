@@ -1,21 +1,4 @@
-/*
- * (C) Copyright 2003
- * Gerry Hamel, geh@ti.com, Texas Instruments
- *
- * Based on
- * linux/drivers/usbd/usb-function.h - USB Function
- *
- * Copyright (c) 2000, 2001, 2002 Lineo
- * Copyright (c) 2001 Hewlett Packard
- *
- * By:
- *	Stuart Lynne <sl@lineo.com>,
- *	Tom Rushworth <tbr@lineo.com>,
- *	Bruce Balden <balden@lineo.com>
- *
- * SPDX-License-Identifier:	GPL-2.0+
- */
-
+// SPDX-License-Identifier: Apache-2.0
 /* USB Descriptors - Create a complete description of all of the
  * function driver capabilities. These map directly to the USB descriptors.
  *

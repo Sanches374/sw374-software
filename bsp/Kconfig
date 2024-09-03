@@ -175,11 +175,6 @@ config AIC_DISP_MIPI_DBI_DEBUG
     default n
     depends on AIC_DISPLAY_DRV && AIC_DISP_MIPI_DBI
 
-config AIC_MAILBOX_DRV_DEBUG
-    bool "Enable Mailbox driver debug"
-    default n
-    depends on AIC_MAILBOX_DRV
-
 config AIC_CACHE_LINE_DEBUG
     bool "Enable Cache Line debug"
     default n
@@ -200,6 +195,11 @@ config AIC_GPIO_DRV_TEST
 
 config AIC_GPIO_TWINKLE_TEST
     bool "Enable GPIO TWINKLE test command"
+    default n
+    depends on AIC_GPIO_DRV
+
+config AIC_GPIO_KEY_TEST
+    bool "Enable GPIO KEY test command"
     default n
     depends on AIC_GPIO_DRV
 
@@ -227,11 +227,6 @@ config AIC_HRTIMER_DRV_TEST
     bool "Enable HRTimer driver test command"
     default n
     depends on AIC_HRTIMER_DRV
-
-config AIC_GPTIMER_DRV_TEST
-    bool "Enable GPTimer driver test command"
-    default n
-    depends on AIC_GPTIMER_DRV
 
 config AIC_QSPI_DRV_TEST
     bool "Enable SPI driver test command"
@@ -330,17 +325,10 @@ config AIC_DVP_TEST
     default n
     depends on AIC_DVP_DRV
 
-config AIC_MDI_TEST
-    bool "Enable MDI driver test command"
-    default n
-    depends on AIC_MDI_DRV && AIC_MPP_VIN_DEV
-
 config AIC_TP_DRV_TEST
     bool "Enable touch panel driver test command"
     default n
-    depends on AIC_TOUCH_PANEL_GT911 || AIC_TOUCH_PANEL_FT7411 \
-                || AIC_TOUCH_PANEL_GSL1680 || AIC_TOUCH_PANEL_ST16XX \
-                || AIC_TOUCH_PANEL_AXS15260 || AIC_TOUCH_PANEL_TW31XX
+    depends on AIC_USING_TOUCH
 
 config AIC_WDT_DRV_TEST
     bool "Enable WDT driver test command"
@@ -393,11 +381,6 @@ config AIC_PWM_TEST
     default n
     depends on AIC_PWM_DRV
 
-config AIC_INPUTCAP_DRV_TEST
-    bool "Enable INPUTCAP driver test command"
-    default n
-    depends on AIC_INPUTCAP_DRV
-
 config AIC_CAP_DRV_TEST
     bool "Enable CAP driver test command"
     default n
@@ -407,11 +390,6 @@ config AIC_QEP_DRV_TEST
     bool "Enable QEP driver test command"
     default n
     depends on AIC_QEP_DRV
-
-config AIC_MAILBOX_DRV_TEST
-    bool "Enable Mailbox driver test command"
-    default n
-    depends on AIC_MAILBOX_DRV
 
 config AIC_ADCIM_DM_TEST
     bool "Enable ADCIM DM test command"
@@ -452,53 +430,10 @@ config AIC_SOFT_AES_TEST
     bool "Enable Soft AES ECB test command"
     default n
 
-config AIC_OSR_CE_BARE_TEST
-    bool "Enable OSR CE driver test command"
-    default n
-    depends on AIC_OSR_CE_DRV
-
-if AIC_OSR_CE_BARE_TEST
-
-    config AIC_OSR_CE_SKE_BARE_TEST
-        bool "Enable OSR CE SKE driver test command"
-        default n
-        depends on AIC_SKE_DRV
-        depends on AIC_OSR_CE_BARE_TEST
-
-    config AIC_OSR_CE_PKE_BARE_TEST
-        bool "Enable OSR CE PKE driver test command"
-        default n
-        depends on AIC_PKE_DRV
-        depends on AIC_OSR_CE_BARE_TEST
-
-    config AIC_OSR_CE_HASH_BARE_TEST
-        bool "Enable OSR CE HASH driver test command"
-        default n
-        depends on AIC_HASH_DRV
-        depends on AIC_OSR_CE_BARE_TEST
-
-    config AIC_OSR_CE_TRNG_BARE_TEST
-        bool "Enable OSR CE TRNG driver test command"
-        default n
-        depends on AIC_TRNG_DRV
-        depends on AIC_OSR_CE_BARE_TEST
-
-endif
-
 config AIC_SID_BARE_TEST
     bool "Enable SID driver test command"
     default n
     depends on AIC_SID_DRV
-
-config AIC_IOPMP_TEST
-    bool "Enable iopmp driver test command"
-    default n
-    depends on !AIC_IOPMP_DRV
-
-config AIC_IOPMP_BARE_TEST
-    bool "Enable iopmp driver test command"
-    default n
-    depends on AIC_IOPMP_DRV
 
 config AIC_DM_LIB_TEST
     bool "Enable DM Lib test command"
@@ -518,9 +453,29 @@ config AIC_FILE_SYSTEM_TEST
     bool "Enable filesystem test command"
     default n
 
-config AIC_PM_DRV_TEST
-    bool "Enable PM driver test command"
+menu "Power Management examples"
     depends on AIC_PM_DRV
+
+    config AIC_PM_DEMO
+        bool "Enable PM demo"
+        default n
+
+    menu "PM demo configuration"
+        depends on AIC_PM_DEMO
+
+        config AIC_PM_POWER_KEY_GPIO
+            string "Select sleep/wakeup pin"
+            default "PD.6"
+
+        config AIC_PM_POWER_TOUCH_TIME_SLEEP
+            int "Seconds to enter sleep without touching screen"
+            default 120
+    endmenu
+
+    config AIC_PM_TEST
+        bool "Enable PM test"
+        default n
+endmenu
 
 endmenu
 endmenu

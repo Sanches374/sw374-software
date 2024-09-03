@@ -109,6 +109,22 @@ static inline int usbh_msc_bulk_out_transfer(struct usbh_msc *msc_class, uint8_t
     return ret;
 }
 
+static void usbh_msc_cbw_error_dump(struct CBW *cbw)
+{
+    USB_LOG_INFO("CBW:\r\n");
+    USB_LOG_INFO("dSignature: 0x%08x\n", (unsigned int)cbw->dSignature);
+    USB_LOG_INFO("dTag:       0x%08x\n", (unsigned int)cbw->dTag);
+    USB_LOG_INFO("dDataLength:0x%08x\n", (unsigned int)cbw->dDataLength);
+    USB_LOG_INFO("bmFlags:    0x%02x\n", cbw->bmFlags);
+    USB_LOG_INFO("bCBLength:  0x%02x\n", cbw->bCBLength);
+    USB_LOG_INFO("scsi command: \r\n");
+    USB_LOG_INFO("CB[0]: 0x%02x\n", cbw->CB[0]);
+    USB_LOG_INFO("start sector: \r\n");
+    USB_LOG_INFO("CB[2:5]: 0x%02x%02x%02x%02x\n", cbw->CB[5], cbw->CB[4], cbw->CB[3], cbw->CB[2]);
+    USB_LOG_INFO("sector's num: \r\n");
+    USB_LOG_INFO("CB[7]: 0x%02x%02x\n", cbw->CB[8], cbw->CB[7]);
+}
+
 static int usbh_bulk_cbw_csw_xfer(struct usbh_msc *msc_class, struct CBW *cbw, struct CSW *csw, uint8_t *buffer)
 {
     int nbytes;
@@ -119,6 +135,7 @@ static int usbh_bulk_cbw_csw_xfer(struct usbh_msc *msc_class, struct CBW *cbw, s
     nbytes = usbh_msc_bulk_out_transfer(msc_class, (uint8_t *)cbw, USB_SIZEOF_MSC_CBW, CONFIG_USBHOST_MSC_TIMEOUT);
     if (nbytes < 0) {
         USB_LOG_ERR("cbw transfer error\r\n");
+        usbh_msc_cbw_error_dump(cbw);
         goto __err_exit;
     }
 
@@ -137,7 +154,8 @@ static int usbh_bulk_cbw_csw_xfer(struct usbh_msc *msc_class, struct CBW *cbw, s
         }
 
         if (nbytes < 0) {
-            USB_LOG_ERR("msc data transfer error\r\n");
+            USB_LOG_ERR("msc data transfer error, nbytes:%d\r\n", nbytes);
+            usbh_msc_cbw_error_dump(cbw);
             goto __err_exit;
         }
     }
@@ -146,7 +164,8 @@ static int usbh_bulk_cbw_csw_xfer(struct usbh_msc *msc_class, struct CBW *cbw, s
     memset(csw, 0, USB_SIZEOF_MSC_CSW);
     nbytes = usbh_msc_bulk_in_transfer(msc_class, (uint8_t *)csw, USB_SIZEOF_MSC_CSW, CONFIG_USBHOST_MSC_TIMEOUT);
     if (nbytes < 0) {
-        USB_LOG_ERR("csw transfer error\r\n");
+        USB_LOG_ERR("csw transfer error, nbytes:%d\r\n", nbytes);
+        usbh_msc_cbw_error_dump(cbw);
         goto __err_exit;
     }
 
@@ -154,12 +173,14 @@ static int usbh_bulk_cbw_csw_xfer(struct usbh_msc *msc_class, struct CBW *cbw, s
 
     /* check csw status */
     if (csw->dSignature != MSC_CSW_Signature) {
-        USB_LOG_ERR("csw signature error\r\n");
+        USB_LOG_ERR("csw signature error, dSignature: 0x%08x\r\n", (unsigned int)csw->dSignature);
+        usbh_msc_cbw_error_dump(cbw);
         return -USB_ERR_INVAL;
     }
 
     if (csw->bStatus != 0) {
-        USB_LOG_ERR("csw bStatus %d\r\n", csw->bStatus);
+        USB_LOG_ERR("csw Status error, bStatus: %d\r\n", csw->bStatus);
+        usbh_msc_cbw_error_dump(cbw);
         return -USB_ERR_INVAL;
     }
 __err_exit:

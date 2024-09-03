@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -64,7 +64,6 @@ static struct nftl_volume *nftl_new_volume(char *s)
         vol->next = nftl_new_volume(p);
     }
 
-    printf("nftl vol: %s, size %d\n", vol->name, vol->size);
     return vol;
 err:
     if (vol)
@@ -233,13 +232,21 @@ err:
     return NULL;
 }
 
-struct mtd_partition *mtd_parts_parse(char *parts)
+struct mtd_partition *mtd_parts_parse(char *parts, u32 spi_bus)
 {
     char *p;
     p = parts;
 
     if (!p)
         return NULL;
+
+    if (spi_bus == 1) {
+        while (*p != '1')
+            p++;
+    } else if (spi_bus == 2) {
+        while (*p != '2')
+            p++;
+    }
 
     while ((*p != '\0') && (*p != ':'))
         p++;

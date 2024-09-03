@@ -37,5 +37,6 @@ void lv_user_gui_init(void)
 #ifdef KERNEL_RTTHREAD
 extern int lvgl_thread_init(void);
 
-INIT_APP_EXPORT(lvgl_thread_init);
+INIT_LATE_APP_EXPORT(lvgl_thread_init);
+
 #endif

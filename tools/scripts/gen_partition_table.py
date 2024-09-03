@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
-# SPDX-License-Identifier: GPL-2.0+
+# SPDX-License-Identifier: Apache-2.0
 #
-# Copyright (C) 2023 ArtInChip Technology Co., Ltd
+# Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
 # Dehuang Wu <dehuang.wu@artinchip.com>
 
-import os, sys, re, subprocess, json, argparse
+import os
+import sys
+import re
+import subprocess
+import json
+import argparse
 from collections import namedtuple
 from collections import OrderedDict
 
@@ -26,7 +31,7 @@ def parse_image_cfg(cfgfile):
                 continue
             slash_start = sline.find("//")
             if slash_start > 0:
-                jsonstr += sline[0:slash_start]
+                jsonstr += sline[0:slash_start].strip()
             else:
                 jsonstr += sline
         # Use OrderedDict is important, we need to iterate FWC in order.
@@ -52,6 +57,91 @@ def size_str_to_int(size_str):
     return int(size_str, 10)
 
 
+def aic_creat_two_flash_partjson(cfg, media_type, part_type):
+    mtd = ""
+    nftl = ""
+    part_str = '{\n\t"partitions": {\n'
+    part_size = 0
+    part_offs = 0
+    total_siz = 0
+
+    total_siz = size_str_to_int(cfg[media_type]["size"])
+    partitions = cfg[media_type]["partitions"]
+    part_type.append("mtd")
+    mtd = "spi{}.0:".format(cfg["image"]["info"]["media"]["device_id"])
+    if len(partitions) == 0:
+        print("Partition table is empty")
+        sys.exit(1)
+
+    for part in partitions:
+        itemstr = ""
+        if "size" not in partitions[part]:
+            print("No size value for partition: {}".format(part))
+        part_offs += part_size
+        itemstr += partitions[part]["size"]
+        part_size = size_str_to_int(partitions[part]["size"])
+        if partitions[part]["size"] == "-":
+            part_size = total_siz - part_offs
+        if "offset" in partitions[part]:
+            itemstr += "@{}".format(partitions[part]["offset"])
+            part_offs = size_str_to_int(partitions[part]["offset"])
+        itemstr += "({})".format(part)
+
+        mtd += itemstr + ","
+
+    # seconed flash
+    total_siz = size_str_to_int(cfg[media_type]["size1"])
+    partitions = cfg[media_type]["partitions1"]
+    media_type1 = media_type = cfg["image"]["info"]["media1"]["type"]
+
+    mtd += itemstr + ";"
+    mtd += "spi{}.0:".format(cfg["image"]["info"]["media1"]["device_id"])
+    part_size = 0
+    part_offs = 0
+    for part in partitions:
+        itemstr = ""
+        if "size" not in partitions[part]:
+            print("No size value for partition: {}".format(part))
+        part_offs += part_size
+        itemstr += partitions[part]["size"]
+        part_size = size_str_to_int(partitions[part]["size"])
+        if partitions[part]["size"] == "-":
+            part_size = total_siz - part_offs
+        if "offset" in partitions[part]:
+            itemstr += "@{}".format(partitions[part]["offset"])
+            part_offs = size_str_to_int(partitions[part]["offset"])
+        itemstr += "({})".format(part)
+
+        if "nftl" in partitions[part]:
+            if "nftl" not in part_type:
+                part_type.append("nftl")
+            nftl_volumes = partitions[part]["nftl"]
+            if len(nftl_volumes) == 0:
+                print("Volume of {} is empty".format(part))
+                sys.exit(1)
+            nftl += "{}:".format(part)
+            for vol in nftl_volumes:
+                itemstr = ""
+                if "size" not in nftl_volumes[vol]:
+                    print("No size value for nftl volume: {}".format(vol))
+                itemstr += nftl_volumes[vol]["size"]
+                if "offset" in nftl_volumes[vol]:
+                    itemstr += "@{}".format(nftl_volumes[vol]["offset"])
+                itemstr += "({})".format(vol)
+                nftl += itemstr + ","
+            nftl = nftl[0:-1] + ";"
+
+        mtd += itemstr + ","
+
+    mtd = mtd[0:-1]
+    part_str += "\t\t\"mtd\" : \"{}\",\n".format(mtd)
+    if len(nftl) > 0:
+        nftl = nftl[0:-1]
+        part_str += "\t\t\"nftl\" : \"{}\",\n".format(nftl)
+
+    return part_str
+
+
 def aic_create_parts_json(cfg):
     mtd = ""
     ubi = ""
@@ -65,76 +155,80 @@ def aic_create_parts_json(cfg):
     total_siz = 0
     media_type = cfg["image"]["info"]["media"]["type"]
     if media_type == "spi-nand" or media_type == "spi-nor":
-        total_siz = size_str_to_int(cfg[media_type]["size"])
-        partitions = cfg[media_type]["partitions"]
-        part_type.append("mtd")
-        mtd = "spi{}.0:".format(cfg["image"]["info"]["media"]["device_id"])
-        if len(partitions) == 0:
-            print("Partition table is empty")
-            sys.exit(1)
+        if (cfg.get(media_type, {}).get("device_count", None) is None):
+            total_siz = size_str_to_int(cfg[media_type]["size"])
+            partitions = cfg[media_type]["partitions"]
+            part_type.append("mtd")
+            mtd = "spi{}.0:".format(cfg["image"]["info"]["media"]["device_id"])
+            if len(partitions) == 0:
+                print("Partition table is empty")
+                sys.exit(1)
 
-        for part in partitions:
-            itemstr = ""
-            if "size" not in partitions[part]:
-                print("No size value for partition: {}".format(part))
-            part_offs += part_size
-            itemstr += partitions[part]["size"]
-            part_size = size_str_to_int(partitions[part]["size"])
-            if partitions[part]["size"] == "-":
-                part_size = total_siz - part_offs
-            if "offset" in partitions[part]:
-                itemstr += "@{}".format(partitions[part]["offset"])
-                part_offs = size_str_to_int(partitions[part]["offset"])
-            itemstr += "({})".format(part)
+            for part in partitions:
+                itemstr = ""
+                if "size" not in partitions[part]:
+                    print("No size value for partition: {}".format(part))
+                part_offs += part_size
+                itemstr += partitions[part]["size"]
+                part_size = size_str_to_int(partitions[part]["size"])
+                if partitions[part]["size"] == "-":
+                    part_size = total_siz - part_offs
+                if "offset" in partitions[part]:
+                    itemstr += "@{}".format(partitions[part]["offset"])
+                    part_offs = size_str_to_int(partitions[part]["offset"])
+                itemstr += "({})".format(part)
 
-            mtd += itemstr + ","
-            if "ubi" in partitions[part]:
-                if "ubi" not in part_type:
-                    part_type.append("ubi")
+                mtd += itemstr + ","
+                if "ubi" in partitions[part]:
+                    if "ubi" not in part_type:
+                        part_type.append("ubi")
 
-                volumes = partitions[part]["ubi"]
-                if len(volumes) == 0:
-                    print("Volume of {} is empty".format(part))
-                    sys.exit(1)
-                ubi += "{}:".format(part)
-                for vol in volumes:
-                    itemstr = ""
-                    if "size" not in volumes[vol]:
-                        print("No size value for ubi volume: {}".format(vol))
-                    itemstr += volumes[vol]["size"]
-                    if "offset" in volumes[vol]:
-                        itemstr += "@{}".format(volumes[vol]["offset"])
-                    itemstr += "({})".format(vol)
-                    ubi += itemstr + ","
-                ubi = ubi[0:-1] + ";"
+                    volumes = partitions[part]["ubi"]
+                    if len(volumes) == 0:
+                        print("Volume of {} is empty".format(part))
+                        sys.exit(1)
+                    ubi += "{}:".format(part)
+                    for vol in volumes:
+                        itemstr = ""
+                        if "size" not in volumes[vol]:
+                            print("No size value for ubi volume: {}".format(vol))
+                        itemstr += volumes[vol]["size"]
+                        if "offset" in volumes[vol]:
+                            itemstr += "@{}".format(volumes[vol]["offset"])
+                        itemstr += "({})".format(vol)
+                        ubi += itemstr + ","
+                    ubi = ubi[0:-1] + ";"
 
-            if "nftl" in partitions[part]:
-                if "nftl" not in part_type:
-                    part_type.append("nftl")
-                nftl_volumes = partitions[part]["nftl"]
-                if len(nftl_volumes) == 0:
-                    print("Volume of {} is empty".format(part))
-                    sys.exit(1)
-                nftl += "{}:".format(part)
-                for vol in nftl_volumes:
-                    itemstr = ""
-                    if "size" not in nftl_volumes[vol]:
-                        print("No size value for nftl volume: {}".format(vol))
-                    itemstr += nftl_volumes[vol]["size"]
-                    if "offset" in nftl_volumes[vol]:
-                        itemstr += "@{}".format(nftl_volumes[vol]["offset"])
-                    itemstr += "({})".format(vol)
-                    nftl += itemstr + ","
-                nftl = nftl[0:-1] + ";"
+                if "nftl" in partitions[part]:
+                    if "nftl" not in part_type:
+                        part_type.append("nftl")
+                    nftl_volumes = partitions[part]["nftl"]
+                    if len(nftl_volumes) == 0:
+                        print("Volume of {} is empty".format(part))
+                        sys.exit(1)
+                    nftl += "{}:".format(part)
+                    for vol in nftl_volumes:
+                        itemstr = ""
+                        if "size" not in nftl_volumes[vol]:
+                            print("No size value for nftl volume: {}".format(vol))
+                        itemstr += nftl_volumes[vol]["size"]
+                        if "offset" in nftl_volumes[vol]:
+                            itemstr += "@{}".format(nftl_volumes[vol]["offset"])
+                        itemstr += "({})".format(vol)
+                        nftl += itemstr + ","
+                    nftl = nftl[0:-1] + ";"
 
-        mtd = mtd[0:-1]
-        part_str += "\t\t\"mtd\" : \"{}\",\n".format(mtd)
-        if len(ubi) > 0:
-            ubi = ubi[0:-1]
-            part_str += "\t\t\"ubi\" : \"{}\",\n".format(ubi)
-        if len(nftl) > 0:
-            nftl = nftl[0:-1]
-            part_str += "\t\t\"nftl\" : \"{}\",\n".format(nftl)
+            mtd = mtd[0:-1]
+            part_str += "\t\t\"mtd\" : \"{}\",\n".format(mtd)
+            if len(ubi) > 0:
+                ubi = ubi[0:-1]
+                part_str += "\t\t\"ubi\" : \"{}\",\n".format(ubi)
+            if len(nftl) > 0:
+                nftl = nftl[0:-1]
+                part_str += "\t\t\"nftl\" : \"{}\",\n".format(nftl)
+        elif cfg.get(media_type, {}).get("device_count", None) == "2":
+            # two flashes
+            part_str = aic_creat_two_flash_partjson(cfg, media_type, part_type)
 
     elif media_type == "mmc":
         part_type.append("gpt")
@@ -163,6 +257,104 @@ def aic_create_parts_json(cfg):
     return part_str
 
 
+def aic_creat_two_flash_partstr(cfg, media_type):
+    mtd = ""
+    nftl = ""
+    part_str = ""
+    fal_cfg = "\n"
+    part_size = 0
+    part_offs = 0
+    total_siz = 0
+
+    total_siz = size_str_to_int(cfg[media_type]["size"])
+    partitions = cfg[media_type]["partitions"]
+    mtd = "spi{}.0:".format(cfg["image"]["info"]["media"]["device_id"])
+    if len(partitions) == 0:
+        print("Partition table is empty")
+        sys.exit(1)
+    if media_type == "spi-nor":
+        fal_cfg += "\n#ifdef FAL_PART_HAS_TABLE_CFG\n"
+        fal_cfg += "#define FAL_PART_TABLE \\\n{ \\\n"
+    for part in partitions:
+        itemstr = ""
+        if "size" not in partitions[part]:
+            print("No size value for partition: {}".format(part))
+        part_offs += part_size
+        itemstr += partitions[part]["size"]
+        part_size = size_str_to_int(partitions[part]["size"])
+        if partitions[part]["size"] == "-":
+            part_size = total_siz - part_offs
+        if "offset" in partitions[part]:
+            itemstr += "@{}".format(partitions[part]["offset"])
+            part_offs = size_str_to_int(partitions[part]["offset"])
+        itemstr += "({})".format(part)
+        mtd += itemstr + ","
+
+        if media_type == "spi-nor":
+            fal_cfg += "    {}FAL_PART_MAGIC_WORD, \"{}\",".format("{", part)
+            fal_cfg += "FAL_USING_NOR_FLASH_DEV_NAME, "
+            fal_cfg += "{},{},0{}, \\\n".format(part_offs, part_size, "}")
+    # seconed flash
+    total_siz = size_str_to_int(cfg[media_type]["size1"])
+    partitions = cfg[media_type]["partitions1"]
+    media_type1 = cfg["image"]["info"]["media1"]["type"]
+
+    # handle mtd&fal
+    mtd += itemstr + ";"
+    mtd += "spi{}.0:".format(cfg["image"]["info"]["media1"]["device_id"])
+    part_size = 0
+    part_offs = 0
+    for part in partitions:
+        itemstr = ""
+        if "size" not in partitions[part]:
+            print("No size value for partition: {}".format(part))
+        part_offs += part_size
+        itemstr += partitions[part]["size"]
+        part_size = size_str_to_int(partitions[part]["size"])
+        if partitions[part]["size"] == "-":
+            part_size = total_siz - part_offs
+        if "offset" in partitions[part]:
+            itemstr += "@{}".format(partitions[part]["offset"])
+            part_offs = size_str_to_int(partitions[part]["offset"])
+        itemstr += "({})".format(part)
+        mtd += itemstr + ","
+
+        if media_type1 == "spi-nor":
+            fal_cfg += "    {}FAL_PART_MAGIC_WORD, \"{}\",".format("{", part)
+            fal_cfg += "FAL_USING_NOR_FLASH_DEV_NAME1, "
+            fal_cfg += "{},{},0{}, \\\n".format(part_offs, part_size, "}")
+
+        if "nftl" in partitions[part]:
+            nftl_volumes = partitions[part]["nftl"]
+            if len(nftl_volumes) == 0:
+                print("Volume of {} is empty".format(part))
+                sys.exit(1)
+            nftl += "{}:".format(part)
+            for vol in nftl_volumes:
+                itemstr = ""
+                if "size" not in nftl_volumes[vol]:
+                    print("No size value for ubi volume: {}".format(vol))
+                itemstr += nftl_volumes[vol]["size"]
+                if "offset" in nftl_volumes[vol]:
+                    itemstr += "@{}".format(nftl_volumes[vol]["offset"])
+                itemstr += "({})".format(vol)
+                nftl += itemstr + ","
+            nftl = nftl[0:-1] + ";"
+
+    # seconed flash
+    mtd = mtd[0:-1]
+    part_str = "#define IMAGE_CFG_JSON_PARTS_MTD \"{}\"\n".format(mtd)
+    if len(nftl) > 0:
+        nftl = nftl[0:-1]
+        part_str += "#define IMAGE_CFG_JSON_PARTS_NFTL \"{}\"\n".format(nftl)
+
+    if media_type == "spi-nor":
+        fal_cfg += "}\n#endif\n"
+        part_str += fal_cfg
+
+    return part_str
+
+
 def aic_create_parts_string(cfg):
     mtd = ""
     ubi = ""
@@ -176,80 +368,87 @@ def aic_create_parts_string(cfg):
     total_siz = 0
     media_type = cfg["image"]["info"]["media"]["type"]
     if media_type == "spi-nand" or media_type == "spi-nor":
-        total_siz = size_str_to_int(cfg[media_type]["size"])
-        partitions = cfg[media_type]["partitions"]
-        mtd = "spi{}.0:".format(cfg["image"]["info"]["media"]["device_id"])
-        if len(partitions) == 0:
-            print("Partition table is empty")
-            sys.exit(1)
-        if media_type == "spi-nor":
-            fal_cfg += "\n#ifdef FAL_PART_HAS_TABLE_CFG\n"
-            fal_cfg += "#define FAL_PART_TABLE \\\n{ \\\n"
-        for part in partitions:
-            itemstr = ""
-            if "size" not in partitions[part]:
-                print("No size value for partition: {}".format(part))
-            part_offs += part_size
-            itemstr += partitions[part]["size"]
-            part_size = size_str_to_int(partitions[part]["size"])
-            if partitions[part]["size"] == "-":
-                part_size = total_siz - part_offs
-            if "offset" in partitions[part]:
-                itemstr += "@{}".format(partitions[part]["offset"])
-                part_offs = size_str_to_int(partitions[part]["offset"])
-            itemstr += "({})".format(part)
-            mtd += itemstr + ","
-            if "ubi" in partitions[part]:
-                volumes = partitions[part]["ubi"]
-                if len(volumes) == 0:
-                    print("Volume of {} is empty".format(part))
-                    sys.exit(1)
-                ubi += "{}:".format(part)
-                for vol in volumes:
-                    itemstr = ""
-                    if "size" not in volumes[vol]:
-                        print("No size value for ubi volume: {}".format(vol))
-                    itemstr += volumes[vol]["size"]
-                    if "offset" in volumes[vol]:
-                        itemstr += "@{}".format(volumes[vol]["offset"])
-                    itemstr += "({})".format(vol)
-                    ubi += itemstr + ","
-                ubi = ubi[0:-1] + ";"
+        if (cfg.get(media_type, {}).get("device_count", None) is None):
+            total_siz = size_str_to_int(cfg[media_type]["size"])
+            partitions = cfg[media_type]["partitions"]
+            mtd = "spi{}.0:".format(cfg["image"]["info"]["media"]["device_id"])
+            if len(partitions) == 0:
+                print("Partition table is empty")
+                sys.exit(1)
+            if media_type == "spi-nor":
+                fal_cfg += "\n#ifdef FAL_PART_HAS_TABLE_CFG\n"
+                fal_cfg += "#define FAL_PART_TABLE \\\n{ \\\n"
+            for part in partitions:
+                itemstr = ""
+                if "size" not in partitions[part]:
+                    print("No size value for partition: {}".format(part))
+                part_offs += part_size
+                itemstr += partitions[part]["size"]
+                part_size = size_str_to_int(partitions[part]["size"])
+                if partitions[part]["size"] == "-":
+                    part_size = total_siz - part_offs
+                if "offset" in partitions[part]:
+                    itemstr += "@{}".format(partitions[part]["offset"])
+                    part_offs = size_str_to_int(partitions[part]["offset"])
+                itemstr += "({})".format(part)
+                mtd += itemstr + ","
+                if "ubi" in partitions[part]:
+                    volumes = partitions[part]["ubi"]
+                    if len(volumes) == 0:
+                        print("Volume of {} is empty".format(part))
+                        sys.exit(1)
+                    ubi += "{}:".format(part)
+                    for vol in volumes:
+                        itemstr = ""
+                        if "size" not in volumes[vol]:
+                            print("No size value for ubi volume: {}".format(vol))
+                        itemstr += volumes[vol]["size"]
+                        if "offset" in volumes[vol]:
+                            itemstr += "@{}".format(volumes[vol]["offset"])
+                        itemstr += "({})".format(vol)
+                        ubi += itemstr + ","
+                    ubi = ubi[0:-1] + ";"
 
-            if "nftl" in partitions[part]:
-                nftl_volumes = partitions[part]["nftl"]
-                if len(nftl_volumes) == 0:
-                    print("Volume of {} is empty".format(part))
-                    sys.exit(1)
-                nftl += "{}:".format(part)
-                for vol in nftl_volumes:
-                    itemstr = ""
-                    if "size" not in nftl_volumes[vol]:
-                        print("No size value for ubi volume: {}".format(vol))
-                    itemstr += nftl_volumes[vol]["size"]
-                    if "offset" in nftl_volumes[vol]:
-                        itemstr += "@{}".format(nftl_volumes[vol]["offset"])
-                    itemstr += "({})".format(vol)
-                    nftl += itemstr + ","
-                nftl = nftl[0:-1] + ";"
+                if "nftl" in partitions[part]:
+                    nftl_volumes = partitions[part]["nftl"]
+                    if len(nftl_volumes) == 0:
+                        print("Volume of {} is empty".format(part))
+                        sys.exit(1)
+                    nftl += "{}:".format(part)
+                    for vol in nftl_volumes:
+                        itemstr = ""
+                        if "size" not in nftl_volumes[vol]:
+                            print("No size value for ubi volume: {}".format(vol))
+                        itemstr += nftl_volumes[vol]["size"]
+                        if "offset" in nftl_volumes[vol]:
+                            itemstr += "@{}".format(nftl_volumes[vol]["offset"])
+                        itemstr += "({})".format(vol)
+                        nftl += itemstr + ","
+                    nftl = nftl[0:-1] + ";"
+
+                if media_type == "spi-nor":
+                    fal_cfg += "    {}FAL_PART_MAGIC_WORD, \"{}\",".format("{", part)
+                    fal_cfg += "FAL_USING_NOR_FLASH_DEV_NAME, "
+                    fal_cfg += "{},{},0{}, \\\n".format(part_offs, part_size, "}")
+
+            mtd = mtd[0:-1]
+            part_str = "#define IMAGE_CFG_JSON_PARTS_MTD \"{}\"\n".format(mtd)
+            if len(ubi) > 0:
+                ubi = ubi[0:-1]
+                part_str += "#define IMAGE_CFG_JSON_PARTS_UBI \"{}\"\n".format(ubi)
+            if len(nftl) > 0:
+                nftl = nftl[0:-1]
+                part_str += "#define IMAGE_CFG_JSON_PARTS_NFTL \"{}\"\n".format(nftl)
 
             if media_type == "spi-nor":
-                fal_cfg += "    {}FAL_PART_MAGIC_WORD, \"{}\",".format("{", part)
-                fal_cfg += "FAL_USING_NOR_FLASH_DEV_NAME, "
-                fal_cfg += "{},{},0{}, \\\n".format(part_offs, part_size, "}")
-
-        mtd = mtd[0:-1]
-        part_str = "#define IMAGE_CFG_JSON_PARTS_MTD \"{}\"\n".format(mtd)
-        if len(ubi) > 0:
-            ubi = ubi[0:-1]
-            part_str += "#define IMAGE_CFG_JSON_PARTS_UBI \"{}\"\n".format(ubi)
-        if len(nftl) > 0:
-            nftl = nftl[0:-1]
-            part_str += "#define IMAGE_CFG_JSON_PARTS_NFTL \"{}\"\n".format(nftl)
-
-        if media_type == "spi-nor":
-            fal_cfg += "}\n#endif\n"
-            part_str += fal_cfg
+                fal_cfg += "}\n#endif\n"
+                part_str += fal_cfg
+        elif cfg.get(media_type, {}).get("device_count", None) == "2":
+            # two flashes
+            part_str = aic_creat_two_flash_partstr(cfg, media_type)
+        else:
+            print("Invalid device_count: {}!" .format(cfg[media_type]["device_count"]))
+            sys.exit(1)
     elif media_type == "mmc":
         partitions = cfg[media_type]["partitions"]
         if len(partitions) == 0:
@@ -299,12 +498,9 @@ if __name__ == "__main__":
     if args.outfile is None:
         print(parts)
     else:
-        print("args.outfile: ", args.outfile)
         with open(args.outfile, "w+") as f:
             f.write("/* This is an auto generated file, please don't modify it. */\n\n")
             f.write("#ifndef _AIC_IMAGE_CFG_JSON_PARTITION_TABLE_H_\n")
             f.write("#define _AIC_IMAGE_CFG_JSON_PARTITION_TABLE_H_\n\n")
             f.write(parts)
             f.write("\n#endif\n")
-
-

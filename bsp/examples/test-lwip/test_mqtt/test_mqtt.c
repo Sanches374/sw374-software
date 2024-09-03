@@ -31,6 +31,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include "lwip/tcpip.h"
 #if LWIP_TCP
 
 /** Define this to a compile-time IP address initialization
@@ -135,36 +136,44 @@ printf_usage(void)
 static void
 cmd_test_mqtt(int argc, char **argv)
 {
-  if ((strcmp(argv[1], "-c") == 0) && (argc == 3)) {
+  if ((argc == 3) && (strcmp(argv[1], "-c") == 0)) {
     if (mqtt_client != NULL) {
       printf("MQTT is processing\n");
-      return ;
+      return;
     }
     mqtt_example_init(argv[2]);
-  } else if ((strcmp(argv[1], "-s") == 0) && (argc == 4)) {
+  } else if ((argc == 4) && (strcmp(argv[1], "-s") == 0)) {
     if (gstatus != MQTT_CONNECT_ACCEPTED) {
       printf("MQTT is not connected\n");
-      return ;
+      return;
     }
+    LOCK_TCPIP_CORE();
     mqtt_subscribe(mqtt_client, argv[2], atoi(argv[3]),
                    mqtt_request_cb, LWIP_CONST_CAST(void *, &mqtt_client_info));
-  }
-  else if ((strcmp(argv[1], "-u") == 0) && (argc == 3)) {
+    UNLOCK_TCPIP_CORE();
+  } else if ((argc == 3) && (strcmp(argv[1], "-u") == 0)) {
     if (gstatus != MQTT_CONNECT_ACCEPTED) {
       printf("MQTT is not connected\n");
-      return ;
+      return;
     }
+    LOCK_TCPIP_CORE();
     mqtt_unsubscribe(mqtt_client, argv[2], mqtt_request_cb,
                      LWIP_CONST_CAST(void *, &mqtt_client_info));
-  } else if ((strcmp(argv[1], "-p") == 0) && (argc == 4)) {
+    UNLOCK_TCPIP_CORE();
+  } else if ((argc == 4) && (strcmp(argv[1], "-p") == 0)) {
+    LOCK_TCPIP_CORE();
     mqtt_publish(mqtt_client, argv[2], argv[3], strlen(argv[3]), 2, 0,
-    		     mqtt_punlish_cb, LWIP_CONST_CAST(void *, &mqtt_client_info));
-  } else if ((strcmp(argv[1], "-q") == 0) && (argc == 2)) {
+                 mqtt_punlish_cb, LWIP_CONST_CAST(void *, &mqtt_client_info));
+    UNLOCK_TCPIP_CORE();
+  } else if ((argc == 2) && (strcmp(argv[1], "-q") == 0)) {
+    LOCK_TCPIP_CORE();
     mqtt_disconnect(mqtt_client);
     mqtt_client_free(mqtt_client);
+    UNLOCK_TCPIP_CORE();
     mqtt_client = NULL;
-  } else 
+  } else {
     printf_usage();
+  }
 }
 
 MSH_CMD_EXPORT_ALIAS(cmd_test_mqtt, test_mqtt, test_mqtt -h for more information);

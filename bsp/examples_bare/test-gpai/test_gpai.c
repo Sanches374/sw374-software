@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Artinchip Technology Co., Ltd
+ * Copyright (c) 2022-2024, Artinchip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -14,7 +14,6 @@
 
 #include "hal_adcim.h"
 #include "hal_gpai.h"
-#include "mpp_fb.h"
 #include "test_gpai.h"
 
 /* The default voltages are set to D21x->3.0V, D31x、D12x->2.5V */
@@ -97,12 +96,12 @@ static int cmd_gpai_read(int argc, char **argv)
 
     while(sample_cnt) {
         aich_gpai_read(chan, &value, AIC_GPAI_TIMEOUT);
-        printf("[%d] ch %d: %d\n", cnt, ch, value);
         cnt++;
         if (value) {
-            voltage = hal_adcim_adc2voltage(value, cal_param,
+            voltage = hal_adcim_adc2voltage(&value, cal_param,
                                             AIC_GPAI_VOLTAGE_ACCURACY,
                                             g_def_voltage);
+            printf("[%d] ch %d: %d\n", cnt, ch, value);
             printf("voltage : %d.%04d v\n", voltage / scale, voltage % scale);
         }
         sample_cnt--;

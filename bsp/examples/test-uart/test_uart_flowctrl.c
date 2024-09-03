@@ -24,12 +24,14 @@ static char uart_name[RT_NAME_MAX] = SAMPLE_UART_NAME;
 static rt_device_t fc_serial;
 static struct rt_semaphore rx_fc_sem;
 static int fc_g_exit = 0;
+static uint32_t baud = 0;
 
 static const struct option fc_longopts[] = {
     {"uart",      optional_argument,  NULL, 'u'},
     {"normal",    no_argument,  NULL, 'n'},
     {"get",       no_argument,  NULL, 'g'},
     {"receive",   no_argument,  NULL, 'r'},
+    {"baudrate",  optional_argument,  NULL, 'b'},
     {"help",      no_argument,  NULL, 'h'},
     {NULL, 0, NULL, 0},
 };
@@ -42,6 +44,7 @@ static void test_uart_flowctrl_usage(char *program)
     printf("\t -n, --normal\t\tThis function is to send the received data\n");
     printf("\t -g, --get\t\tThis function is to get the received data\n");
     printf("\t -r, --received\t\tThis function is to detect whether data is received\n");
+    printf("\t -b, --baudrate\t\tThis function is to set the baudrate\n");
     printf("\t -h, --help \n");
     printf("\n");
     printf("Example: Serial port flowctrl test\n");
@@ -74,13 +77,12 @@ void serial_normal_test_entry(void *parameter)
         if (ret == 1) {
             str_receive[index] = ch;
             index ++;
-
             if (index <= MAX_BUFFER_LEN -1 || ch == '\n') {
                 rt_device_write(fc_serial, 0, str_receive, index);
                 index = 0;
             }
         } else {
-            rt_kprintf("waiting for uart input\n");
+            //rt_kprintf("waiting for uart input\n");
             rt_sem_take(&rx_fc_sem, RT_WAITING_FOREVER);
         }
     }
@@ -167,7 +169,6 @@ void uart_receive_data_test(void)
 
 void uart_get_data_test(void)
 {
-
     fc_serial = rt_device_find(uart_name);
     if (!fc_serial) {
         rt_kprintf("find %s failed!\n", uart_name);
@@ -188,13 +189,23 @@ void uart_get_data_test(void)
     }
 }
 
+void uart_set_baudrate(uint32_t baud)
+{
+    fc_serial = rt_device_find(uart_name);
+    if (!fc_serial) {
+        rt_kprintf("find %s failed!\n", uart_name);
+        return;
+    }
+    if (rt_device_control(fc_serial, RT_SERIAL_SET_BAUDRATE, &baud) != RT_EOK)
+        rt_kprintf("uart set baudrate fail!\n");
+}
+
 static int test_uart_flowctrl(int argc, char *argv[])
 {
     int fc_test_mode = -1;
 
     optind = 0;
-
-    while ((fc_test_mode = getopt_long(argc, argv, "u:ngrh", fc_longopts, NULL)) != -1) {
+    while ((fc_test_mode = getopt_long(argc, argv, "u:b:ngrh", fc_longopts, NULL)) != -1) {
         rt_kprintf("flow control test mode: %c\n", fc_test_mode);
 
         switch (fc_test_mode) {
@@ -210,6 +221,12 @@ static int test_uart_flowctrl(int argc, char *argv[])
             break;
         case 'r':
             uart_receive_data_test();
+            break;
+        case 'b':
+            baud = atoi(optarg);
+            rt_kprintf("baud:   %ld\n", baud);
+            rt_thread_mdelay(100);
+            uart_set_baudrate(baud);
             break;
         case 'h':
         default:

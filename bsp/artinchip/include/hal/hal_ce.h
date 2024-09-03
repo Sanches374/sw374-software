@@ -1,15 +1,17 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (C) 2020-2024 Artinchip Technology Co., Ltd.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
- * Authors: Xiong Hao <hao.xiong@artinchip.com>
+ * Authors:  Xiong Hao <hao.xiong@artinchip.com>
  */
 
 #ifndef _AIC_HAL_CE_H_
 #define _AIC_HAL_CE_H_
 
 #include <aic_common.h>
+
+#define DEBUG_CE 0
 
 #define RSA2048_SIGN_LEN 256
 #define RSA2048_KEY_LEN  256
@@ -84,9 +86,9 @@
 #define BE_SHA512_H6 0x6bbd41fbabd9831fULL
 #define BE_SHA512_H7 0x79217e1319cde05bULL
 
-#define ALG_UNIT_SYMM         (0)
-#define ALG_UNIT_HASH         (1)
-#define ALG_UNIT_ASYM         (2)
+#define ALG_SK_ACCELERATOR   (0)
+#define ALG_HASH_ACCELERATOR (1)
+#define ALG_AK_ACCELERATOR   (2)
 
 #define ALG_DIR_ENCRYPT        (0)
 #define ALG_DIR_DECRYPT        (1)
@@ -137,6 +139,9 @@
 #define CE_KEY_SRC_PSK1       (5)
 #define CE_KEY_SRC_PSK2       (6)
 #define CE_KEY_SRC_PSK3       (7)
+
+#define SECURE_SRAM_SIZE (1024)
+#define SECURE_SRAM_BASE (0x10021000)
 
 #define uaddr u64
 #define PTR2U32(ptr) ((u32)(uaddr)(ptr))
@@ -291,15 +296,19 @@ struct crypto_task {
 
 s32 hal_crypto_init(void);
 s32 hal_crypto_deinit(void);
+void hal_crypto_dump_reg(void);
 void hal_crypto_irq_handler();
+void hal_crypto_irq_enable(u32 alg_unit);
 s32 hal_crypto_start_symm(struct crypto_task *task);
 s32 hal_crypto_start_asym(struct crypto_task *task);
 s32 hal_crypto_start_hash(struct crypto_task *task);
+bool hal_crypto_is_start();
 u32 hal_crypto_poll_finish(u32 alg_unit);
 void hal_crypto_pending_clear(u32 alg_unit);
 u32 hal_crypto_get_err(u32 alg_unit);
 s32 hal_crypto_bignum_byteswap(u8 *bn, u32 len);
 s32 hal_crypto_bignum_le2be(u8 *src, u32 slen, u8 *dst, u32 dlen);
 s32 hal_crypto_bignum_be2le(u8 *src, u32 slen, u8 *dst, u32 dlen);
+void hal_crypto_dump_task(struct crypto_task *task, int len);
 
 #endif

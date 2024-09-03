@@ -10,6 +10,16 @@
 
 #include "libfdt_internal.h"
 
+static size_t fdt_strnlen(const char *s, size_t maxlen)
+{
+    const char *sc;
+
+    for (sc = s; *sc != '\0' && (size_t)(sc - s) < maxlen; ++sc) /* nothing */
+        ;
+
+    return sc - s;
+}
+
 static int fdt_nodename_eq_(const void *fdt, int offset,
                 const char *s, int len)
 {
@@ -731,7 +741,7 @@ int fdt_stringlist_count(const void *fdt, int nodeoffset, const char *property)
     end = list + length;
 
     while (list < end) {
-        length = strnlen(list, end - list) + 1;
+        length = fdt_strnlen(list, end - list) + 1;
 
         /* Abort if the last string isn't properly NUL-terminated. */
         if (list + length > end)
@@ -758,7 +768,7 @@ int fdt_stringlist_search(const void *fdt, int nodeoffset, const char *property,
     end = list + length;
 
     while (list < end) {
-        length = strnlen(list, end - list) + 1;
+        length = fdt_strnlen(list, end - list) + 1;
 
         /* Abort if the last string isn't properly NUL-terminated. */
         if (list + length > end)
@@ -792,7 +802,7 @@ const char *fdt_stringlist_get(const void *fdt, int nodeoffset,
     end = list + length;
 
     while (list < end) {
-        length = strnlen(list, end - list) + 1;
+        length = fdt_strnlen(list, end - list) + 1;
 
         /* Abort if the last string isn't properly NUL-terminated. */
         if (list + length > end) {

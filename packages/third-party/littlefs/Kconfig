@@ -7,7 +7,7 @@ menuconfig LPKG_USING_LITTLEFS
 
 if LPKG_USING_LITTLEFS
 
-    config PKG_LITTLEFS_PATH
+    config LPKG_LITTLEFS_PATH
         string
         default "/packages/third-party/littlefs"
 
@@ -102,7 +102,7 @@ if LPKG_USING_LITTLEFS
             default 128
     endif
 
-    config PKG_LITTLEFS_VER
+    config LPKG_LITTLEFS_VER
        string
        default "v0.9.0" if LPKG_USING_LITTLEFS_V090
        default "v1.7.0" if LPKG_USING_LITTLEFS_V170

@@ -1,11 +1,12 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
  * Authors: zrq <ruiqi.zheng@artinchip.com>
  */
 #include <string.h>
+#include <math.h>
 #include <drivers/rt_inputcapture.h>
 #include <drivers/pm.h>
 
@@ -23,22 +24,34 @@ struct aic_cap {
 static struct aic_cap *g_cap[AIC_CAP_CH_NUM];
 static struct aic_cap_data g_cap_info[] = {
 #ifdef AIC_USING_CAP0
-    {.id = 0,},
+    {.id = 0,
+     .flt_sel = AIC_CAP0_FLT_SEL,
+    },
 #endif
 #ifdef AIC_USING_CAP1
-    {.id = 1,},
+    {.id = 1,
+     .flt_sel = AIC_CAP1_FLT_SEL,
+    },
 #endif
 #ifdef AIC_USING_CAP2
-    {.id = 2,},
+    {.id = 2,
+     .flt_sel = AIC_CAP2_FLT_SEL,
+    },
 #endif
 #ifdef AIC_USING_CAP3
-    {.id = 3,},
+    {.id = 3,
+     .flt_sel = AIC_CAP3_FLT_SEL,
+    },
 #endif
 #ifdef AIC_USING_CAP4
-    {.id = 4,},
+    {.id = 4,
+     .flt_sel = AIC_CAP4_FLT_SEL,
+    },
 #endif
 #ifdef AIC_USING_CAP5
-    {.id = 5,},
+    {.id = 5,
+     .flt_sel = AIC_CAP5_FLT_SEL,
+    },
 #endif
 };
 
@@ -64,6 +77,7 @@ static rt_err_t aic_cap_open(struct rt_inputcapture_device *capture)
     aic_capture = (struct aic_cap *)capture;
 
     hal_cap_in_config(aic_capture->data->id);
+    hal_cap_in_flt_sel(aic_capture->data->id, aic_capture->data->flt_sel);
     hal_cap_cnt_start(aic_capture->data->id);
 
     return RT_EOK;
@@ -92,7 +106,7 @@ static rt_err_t aic_cap_get_pulsewidth(struct rt_inputcapture_device *capture, r
 
     aic_capture = (struct aic_cap *)capture;
 
-    aic_capture->data->freq = PWMCS_CLK_RATE / hal_cap_reg2(aic_capture->data->id);
+    aic_capture->data->freq = round((float)PWMCS_CLK_RATE / (float)hal_cap_reg2(aic_capture->data->id));
     aic_capture->data->duty = (float)hal_cap_reg1(aic_capture->data->id) * 100 / (float)hal_cap_reg2(aic_capture->data->id);
 
     aic_capture->rtdev.parent.user_data = (void *)aic_capture->data;

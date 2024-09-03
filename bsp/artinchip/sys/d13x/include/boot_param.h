@@ -1,5 +1,8 @@
 /*
- * Copyright (C) 2023 ArtInChip Technology Co.,Ltd
+ * Copyright (C) 2023-2024 ArtInChip Technology Co.,Ltd
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
  * Author: Dehuang Wu <dehuang.wu@artinchip.com>
  */
 #ifndef __BOOT_PARAM_H__
@@ -67,6 +70,11 @@ enum boot_controller {
     BC_USB,
 };
 
+struct boot_args {
+    char image_version[16];
+    char reserved[240];
+};
+
 #define BD_BOOTROM BD_USB
 
 typedef int (*nand_read)(void *dev, unsigned long offset, void *buf,
@@ -79,4 +87,5 @@ unsigned long aic_timer_get_us(void);
 void *aic_get_boot_resource(void);
 void *aic_get_boot_resource_from_nand(void *dev, unsigned long pagesize,
                                       nand_read fn);
+void *aic_get_boot_args(void);
 #endif /* __BOOT_PARAM_H__ */

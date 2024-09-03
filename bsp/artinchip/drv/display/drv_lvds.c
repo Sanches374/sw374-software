@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Artinchip Technology Co., Ltd
+ * Copyright (c) 2023-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -8,7 +8,7 @@
 #include <aic_hal.h>
 #include <aic_hal_lvds.h>
 
-#include "disp_com.h"
+#include "drv_fb.h"
 
 struct aic_lvds_comp
 {

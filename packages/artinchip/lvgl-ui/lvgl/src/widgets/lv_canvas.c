@@ -190,7 +190,7 @@ void lv_canvas_transform(lv_obj_t * obj, lv_img_dsc_t * src_img, int16_t angle, 
     lv_opa_t * abuf = lv_mem_alloc(dest_img->header.w * sizeof(lv_opa_t));
     for(y = 0; y < dest_img->header.h; y++) {
         if(y + offset_y >= 0) {
-            lv_draw_sw_transform(NULL, &dest_area, src_img->data, src_img->header.w, src_img->header.h, src_img->header.w,
+            lv_draw_sw_transform(NULL, &dest_area, src_img->data, src_img->header.w, src_img->header.h, 0,
                                  &draw_dsc, canvas->dsc.header.cf, cbuf, abuf);
 
             for(x = 0; x < dest_img->header.w; x++) {

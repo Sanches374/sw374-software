@@ -114,8 +114,10 @@ static rt_err_t gt911_get_info(struct rt_i2c_client *dev,
     info->range_x = (out_info[2] << 8) | out_info[1];
     info->range_y = (out_info[4] << 8) | out_info[3];
     info->point_num = out_info[5] & 0x0f;
-    // FIXME: temporarily set to 1, only 1 point data return
-    // info->point_num = 1;
+    if (info->point_num > GT911_MAX_TOUCH) {
+        info->point_num = GT911_MAX_TOUCH;
+        rt_kprintf("Warning,tp support more than 5 points, limited to 5 points\n");
+    }
 
     return RT_EOK;
 }
@@ -514,13 +516,13 @@ static int rt_gt911_gpio_cfg()
     long pin;
 
     // RST
-    pin = drv_pin_get(GT911_RST_PIN);
+    pin = drv_pin_get(AIC_TOUCH_PANEL_RST_PIN);
     g = GPIO_GROUP(pin);
     p = GPIO_GROUP_PIN(pin);
     hal_gpio_direction_input(g, p);
 
     // INT
-    pin = drv_pin_get(GT911_INT_PIN);
+    pin = drv_pin_get(AIC_TOUCH_PANEL_INT_PIN);
     g = GPIO_GROUP(pin);
     p = GPIO_GROUP_PIN(pin);
     hal_gpio_direction_input(g, p);
@@ -536,11 +538,14 @@ static int rt_hw_gt911_port(void)
 
     rt_gt911_gpio_cfg();
 
-    rst_pin = drv_pin_get(GT911_RST_PIN);
-    cfg.dev_name = GT911_I2C_CHAN;
-    cfg.irq_pin.pin = drv_pin_get(GT911_INT_PIN);
+    rst_pin = drv_pin_get(AIC_TOUCH_PANEL_RST_PIN);
+    cfg.dev_name = AIC_TOUCH_PANEL_I2C_CHAN;
+    cfg.irq_pin.pin = drv_pin_get(AIC_TOUCH_PANEL_INT_PIN);
     cfg.irq_pin.mode = PIN_MODE_INPUT;
     cfg.user_data = &rst_pin;
+#ifdef AIC_PM_DEMO
+    rt_pm_set_pin_wakeup_source(cfg.irq_pin.pin);
+#endif
 
     rt_hw_gt911_init("gt911", &cfg);
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -193,7 +193,11 @@ void hal_audio_set_playback_by_spk0(aic_audio_ctrl *codec)
     /* Configure PWM0 single output */
     reg_val = readl(codec->reg_base + TX_PWM_CTRL_REG);
     reg_val &= ~TX_PWM0_MASK;
+#ifdef AIC_AUDIO_PDM_MODULATION_MODE
+    reg_val |= TX_PWM0_EN | TX_PDM0_EN;
+#else
     reg_val |= TX_PWM0_EN;
+#endif
     writel(reg_val, codec->reg_base + TX_PWM_CTRL_REG);
 }
 
@@ -224,7 +228,11 @@ void hal_audio_set_playback_by_spk1(aic_audio_ctrl *codec)
     /* Configure PWM1 single output */
     reg_val = readl(codec->reg_base + TX_PWM_CTRL_REG);
     reg_val &= ~TX_PWM1_MASK;
+#ifdef AIC_AUDIO_PDM_MODULATION_MODE
+    reg_val |= TX_PWM1_EN | TX_PDM1_EN;
+#else
     reg_val |= TX_PWM1_EN;
+#endif
     writel(reg_val, codec->reg_base + TX_PWM_CTRL_REG);
 }
 

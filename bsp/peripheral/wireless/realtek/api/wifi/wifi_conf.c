@@ -189,7 +189,7 @@ static int wifi_connect_local(rtw_network_info_t *pWifi)
 			break;
 		default:
 			ret = -1;
-			pr_info("WIFICONF: security type(0x%x) is not supported.\n\r", pWifi->security_type);
+			pr_info("WIFICONF: security type(0x%x) is not supported.\r\n", pWifi->security_type);
 			break;
 	}
 	if(ret == 0)
@@ -238,7 +238,7 @@ static int wifi_connect_bssid_local(rtw_network_info_t *pWifi)
 			break;
 		default:
 			ret = -1;
-			pr_info("WIFICONF: security type(0x%x) is not supported.\n\r", pWifi->security_type);
+			pr_info("WIFICONF: security type(0x%x) is not supported.\r\n", pWifi->security_type);
 			break;
 	}
 	if(ret == 0){
@@ -375,7 +375,7 @@ int wifi_connect(
 
 	if(rtw_join_status & (JOIN_ASSOCIATED||JOIN_CONNECTING)){
 		if(wifi_disconnect() < 0){
-			pr_info("wifi_disconnect Operation failed!");
+			pr_info("wifi_disconnect Operation failed!\n");
 			return RTW_ERROR;
 		}
 		while(rtw_join_status & JOIN_CONNECTING){
@@ -578,7 +578,7 @@ int wifi_connect_bssid(
 
 	if(rtw_join_status & JOIN_CONNECTING){
 		if(wifi_disconnect() < 0){
-			pr_info("wifi_disconnect Operation failed!");
+			pr_info("wifi_disconnect Operation failed!\n");
 			return RTW_ERROR;
 		}
 		while(rtw_join_status & JOIN_CONNECTING){
@@ -736,7 +736,7 @@ int wifi_disconnect(void)
 	const __u8 null_bssid[ETH_ALEN + 2] = {0, 0, 0, 0, 0, 1, 0, 0};
 
 	if (wext_set_bssid(WLAN0_NAME, null_bssid) < 0){
-		pr_info("WEXT: Failed to set bogus BSSID to disconnect");
+		pr_info("WEXT: Failed to set bogus BSSID to disconnect\n");
 		ret = -1;
 	}
 	return ret;
@@ -1085,7 +1085,7 @@ int wifi_on(rtw_mode_t mode)
 	static int event_init = 0;
 
 	if(rltk_wlan_running(WLAN0_IDX)) {
-		pr_info("WIFI is already running");
+		pr_info("WIFI is already running\n");
 		return 1;
 	}
 
@@ -1101,7 +1101,7 @@ int wifi_on(rtw_mode_t mode)
 
 	// set wifi mib
 	//wifi_set_mib();
-	pr_info("Initializing WIFI ...");
+	pr_info("Initializing WIFI ...\n");
 	for(idx=0;idx<devnum;idx++){
 		ret = rltk_wlan_init(idx, mode);
 		if(ret <0)
@@ -1113,7 +1113,7 @@ int wifi_on(rtw_mode_t mode)
 		if(ret == 0) _wifi_is_on = 1;
 		device_mutex_unlock(RT_DEV_LOCK_WLAN);
 		if(ret <0){
-			pr_info("ERROR: Start WIFI Failed!");
+			pr_info("ERROR: Start WIFI Failed!\n");
 			rltk_wlan_deinit();
 			return ret;
 		}
@@ -1127,7 +1127,7 @@ int wifi_on(rtw_mode_t mode)
 		}
 
 		if(timeout == 0) {
-			pr_info("ERROR: Init WIFI timeout!");
+			pr_info("ERROR: Init WIFI timeout!\n");
 			break;
 		}
 
@@ -1165,7 +1165,7 @@ int wifi_off(void)
 
 	if((rltk_wlan_running(WLAN0_IDX) == 0) &&
 		(rltk_wlan_running(WLAN1_IDX) == 0)) {
-		pr_info("WIFI is not running");
+		pr_info("WIFI is not running\n");
 		return 0;
 	}
 #if CONFIG_LWIP_LAYER
@@ -1186,7 +1186,7 @@ int wifi_off(void)
 	if((wifi_mode ==  RTW_MODE_AP) || (wifi_mode == RTW_MODE_STA_AP))
 		wpas_wps_deinit();
 #endif
-	pr_info("Deinitializing WIFI ...");
+	pr_info("Deinitializing WIFI ...\n");
 	device_mutex_lock(RT_DEV_LOCK_WLAN);
 	rltk_wlan_deinit();
 	_wifi_is_on = 0;
@@ -1196,12 +1196,12 @@ int wifi_off(void)
 	while(1) {
 		if((rltk_wlan_running(WLAN0_IDX) == 0) &&
 			(rltk_wlan_running(WLAN1_IDX) == 0)) {
-			pr_info("WIFI deinitialized");
+			pr_info("WIFI deinitialized\n");
 			break;
 		}
 
 		if(timeout == 0) {
-			pr_info("ERROR: Deinit WIFI timeout!");
+			pr_info("ERROR: Deinit WIFI timeout!\n");
 			break;
 		}
 
@@ -1224,7 +1224,7 @@ int wifi_off_fastly(void)
 	LwIP_DHCP(0, DHCP_STOP);
 #endif
 #endif
-	//pr_info("Deinitializing WIFI ...");
+	//pr_info("Deinitializing WIFI ...\n");
 	device_mutex_lock(RT_DEV_LOCK_WLAN);
 	rltk_wlan_deinit_fastly();
 	device_mutex_unlock(RT_DEV_LOCK_WLAN);
@@ -1366,7 +1366,7 @@ int wifi_start_ap(
 #endif
 		default:
 			ret = -1;
-			pr_info("WIFICONF: security type is not supported");
+			pr_info("WIFICONF: security type is not supported\n");
 			break;
 	}
 	if(ret < 0) goto exit;
@@ -1466,7 +1466,7 @@ int wifi_start_ap_with_hidden_ssid(
 			break;
 		default:
 			ret = -1;
-			pr_info("WIFICONF: security type is not supported");
+			pr_info("WIFICONF: security type is not supported\n");
 			break;
 	}
 	if(ret < 0) goto exit;
@@ -1616,7 +1616,7 @@ int wifi_scan_networks_with_multissid(int (results_handler)(char*buf, int buflen
 	scan_buf.buf_len = scan_buflen;
 	scan_buf.buf = (char*)rtw_malloc(scan_buf.buf_len);
 	if(!scan_buf.buf){
-		pr_info("ERROR: Can't malloc memory(%d)", scan_buf.buf_len);
+		pr_info("ERROR: Can't malloc memory(%d)\n", scan_buf.buf_len);
 		return RTW_NOMEM;
 	}
 	//set ssid
@@ -1628,7 +1628,7 @@ int wifi_scan_networks_with_multissid(int (results_handler)(char*buf, int buflen
 		len += Ssid[i].ssidlength;
 	}
 	if(len>scan_buf.buf_len){
-		pr_info("the scan ssid length is more scan_buf length");
+		pr_info("the scan ssid length is more scan_buf length\n");
 		return RTW_ERROR;
 	}
 	len = sizeof(int);
@@ -1641,7 +1641,7 @@ int wifi_scan_networks_with_multissid(int (results_handler)(char*buf, int buflen
 	//Scan channel
 	multi_scan = 1;
 	if((scan_cnt = (wifi_scan(RTW_SCAN_TYPE_ACTIVE, RTW_BSS_TYPE_ANY, &scan_buf))) < 0){
-		pr_info("ERROR: wifi scan failed");
+		pr_info("ERROR: wifi scan failed\n");
 		ret = RTW_ERROR;
 	}else{
 		if(NULL == results_handler)
@@ -1654,7 +1654,7 @@ int wifi_scan_networks_with_multissid(int (results_handler)(char*buf, int buflen
 				//u8 *security_mode;
 				// len
 				len = (int)*(scan_buf.buf + plen);
-				pr_info("len = %d,\t", len);
+				pr_info("len = %d,\t\n", len);
 				// check end
 				if(len == 0) break;
 				// mac
@@ -1694,7 +1694,7 @@ int wifi_scan_networks_with_multissid(int (results_handler)(char*buf, int buflen
 				add_cnt++;
 			}
 
-			pr_info("wifi_scan: add count = %d, scan count = %d", add_cnt, scan_cnt);
+			pr_info("wifi_scan: add count = %d, scan count = %d\n", add_cnt, scan_cnt);
 		}
 		ret = RTW_SUCCESS;
 	}
@@ -1718,7 +1718,7 @@ int wifi_scan_networks_with_ssid(int (results_handler)(char*buf, int buflen, cha
 	scan_buf.buf_len = scan_buflen;
 	scan_buf.buf = (char*)rtw_malloc(scan_buf.buf_len);
 	if(!scan_buf.buf){
-		pr_info("ERROR: Can't malloc memory(%d)", scan_buf.buf_len);
+		pr_info("ERROR: Can't malloc memory(%d)\n", scan_buf.buf_len);
 		return RTW_NOMEM;
 	}
 	//set ssid
@@ -1729,7 +1729,7 @@ int wifi_scan_networks_with_ssid(int (results_handler)(char*buf, int buflen, cha
 	//Scan channel
 	multi_scan = 0;
 	if((scan_cnt = (wifi_scan(RTW_SCAN_TYPE_ACTIVE, RTW_BSS_TYPE_ANY, &scan_buf))) < 0){
-		pr_info("ERROR: wifi scan failed");
+		pr_info("ERROR: wifi scan failed\n");
 		ret = RTW_ERROR;
 	}else{
 		if(NULL == results_handler)
@@ -1742,7 +1742,7 @@ int wifi_scan_networks_with_ssid(int (results_handler)(char*buf, int buflen, cha
 				//u8 *security_mode;
 				// len
 				len = (int)*(scan_buf.buf + plen);
-				pr_info("len = %d,\t", len);
+				pr_info("len = %d,\t\n", len);
 				// check end
 				if(len == 0) break;
 				// mac
@@ -1782,7 +1782,7 @@ int wifi_scan_networks_with_ssid(int (results_handler)(char*buf, int buflen, cha
 				add_cnt++;
 			}
 
-			pr_info("wifi_scan: add count = %d, scan count = %d", add_cnt, scan_cnt);
+			pr_info("wifi_scan: add count = %d, scan count = %d\n", add_cnt, scan_cnt);
 		}
 		ret = RTW_SUCCESS;
 	}
@@ -1826,7 +1826,7 @@ int wifi_scan_networks(rtw_scan_result_handler_t results_handler, void* user_dat
 			count --;
 		}
 		if(count == 0){
-			pr_info("[%d]WiFi: Scan is running. Wait 2s timeout.", rtw_get_current_time());
+			pr_info("[%d]WiFi: Scan is running. Wait 2s timeout.\n", rtw_get_current_time());
 			return RTW_TIMEOUT;
 		}
 	}
@@ -1951,38 +1951,38 @@ int wifi_show_setting(const char *ifname, rtw_wifi_setting_t *pSetting)
 {
 	int ret = 0;
 
-	pr_info("WIFI  %s Setting:",ifname);
-	pr_info("==============================");
+	pr_info("WIFI  %s Setting:\n",ifname);
+	pr_info("==============================\n");
 
 	switch(pSetting->mode) {
 		case RTW_MODE_AP:
-			pr_info("      MODE => AP");
+			pr_info("      MODE => AP\n");
 			break;
 		case RTW_MODE_STA:
-			pr_info("      MODE => STATION");
+			pr_info("      MODE => STATION\n");
 			break;
 		default:
-			pr_info("      MODE => UNKNOWN");
+			pr_info("      MODE => UNKNOWN\n");
 	}
-	pr_info("      SSID => %s", pSetting->ssid);
-	pr_info("   CHANNEL => %d", pSetting->channel);
+	pr_info("      SSID => %s\n", pSetting->ssid);
+	pr_info("   CHANNEL => %d\n", pSetting->channel);
 
 	switch(pSetting->security_type) {
 		case RTW_SECURITY_OPEN:
-			pr_info("  SECURITY => OPEN");
+			pr_info("  SECURITY => OPEN\n");
 			break;
 		case RTW_SECURITY_WEP_PSK:
-			pr_info("  SECURITY => WEP");
-			pr_info(" KEY INDEX => %d", pSetting->key_idx);
+			pr_info("  SECURITY => WEP\n");
+			pr_info(" KEY INDEX => %d\n", pSetting->key_idx);
 			break;
 		case RTW_SECURITY_WPA_TKIP_PSK:
-			pr_info("  SECURITY => TKIP");
+			pr_info("  SECURITY => TKIP\n");
 			break;
 		case RTW_SECURITY_WPA2_AES_PSK:
-			pr_info("  SECURITY => AES");
+			pr_info("  SECURITY => AES\n");
 			break;
 		default:
-			pr_info("  SECURITY => UNKNOWN");
+			pr_info("  SECURITY => UNKNOWN\n");
 	}
 
 	pr_info("  PASSWORD => %s\n", pSetting->password);
@@ -2124,7 +2124,7 @@ int wifi_restart_ap(
 	}
 	// start ap
 	if(wifi_start_ap((char*)ssid, security_type, (char*)password, ssid_len, password_len, channel) < 0) {
-		pr_info("ERROR: Operation failed!");
+		pr_info("ERROR: Operation failed!\n");
 		return -1;
 	}
 
@@ -2135,9 +2135,9 @@ int wifi_restart_ap(
 	// connect to ap if wlan0 was linked with ap
 	if(idx > 0 && sta_linked == 0){
 		volatile int ret;
-		pr_info("AP: ssid=%s", (char*)setting.ssid);
-		pr_info("AP: security_type=%d", setting.security_type);
-		pr_info("AP: password=%s", (char*)setting.password);
+		pr_info("AP: ssid=%s\n", (char*)setting.ssid);
+		pr_info("AP: security_type=%d\n", setting.security_type);
+		pr_info("AP: password=%s\n", (char*)setting.password);
 		pr_info("AP: key_idx =%d\n", setting.key_idx);
 		ret = wifi_connect((char*)setting.ssid,
 									setting.security_type,
@@ -2201,7 +2201,7 @@ static void wifi_autoreconnect_thread(void *param)
 #if LWIP_AUTOIP
 			uint8_t *ip = LwIP_GetIP(&xnetif[0]);
 			if((ip[0] == 0) && (ip[1] == 0) && (ip[2] == 0) && (ip[3] == 0)) {
-				pr_info("IPv4 AUTOIP ...");
+				pr_info("IPv4 AUTOIP ...\n");
 				LwIP_AUTOIP(&xnetif[0]);
 			}
 #endif

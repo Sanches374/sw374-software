@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Artinchip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -57,16 +57,35 @@ int rt_hw_spi_flash_with_sfud_init(void)
         pr_err("attach qspi device failed.\n");
         return RT_ERROR;
     }
+#if defined(AIC_USING_QSPI1) && defined(AIC_QSPI1_DEVICE_SPINOR)
+    ret = aic_qspi_bus_attach_device("qspi1", "qspi11", 0,
+                                     AIC_QSPI1_BUS_WIDTH,
+                                     RT_NULL, RT_NULL);
+    if (ret < 0) {
+        pr_err("attach qspi device failed.\n");
+        return RT_ERROR;
+    }
+#endif
 #ifndef SFUD_USING_QSPI
     cfg.max_hz = AIC_QSPI0_DEVICE_SPINOR_FREQ;
     flash_dev = rt_sfud_flash_probe_ex(USING_NOR_FLASH_DEV_NAME,
                                        SPI_FLASH_DEVICE_NAME, &cfg, RT_NULL);
+#if defined(AIC_USING_QSPI1) && defined(AIC_QSPI1_DEVICE_SPINOR)
+    cfg.max_hz = AIC_QSPI1_DEVICE_SPINOR_FREQ;
+    flash_dev = rt_sfud_flash_probe_ex("norflash1",
+                                       "qspi11", &cfg, RT_NULL);
+#endif
 #else
     struct rt_qspi_configuration qspi_cfg = RT_SFUD_DEFAULT_QSPI_CFG;
 
     qspi_cfg.parent.max_hz = AIC_QSPI0_DEVICE_SPINOR_FREQ;
     flash_dev = rt_sfud_flash_probe_ex(USING_NOR_FLASH_DEV_NAME,
                                        SPI_FLASH_DEVICE_NAME, &cfg, &qspi_cfg);
+#if defined(AIC_USING_QSPI1) && defined(AIC_QSPI1_DEVICE_SPINOR)
+    qspi_cfg.parent.max_hz = AIC_QSPI1_DEVICE_SPINOR_FREQ;
+    flash_dev = rt_sfud_flash_probe_ex("norflash1",
+                                       "qspi11", &cfg, &qspi_cfg);
+#endif
 #endif
     if (flash_dev == RT_NULL) {
         pr_err("sfud flash probe  failed.\n");

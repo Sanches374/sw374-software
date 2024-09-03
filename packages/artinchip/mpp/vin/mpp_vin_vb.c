@@ -327,6 +327,8 @@ int vin_vb_stream_off(struct vb_queue *q)
     for (i = 0; i < q->num_buffers; ++i)
         q->bufs[i].state = VB_BUF_STATE_DEQUEUED;
 
+    aicos_sem_reset(q->done, 0);
+
     pr_debug("Stop steaming successfully\n");
     return 0;
 }

@@ -1,9 +1,12 @@
 /*
-* Copyright (C) 2020-2023 ArtInChip Technology Co. Ltd
-*
-*  author: <jun.ma@artinchip.com>
-*  Desc: aic_stream
-*/
+ * Copyright (C) 2020-2024 ArtInChip Technology Co. Ltd
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Author: <jun.ma@artinchip.com>
+ * Desc: aic stream
+ */
+
 
 #ifndef __AIC_STREAM_H__
 #define __AIC_STREAM_H__
@@ -19,6 +22,8 @@ extern "C" {
 struct aic_stream {
 	/* read data */
 	s64 (*read)(struct aic_stream *stream, void *buf, s64 len);
+	/* write data */
+	s64 (*write)(struct aic_stream *stream, void *buf, s64 len);
 	/* return current file offset */
 	s64 (*tell)(struct aic_stream *stream);
 	/* close stream */
@@ -47,13 +52,19 @@ struct aic_stream {
 		   stream,            \
 		   buf,				  \
 		   len)               \
-	    ((struct aic_stream*)stream)->read(stream,buf,len)
+	    ((struct aic_stream*)stream)->read(stream, buf, len)
+
+#define aic_stream_write(      \
+		   stream,            \
+		   buf,				  \
+		   len)               \
+	    ((struct aic_stream*)stream)->write(stream, buf, len)
 
 #define aic_stream_seek(      \
 		   stream,            \
 		   offset,			  \
 		   whence)            \
-	    ((struct aic_stream*)stream)->seek(stream,offset,whence)
+	    ((struct aic_stream*)stream)->seek(stream, offset, whence)
 
 #define aic_stream_tell(stream)\
 	    ((struct aic_stream*)stream)->tell(stream)
@@ -64,13 +75,12 @@ struct aic_stream {
 #define aic_stream_close(stream)\
 	    ((struct aic_stream*)stream)->close(stream)
 
-s32 aic_stream_open(char *uri, struct aic_stream **stream);
+s32 aic_stream_open(char *uri, struct aic_stream **stream, int flags);
 
 
 
 int aic_stream_skip(struct aic_stream* s, int len);
 void aic_stream_w8(struct aic_stream* s, int b);
-void aic_stream_write(struct aic_stream* s, const unsigned char *buf, int size);
 void aic_stream_wl64(struct aic_stream* s, uint64_t val);
 void aic_stream_wb64(struct aic_stream* s, uint64_t val);
 void aic_stream_wl32(struct aic_stream* s, unsigned int val);

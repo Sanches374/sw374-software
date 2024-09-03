@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Artinchip Technology Co., Ltd
+ * Copyright (c) 2023-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -21,8 +21,9 @@
 void boot_app(void *app)
 {
     int ret;
-    void (*ep)(int);
+    void (*ep)(int, unsigned long);
     enum boot_device dev;
+    unsigned long boot_arg;
 
     ret = console_get_ctrlc();
     if (ret > 0)
@@ -39,7 +40,9 @@ void boot_app(void *app)
     boot_time_trace("Run APP");
     boot_time_show();
     dev = aic_get_boot_device();
+    boot_arg = (unsigned long)aic_get_boot_args();
     aicos_dcache_clean();
     aicos_icache_invalid();
-    ep(dev);
+
+    ep(dev, boot_arg);
 }

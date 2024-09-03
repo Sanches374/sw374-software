@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Artinchip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -103,15 +103,22 @@ int test_can_rx(int argc, char *argv[])
 
 #if CAN_RX_FILTER_ENABLE
         /* config can rx filter */
-        struct rt_can_filter_item items[1] =
+        struct rt_can_filter_item items[2] =
         {
             //Only receive standard data frame with ID 0x100~0x1FF
             RT_CAN_FILTER_ITEM_INIT(0x100, 0, 0, 0, 0x700, RT_NULL, RT_NULL),
+            //Only receive standard data frame with ID 0x345
+            RT_CAN_FILTER_ITEM_INIT(0x345, 0, 0, 0, 0x7FF, RT_NULL, RT_NULL),
         };
 
-        struct rt_can_filter_config cfg = {1, 1, items};
+        struct rt_can_filter_config cfg = {2, 1, items};
 
         ret = rt_device_control(can_rx_dev, RT_CAN_CMD_SET_FILTER, &cfg);
+        if (ret)
+        {
+            rt_kprintf("Setting can filter failed!\n");
+            return ret;
+        }
 #endif
 
         rt_device_set_rx_indicate(can_rx_dev, can_rx_call);
@@ -119,7 +126,7 @@ int test_can_rx(int argc, char *argv[])
         rt_sem_init(&rx_sem, "rx_sem", 0, RT_IPC_FLAG_PRIO);
 
         thread = rt_thread_create("can_rx", can_rx_thread, RT_NULL,
-                                  2048, 25, 10);
+                                  2048, 15, 10);
         if (thread != RT_NULL)
         {
             rt_thread_startup(thread);
@@ -236,15 +243,15 @@ int test_can_tx(int argc, char *argv[])
         goto __exit;
     }
 
+    //enable CAN TX interrupt
+    rt_device_control(can_tx_dev, RT_DEVICE_CTRL_SET_INT, NULL);
+
     size = rt_device_write(can_tx_dev, 0, &msg, sizeof(msg));
     if (size != sizeof(msg))
     {
         rt_kprintf("can dev write data failed!\n");
         ret = -RT_EIO;
     }
-
-    //enable CAN TX interrupt
-    rt_device_control(can_tx_dev, RT_DEVICE_CTRL_SET_INT, NULL);
 
 __exit:
     rt_device_close(can_tx_dev);

@@ -112,3 +112,20 @@ void hexdump(unsigned char *buf, unsigned long len, int groupsize)
         hex_dump_1(buf, len);
     }
 }
+
+void hexdump_msg(char *msg, unsigned char *buf, unsigned long len, int groupsize)
+{
+    printf("%s\n", msg);
+
+    if (groupsize <= 1) {
+        hex_dump_1(buf, len);
+    } else if (groupsize <= 2) {
+        hex_dump_2(buf, len);
+    } else if (groupsize <= 4) {
+        hex_dump_4(buf, len);
+    } else if (groupsize <= 8) {
+        hex_dump_8(buf, len);
+    } else {
+        hex_dump_1(buf, len);
+    }
+}

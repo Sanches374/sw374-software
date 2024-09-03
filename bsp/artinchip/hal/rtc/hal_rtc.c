@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -131,9 +131,6 @@ struct aic_rtc_dev {
 };
 
 static struct aic_rtc_dev aich_rtc = {0};
-#if defined(AIC_RTC_DRV_V10) || defined(AIC_RTC_DRV_V11)
-static enum aic_reboot_reason g_prev_reason = REBOOT_REASON_INVALID;
-#endif
 
 #if 0
 static void aic_rtc_set_32k_drv(u8 drv)
@@ -174,76 +171,6 @@ void hal_rtc_cali(s32 clk_rate)
     RTC_WRITEB(cval >> 8, RTC_REG_CALI1);
     RTC_WRITEB(cval & 0xFF, RTC_REG_CALI0);
 }
-
-#if defined(AIC_RTC_DRV_V10) || defined(AIC_RTC_DRV_V11)
-
-void aic_set_reboot_reason(enum aic_reboot_reason r)
-{
-    u32 cur = 0;
-    u8 reason_num = RTC_REBOOT_REASON_MASK >> RTC_REBOOT_REASON_SHIFT;
-
-    cur = RTC_READB(RTC_REG_SYSBAK);
-     /* If it's valid already, so ignore the current request */
-    if (cur & RTC_REBOOT_REASON_MASK)
-        return;
-
-    setbits(r, RTC_REBOOT_REASON_MASK, RTC_REBOOT_REASON_SHIFT, cur);
-    RTC_WRITEB(cur, RTC_REG_SYSBAK);
-
-    if (r <= reason_num)
-        pr_debug("Set reboot reason %d\n", r);
-}
-
-void aic_clr_reboot_reason_rtc(void)
-{
-    u32 cur = 0;
-    cur = RTC_READB(RTC_REG_SYSBAK);
-    g_prev_reason = getbits(RTC_REBOOT_REASON_MASK, RTC_REBOOT_REASON_SHIFT,
-                            cur);
-    if (g_prev_reason) {
-        /* Clear the previous state */
-        clrbits(RTC_REBOOT_REASON_MASK, cur);
-        RTC_WRITEB(cur, RTC_REG_SYSBAK);
-    }
-}
-
-enum aic_reboot_reason aic_get_reboot_reason(void)
-{
-    u32 cur = 0;
-    enum aic_warm_reset_type wr = aic_wr_type_get();
-
-    if (g_prev_reason == REBOOT_REASON_INVALID) {
-        cur = RTC_READB(RTC_REG_SYSBAK);
-        g_prev_reason = getbits(RTC_REBOOT_REASON_MASK,
-                                RTC_REBOOT_REASON_SHIFT, cur);
-    }
-
-    return aic_judge_reboot_reason(wr, g_prev_reason);
-}
-
-/* Convert and print the time info from a GTC counter.
-   It's useful when print the time before console is ready. */
-void aic_show_gtc_time(char *tag, u32 val)
-{
-    u32 sec, msec;
-    u32 cnt = val;
-
-    if (!cnt)
-        cnt = readl(GTC_BASE + 0x8);
-
-    sec = cnt / 4000000;
-    msec = (cnt % 4000000) / 4 / 1000;
-    printf("\n%s time: %d.%03d sec\n", tag ? tag : "GTC", sec, msec);
-}
-
-void aic_show_startup_time(void)
-{
-    u32 cnt = readl(GTC_BASE + 0x8);
-
-    aic_show_gtc_time("Startup", cnt);
-}
-
-#endif
 
 void hal_rtc_enable(u32 enable)
 {

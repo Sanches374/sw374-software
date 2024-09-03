@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -39,6 +39,26 @@ static inline void *aicos_malloc_align(uint32_t mem_type, size_t size, size_t al
 static inline void aicos_free_align(uint32_t mem_type, void *mem)
 {
     aic_tlsf_free_align(mem_type, mem);
+}
+
+static inline void *aicos_memdup(unsigned int mem_type, void *src, size_t size)
+{
+    void *p;
+
+    p = aic_tlsf_malloc(mem_type, size);
+    if (p)
+        memcpy(p, src, size);
+    return p;
+}
+
+static inline void *aicos_memdup_align(unsigned int mem_type, void *src, size_t size, size_t align)
+{
+    void *p;
+
+    p = aic_tlsf_malloc_align(mem_type, size, align);
+    if (p)
+        memcpy(p, src, size);
+    return p;
 }
 
 //--------------------------------------------------------------------+
@@ -335,6 +355,39 @@ static inline int aicos_queue_empty(aicos_queue_t queue)
     osal_queue_t q = (aicos_queue_t)queue;
 
     return !RB_DATA_COUNT(q->wr_idx, q->rd_idx, q->depth);
+}
+
+//--------------------------------------------------------------------+
+// Wait Queue API
+//--------------------------------------------------------------------+
+
+static inline aicos_wqueue_t aicos_wqueue_create(void)
+{
+    aicos_event_t event = aicos_event_create();
+
+    return (aicos_wqueue_t)event;
+}
+
+static inline void aicos_wqueue_delete(aicos_wqueue_t wqueue)
+{
+    aicos_event_t event = (aicos_event_t)wqueue;
+
+    aicos_event_delete(event);
+}
+
+static inline void aicos_wqueue_wakeup(aicos_wqueue_t wqueue)
+{
+    aicos_event_t event = (aicos_event_t)wqueue;
+    uint32_t recved;
+
+    aicos_event_recv(event, 0x1, &recved, 100);
+}
+
+static inline int aicos_wqueue_wait(aicos_wqueue_t wqueue, uint32_t msec)
+{
+    aicos_event_t event = (aicos_event_t)wqueue;
+
+    return aicos_event_send(event, 0x1);
 }
 
 //--------------------------------------------------------------------+

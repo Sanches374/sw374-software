@@ -1,3 +1,9 @@
 menuconfig LPKG_USING_FREETYPE
     bool "freetype"
     default n
+
+if LPKG_USING_FREETYPE
+    config LPKG_USING_FREETYPE_STATIC
+        bool "Compile using FREETYPE static link library"
+        default n
+endif

@@ -1,9 +1,9 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
- * Authors: matteo <duanmt@artinchip.com>
+ * Authors: zrq <ruiqi.zheng@artinchip.com>
  */
 
 #ifndef _ARTINCHIP_HAL_EPWM_H_
@@ -18,7 +18,6 @@
 #else
 #define EPWM_CLK_RATE        200000000 /* 200 MHz */
 #endif
-#define EPWM_TB_CLK_RATE     25000000 /* 25 MHz */
 
 #define EPWM_INT_FLG         BIT(0)
 
@@ -58,8 +57,9 @@ struct aic_epwm_arg {
     u16 available;
     u16 id;
     enum aic_epwm_mode mode;
+    u32 clk_rate;
     u32 tb_clk_rate;
-    u32 freq;
+    float freq;
     struct aic_epwm_action action0;
     struct aic_epwm_action action1;
     u32 period;

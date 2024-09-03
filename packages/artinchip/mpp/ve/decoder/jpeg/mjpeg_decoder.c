@@ -1,10 +1,12 @@
 /*
-* Copyright (C) 2020-2022 Artinchip Technology Co. Ltd
-*
-*  author: <qi.xu@artinchip.com>
-*  Desc: jpeg decode
-*
-*/
+ * Copyright (C) 2020-2024 ArtInChip Technology Co. Ltd
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ *  author: <qi.xu@artinchip.com>
+ *  Desc:jpeg decode
+ *
+ */
 
 #define LOG_TAG "jpeg_decoder"
 
@@ -405,6 +407,7 @@ static void set_frame_info(struct mjpeg_dec_ctx *s)
 {
     if(s->curr_packet->flag & PACKET_FLAG_EOS)
         s->curr_frame->mpp_frame.flags |= FRAME_FLAG_EOS;
+    s->curr_frame->mpp_frame.buf.flags |= MPP_COLOR_SPACE_BT601_FULL_RANGE;
     s->curr_frame->mpp_frame.buf.crop_en = 1;
     s->curr_frame->mpp_frame.buf.crop.x = 0;
     s->curr_frame->mpp_frame.buf.crop.y = 0;
@@ -494,8 +497,11 @@ int mjpeg_decode_sos(struct mjpeg_dec_ctx *s,
 
     int offset = (s->raw_scan_buffer - s->curr_packet->data) + sos_size;
     logw("offste: %d", offset);
-    if(ve_decode_jpeg(s, offset))
+    if(ve_decode_jpeg(s, offset)) {
+        s->error = JPEG_DECODER_ERROR_HARDWARE;
+         printf("[%s:%d]\n",__FUNCTION__,__LINE__);
         return -1;
+    }
 
     set_frame_info(s);
 
@@ -567,6 +573,38 @@ static void skip_variable_marker(struct mjpeg_dec_ctx *s)
     }
 }
 
+void mjpeg_print_decoder_error(struct mpp_decoder *ctx)
+{
+    struct mjpeg_dec_ctx *s = (struct mjpeg_dec_ctx*)ctx;
+
+     switch (s->error) {
+         case JPEG_DECODER_ERROR_NONE:
+            loge("ok\n");
+            break;
+         case JPEG_DECODER_ERROR_INPUTLEN:
+            loge("input packet too small\n");
+            break;
+         case JPEG_DECODER_ERROR_INPUTERROR:
+            loge("input packet data error\n");
+            break;
+         case JPEG_DECODER_ERROR_INVPTR:
+            loge("invalid (null) buffer pointer\n");
+            break;
+         case JPEG_DECODER_ERROR_NOEMPTYFRAME:
+            loge("no empty frame for decoder\n");
+            break;
+         case JPEG_DECODER_ERROR_UNSUPPORTTYPE:
+            loge("unsupport type\n");
+            break;
+        case JPEG_DECODER_ERROR_HARDWARE:
+            loge("an error happen whlie hard decoder processing \n");
+            break;
+        default:
+            loge("unknown error\n");
+            break;
+     }
+}
+
 int __mjpeg_decode_frame(struct mpp_decoder *ctx)
 {
     struct mjpeg_dec_ctx *s = (struct mjpeg_dec_ctx*)ctx;
@@ -577,6 +615,8 @@ int __mjpeg_decode_frame(struct mpp_decoder *ctx)
     int start_code;
     int ret = 0;
 
+    s->error = JPEG_DECODER_ERROR_NONE;
+    s->got_picture = 0;
     s->curr_packet = pm_dequeue_ready_packet(s->decoder.pm);
     if(s->curr_packet == NULL) {
         loge("pm_dequeue_ready_packet error, ready_packet num: %d", pm_get_ready_packet_num(s->decoder.pm));
@@ -587,9 +627,17 @@ int __mjpeg_decode_frame(struct mpp_decoder *ctx)
     buf_end = buf_ptr + buf_size;
 
     start_code = 0xffd8;
-    if (buf_size < 8 || !memchr(buf_ptr, start_code, 8)) {
+    if (buf_size < 8) {
+        s->error = JPEG_DECODER_ERROR_INPUTLEN;
+        loge("data error is too short !");
+        ret = -1;
+        goto _exit;
+    }
+    if (!memchr(buf_ptr, start_code, 8)) {
+        s->error = JPEG_DECODER_ERROR_INPUTERROR;
         loge("The file is not jpeg!");
-        return -1;
+        ret = -1;
+        goto _exit;
     }
 
     while (buf_ptr < buf_end) {
@@ -599,18 +647,24 @@ int __mjpeg_decode_frame(struct mpp_decoder *ctx)
                             &unescaped_buf_size);
         /* EOF */
         if (start_code < 0) {
-            break;
+            s->error = JPEG_DECODER_ERROR_INPUTERROR;
+            loge("no start_code means\n");
+            ret = -1;
+            goto _exit;
         } else if (unescaped_buf_size > INT_MAX / 8) {
             loge("MJPEG packet 0x%x too big (%d/%d), corrupt data?",
                 start_code, unescaped_buf_size, buf_size);
-            return -1;
+             s->error = JPEG_DECODER_ERROR_INPUTERROR;
+             ret = -1;
+             goto _exit;
         }
 
         ret = init_read_bits(&s->gb, unescaped_buf_ptr, unescaped_buf_size*8);
 
         if (ret < 0) {
+            s->error = JPEG_DECODER_ERROR_INVPTR;
             loge("invalid buffer");
-            goto fail;
+            goto _exit;
         }
 
         s->start_code = start_code;
@@ -628,12 +682,13 @@ int __mjpeg_decode_frame(struct mpp_decoder *ctx)
         }
 
         ret = -1;
-
         switch (start_code) {
         case DQT:
             ret = mjpeg_decode_dqt(s);
-            if (ret < 0)
-                return ret;
+            if (ret < 0) {
+              s->error = JPEG_DECODER_ERROR_INPUTERROR;
+              goto _exit;
+            }
             break;
         case SOI:
             s->restart_interval = 0;
@@ -644,43 +699,56 @@ int __mjpeg_decode_frame(struct mpp_decoder *ctx)
             s->have_dht = 1;
             if ((ret = mjpeg_decode_dht(s)) < 0) {
                 loge("huffman table decode error");
-                goto fail;
+                s->error = JPEG_DECODER_ERROR_INPUTERROR;
+                goto _exit;
             }
             break;
         case SOF0:
             logi("baseline");
         case SOF1:
             logi("SOF1");
-            if ((ret = mjpeg_decode_sof(s)) < 0)
-                goto fail;
+            if ((ret = mjpeg_decode_sof(s)) < 0) {
+                loge("mjpeg_decode_sof");
+                s->error = JPEG_DECODER_ERROR_INPUTERROR;
+                goto _exit;
+            }
             break;
         case SOF2:
             loge("progressive, not support");
-            if ((ret = mjpeg_decode_sof(s)) < 0)
-                goto fail;
+            if ((ret = mjpeg_decode_sof(s)) < 0) {
+                loge("mjpeg_decode_sof");
+                s->error = JPEG_DECODER_ERROR_INPUTERROR;
+                goto _exit;
+            }
             break;
         case LSE:
             break;
         case EOI:
             if (!s->got_picture) {
-                logw("Found EOI before any SOF, ignoring");
+                loge("Found EOI before any SOF, skip");
                 break;
             }
+            ret = 0;
             s->got_picture = 0;
-
-            goto the_end;
+            goto _exit;
         case SOS:
             s->raw_scan_buffer = buf_ptr;
             s->raw_scan_buffer_size = buf_end - buf_ptr;
 
-            if ((ret = mjpeg_decode_sos(s, NULL, 0)) != 0)
-                goto fail;
-
-            pm_enqueue_empty_packet(s->decoder.pm, s->curr_packet);
-            goto the_end;
+            if ((ret = mjpeg_decode_sos(s, NULL, 0)) != 0) {
+                if (ret == DEC_NO_EMPTY_FRAME) {
+                   s->error = JPEG_DECODER_ERROR_NOEMPTYFRAME;
+                } else {
+                     loge("mjpeg_decode_sos error\n");
+                }
+            }
+            goto _exit;
         case DRI:
-            if ((ret = mjpeg_decode_dri(s)) < 0)
-                return ret;
+            if ((ret = mjpeg_decode_dri(s)) < 0) {
+                loge("mjpeg_decode_dri error\n");
+                s->error = JPEG_DECODER_ERROR_INPUTERROR;
+                goto _exit;
+            }
             break;
         case SOF3:
         case SOF48:
@@ -707,13 +775,22 @@ int __mjpeg_decode_frame(struct mpp_decoder *ctx)
         //logd("marker parser used %d bytes (%d bits)", (read_bits_count(&s->gb) + 7) / 8, read_bits_count(&s->gb));
     }
 
-    loge("No JPEG data found in image");
-    return -1;
-fail:
+_exit:
     s->got_picture = 0;
+
+    if (s->error == JPEG_DECODER_ERROR_HARDWARE) {
+        fm_decoder_put_frame(s->decoder.fm, s->curr_frame);
+        fm_decoder_frame_to_render(s->decoder.fm, s->curr_frame, 0);
+    }
+
+    if (s->error != JPEG_DECODER_ERROR_NOEMPTYFRAME) {
+        pm_enqueue_empty_packet(s->decoder.pm, s->curr_packet);
+        if (s->error != JPEG_DECODER_ERROR_NONE) {
+            mjpeg_print_decoder_error(ctx);
+        }
+    }
+
     return ret;
-the_end:
-    return 0;
 }
 
 int __mjpeg_decode_init(struct mpp_decoder *ctx, struct decode_config *config)
@@ -742,6 +819,10 @@ int __mjpeg_decode_init(struct mpp_decoder *ctx, struct decode_config *config)
     cfg.buffer_size = config->bitstream_buffer_size;
     cfg.packet_count = config->packet_count;
     s->decoder.pm = pm_create(&cfg);
+    if (!s->decoder.pm) {
+        loge("pm_create error");
+        return -1;
+    }
     s->extra_frame_num = config->extra_frame_num;
     s->start_code    = -1;
     s->first_picture = 1;
@@ -751,8 +832,11 @@ int __mjpeg_decode_init(struct mpp_decoder *ctx, struct decode_config *config)
         logw("default pix fmt %d", MPP_FMT_YUV420P);
 
     s->reg_list = mpp_alloc(sizeof(jpg_reg_list));
-    if(!s->reg_list)
+    if (!s->reg_list) {
+        loge("mpp_alloc  jpg_reg_list error");
         return -1;
+    }
+
     memset(s->reg_list, 0, sizeof(jpg_reg_list));
 
     return 0;
@@ -794,6 +878,7 @@ int __mjpeg_decode_reset(struct mpp_decoder *ctx)
 {
     // TODO
     struct mjpeg_dec_ctx *s = (struct mjpeg_dec_ctx *)ctx;
+    fm_decoder_reclaim_all_used_frame(s->decoder.fm);
     fm_reset(s->decoder.fm);
     pm_reset(s->decoder.pm);
     return 0;

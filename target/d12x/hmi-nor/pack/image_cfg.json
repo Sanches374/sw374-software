@@ -3,9 +3,12 @@
         "size": "16m", // Size of SPI NOR
         "partitions": {
             "spl":        { "size": "256k" },
+            "env":        { "size": "128k" },
+            "env_r":      { "size": "128k" },
+            "userid":     { "size": "256k" }, // at least 16KB
             "os":         { "size": "2m" },
-            "rodata":     { "size": "6m" },
-            "data":       { "size": "7m" }
+            "rodata":     { "size": "10m" },
+            "data":       { "size": "1m" }
         },
     },
     "image": {
@@ -36,6 +39,11 @@
                 "attr": ["mtd", "required"],
                 "part": ["spl"]
             },
+            "env": {
+                "file": "env.bin",
+                "attr": ["mtd", "optional"],
+                "part": ["env","env_r"]
+            },
             "os": {
                 "file": "d12x_os.itb",
                 "attr": ["mtd", "required"],
@@ -53,8 +61,8 @@
             },
         },
     },
-    "temporary": { // Pre-proccess to generate image components from raw data
-        "aicboot": {
+    "pre-process": { // Pre-proccess to generate image components from raw data
+        "aicimage": { // Create aic boot image
             "uartupg-psram-init.aic": { // No loader, only PreBootProgram to initialize PSRAM
                 "head_ver": "0x00010001",
                 "resource": {
@@ -62,22 +70,38 @@
                     "pbp": "d12x.pbp",
                 },
             },
-            "bootloader.aic": {
+            "pbp_ext.aic": {
+                "head_ver": "0x00010001",
+                "resource": {
+                    "pbp": "d12x.pbp",
+                    "private": "pbp_cfg.bin",
+                },
+                // combine to use with loader.aic
+                "with_ext": "true",
+            },
+            "loader.aic": {
                 "head_ver": "0x00010001",
                 "loader": {
                     "file": "bootloader.bin",
-                    "load address":     "0x30043000",
-                    "entry point":      "0x30043100",
-                    "load address ext": "0x40200000",
-                    "entry point ext":  "0x40200100",
+                    "load address": "0x40200000",
+                    "entry point":  "0x40200100",
                 },
                 "resource": {
                     "private": "pbp_cfg.bin",
-                    "pbp": "d12x.pbp",
                 },
             },
         },
-        "itb": {
+        "concatenate": { // cat files in order
+            "bootloader.aic": ["pbp_ext.aic", "loader.aic"],
+        },
+        "uboot_env": { // Create env data from txt
+            "env.bin": {
+                "file": "env.txt",
+                "size": "4096",
+                "redundant": "enable",
+            },
+        },
+        "itb": { // Create itb image from its
             "d12x_os.itb": {
                 "its": "d12x_os.its"
             },

@@ -1,9 +1,12 @@
 /*
-* Copyright (C) 2020-2023 ArtInChip Technology Co. Ltd
-*
-*  author: <jun.ma@artinchip.com>
-*  Desc: aic_audio_render
-*/
+ * Copyright (C) 2020-2024 ArtInChip Technology Co. Ltd
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Author: <jun.ma@artinchip.com>
+ * Desc: aic audio render
+ */
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <fcntl.h>
@@ -81,6 +84,20 @@ s32 rt_audio_render_set_attr(struct aic_audio_render *render,struct aic_audio_re
 
 s32 rt_audio_render_get_attr(struct aic_audio_render *render,struct aic_audio_render_attr *attr)
 {
+    s32 ret = 0;
+    struct aic_rt_audio_render *rt_render = (struct aic_rt_audio_render*)render;
+    struct rt_audio_caps caps = {0};
+
+    caps.main_type               = AUDIO_TYPE_OUTPUT;
+    caps.sub_type                = AUDIO_DSP_PARAM;
+    ret = rt_device_control(rt_render->snd_dev, AUDIO_CTL_GETCAPS, &caps);
+    if (ret != RT_EOK) {
+        loge("AUDIO_CTL_GETCAPS failed:%d!\n", ret);
+        return -1;
+    }
+    attr->sample_rate = caps.udata.config.samplerate;
+    attr->channels = caps.udata.config.channels;
+
     return 0;
 }
 
@@ -181,12 +198,13 @@ s32 aic_audio_render_create(struct aic_audio_render **render)
     rt_render->base.init = rt_audio_render_init;
     rt_render->base.destroy = rt_audio_render_destroy;
     rt_render->base.set_attr = rt_audio_render_set_attr;
+    rt_render->base.get_attr = rt_audio_render_get_attr;
     rt_render->base.rend = rt_audio_render_rend;
     rt_render->base.get_cached_time = rt_audio_render_get_cached_time;
     rt_render->base.pause = rt_audio_render_pause;
     rt_render->base.set_volume = rt_audio_render_set_volume;
     rt_render->base.get_volume = rt_audio_render_get_volume;
-	rt_render->base.clear_cache = rt_audio_render_clear_cache;
+    rt_render->base.clear_cache = rt_audio_render_clear_cache;
     *render = &rt_render->base;
     return 0;
 }

@@ -1201,8 +1201,6 @@ __STATIC_INLINE void csi_dcache_invalid_range(phy_addr_t addr, u32 dsize)
 #endif
 
     __DSB();
-    __ISB();
-    __SYNC_IS();
 #endif
 }
 
@@ -1244,8 +1242,6 @@ __STATIC_INLINE void csi_dcache_clean_range(phy_addr_t addr, u32 dsize)
 #endif
 
     __DSB();
-    __ISB();
-    __SYNC_IS();
 #endif
 
 }
@@ -1287,8 +1283,6 @@ __STATIC_INLINE void csi_dcache_clean_invalid_range(phy_addr_t addr, u32 dsize)
 #endif
 
     __DSB();
-    __ISB();
-    __SYNC_IS();
 #endif
 }
 

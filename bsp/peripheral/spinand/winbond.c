@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -41,6 +41,8 @@ const struct aic_spinand_info winbond_spinand_table[] = {
       DIE(0), "Winbond 256MB: 2048+64@64@1024, MCP", cmd_cfg_table,
       winbond_ecc_get_status },
     { DEVID(0xBA), PAGESIZE(2048), OOBSIZE(64), BPL(1024), PPB(64), PLANENUM(1),
+      DIE(0), "Winbond 128MB: 2048+64@64@1024", cmd_cfg_table, NULL },
+    { DEVID(0xAE), PAGESIZE(2048), OOBSIZE(64), BPL(1024), PPB(64), PLANENUM(1),
       DIE(0), "Winbond 128MB: 2048+64@64@1024", cmd_cfg_table, NULL },
 };
 

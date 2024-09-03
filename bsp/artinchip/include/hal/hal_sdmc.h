@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -12,11 +12,6 @@
 #include <bouncebuf.h>
 
 #define SDMC_CLOCK_MIN       400000      /* 400KHz */
-#ifdef FPGA_BOARD_ARTINCHIP
-#define SDMC_CLOCK_MAX       48000000    /* 48MHz */
-#else
-#define SDMC_CLOCK_MAX       100000000   /* 100MHz */
-#endif
 
 #define FIFO_MIN            8
 #define FIFO_MAX            4096
@@ -108,6 +103,10 @@
 #define SDMC_CTYPE_4BIT         (0x1)
 #define SDMC_CTYPE_8BIT         (0x2)
 #define SDMC_CTYPE_RESERVED     (0x3)
+
+/* Data-rate */
+#define SDMC_SDR_MODE           (0)
+#define SDMC_DDR_MODE           (0x1)
 
 /* Interrupt status & enable register defines */
 #define SDMC_INT_ALL            0xffffffff

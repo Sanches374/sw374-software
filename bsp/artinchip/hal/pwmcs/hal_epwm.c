@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -7,6 +7,7 @@
  */
 
 #include <string.h>
+#include <math.h>
 
 #include "aic_core.h"
 #include "aic_hal_clk.h"
@@ -57,6 +58,8 @@
 #define EPWM_CLK_DIV1_MAX        0x7
 #define EPWM_CLK_DIV2_SHIFT      10
 #define EPWM_CLK_DIV1_SHIFT      7
+#define EPWM_CLK_DIV2_MASK       GENMASK(12, 10)
+#define EPWM_CLK_DIV1_MASK       GENMASK(9, 7)
 #define EPWM_CNT_MOD_MASK        GENMASK(1, 0)
 #define EPWM_CNT_MOD_SHIFT       0
 #define EPWM_INT_EN_SHITF        3
@@ -68,8 +71,8 @@
 #define EPWM_ACT_SW_HIGH         0xA
 #define EPWM_ACT_SW_LOW          0x5
 #define HRPWM_OUTPUT_MODE_NO_ACT 0xF00
-#define EPWM_CNT_PH_EN_SHIFT     2
-#define EPWM_SW_FRC_SYNC_SHIFT   6
+#define EPWM_CNT_PH_EN           BIT(2)
+#define EPWM_SW_FRC_SYNC         BIT(6)
 
 #ifndef NSEC_PER_SEC
 #define NSEC_PER_SEC            1000000000
@@ -87,6 +90,10 @@ static inline u32 epwm_readl(int reg)
     return readl(EPWM_BASE + reg);
 }
 
+static inline void epwm_writel_bits(u32 val, u32 mask, u32 shift, int reg)
+{
+    writel_bits(val, mask, shift, EPWM_BASE + reg);
+}
 
 static void aic_epwm_ch_info(char *buf, u32 ch, u32 en, struct aic_epwm_arg *arg)
 {
@@ -96,7 +103,7 @@ static void aic_epwm_ch_info(char *buf, u32 ch, u32 en, struct aic_epwm_arg *arg
     snprintf(buf, 128, "%2d %2d %4s %11d %3d %3s %3s %3s %3s %3s %3s\n"
         "%30s %3s %3s %3s %3s %3s\n",
         ch, en & EPMW_SX_CLK_EN(ch) ? 1 : 0,
-        mode[arg->mode], EPWM_TB_CLK_RATE, arg->def_level,
+        mode[arg->mode], arg->tb_clk_rate, arg->def_level,
         act[arg->action0.CBD], act[arg->action0.CBU],
         act[arg->action0.CAD], act[arg->action0.CAU],
         act[arg->action0.PRD], act[arg->action0.ZRO],
@@ -170,24 +177,65 @@ void hal_epwm_ch_init(u32 ch, bool sync_mode, enum aic_epwm_mode mode, u32 defau
     }
 }
 
+static void hal_epwm_calculate_div(u32 ch, float tar_freq)
+{
+    struct aic_epwm_arg *arg = &g_epwm_args[ch];
+    int div1 = 0, div2 = 0;
+    int div1_index = 0, div2_index = 0;
+    int available_div1[] = {1, 2, 4, 6, 8, 10, 12, 14};
+    int available_div2[] = {1, 2, 4, 8, 16, 32, 64, 128};
+    float min_error = 1e6;
+
+    for (int i = 0; i < sizeof(available_div1) / sizeof(available_div1[0]); ++i) {
+        for (int j = 0; j < sizeof(available_div2) / sizeof(available_div2[0]); ++j) {
+            int current_div = available_div1[i] * available_div2[j];
+            int count_value = arg->clk_rate / (current_div * tar_freq);
+            if (count_value < EPWM_TBPRD_MAX) {
+                float current_freq = arg->clk_rate / (current_div * count_value);
+                float error = fabs(current_freq - tar_freq);
+
+                if (error < min_error) {
+                    min_error = error;
+                    div1 = available_div1[i];
+                    div2 = available_div2[j];
+                    div1_index = i;
+                    div2_index = j;
+                }
+             }
+        }
+    }
+
+    hal_log_debug("div1:%d div2:%d\n", div1, div2);
+
+    if (div1 == 0 && div2 == 0) {
+        hal_log_err("calculate div error,should adjust the EPWM_CLK_RATE.\n");
+        return;
+    }
+
+    epwm_writel_bits(div1_index, EPWM_CLK_DIV1_MASK, EPWM_CLK_DIV1_SHIFT, EPWM_CNT_CONF(ch));
+    epwm_writel_bits(div2_index, EPWM_CLK_DIV2_MASK, EPWM_CLK_DIV2_SHIFT, EPWM_CNT_CONF(ch));
+    arg->tb_clk_rate = arg->clk_rate / (div1 * div2);
+}
+
 int hal_epwm_set(u32 ch, u32 duty_ns, u32 period_ns, u32 output)
 {
     struct aic_epwm_arg *arg = &g_epwm_args[ch];
     u32 prd = 0;
     u64 duty = 0;
 
-    if ((period_ns < 1) || (period_ns > NSEC_PER_SEC)) {
-        hal_log_err("ch%d invalid period %d\n", ch, period_ns);
-        return -ERANGE;
-    }
-
     if (!arg->available) {
         hal_log_err("ch%d is unavailable\n", ch);
         return -EINVAL;
     }
 
-    arg->freq = NSEC_PER_SEC / period_ns;
-    prd = EPWM_TB_CLK_RATE / arg->freq;
+    arg->freq = (float)NSEC_PER_SEC / period_ns;
+
+    hal_epwm_calculate_div(ch, arg->freq);
+
+    prd = arg->tb_clk_rate / arg->freq;
+
+    printf("output:Freq %f Hz, prd value %d, Time-base %d Hz\n", arg->freq, prd, arg->tb_clk_rate);
+
     if (arg->mode == EPWM_MODE_UP_DOWN_COUNT)
         prd >>= 1;
     else
@@ -262,7 +310,7 @@ static void epwm_action_set(u32 ch, struct aic_epwm_action *act, char *name)
 
 int hal_epwm_enable(u32 ch)
 {
-    u32 div1 = 0;
+    u32 div1_index = 0x4, div2_index = 0x0;
     struct aic_epwm_arg *arg = &g_epwm_args[ch];
 
     if (!arg->available) {
@@ -270,24 +318,24 @@ int hal_epwm_enable(u32 ch)
         return -EINVAL;
     }
 
-    hal_log_debug("ch%d enable\n", ch);
-    div1 = EPWM_CLK_RATE / EPWM_TB_CLK_RATE / 2;
-    if (div1 > EPWM_CLK_DIV1_MAX) {
-        hal_log_err("ch%d clkdiv %d is too big\n", ch, div1);
-        return -ERANGE;
-    }
-
     epwm_writel(EPWM_ACT_SW_NONE, EPWM_ACT_SW_CT(ch));
 
     epwm_action_set(ch, &arg->action0, "action0");
     epwm_action_set(ch, &arg->action1, "action1");
 
-    u32 val = (div1 << EPWM_CLK_DIV1_SHIFT) | arg->mode;
+    hal_log_debug("ch%d tb_clk_rate: %d Hz\n", ch, arg->tb_clk_rate);
 
-    if (arg->sync_mode)
-        val |= (1 << EPWM_CNT_PH_EN_SHIFT) | (1 << EPWM_SW_FRC_SYNC_SHIFT);
+    //Set the default time-base
+    epwm_writel_bits(div1_index, EPWM_CLK_DIV1_MASK, EPWM_CLK_DIV1_SHIFT, EPWM_CNT_CONF(ch));
+    epwm_writel_bits(div2_index, EPWM_CLK_DIV2_MASK, EPWM_CLK_DIV2_SHIFT, EPWM_CNT_CONF(ch));
 
-    epwm_writel(val, EPWM_CNT_CONF(ch));
+    //For sync mode
+    if (arg->sync_mode) {
+        epwm_reg_enable(EPWM_BASE + EPWM_CNT_CONF(ch), EPWM_CNT_PH_EN, 1);
+        epwm_reg_enable(EPWM_BASE + EPWM_CNT_CONF(ch), EPWM_SW_FRC_SYNC, 1);
+    }
+
+    epwm_writel_bits(arg->mode, EPWM_CNT_MOD_MASK, EPWM_CNT_MOD_SHIFT, EPWM_CNT_CONF(ch));
 
     return 0;
 }
@@ -335,6 +383,7 @@ int hal_epwm_init(void)
 {
     int i, ret = 0;
     u32 clk_id = 0;
+    int clock_rate;
 
 #ifdef AIC_EPWM_DRV_V11
     clk_id = CLK_PWMCS_SDFM;
@@ -347,6 +396,13 @@ int hal_epwm_init(void)
         hal_log_err("Failed to set EPWM clk %d\n", EPWM_CLK_RATE);
         return -1;
     }
+
+    clock_rate = hal_clk_get_freq(clk_id);
+    if (clock_rate < 0) {
+        hal_log_err("Failed to get EPWM clk\n");
+        return -1;
+    }
+
     ret = hal_clk_enable(CLK_PWMCS);
     if (ret < 0) {
         hal_log_err("Failed to enable EPWM clk\n");
@@ -369,7 +425,8 @@ int hal_epwm_init(void)
     for (i = 0; i < AIC_EPWM_CH_NUM; i++) {
         g_epwm_args[i].id = i;
         g_epwm_args[i].mode = EPWM_MODE_UP_COUNT;
-        g_epwm_args[i].tb_clk_rate = EPWM_TB_CLK_RATE;
+        g_epwm_args[i].tb_clk_rate = clock_rate / 8;
+        g_epwm_args[i].clk_rate = clock_rate;
     }
 
     return 0;

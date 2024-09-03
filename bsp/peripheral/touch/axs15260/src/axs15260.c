@@ -222,13 +222,13 @@ static int rt_axs15260_gpio_cfg()
     long pin;
 
     // RST
-    pin = drv_pin_get(AXS15260_RST_PIN);
+    pin = drv_pin_get(AIC_TOUCH_PANEL_RST_PIN);
     g = GPIO_GROUP(pin);
     p = GPIO_GROUP_PIN(pin);
     hal_gpio_direction_input(g, p);
 
     // INT
-    pin = drv_pin_get(AXS15260_INT_PIN);
+    pin = drv_pin_get(AIC_TOUCH_PANEL_INT_PIN);
     g = GPIO_GROUP(pin);
     p = GPIO_GROUP_PIN(pin);
     hal_gpio_direction_input(g, p);
@@ -244,9 +244,9 @@ static int rt_hw_axs15260_port(void)
 
     rt_axs15260_gpio_cfg();
 
-    rst_pin = drv_pin_get(AXS15260_RST_PIN);
-    cfg.dev_name = AXS15260_I2C_CHAN;
-    cfg.irq_pin.pin = drv_pin_get(AXS15260_INT_PIN);
+    rst_pin = drv_pin_get(AIC_TOUCH_PANEL_RST_PIN);
+    cfg.dev_name = AIC_TOUCH_PANEL_I2C_CHAN;
+    cfg.irq_pin.pin = drv_pin_get(AIC_TOUCH_PANEL_INT_PIN);
     cfg.irq_pin.mode = PIN_MODE_INPUT;
     cfg.user_data = &rst_pin;
 

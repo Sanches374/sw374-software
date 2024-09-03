@@ -14,15 +14,12 @@
 #include <spinand.h>
 #include <bbt.h>
 
-#define BITS_PER_BLOCK 2
-/*a Byte can save 4 block bad block info*/
-
 int nand_bbt_init(struct aic_spinand *flash)
 {
-    u32 nblocks = flash->info->block_per_lun;
-    u32 bits_per_block = BITS_PER_BLOCK;
+    u32 nblocks;
 
-    flash->bbt.cache = calloc(1, nblocks * bits_per_block / 8);
+    nblocks = flash->info->block_per_lun;
+    flash->bbt.cache = calloc(1, nblocks);
     if (!flash->bbt.cache)
         return -SPINAND_ERR;
 
@@ -39,32 +36,24 @@ void nand_bbt_cleanup(struct aic_spinand *flash)
     free(flash->bbt.cache);
 }
 
-int nand_bbt_get_block_status(struct aic_spinand *flash, u32 entry)
+int nand_bbt_get_block_status(struct aic_spinand *flash, u32 block)
 {
-    u32 bits_per_block = BITS_PER_BLOCK;
-    u8 *pos = flash->bbt.cache + entry * bits_per_block / 8;
-    u32 offs = entry * bits_per_block % 8;
+    u8 *pos = flash->bbt.cache + block;
 
-    pr_debug("block: %d.\n", entry);
-
-    if (entry >= flash->info->block_per_lun)
-        return 0;
-
-    return (pos[0] >> offs) & 0x3;
+    return (pos[0] & 0x3f);
 }
 
-void nand_bbt_set_block_status(struct aic_spinand *flash, u32 entry,
-                               enum nand_bbt_block_status status)
+void nand_bbt_set_block_status(struct aic_spinand *flash, u32 block, u32 pos_block,
+                               u32 status)
 {
-    u32 bits_per_block = BITS_PER_BLOCK;
-    u8 *pos = flash->bbt.cache + entry * bits_per_block / 8;
-    u32 offs = entry * bits_per_block % 8;
+    u8 *before_pos = 0;
+    u8 *pos = flash->bbt.cache + block;
 
-    pr_debug("block: %d, status = 0x%d.\n", entry, status);
+    if (block > 0)
+        before_pos = flash->bbt.cache + block - 1;
 
-    if (entry >= flash->info->block_per_lun)
-        return;
-
-    pos[0] &= ~(0x3 << offs);
-    pos[0] |= status << offs;
+    pos[0] = (pos_block & 0x3f);
+    if (pos_block != (before_pos[0] & 0x3f)) {
+        printf("Set block status, block: %u, pos: 0x%x.\n", block, pos[0]);
+    }
 }

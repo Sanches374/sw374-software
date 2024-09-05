@@ -8,9 +8,12 @@ echo Luban-Lite SDK OneStep commands:
 echo   h             : Get this help.
 echo   lunch [No.]   : Start with selected defconfig, .e.g. lunch 3
 echo   me            : Config SDK with menuconfig
-echo   m             : Build all and generate final image
+echo   bm            : Config bootloader with menuconfig
+echo   km            : Config application with menuconfig
+echo   m/mb          : Build bootloader ^& app and generate final image
+echo   ma            : Build application only
+echo   mu/ms         : Build bootloader only
 echo   mc            : Clean ^& Build all and generate final image
-echo   mb            : Build bootloader ^& app and generate final image
 echo   c             : Clean all
 echo   croot/cr      : cd to SDK root directory.
 echo   cout/co       : cd to build output directory.

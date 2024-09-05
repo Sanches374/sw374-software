@@ -58,7 +58,7 @@ start /b python %~dp0..\..\scripts\init_env.py
 rem OneStep command
 set SDK_PRJ_TOP_DIR=%CD%
 set PATH=%PATH%;%SDK_PRJ_TOP_DIR%\tools\scripts\onestep
-doskey list=scons --list-def -C %SDK_PRJ_TOP_DIR%
+doskey list=scons --list-noboot -C %SDK_PRJ_TOP_DIR%
 doskey bm=boot_menuconfig
 doskey km=app_menuconfig
 doskey m=make_boot_and_app

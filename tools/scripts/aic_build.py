@@ -54,6 +54,15 @@ def get_config(filename, key):
     return None
 
 
+def get_input(prompt):
+    if sys.version_info[0] < 3:
+        # Python 2.X
+        return raw_input(prompt)
+    else:
+        # Python 3.X
+        return input(prompt)
+
+
 def get_prj_defconfig(aic_root):
     config_file = os.path.join(aic_root, '.config')
     if not os.path.exists(config_file):
@@ -75,7 +84,7 @@ def get_prj_defconfig(aic_root):
     return defconfig
 
 
-def list_defconfig(aic_root):
+def list_defconfig(aic_root, noboot=False):
     v = []
     maxlen = 0
     path = os.path.join(aic_root, 'target', 'configs')
@@ -83,7 +92,11 @@ def list_defconfig(aic_root):
         if root != path:
             break
         for f in files:
-            if f.endswith('_defconfig') and 'bootloader' not in f:
+            if noboot and f.endswith('_defconfig') and 'bootloader' not in f:
+                v.append(f)
+                if len(f) > maxlen:
+                    maxlen = len(f)
+            if noboot is False and f.endswith('_defconfig'):
                 v.append(f)
                 if len(f) > maxlen:
                     maxlen = len(f)
@@ -128,6 +141,36 @@ def update_defconfig(aic_root):
         dst = os.path.join(aic_root, '.config')
         shutil.copy(src, dst)
 
+# cmd-option: list defconfig without bootloader
+def list_noboot_def_cmd(aic_root):
+    AddOption('--list-noboot', dest='list_noboot_defconfig', action='store_true',
+              default=False, help='to list all board defconfigs without bootloader')
+    list_def = GetOption('list_noboot_defconfig')
+    if list_def:
+        configs, maxlen = list_defconfig(aic_root, noboot=True)
+        index = 0
+        print('Built-in configs:')
+        for c in configs:
+            d = c.replace('_defconfig', '')
+            print('%3d. %-*s' % (index, maxlen, d))
+            index += 1
+        exit(0)
+
+# cmd-option: apply defconfig without bootloader
+def apply_noboot_def_cmd(aic_root):
+    AddOption('--apply-noboot', dest='apply_notboot_defconfig', type='string',
+              nargs=1, action='store',
+              default="", help='to apply one board defconfig not for bootloader')
+    apply_def = GetOption('apply_notboot_defconfig')
+    if apply_def:
+        if apply_def.isdigit():
+            i = int(apply_def, 10)
+            configs, maxlen = list_defconfig(aic_root, noboot=True)
+            if i < len(configs):
+                apply_def = configs[i]
+        apply_defconfig(aic_root, apply_def)
+        exit(0)
+
 
 # cmd-option: list defconfig
 def list_def_cmd(aic_root):
@@ -135,7 +178,7 @@ def list_def_cmd(aic_root):
               default=False, help='to list all board defconfigs')
     list_def = GetOption('list_defconfig')
     if list_def:
-        configs, maxlen = list_defconfig(aic_root)
+        configs, maxlen = list_defconfig(aic_root, noboot=False)
         index = 0
         print('Built-in configs:')
         for c in configs:
@@ -231,7 +274,7 @@ def add_board_get_chip(chips):
         for c in chips:
             print('%3d: %s' % (index, c))
             index += 1
-        i = raw_input("Select chip for new board(number): ")
+        i = get_input("Select chip for new board(number): ")
         if i == 'q':
             exit(0)
         if not i.isdigit():
@@ -252,7 +295,7 @@ def add_board_get_defconfig(configs):
         for c in configs:
             print('%3d: %s' % (index, c))
             index += 1
-        i = raw_input("Select reference defconfig for new board(number): ")
+        i = get_input("Select reference defconfig for new board(number): ")
         if i == 'q':
             exit(0)
         if not i.isdigit():
@@ -268,7 +311,7 @@ def add_board_get_defconfig(configs):
 
 def add_board_get_board_name():
     while 1:
-        i = raw_input("Input new board's name: ")
+        i = get_input("Input new board's name: ")
         i = i.strip()
         if i == 'q':
             exit(0)
@@ -282,7 +325,7 @@ def add_board_get_board_name():
 
 def add_board_get_app_name(app):
     while 1:
-        i = raw_input("Input new app's name: (default {}) ".format(app))
+        i = get_input("Input new app's name: (default {}) ".format(app))
         i = i.strip()
         if i == 'q':
             exit(0)
@@ -297,7 +340,7 @@ def add_board_get_app_name(app):
 
 def add_board_get_manufacturer_name():
     while 1:
-        i = raw_input("Input manufacturer's name: ")
+        i = get_input("Input manufacturer's name: ")
         i = i.strip()
         if i == 'q':
             exit(0)
@@ -306,7 +349,7 @@ def add_board_get_manufacturer_name():
 
 
 # cmd-option: add board
-def add_board_cmd(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defconfig):
+def add_board_cmd(aic_root):
     AddOption('--add-board', dest='add_board', action='store_true',
               default=False, help='add new board')
     add_board = GetOption('add_board')
@@ -1440,6 +1483,14 @@ def chk_prj_config(aic_root):
     # cmd-option: apply defconfig
     apply_def_cmd(aic_root)
 
+    # cmd-option: list defconfig without bootloader
+    list_noboot_def_cmd(aic_root)
+    # cmd-option: apply defconfig without bootloader
+    apply_noboot_def_cmd(aic_root)
+
+    # cmd-option: add board cmd
+    add_board_cmd(aic_root)
+
     # check '.config'
     path = os.path.join(aic_root, '.config')
     if not os.path.exists(path):
@@ -1645,9 +1696,6 @@ def get_prj_config(aic_root):
 
     # cmd-option: list size
     list_size_cmd(aic_root, PRJ_CHIP, PRJ_BOARD, PRJ_KERNEL, PRJ_APP, PRJ_DEFCONFIG_NAME)
-
-    # cmd-option: add board
-    add_board_cmd(aic_root, PRJ_CHIP, PRJ_BOARD, PRJ_KERNEL, PRJ_APP, PRJ_DEFCONFIG_NAME)
 
     # cmd-option: call aicupg command (installed by AiBurn)
     aicupg_cmd(aic_root, PRJ_CHIP, PRJ_BOARD, PRJ_KERNEL, PRJ_APP, PRJ_DEFCONFIG_NAME)

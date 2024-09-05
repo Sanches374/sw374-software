@@ -20,7 +20,7 @@ set PKGS_ROOT=%ENV_ROOT%\packages
 set RTT_ROOT=%SDK_PRJ_TOP_DIR%\kernel\rt-thread
 
 rem OneStep command
-doskey list=scons --list-def -C %SDK_PRJ_TOP_DIR%
+doskey list=scons --list-noboot -C %SDK_PRJ_TOP_DIR%
 doskey bm=boot_menuconfig
 doskey km=app_menuconfig
 doskey m=make_boot_and_app

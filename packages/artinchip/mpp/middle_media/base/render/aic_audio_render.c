@@ -28,6 +28,11 @@
 #define AIC_AUDIO_STATUS_PAUSE 1
 #define AIC_AUDIO_STATUS_STOP 2
 
+__WEAK int uac_set_suspend(uint8_t status)
+{
+    return 0;
+}
+
 struct aic_rt_audio_render{
     struct aic_audio_render base;
     rt_device_t snd_dev;
@@ -40,6 +45,9 @@ s32 rt_audio_render_init(struct aic_audio_render *render,s32 dev_id)
 {
     long ret;
     struct aic_rt_audio_render *rt_render = (struct aic_rt_audio_render*)render;
+
+    uac_set_suspend(1);
+
     rt_render->snd_dev = rt_device_find(SOUND_DEVICE_NAME);
     if (!rt_render->snd_dev) {
         loge("rt_device_find error!\n");
@@ -59,6 +67,8 @@ s32 rt_audio_render_destroy(struct aic_audio_render *render)
     struct aic_rt_audio_render *rt_render = (struct aic_rt_audio_render*)render;
     rt_device_close(rt_render->snd_dev);
     mpp_free(rt_render);
+
+    uac_set_suspend(0);
     return 0;
 }
 

@@ -12,7 +12,7 @@ set PYTHONIOENCODING=UTF-8
 set SDK_PRJ_TOP_DIR=%cd%
 set PATH=%SDK_PRJ_TOP_DIR%\tools\env\tools\bin;%PATH%
 set PATH=%SDK_PRJ_TOP_DIR%\tools\env\tools\Python27\Scripts;%PATH%
-set PATH=%SDK_PRJ_TOP_DIR%\tools\env\tools\Python39;%PATH%
+set PATH=%SDK_PRJ_TOP_DIR%\tools\env\tools\Python38;%PATH%
 set PATH=%SDK_PRJ_TOP_DIR%\tools\scripts\onestep;%PATH%
 
 set ENV_ROOT=%SDK_PRJ_TOP_DIR%\tools\env
@@ -39,6 +39,7 @@ doskey cr=cd /d %SDK_PRJ_TOP_DIR%
 doskey cb=cbuild
 doskey co=cout
 doskey ct=ctarget
+doskey update=sdk_update
 
 chcp 65001 > nul
 

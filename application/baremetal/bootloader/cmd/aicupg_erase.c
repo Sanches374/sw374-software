@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Artinchip Technology Co., Ltd
+ * Copyright (c) 2023-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -40,7 +40,7 @@
 #define OP_STORAGE_SPINAND 2
 #define OP_STORAGE_MMC     3
 
-static void aicupg_erase_help(void)
+__USED static void aicupg_erase_help(void)
 {
     puts(AICUPG_ERASE_HELP);
 }

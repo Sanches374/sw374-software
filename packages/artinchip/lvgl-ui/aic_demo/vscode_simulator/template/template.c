@@ -22,6 +22,8 @@ static void pic_test(void)
 #ifdef USE_FREETYPE_TEST
 static void freetype_test(void)
 {
+    lv_font_t *font = NULL;
+#if LVGL_VERSION_MAJOR == 8
     /*Create a font*/
     static lv_ft_info_t info;
     /*FreeType uses C standard file system, so no driver letter is required.*/
@@ -33,11 +35,23 @@ static void freetype_test(void)
         LV_LOG_ERROR("create failed.");
     }
 
+    font = info.font;
+#else
+    font = lv_freetype_font_create(LVGL_PATH_ORI(template/assets/Lato-Regular.ttf),
+                                    LV_FREETYPE_FONT_RENDER_MODE_BITMAP,
+                                    24,
+                                    LV_FREETYPE_FONT_STYLE_NORMAL);
+#endif //LVGL_VERSION_MAJOR
+
+
     /*Create a label with the new style*/
     lv_obj_t * label = lv_label_create(lv_scr_act());
     lv_label_set_text(label, "Hello World!");
+
+#if LVGL_VERSION_MAJOR == 8
     lv_label_set_recolor(label, true);
-    lv_obj_set_style_text_font(label, info.font, LV_PART_MAIN | LV_STATE_DEFAULT);
+#endif
+    lv_obj_set_style_text_font(label, font, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_center(label);
 
 }

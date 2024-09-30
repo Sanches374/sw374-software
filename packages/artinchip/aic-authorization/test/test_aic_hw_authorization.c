@@ -6,14 +6,18 @@
  * Authors:  Xiong Hao <hao.xiong@artinchip.com>
  */
 
-#include <unistd.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <string.h>
 #include <errno.h>
-#include <console.h>
-#include <aic_core.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <aic_utils.h>
+#include <aic_common.h>
+#if defined(KERNEL_RTTHREAD)
+#include <rtthread.h>
+#elif defined(KERNEL_BAREMETAL)
+#include <console.h>
+#endif
+#include <aic_core.h>
 #include "authorization.h"
 #include "rng.h"
 #include "test_aic_hw_authorization.h"
@@ -26,16 +30,16 @@ int app_hw_authorization_check(unsigned char *from, int flen,
     uint8_t *inbuf = NULL, *outbuf = NULL;
     uint8_t esk_buf[esk_len];
     uint8_t pk_buf[pk_len];
-    size_t pagesize = 2048;
-    int ret = 0, rlen, nonce;
+    size_t pagesize = 4096;
+    int ret = 0, rlen;
 
-    inbuf = aicos_malloc_align(0, pagesize * 2, CACHE_LINE_SIZE);
+    inbuf = aicos_malloc_align(0, pagesize, CACHE_LINE_SIZE);
     if (inbuf == NULL) {
         printf("Failed to allocate inbuf.\n");
         ret = -ENOMEM;
         goto out;
     }
-    outbuf = aicos_malloc_align(0, pagesize * 2, CACHE_LINE_SIZE);
+    outbuf = aicos_malloc_align(0, pagesize, CACHE_LINE_SIZE);
     if (outbuf == NULL) {
         printf("Failed to allocate outbuf.\n");
         ret = -ENOMEM;
@@ -58,7 +62,7 @@ int app_hw_authorization_check(unsigned char *from, int flen,
         goto out;
     }
     memcpy(inbuf, outbuf, rlen);
-    memset(outbuf, 0, 2 * pagesize);
+    memset(outbuf, 0, pagesize);
 
     // 3. EncNonce public key decryption
     rlen = aic_rsa_pub_dec(rlen, inbuf, outbuf, &opts);
@@ -86,7 +90,7 @@ int app_hw_authorization_check(unsigned char *from, int flen,
 
     // 4. compare Nonce and DecNonce
     if (memcmp(from, outbuf, rlen)) {
-        hexdump_msg("Expect", (unsigned char *)&nonce, rlen, 1);
+        hexdump_msg("Expect", (unsigned char *)from, rlen, 1);
         hexdump_msg("Got Result", (unsigned char *)outbuf, rlen, 1);
         printf("App %s stop.\n", algo);
         ret = -1;
@@ -96,10 +100,10 @@ int app_hw_authorization_check(unsigned char *from, int flen,
     }
 
 out:
-    if (inbuf)
-        aicos_free_align(0, inbuf);
     if (outbuf)
         aicos_free_align(0, outbuf);
+    if (inbuf)
+        aicos_free_align(0, inbuf);
 
     return ret;
 }

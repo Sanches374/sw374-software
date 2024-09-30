@@ -53,3 +53,16 @@ config AIC_STARTUP_UI_SHOW
     default n
     depends on LPKG_MPP
 
+if AIC_STARTUP_UI_SHOW
+    config AIC_STARTUP_UI_POS_X
+        int "X coordinate of the screen in pixels"
+        default 86
+    config AIC_STARTUP_UI_POS_Y
+        int "Y coordinate of the screen in pixels"
+        default 60
+endif
+
+config AIC_MPP_AICP_DEC_ENABLE
+    bool "enable aic picture decoder"
+    default n
+    depends on LPKG_MPP

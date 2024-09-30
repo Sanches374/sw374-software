@@ -77,6 +77,7 @@ if GetDepend(['KERNEL_RTTHREAD']) and GetDepend(['LPKG_MPP']) and GetDepend(['AI
     src += Glob('./mpp_test/bit_stream_parser.c')
     src += Glob('./mpp_test/pic_crop_test.c')
     src += Glob('./mpp_test/jpeg_encode_test.c')
+    src += Glob('./mpp_test/test_mpp_dec.c')
 
 if GetDepend(['KERNEL_RTTHREAD']) and GetDepend(['LPKG_MPP']) and GetDepend(['AIC_GE_TEST']):
     src += Glob('./mpp_test/ge_test/public/*.c')
@@ -159,12 +160,17 @@ if GetDepend(['AIC_MPP_VIN']):
 LOCAL_CCFLAGS = ''
 # LOCAL_CCFLAGS += ' -O0'
 
-prj_chip=GetDepend('PRJ_CHIP').strip('"')
-LIBNAME="mpp_aicp_dec_" + prj_chip
+LIBNAME = []
+if GetDepend(['AIC_MPP_AICP_DEC_ENABLE']):
+    prj_chip=GetDepend('PRJ_CHIP').strip('"')
+    LIBNAME = "mpp_aicp_dec_" + prj_chip
 
 lib_path = cwd + '/../aicp-dec/'
 
-group = DefineGroup('mpp', src, depend = ['LPKG_MPP'], CPPPATH = path, CPPDEFINES = CPPDEFINES, LIBS = [LIBNAME], LIBPATH = [lib_path], LOCAL_CCFLAGS=LOCAL_CCFLAGS)
+if LIBNAME:
+    group = DefineGroup('mpp', src, depend = ['LPKG_MPP'], CPPPATH = path, CPPDEFINES = CPPDEFINES, LIBS = [LIBNAME], LIBPATH = [lib_path], LOCAL_CCFLAGS=LOCAL_CCFLAGS)
+else:
+    group = DefineGroup('mpp', src, depend = ['LPKG_MPP'], CPPPATH = path, CPPDEFINES = CPPDEFINES, LIBPATH = [lib_path], LOCAL_CCFLAGS=LOCAL_CCFLAGS)
 
 
 Return('group')

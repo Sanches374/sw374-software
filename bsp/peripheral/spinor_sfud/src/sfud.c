@@ -1209,6 +1209,49 @@ sfud_err sfud_write_status(const sfud_flash *flash, bool is_volatile, uint8_t st
         return result;
 }
 
+sfud_err sfud_write_status_ext(const sfud_flash *flash, bool is_volatile, uint8_t reg, uint8_t stsval) {
+    sfud_err result = SFUD_SUCCESS;
+    const sfud_spi *spi = &flash->spi;
+    uint8_t cmd_data[2];
+
+    SFUD_ASSERT(flash);
+
+    if (is_volatile) {
+        cmd_data[0] = SFUD_VOLATILE_SR_WRITE_ENABLE;
+        result = spi->wr(spi, cmd_data, 1, NULL, 0);
+    } else {
+        result = set_write_enabled(flash, true);
+    }
+
+    if (result == SFUD_SUCCESS) {
+        switch (reg) {
+            case 0x05:
+                cmd_data[0] = SFUD_CMD_WRITE_STATUS_REGISTER;
+                break;
+            case 0x35:
+                cmd_data[0] = SFUD_CMD_WRITE_STATUS2_REGISTER;
+                break;
+            case 0x15:
+                cmd_data[0] = SFUD_CMD_WRITE_STATUS3_REGISTER;
+                break;
+            default:
+                SFUD_INFO("Error: unsupport reg: 0x%x.", reg);
+                return -SFUD_ERR_NOT_FOUND;
+        }
+        cmd_data[1] = stsval;
+        result = spi->wr(spi, cmd_data, 2, NULL, 0);
+    }
+
+    if (result != SFUD_SUCCESS) {
+        SFUD_INFO("Error: Write_status register failed.");
+    }
+
+    if (result == SFUD_SUCCESS)
+        return wait_busy(flash);
+    else
+        return result;
+}
+
 sfud_err sfud_write_status2(const sfud_flash *flash, uint8_t *status) {
     sfud_err result = SFUD_SUCCESS;
     const sfud_spi *spi = &flash->spi;

@@ -17,13 +17,8 @@ menu "I2C0 Parameter"
        default 0
 
     config AIC_DEV_I2C0_SPEED
-        bool "Using I2C0 Stand Speed(default fast speed)"
-        default n
-
-    config AIC_DEV_I2C0_100K_SPEED
-       int
-       default 1     if AIC_DEV_I2C0_SPEED
-       default 0
+        int "Setting I2C0 Transfer Speed"
+        default 400000
 
     config AIC_DEV_I2C0_BUS_MODE
         bool "Using I2C0 Slave Mode(default master mode)"
@@ -56,13 +51,8 @@ menu "I2C1 Parameter"
        default 0
 
     config AIC_DEV_I2C1_SPEED
-        bool "Using I2C1 Stand Speed(default fast speed)"
-        default n
-
-    config AIC_DEV_I2C1_100K_SPEED
-       int
-       default 1     if AIC_DEV_I2C1_SPEED
-       default 0
+        int "Setting I2C1 Transfer Speed"
+        default 400000
 
     config AIC_DEV_I2C1_BUS_MODE
         bool "Using I2C1 Slave Mode(default master mode)"
@@ -95,13 +85,8 @@ menu "I2C2 Parameter"
        default 0
 
     config AIC_DEV_I2C2_SPEED
-        bool "Using I2C2 Stand Speed(default fast speed)"
-        default n
-
-    config AIC_DEV_I2C2_100K_SPEED
-       int
-       default 1     if AIC_DEV_I2C2_SPEED
-       default 0
+        int "Setting I2C2 Transfer Speed"
+        default 400000
 
     config AIC_DEV_I2C2_BUS_MODE
         bool "Using I2C2 Slave Mode(default master mode)"
@@ -134,13 +119,8 @@ menu "I2C3 Parameter"
        default 0
 
     config AIC_DEV_I2C3_SPEED
-        bool "Using I2C3 Stand Speed(default fast speed)"
-        default n
-
-    config AIC_DEV_I2C3_100K_SPEED
-       int
-       default 1     if AIC_DEV_I2C3_SPEED
-       default 0
+        int "Setting I2C3 Transfer Speed"
+        default 400000
 
     config AIC_DEV_I2C3_BUS_MODE
         bool "Using I2C3 Slave Mode(default master mode)"
@@ -171,13 +151,8 @@ menu "I2C4 Parameter"
        default 0
 
     config AIC_DEV_I2C4_SPEED
-        bool "Using I2C4 Stand Speed(default fast speed)"
-        default n
-
-    config AIC_DEV_I2C4_100K_SPEED
-       int
-       default 1     if AIC_DEV_I2C4_SPEED
-       default 0
+        int "Setting I2C4 Transfer Speed"
+        default 400000
 
     config AIC_DEV_I2C4_BUS_MODE
         bool "Using I2C4 Slave Mode(default master mode)"
@@ -208,13 +183,8 @@ menu "SP_I2C Parameter"
        default 0
 
     config AIC_DEV_SP_I2C_SPEED
-        bool "Using SP-I2C Stand Speed(default fast speed)"
-        default n
-
-    config AIC_DEV_SP_I2C_100K_SPEED
-       int
-       default 1     if AIC_DEV_SP_I2C_SPEED
-       default 0
+        int "Setting SP-I2C Transfer Speed"
+        default 400000
 
     config AIC_DEV_SP_I2C_BUS_MODE
         bool "Using SP-I2C Slave Mode(default master mode)"
@@ -228,6 +198,70 @@ menu "SP_I2C Parameter"
     if AIC_DEV_SP_I2C_BUS_MODE
         config AIC_DEV_SP_I2C_SLAVE_ADDR
             int "SP-I2C Slave Addr"
+    endif
+
+endmenu
+
+menu "R_I2C0 Parameter"
+    depends on AIC_USING_R_I2C0
+
+    config AIC_DEV_R_I2C0_ADDR_BIT
+        bool "Using R-I2C0 10-bit Addr(default 7-bit addr)"
+        default n
+
+    config AIC_DEV_R_I2C0_10BIT
+       int
+       default 1     if AIC_DEV_R_I2C0_ADDR_BIT
+       default 0
+
+    config AIC_DEV_SP_I2C_SPEED
+        int "Setting R-I2C0 Transfer Speed"
+        default 400000
+
+    config AIC_DEV_R_I2C0_BUS_MODE
+        bool "Using R-I2C0 Slave Mode(default master mode)"
+        default n
+
+    config AIC_DEV_R_I2C0_SLAVE_MODE
+       int
+       default 1     if AIC_DEV_R_I2C0_BUS_MODE
+       default 0
+
+    if AIC_DEV_R_I2C0_BUS_MODE
+        config AIC_DEV_R_I2C0_SLAVE_ADDR
+            int "R-I2C0 Slave Addr"
+    endif
+
+endmenu
+
+menu "R_I2C1 Parameter"
+    depends on AIC_USING_R_I2C1
+
+    config AIC_DEV_R_I2C1_ADDR_BIT
+        bool "Using R-I2C1 10-bit Addr(default 7-bit addr)"
+        default n
+
+    config AIC_DEV_R_I2C1_10BIT
+       int
+       default 1     if AIC_DEV_R_I2C1_ADDR_BIT
+       default 0
+
+    config AIC_DEV_SP_I2C_SPEED
+        int "Setting R-I2C1 Transfer Speed"
+        default 400000
+
+    config AIC_DEV_R_I2C1_BUS_MODE
+        bool "Using R-I2C1 Slave Mode(default master mode)"
+        default n
+
+    config AIC_DEV_R_I2C1_SLAVE_MODE
+       int
+       default 1     if AIC_DEV_R_I2C1_BUS_MODE
+       default 0
+
+    if AIC_DEV_R_I2C1_BUS_MODE
+        config AIC_DEV_R_I2C1_SLAVE_ADDR
+            int "R-I2C1 Slave Addr"
     endif
 
 endmenu

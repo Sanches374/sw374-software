@@ -28,7 +28,7 @@
 #include "mpp_fb.h"
 #endif
 
-#ifdef AIC_USING_GE
+#if defined(AIC_USING_GE) && !defined(AIC_CHIP_D13X)
 #define SUPPORT_ROTATION
 #include "mpp_ge.h"
 #endif

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -24,6 +24,7 @@
 
 #endif /* RT_USING_FINSH */
 
+#if defined(RT_USING_FINSH) || defined(AIC_CONSOLE_BARE_DRV)
 static int clk_mod_reset(char *name)
 {
     int32_t clk_id;
@@ -57,7 +58,7 @@ static int do_clk_mod_reset(int argc, char *argv[])
 
     return 0;
 }
-
+#endif
 
 #if defined(RT_USING_FINSH)
 MSH_CMD_EXPORT_ALIAS(do_clk_mod_reset, reset, Reset the device moudule);

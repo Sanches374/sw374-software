@@ -351,6 +351,7 @@ static void aic_asset_framebuf_get_info(int width, int height, enum mpp_pixel_fo
 framebuf_asset *aic_asset_get_frame(struct mpp_decoder* dec, int width, int height, int format) {
   int ret = 0;
   framebuf_asset *asset  = NULL;
+  struct frame_allocator* allocator = NULL;
   int size[3] = {0};
 
   if (dec == NULL) {
@@ -371,7 +372,7 @@ framebuf_asset *aic_asset_get_frame(struct mpp_decoder* dec, int width, int heig
     goto AIC_GET_FRAME_EXIT;
   }
 
-  struct frame_allocator* allocator = open_allocator(&asset->frame);
+  allocator = open_allocator(&asset->frame);
   ret = mpp_decoder_control(dec, MPP_DEC_INIT_CMD_SET_EXT_FRAME_ALLOCATOR, (void*)allocator);
   if (ret < 0) {
     log_info("control decoder failed\n");
@@ -383,11 +384,10 @@ framebuf_asset *aic_asset_get_frame(struct mpp_decoder* dec, int width, int heig
 AIC_GET_FRAME_EXIT:
   if (allocator)
     close_allocator(allocator);
-
-  framebuf_asset_free(asset);
-
-  TKMEM_FREE(asset);
-
+  if (asset) {
+    framebuf_asset_free(asset);
+    TKMEM_FREE(asset);
+  }
   return NULL;
 }
 

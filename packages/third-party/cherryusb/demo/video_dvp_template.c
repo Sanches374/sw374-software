@@ -256,9 +256,9 @@ static int sensor_request_buf(struct vin_video_buf *vbuf)
         return -1;
     }
 
-    USB_LOG_DBG("Buf   Plane[0]     size   Plane[1]     size\n");
+    USB_LOG_INFO("Buf   Plane[0]     size   Plane[1]     size\n");
     for (i = 0; i < vbuf->num_buffers; i++) {
-        USB_LOG_DBG("%3d 0x%x %8d 0x%x %8d\n", i,
+        USB_LOG_INFO("%3d 0x%x %8d 0x%x %8d\n", i,
             vbuf->planes[i * vbuf->num_planes].buf,
             vbuf->planes[i * vbuf->num_planes].len,
             vbuf->planes[i * vbuf->num_planes + 1].buf,
@@ -462,7 +462,7 @@ static void usbd_video_thread(void *arg)
             return;
         }
 
-        for (i = 0; i < VID_BUF_NUM; i++) {
+        for (i = 0; i < g_uvc_video.binfo.num_buffers; i++) {
             if (sensor_queue_buf(i) < 0) {
                 USB_LOG_ERR("queue buf failed\n");
                 return;

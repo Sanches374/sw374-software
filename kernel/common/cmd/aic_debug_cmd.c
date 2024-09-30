@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -25,7 +25,7 @@ static int cmd_pmem(int argc, char **argv)
         width = strtoul(argv[3], NULL, 0);
     case 3:
         nunits = strtoul(argv[2], NULL, 0);
-        nunits = nunits > 0x400 ? 0x400 : nunits;
+        nunits = nunits > 0x100000 ? 0x100000 : nunits;
     case 2:
         addr = strtoul(argv[1], NULL, 0);
         break;

@@ -141,6 +141,32 @@ void rt_hw_board_init(void)
 #endif
 }
 
+#ifdef AIC_USING_PM
+void rt_pm_board_level_power_off(void)
+{
+    rt_base_t pin;
+
+    pin = rt_pin_get(AIC_BOARD_LEVEL_POWER_PIN);
+    if (pin < 0)
+        return;
+
+    rt_pin_mode(pin, PIN_MODE_OUTPUT);
+    rt_pin_write(pin, 0);
+}
+
+void rt_pm_board_level_power_on(void)
+{
+    rt_base_t pin;
+
+    pin = rt_pin_get(AIC_BOARD_LEVEL_POWER_PIN);
+    if (pin < 0)
+        return;
+
+    rt_pin_mode(pin, PIN_MODE_OUTPUT);
+    rt_pin_write(pin, 1);
+}
+#endif
+
 #elif defined(KERNEL_FREERTOS)
 #elif defined(KERNEL_BAREMETAL)
 #include <aic_tlsf.h>

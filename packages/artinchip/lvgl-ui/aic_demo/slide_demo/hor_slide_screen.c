@@ -86,7 +86,14 @@ lv_obj_t *hor_screen_init(void)
     lv_obj_set_style_text_align(label3, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_center(label3);
 
+#if LVGL_VERSION_MAJOR == 8
     lv_obj_t *main_tabview = lv_tabview_create(cont_col, LV_DIR_TOP, 0);
+#else
+    lv_obj_t *main_tabview = lv_tabview_create(cont_col);
+
+    lv_tabview_set_tab_bar_position(main_tabview, LV_DIR_TOP);
+    lv_tabview_set_tab_bar_size(main_tabview, 0);
+#endif
     lv_obj_set_size(main_tabview, LV_PCT(100), 400);
     lv_obj_set_pos(main_tabview, 0, 0);
     lv_obj_set_style_bg_opa(main_tabview, LV_OPA_0, 0);

@@ -60,7 +60,7 @@ static lv_obj_t *img_time_3 = NULL;
 static lv_obj_t *img_time_dot = NULL;
 static lv_timer_t *speed_timer = NULL;
 
-LV_FONT_DECLARE(ui_font_Title);
+LV_FONT_DECLARE(ui_font_regular);
 
 struct rot_id_info rot_mode_list[] = {
     {1, 74},
@@ -575,7 +575,7 @@ void meter_ui_init()
     lv_label_set_text(bg_cpu, "");
     lv_obj_set_style_text_color(bg_cpu, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(bg_cpu, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(bg_cpu, &ui_font_Title, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(bg_cpu, &ui_font_regular, LV_PART_MAIN | LV_STATE_DEFAULT);
 #endif
 
     bg_fps = lv_label_create(img_bg);
@@ -588,6 +588,9 @@ void meter_ui_init()
     lv_obj_set_style_text_opa(bg_fps, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
 
 #if LV_USE_FREETYPE ==  1
+    static lv_style_t style;
+    lv_style_init(&style);
+#if LVGL_VERSION_MAJOR == 8
     static lv_ft_info_t info;
     // FreeType uses C standard file system, so no driver letter is required
     info.name = "/rodata/lvgl_data/font/Lato-Regular.ttf";
@@ -597,14 +600,18 @@ void meter_ui_init()
     if(!lv_ft_font_init(&info)) {
         LV_LOG_ERROR("create failed.");
     }
-
-    // Create style
-    static lv_style_t style;
-    lv_style_init(&style);
     lv_style_set_text_font(&style, info.font);
+#else
+    lv_font_t *font = lv_freetype_font_create("/rodata/lvgl_data/font/Lato-Regular.ttf",
+                                               LV_FREETYPE_FONT_RENDER_MODE_BITMAP,
+                                               24,
+                                               LV_FREETYPE_FONT_STYLE_NORMAL);
+
+    lv_style_set_text_font(&style, font);
+#endif //LVGL_VERSION_MAJOR
     lv_obj_add_style(bg_fps, &style, 0);
 #else
-    lv_obj_set_style_text_font(bg_fps, &ui_font_Title, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(bg_fps, &ui_font_regular, LV_PART_MAIN | LV_STATE_DEFAULT);
 #endif
 
     lv_timer_create(point_callback, 10, 0);

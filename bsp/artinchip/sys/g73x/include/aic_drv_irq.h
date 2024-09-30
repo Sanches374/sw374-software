@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Artinchip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -12,6 +12,12 @@ extern "C" {
 #endif
 
 #include <stdint.h>
+
+#ifdef AIC_GPIO_IRQ_DRV_EN
+#define MAX_IRQ_ENTRY (MAX_IRQn+GPIO_MAX_PIN)
+#else
+#define MAX_IRQ_ENTRY (MAX_IRQn)
+#endif
 
 #define AIC_GPIO_TO_IRQ(GPIOn)(MAX_IRQn + (GPIOn))
 #define AIC_IRQ_TO_GPIO(IRQn)((IRQn) - MAX_IRQn)

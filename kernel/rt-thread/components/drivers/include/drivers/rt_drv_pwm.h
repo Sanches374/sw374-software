@@ -26,6 +26,7 @@
 #define PWM_CMD_GET_FIFO    (RT_DEVICE_CTRL_BASE(PWM) + 10)
 #define PWM_CMD_SET_PUL     (RT_DEVICE_CTRL_BASE(PWM) + 11)
 #define PWM_CMD_SET_OUTPUT  (RT_DEVICE_CTRL_BASE(PWM) + 12)
+#define PWM_CMD_DMA_SET_FIFO (RT_DEVICE_CTRL_BASE(PWM) + 13)
 
 struct rt_pwm_configuration
 {
@@ -52,10 +53,8 @@ struct rt_pwm_configuration
     rt_uint32_t pul_num;
     rt_uint32_t pul_prd;
     rt_uint32_t pul_cmp;
-#ifdef AIC_DMA_DRV
     rt_uint32_t *buf;
     rt_uint32_t buf_len;
-#endif
 #endif
 };
 

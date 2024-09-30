@@ -56,9 +56,12 @@ cc_flages += ' -DWITH_G2D -DWITH_AIC_G2D -DWITH_DEC_IMAGE '
 cc_flages += ' -DWITH_VGCANVAS -DHAS_STDIO -DSTBTT_STATIC '
 cc_flages += ' -DWITH_ASSET_LOADER -DHAS_GET_TIME_US64 '
 cc_flages += ' -DWITH_NANOVG_AGGE '
-cc_flages += ' -DUSE_GUI_MAIN -DHAS_FAST_MEMCPY -DWITH_BITMAP_BGRA'
+cc_flages += ' -DUSE_GUI_MAIN -DHAS_FAST_MEMCPY -DWITH_BITMAP_BGRA '
+cc_flages += ' -DWITH_AIC_CACHE_OPTIMIZE '
 # cc_flages += ' -DENABLE_PERFORMANCE_PROFILE '
 # cc_flages += ' -DHAS_STD_MALLOC '
+# cc_flages += ' -DWITH_AIC_AWTK_DEBUG '
+
 
 # add port g2d
 awtk_port_g2d_cwd = awtk_port_cwd + 'aic_g2d/'

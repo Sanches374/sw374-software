@@ -6,4 +6,8 @@ if LPKG_USING_FREETYPE
     config LPKG_USING_FREETYPE_STATIC
         bool "Compile using FREETYPE static link library"
         default n
+
+config TT_DISABLE_LOAD_HDMX
+    bool "Disable loading hdmx table"
+    default n
 endif

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  * Authors:  dwj <weijie.ding@artinchip.com>
@@ -153,17 +153,27 @@ void hal_cir_disable_receiver(aic_cir_ctrl_t * aic_cir_ctrl)
     writel(reg_val, gen_reg(aic_cir_ctrl->cir_base + CIR_MCR_REG));
 }
 
+void hal_cir_flush_rx_fifo(aic_cir_ctrl_t * aic_cir_ctrl)
+{
+    uint32_t reg_val;
+
+    reg_val = readl(gen_reg(aic_cir_ctrl->cir_base + CIR_MCR_REG));
+    reg_val |= CIR_MCR_RXFIFO_CLR;
+    writel(reg_val, gen_reg(aic_cir_ctrl->cir_base + CIR_MCR_REG));
+}
+
 irqreturn_t hal_cir_irq(int irq_num, void *arg)
 {
-    unsigned int int_status;
-    unsigned int rx_status;
-    unsigned int i, count;
+    unsigned int int_status, rx_status;
+    unsigned int i, count = 0, free_space;
     aic_cir_ctrl_t *aic_cir_ctrl = (aic_cir_ctrl_t *)arg;
     uint8_t *rx_data = &aic_cir_ctrl->rx_data[aic_cir_ctrl->rx_idx];
     uint8_t need_inverse;
 
     int_status = readl(gen_reg(aic_cir_ctrl->cir_base + CIR_INTR_REG)) & 7;
     rx_status = readl(gen_reg(aic_cir_ctrl->cir_base + CIR_RXSTAT_REG));
+    /* Calculate how much free space is left in rx_data */
+    free_space = sizeof(aic_cir_ctrl->rx_data) - aic_cir_ctrl->rx_idx;
 
     /* clear all pending status */
     /* RX Available interrupt is pulse interrupt */
@@ -172,6 +182,7 @@ irqreturn_t hal_cir_irq(int irq_num, void *arg)
     if (int_status & (CIR_INTR_RXB_AVL_INT | CIR_INTR_RX_END_INT)) {
         /* Get the number of data in RXFIFO */
         count = rx_status & 0x3f;
+        count = (count <= free_space) ? count : free_space;
 
         /* Confirm if RXFIFO has data */
         if (!(rx_status & (0x1 << 8))) {
@@ -186,8 +197,15 @@ irqreturn_t hal_cir_irq(int irq_num, void *arg)
         }
     }
 
+    /* If count == free_space, means that there maybe still have some data
+     * in RXFIFO, then flush RXFIFO, because there is no space to store them.
+     */
+    if (count == free_space)
+        hal_cir_flush_rx_fifo(aic_cir_ctrl);
+
     if (int_status & CIR_INTR_RX_OVF_INT) {
         aic_cir_ctrl->rx_flag = 0;
+        hal_cir_flush_rx_fifo(aic_cir_ctrl);
         if (aic_cir_ctrl->callback)
             aic_cir_ctrl->callback(aic_cir_ctrl, CIR_EVENT_ERROR,
                                    aic_cir_ctrl->arg);
@@ -208,7 +226,14 @@ void hal_cir_attach_callback(aic_cir_ctrl_t * aic_cir_ctrl,
     aic_cir_ctrl->arg = arg;
 }
 
+void hal_cir_detach_callback(aic_cir_ctrl_t * aic_cir_ctrl)
+{
+    aic_cir_ctrl->callback = NULL;
+    aic_cir_ctrl->arg = NULL;
+}
+
 void hal_cir_rx_reset_status(aic_cir_ctrl_t * aic_cir_ctrl)
 {
+    memset((void *)aic_cir_ctrl->rx_data, 0, sizeof(aic_cir_ctrl->rx_data));
     aic_cir_ctrl->rx_idx = 0;
 }

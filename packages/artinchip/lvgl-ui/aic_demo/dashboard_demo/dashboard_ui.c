@@ -61,7 +61,7 @@ static int max_speed = 99;
 
 static lv_obj_t *obj_list[17] = { NULL };
 
-LV_FONT_DECLARE(ui_font_Title);
+LV_FONT_DECLARE(ui_font_regular);
 
 static void point_callback(lv_timer_t *tmr)
 {
@@ -209,7 +209,7 @@ void dashboard_ui_init()
     lv_label_set_text(bg_fps, "");
     lv_obj_set_style_text_color(bg_fps, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(bg_fps, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(bg_fps, &ui_font_Title, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(bg_fps, &ui_font_regular, LV_PART_MAIN | LV_STATE_DEFAULT);
 
 #ifdef KERNEL_RTTHREAD
     bg_cpu = lv_label_create(lv_scr_act());
@@ -220,7 +220,7 @@ void dashboard_ui_init()
     lv_label_set_text(bg_cpu, "");
     lv_obj_set_style_text_color(bg_cpu, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(bg_cpu, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(bg_cpu, &ui_font_Title, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(bg_cpu, &ui_font_regular, LV_PART_MAIN | LV_STATE_DEFAULT);
 #endif
 
     static lv_style_t style_bg;

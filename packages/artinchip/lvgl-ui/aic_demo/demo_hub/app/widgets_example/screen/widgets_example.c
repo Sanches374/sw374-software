@@ -24,6 +24,7 @@ static lv_obj_t *keyboard_init(lv_obj_t *parent);
 static lv_obj_t *calendar_init(lv_obj_t *parent);
 static lv_obj_t *table_init(lv_obj_t *parent);
 
+#if LVGL_VERSION_MAJOR == 8
 /* complex menu */
 static lv_obj_t * create_text(lv_obj_t * parent, const char * icon, const char * txt,
                               lv_menu_builder_variant_t builder_variant);
@@ -31,6 +32,7 @@ static lv_obj_t * create_slider(lv_obj_t * parent,
                                 const char * icon, const char * txt, int32_t min, int32_t max, int32_t val);
 static lv_obj_t * create_switch(lv_obj_t * parent,
                                 const char * icon, const char * txt, bool chk);
+#endif
 
 static void ui_widgets_cb(lv_event_t *e);
 static void ui_complex_menu_cb(lv_event_t *e);
@@ -39,9 +41,11 @@ static void ui_calendar_cb(lv_event_t *e);
 static void ui_table_cb(lv_event_t *e);
 static void exit_cb(lv_event_t *e);
 
+#if LVGL_VERSION_MAJOR == 8
 /* complex menu */
 static void back_event_handler(lv_event_t *e);
 static void switch_handler(lv_event_t *e);
+#endif
 
 /* keyboard */
 static void ta_event_cb(lv_event_t *e);
@@ -57,8 +61,9 @@ static void select_disp_obj(lv_obj_t *obj);
 static lv_obj_t *widget_contain_ui;
 /* complex menu */
 static lv_obj_t *complex_menu_ui;
+#if LVGL_VERSION_MAJOR == 8
 static lv_obj_t *root_page;
-
+#endif
 /* keyboard */
 static lv_obj_t *keyboard_ui;
 static lv_obj_t *kb;
@@ -135,7 +140,7 @@ static lv_obj_t *widget_btn_init(lv_obj_t *parent)
     lv_obj_clear_flag(btn_contain, LV_OBJ_FLAG_SCROLLABLE);
 
     lv_obj_set_flex_flow(btn_contain, LV_FLEX_FLOW_ROW_WRAP);
-    lv_obj_set_flex_align(btn_contain, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_SPACE_BETWEEN);
+    lv_obj_set_flex_align(btn_contain, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_SPACE_BETWEEN);
 
     for (int i = 0; i < sizeof(list) / sizeof(list[0]) - 1; i++) {
         lv_obj_t *btn = widget_btn_ui_create(btn_contain);
@@ -150,6 +155,7 @@ static lv_obj_t *widget_btn_init(lv_obj_t *parent)
 
 lv_obj_t *complex_menu_init(lv_obj_t *parent)
 {
+#if LVGL_VERSION_MAJOR == 8
     lv_obj_t * menu = lv_menu_create(parent);
     lv_obj_set_align(menu, LV_ALIGN_CENTER);
     lv_obj_set_style_bg_color(menu, lv_theme_get_color_primary(NULL), 0);
@@ -245,8 +251,14 @@ lv_obj_t *complex_menu_init(lv_obj_t *parent)
     lv_menu_set_sidebar_page(menu, root_page);
 
     lv_event_send(lv_obj_get_child(lv_obj_get_child(lv_menu_get_cur_sidebar_page(menu), 0), 0), LV_EVENT_CLICKED, NULL);
-
     return menu;
+#else
+    lv_obj_t * label = lv_label_create(parent);
+    lv_label_set_text(label, "Did't support menu example!!!");
+    lv_obj_set_align(label, LV_ALIGN_CENTER);
+    lv_obj_set_style_text_color(label, lv_color_hex(0xffffff), 0);
+    return label;
+#endif
 }
 
 lv_obj_t *keyboard_init(lv_obj_t *parent)
@@ -362,11 +374,15 @@ lv_obj_t *table_init(lv_obj_t *parent)
     lv_table_set_col_width(table, 1, LV_HOR_RES * 0.3);
 
     /*Add an event callback to to apply some custom drawing*/
+#if LVGL_VERSION_MAJOR == 8
     lv_obj_add_event_cb(table, draw_part_event_cb, LV_EVENT_DRAW_PART_BEGIN, NULL);
-
+#else
+    lv_obj_add_event_cb(table, draw_part_event_cb, LV_EVENT_DRAW_TASK_ADDED, NULL);
+    lv_obj_add_flag(table, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
+#endif
     return table;
 }
-
+#if LVGL_VERSION_MAJOR == 8
 static lv_obj_t * create_text(lv_obj_t * parent, const char * icon, const char * txt,
                               lv_menu_builder_variant_t builder_variant)
 {
@@ -421,6 +437,7 @@ static lv_obj_t * create_switch(lv_obj_t * parent, const char * icon, const char
 
     return obj;
 }
+#endif
 
 static void ui_complex_menu_cb(lv_event_t *e)
 {
@@ -479,15 +496,22 @@ static void exit_cb(lv_event_t * e)
         }
     }
 }
-
+#if LVGL_VERSION_MAJOR == 8
 static void back_event_handler(lv_event_t * e)
 {
     lv_obj_t * obj = lv_event_get_target(e);
     lv_obj_t * menu = lv_event_get_user_data(e);
 
     if(lv_menu_back_btn_is_root(menu, obj)) {
-        lv_obj_t * mbox1 = lv_msgbox_create(NULL, "Hello", "Root back btn click.", NULL, true);
-        lv_obj_center(mbox1);
+#if LVGL_VERSION_MAJOR == 8
+    lv_obj_t * mbox1 = lv_msgbox_create(NULL, "Hello", "Root back btn click.", NULL, true);
+#else
+    lv_obj_t * mbox1 = lv_msgbox_create(NULL);
+    lv_msgbox_add_title(mbox1, "Hello");
+    lv_msgbox_add_text(mbox1, "Root back btn click.");
+    lv_msgbox_add_close_button(mbox1);
+#endif
+    lv_obj_center(mbox1);
     }
 }
 
@@ -508,7 +532,7 @@ static void switch_handler(lv_event_t * e)
         }
     }
 }
-
+#endif
 static void ta_event_cb(lv_event_t * e)
 {
     lv_event_code_t code = lv_event_get_code(e);
@@ -533,7 +557,7 @@ static void calender_event_handler(lv_event_t * e)
         }
     }
 }
-
+#if LVGL_VERSION_MAJOR == 8
 static void draw_part_event_cb(lv_event_t * e)
 {
     lv_obj_t * obj = lv_event_get_target(e);
@@ -559,6 +583,47 @@ static void draw_part_event_cb(lv_event_t * e)
         }
     }
 }
+#else
+static void draw_part_event_cb(lv_event_t * e)
+{
+    lv_draw_task_t * draw_task = lv_event_get_draw_task(e);
+    lv_draw_dsc_base_t * base_dsc = draw_task->draw_dsc;
+    /*If the cells are drawn...*/
+    if(base_dsc->part == LV_PART_ITEMS) {
+        uint32_t row = base_dsc->id1;
+        uint32_t col = base_dsc->id2;
+
+        /*Make the texts in the first cell center aligned*/
+        if(row == 0) {
+            lv_draw_label_dsc_t * label_draw_dsc = lv_draw_task_get_label_dsc(draw_task);
+            if(label_draw_dsc) {
+                label_draw_dsc->align = LV_TEXT_ALIGN_CENTER;
+            }
+            lv_draw_fill_dsc_t * fill_draw_dsc = lv_draw_task_get_fill_dsc(draw_task);
+            if(fill_draw_dsc) {
+                fill_draw_dsc->color = lv_color_mix(lv_theme_get_color_primary(NULL), fill_draw_dsc->color, LV_OPA_20);
+                fill_draw_dsc->opa = LV_OPA_COVER;
+            }
+        }
+        /*In the first column align the texts to the right*/
+        else if(col == 0) {
+            lv_draw_label_dsc_t * label_draw_dsc = lv_draw_task_get_label_dsc(draw_task);
+            if(label_draw_dsc) {
+                label_draw_dsc->align = LV_TEXT_ALIGN_RIGHT;
+            }
+        }
+
+        /*Make every 2nd row grayish*/
+        if((row != 0 && row % 2) == 0) {
+            lv_draw_fill_dsc_t * fill_draw_dsc = lv_draw_task_get_fill_dsc(draw_task);
+            if(fill_draw_dsc) {
+                fill_draw_dsc->color = lv_color_mix(lv_theme_get_color_secondary(NULL), fill_draw_dsc->color, LV_OPA_10);
+                fill_draw_dsc->opa = LV_OPA_COVER;
+            }
+        }
+    }
+}
+#endif
 
 static void select_disp_obj(lv_obj_t *obj)
 {

@@ -15,7 +15,7 @@
  *
  */
 
-
+#include "aic_osal.h"
 #include <freetype/internal/ftdebug.h>
 #include <freetype/internal/ftobjs.h>
 #include <freetype/internal/ftstream.h>
@@ -538,11 +538,14 @@
     FT_Byte*   p;
     FT_Byte*   limit;
 
-
+#ifndef TT_DISABLE_LOAD_HDMX
     /* this table is optional */
     error = face->goto_table( face, TTAG_hdmx, stream, &table_size );
     if ( error || table_size < 8 )
       return FT_Err_Ok;
+#else
+    return FT_Err_Ok;
+#endif
 
     if ( FT_FRAME_EXTRACT( table_size, face->hdmx_table ) )
       goto Exit;

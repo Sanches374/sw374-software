@@ -45,22 +45,22 @@ static int usb_host_id;
 
 #define ACK 0x06
 #define CHECK_TIME_INTERVAL_US 10000
-#if defined(LPKG_USING_USERID)
-static void uart_userid_sync(void)
+#if defined(LPKG_USING_USERID) || defined(AICUPG_FORCE_UPGRADE_SUPPORT)
+static void uart_keywords_sync(char *keywords, int klen)
 {
     int i = 0;
-    char c, *p = "AIBURNID\n";
+    char c;
 
-    /* Send SYN + AIBURNID to Host, if AiBurnID Tool resp in 10ms, then stop
+    /* Send SYN + keywords to Host, if Tool resp in 10ms, then stop
      * booting and go into upgmode
      */
     c = 0x16; /* SYN */
     uart_putchar(0, c);
-    for (i = 0; i < 9; i++)
-        uart_putchar(0, p[i]);
+    for (i = 0; i < klen; i++)
+        uart_putchar(0, keywords[i]);
 }
 
-static bool uart_burn_userid_detect(void)
+static bool uart_keywords_detect(char *keywords, int klen)
 {
     u64 start, cur;
     bool ret = false;
@@ -69,7 +69,7 @@ static bool uart_burn_userid_detect(void)
     if (AIC_BOOTLOADER_CONSOLE_UART != 0)
         uart_init(0);
 
-    uart_userid_sync();
+    uart_keywords_sync(keywords, klen);
 
     start = aic_get_time_us();
     while (1) {
@@ -86,6 +86,20 @@ static bool uart_burn_userid_detect(void)
     }
 
     return ret;
+}
+#endif
+
+#if defined(LPKG_USING_USERID)
+static bool uart_burn_userid_detect(void)
+{
+    return uart_keywords_detect("AIBURNID\n", sizeof("AIBURNID\n"));
+}
+#endif
+
+#if defined(AICUPG_FORCE_UPGRADE_SUPPORT)
+static bool uart_force_upgrade_detect(void)
+{
+    return uart_keywords_detect("AIBURNFORCE\n", sizeof("AIBURNFORCE\n"));
 }
 #endif
 
@@ -145,6 +159,28 @@ static bool userid_check(void)
     if (uart_burn_userid_detect()) {
         upg_type = UPG_TYPE_UART;
         upg_mode = UPG_MODE_USERID;
+        return true;
+    }
+#endif
+
+    return false;
+}
+
+static bool force_upg_check(void)
+{
+#if defined(AICUPG_FORCE_UPGRADE_SUPPORT)
+    /*
+     * 1. if USB is connecting to PC, use USB to force upgrade
+     * 2. Otherwise try to check uart mode
+     */
+    if (usbd_connect_pc_check()) {
+        upg_type = UPG_TYPE_USB;
+        upg_mode = UPG_MODE_FORCE;
+        return true;
+    }
+    if (uart_force_upgrade_detect()) {
+        upg_type = UPG_TYPE_UART;
+        upg_mode = UPG_MODE_FORCE;
         return true;
     }
 #endif
@@ -213,7 +249,7 @@ int upg_type_check(enum boot_device bd)
      */
     usb_host_id = usbh_get_connect_id();
     boot_time_trace("UDISK checked");
-    if (usb_host_id > 0) {
+    if (usb_host_id >= 0) {
         upg_type = UPG_TYPE_UDISK;
         upg_mode = UPG_MODE_NORMAL;
         return 0;
@@ -227,6 +263,21 @@ int upg_type_check(enum boot_device bd)
         } else {
             upg_type = UPG_TYPE_UART;
             upg_mode = UPG_MODE_USERID;
+        }
+        return 0;
+    }
+
+    /*
+     * Force upgrading mode, jump into USB/UART loop and checking
+     * This checking should behind of USERID checking
+     */
+    if (force_upg_check()) {
+        if (usbd_connect_pc_check()) {
+            upg_type = UPG_TYPE_USB;
+            upg_mode = UPG_MODE_FORCE;
+        } else {
+            upg_type = UPG_TYPE_UART;
+            upg_mode = UPG_MODE_FORCE;
         }
         return 0;
     }
@@ -283,33 +334,33 @@ int bl_upgmode_detect(enum boot_device bd)
         }
         if (upg_type == UPG_TYPE_USB) {
             if (upg_mode == UPG_MODE_NORMAL) {
-                RUNCMD("aicupg usb 0");
-                cont_boot = 0;
+                ret = RUNCMD("aicupg usb 0");
             } else if (upg_mode == UPG_MODE_USERID) {
-                /* If no host connect to device, skip it and continue to boot
-                 * app
-                 */
+                /* If no host connect to device, skip it and continue to boot app */
                 ret = RUNCMD("aicupg usb 0 userid");
-                if (ret)
-                    cont_boot = 1;
-                else
-                    cont_boot = 0;
+            } else if (upg_mode == UPG_MODE_FORCE) {
+                /* If no host connect to device, skip it and continue to boot app */
+                ret = RUNCMD("aicupg usb 0 force");
             }
+            if (ret)
+                cont_boot = 1;
+            else
+                cont_boot = 0;
         }
         if (upg_type == UPG_TYPE_UART) {
             if (upg_mode == UPG_MODE_NORMAL) {
                 ret = RUNCMD("aicupg uart 0");
-                cont_boot = 0;
             } else if (upg_mode == UPG_MODE_USERID) {
-                /* If no host connect to device, skip it and continue to boot
-                 * app
-                 */
+                /* If no host connect to device, skip it and continue to boot app */
                 ret = RUNCMD("aicupg uart 0 userid");
-                if (ret)
-                    cont_boot = 1;
-                else
-                    cont_boot = 0;
+            } else if (upg_mode == UPG_MODE_FORCE) {
+                /* If no host connect to device, skip it and continue to boot app */
+                ret = RUNCMD("aicupg usb 0 force");
             }
+            if (ret)
+                cont_boot = 1;
+            else
+                cont_boot = 0;
         }
     }
 

@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) 2006-2021, RT-Thread Development Team
  *
  * SPDX-License-Identifier: Apache-2.0
@@ -29,7 +29,7 @@ void *_malloc_r(struct _reent *ptr, size_t size)
 {
     void* result;
 
-#if defined(KERNEL_BAREMETAL)
+#if defined(KERNEL_BAREMETAL) || defined(KERNEL_UCOS_II)
     result = (void*)aic_tlsf_malloc(MEM_DEFAULT, size);
 #elif defined(KERNEL_FREERTOS)
     result = pvPortMalloc(size);
@@ -48,7 +48,7 @@ void *_realloc_r(struct _reent *ptr, void *old, size_t newlen)
 {
     void* result;
 
-#if defined(KERNEL_BAREMETAL)
+#if defined(KERNEL_BAREMETAL) || defined(KERNEL_UCOS_II)
     result = (void*)aic_tlsf_realloc(MEM_DEFAULT, old, newlen);
 #elif defined(KERNEL_FREERTOS)
     if (old)
@@ -69,7 +69,7 @@ void *_calloc_r(struct _reent *ptr, size_t size, size_t len)
 {
     void* result;
 
-#if defined(KERNEL_BAREMETAL)
+#if defined(KERNEL_BAREMETAL) || defined(KERNEL_UCOS_II)
     result = (void*)aic_tlsf_calloc(MEM_DEFAULT, size, len);
 #elif defined(KERNEL_FREERTOS)
     result = pvPortMalloc(size*len);
@@ -89,7 +89,7 @@ void *_calloc_r(struct _reent *ptr, size_t size, size_t len)
 
 void _free_r(struct _reent *ptr, void *addr)
 {
-#if defined(KERNEL_BAREMETAL)
+#if defined(KERNEL_BAREMETAL) || defined(KERNEL_UCOS_II)
     aic_tlsf_free(MEM_DEFAULT, addr);
 #elif defined(KERNEL_FREERTOS)
     vPortFree(addr);

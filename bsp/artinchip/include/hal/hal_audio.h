@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -24,6 +24,7 @@
 #define AUDIO_TRANSFER_TYPE_AMIC            6
 
 #define MAX_VOLUME_0DB                      160
+#define AIC_AMIC_DEF_VAL                    220
 
 struct aic_audio_config
 {

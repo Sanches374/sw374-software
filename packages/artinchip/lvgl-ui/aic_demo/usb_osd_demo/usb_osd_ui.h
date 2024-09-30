@@ -40,7 +40,9 @@ enum screen_blank_delay {
 enum screen_lock_mode {
     DISPLAY_LOGO,
     DISPLAY_PICTURES,
-    //DISPLAY_VIDEO,
+#ifdef LV_USB_OSD_PLAY_VIDEO
+    DISPLAY_VIDEO,
+#endif
     BLANK_SCREEN,
 
     NEVER_LOCK_MODE,
@@ -51,6 +53,15 @@ enum screen_lock_mode {
 
 void usb_osd_ui_init(void);
 bool is_usb_disp_suspend(void);
+void usb_osd_modify_blank_status(bool enable);
+void back_video_screen(void);
+void back_settings_screen(void);
+
+void lv_load_video_screen(void);
+
+#if !defined(LV_USB_OSD_PLAY_VIDEO)
+#define DISPLAY_VIDEO       (-1)
+#endif
 
 #ifdef __cplusplus
 } /* extern "C" */

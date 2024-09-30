@@ -52,12 +52,12 @@ source "bsp/artinchip/drv/uart/Kconfig.dev"
 #---------------------------
 
 config AIC_USING_I2C0
-    bool "Using I2c0"
+    bool "Using I2C0"
     default n
     select AIC_I2C_DRV
 
 config AIC_USING_I2C1
-    bool "Using I2c1"
+    bool "Using I2C1"
     default n
     select AIC_I2C_DRV
 
@@ -196,6 +196,11 @@ menu "SPI1 Parameter"
         int "RX Data Sample Delay"
         default 2
         range 0 4
+
+    config AIC_QSPI1_DYNAMIC_DMA
+        depends on AIC_USING_DMA
+        bool "Dynamic DMA channel SPI1"
+        default n
 
 endmenu
 
@@ -348,7 +353,6 @@ config AIC_USING_AUDIO
     bool "Using Audio"
     default n
     select AIC_AUDIO_DRV
-    select AIC_USING_DMA
 
 source "bsp/artinchip/drv/audio/Kconfig"
 

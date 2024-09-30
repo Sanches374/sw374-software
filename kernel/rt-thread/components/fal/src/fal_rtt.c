@@ -15,6 +15,7 @@
 #include <rtthread.h>
 #include <rtdevice.h>
 #include <string.h>
+#include <aic_common.h>
 
 /* ========================== block device ======================== */
 struct fal_blk_device {
@@ -100,66 +101,77 @@ static rt_size_t blk_dev_read(rt_device_t dev, rt_off_t pos, void* buffer, rt_si
     return ret;
 }
 
-static rt_size_t blk_dev_write(rt_device_t dev, rt_off_t pos, const void* buffer, rt_size_t size)
+static rt_size_t __attribute__((unused)) blk_dev_cal_phy_len(rt_device_t dev, rt_off_t pos, rt_size_t size, rt_size_t cluster_size)
+{
+    rt_size_t phy_len = 0;
+    rt_uint8_t phy_sector_num = 0;
+    struct fal_blk_device *part = (struct fal_blk_device*) dev;
+
+    assert(part != RT_NULL);
+
+    phy_sector_num = roundup(pos % cluster_size + size, cluster_size);
+    phy_len = phy_sector_num * part->geometry.bytes_per_sector;
+
+    return phy_len;
+}
+
+static rt_size_t blk_dev_write(rt_device_t dev, rt_off_t pos, const void* buffer, rt_size_t sectors)
 {
 #ifndef AIC_FATFS_ENABLE_WRITE_IN_SPINOR
     log_e("This config only supports read!\n");
-    return size;
+    return sectors;
 #else
 #define FATFS_CLUSTER_SIZE AIC_USING_FS_IMAGE_TYPE_FATFS_CLUSTER_SIZE
-    int ret = 0;
-    struct fal_blk_device *part;
+    struct fal_blk_device *part = (struct fal_blk_device*) dev;
+    rt_size_t total_phy_len, total_copy_len;
+    rt_size_t do_phy_len, do_copy_len;
     rt_off_t phy_pos, buf_pos;
-    rt_size_t phy_size, buf_size;
-    rt_uint32_t align_sector = 0;
-    rt_uint8_t align_cnt = 0;
+    int ret = 0;
 
-    part = (struct fal_blk_device*) dev;
     assert(part != RT_NULL);
 
-    align_sector = pos - pos % FATFS_CLUSTER_SIZE;
-    align_cnt = pos % FATFS_CLUSTER_SIZE + size;
-    align_cnt = (align_cnt + FATFS_CLUSTER_SIZE - 1) / FATFS_CLUSTER_SIZE * FATFS_CLUSTER_SIZE;
-
-    log_d("pos = %ld size = %d!\n", pos, size);
-    log_d("align_sector = %ld align_cnt = %d!\n", align_sector, align_cnt);
-
-    phy_pos = align_sector * part->geometry.bytes_per_sector;
-    phy_size = align_cnt * part->geometry.bytes_per_sector;
+    total_phy_len = blk_dev_cal_phy_len(dev, pos, sectors, FATFS_CLUSTER_SIZE);
     buf_pos = pos % FATFS_CLUSTER_SIZE * part->geometry.bytes_per_sector;
-    buf_size = size * part->geometry.bytes_per_sector;
+    phy_pos = (pos - pos % FATFS_CLUSTER_SIZE) * part->geometry.bytes_per_sector;
+    total_copy_len = sectors * part->geometry.bytes_per_sector;
 
-    memset(part->buf, 0xFF, part->length);
+    while (total_copy_len != 0) {
+        if (total_phy_len > part->length) {
+            do_phy_len = part->length;
+            do_copy_len = part->length - pos % FATFS_CLUSTER_SIZE * part->geometry.bytes_per_sector;
+        } else {
+            do_phy_len = total_phy_len;
+            do_copy_len = total_copy_len;
+        }
 
-    ret = fal_partition_read(part->fal_part, phy_pos, part->buf, phy_size);
-    if (ret != (int) phy_size)
-    {
-        log_e("fal partition read data size failed!\n");
-        return 0;
+        memset(part->buf, 0xFF, part->length);
+        ret = fal_partition_read(part->fal_part, phy_pos, part->buf, do_phy_len);
+        if (ret != (int)(do_phy_len)) {
+            log_e("FAL partition read data size failed!\n");
+            return 0;
+        }
+
+        rt_memcpy(part->buf + buf_pos, buffer, do_copy_len);
+        ret = fal_partition_erase(part->fal_part, phy_pos, do_phy_len);
+        if (ret != (int)(do_phy_len)) {
+            log_e("FAL partition erase data size failed!\n");
+            return 0;
+        }
+
+        ret = fal_partition_write(part->fal_part, phy_pos, part->buf, do_phy_len);
+        if (ret != (int)(do_phy_len)) {
+            log_e("FAL partition write data size failed!\n");
+            return 0;
+        }
+
+        phy_pos += do_phy_len;
+        pos += do_copy_len / part->geometry.bytes_per_sector;
+        buf_pos = pos % FATFS_CLUSTER_SIZE * part->geometry.bytes_per_sector;
+        total_copy_len -= do_copy_len;
+        total_phy_len -= do_phy_len;
     }
 
-    rt_memcpy(part->buf + buf_pos, buffer, buf_size);
-
-    ret = fal_partition_erase(part->fal_part, phy_pos, phy_size);
-    if (ret != (int) phy_size)
-    {
-        log_e("fal partition erase data size failed!\n");
-        return 0;
-    }
-
-    ret = fal_partition_write(part->fal_part, phy_pos, part->buf, phy_size);
-    if (ret != (int) phy_size)
-    {
-        log_e("fal partition write data size failed!\n");
-        return 0;
-    }
-    else
-    {
-        ret = size;
-    }
-
-    return ret;
-
+    return sectors;
 #endif
 }
 

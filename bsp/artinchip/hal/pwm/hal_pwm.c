@@ -139,7 +139,7 @@ int hal_pwm_set_tb(u32 ch, int freq)
     }
 
     if ((freq > arg->clk_rate) || (freq < (arg->clk_rate / (PWM_TBCTL_CLKDIV_MAX + 1)))) {
-        hal_log_err("ch%d:time-base:%dHz is out of range[%d, %d]Hz\n",
+        hal_log_err("ch%d:time-base:%dHz is out of range[%d, %d]Hz\n", ch, freq,
             (arg->clk_rate / (PWM_TBCTL_CLKDIV_MAX + 1)), arg->clk_rate);
         return -EINVAL;
     }

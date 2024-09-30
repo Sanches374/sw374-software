@@ -47,6 +47,8 @@ static void set_fwc_meta_cmdstart(struct upg_cmd *cmd, s32 cmd_data_len)
     }
 
     memset(fwc_info_data, 0, sizeof(struct fwc_info));
+    fwc_info_data->burn_result = -1;
+    fwc_info_data->run_result = -1;
     cmd->priv = fwc_info_data;
 }
 
@@ -295,8 +297,11 @@ static s32 send_fwc_data_cmd_write_input_data(struct upg_cmd *cmd, u8 *buf,
         }
 
         clen = ret;
-        if (fwc->trans_size >= fwc->meta.size)
+        if (fwc->trans_size >= fwc->meta.size) {
+            fwc->burn_result = 0;
+            fwc->run_result = 0;
             cmd_state_set_next(cmd, CMD_STATE_RESP);
+        }
     }
 
     pr_debug("%s, l: %d\n", __func__, __LINE__);
@@ -579,7 +584,7 @@ static s32 get_fwc_run_result_cmd_read_output_data(struct upg_cmd *cmd, u8 *buf,
         return siz;
 
     if (cmd->state == CMD_STATE_DATA_OUT) {
-        val = fwc->run_result;
+        val = fwc->run_result ? 1 : 0;
         memcpy(buf, &val, 4);
         siz += 4;
         cmd_state_set_next(cmd, CMD_STATE_END);
@@ -933,6 +938,7 @@ static void read_fwc_data_cmd_end(struct upg_cmd *cmd)
     struct fwc_info *fwc;
 
     fwc = (struct fwc_info *)cmd->priv;
+    (void)fwc;
 
     pr_debug("%s\n", __func__);
     if (cmd->state == CMD_STATE_END) {

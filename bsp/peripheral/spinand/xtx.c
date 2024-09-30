@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2023-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -60,12 +60,12 @@ const struct aic_spinand_info xtx_spinand_table[] = {
 const struct aic_spinand_info *xtx_spinand_detect(struct aic_spinand *flash)
 {
     /*XT26G11C XT26G02C device id 1 Bity*/
-    u8 *Id = flash->id.data;
+    u8 *id = flash->id.data;
 
-    if (Id[0] != SPINAND_MFR_XTX)
+    if (id[0] != SPINAND_MFR_XTX)
         return NULL;
 
-    return spinand_match_and_init(Id[1], xtx_spinand_table,
+    return spinand_match_and_init(&id[1], xtx_spinand_table,
                                   ARRAY_SIZE(xtx_spinand_table));
 };
 

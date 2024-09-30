@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  * Authors:  dwj <weijie.ding@artinchip.com>
@@ -43,12 +43,6 @@ again:
             else
                 return -EINVAL;
 
-            if (cir_check_in_range(tmp_data, 2 * RC5_UNIT, RC5_MARGIN_CYCLES)) {
-                tmp_data -= RC5_UNIT;
-                state = RC5_STATE_BIT_START;
-                goto again;
-            }
-
             if (cir_check_in_range(tmp_data, RC5_UNIT, RC5_MARGIN_CYCLES))
                 state = RC5_STATE_BIT_START;
             break;
@@ -68,6 +62,11 @@ again:
             state = RC5_STATE_BIT_END;
             break;
         case RC5_STATE_BIT_END:
+            if (cir_check_greater(tmp_data, RC5_TRAILER, RC5_MARGIN_CYCLES)) {
+                state = RC5_STATE_TRAILER;
+                goto again;
+            }
+
             if (cir_check_in_range(tmp_data, 2 * RC5_UNIT, RC5_MARGIN_CYCLES)) {
                 tmp_data -= RC5_UNIT;
                 state = RC5_STATE_BIT_START;
@@ -121,9 +120,9 @@ int ir_raw_encode_rc5(uint32_t raw, uint8_t *tx_data)
         isBit1 = !!(raw & i);
         if (isBit1) {
             /* encode low level */
-            if (previous_level == 0)
+            if (previous_level == 0) {
                 tx_data[tx_idx] += RC5_UNIT;
-            else {
+            } else {
                 tx_idx++;
                 tx_data[tx_idx] = RC5_UNIT;
                 previous_level = tx_data[tx_idx] & 0x80;
@@ -135,9 +134,9 @@ int ir_raw_encode_rc5(uint32_t raw, uint8_t *tx_data)
             previous_level = tx_data[tx_idx] & 0x80;
         } else {
             /* encode high level */
-            if (previous_level)
+            if (previous_level) {
                 tx_data[tx_idx] += RC5_UNIT;
-            else {
+            } else {
                 tx_idx++;
                 tx_data[tx_idx] = (1 << 7) | RC5_UNIT;
                 previous_level = tx_data[tx_idx] & 0x80;

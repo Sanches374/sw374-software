@@ -105,6 +105,37 @@ image_manager_t* image_manager_init(image_manager_t* imm) {
   return imm;
 }
 
+#ifdef WITH_AIC_CACHE_OPTIMIZE
+unsigned int aic_cma_buf_get_size(void);
+ret_t image_manager_cache_sort(image_manager_t* imm)
+{
+  return_value_if_fail(imm != NULL, RET_BAD_PARAMS);
+  if (imm->images.size == 0) {
+    return RET_OK;
+  }
+
+  darray_sort(&(imm->images), (tk_compare_t)bitmap_cache_cmp_access_time_dec);
+  return RET_OK;
+}
+
+ret_t image_manager_clear_cache_one(image_manager_t* imm) {
+  bitmap_cache_t* iter = NULL;
+  return_value_if_fail(imm != NULL, RET_BAD_PARAMS);
+  if (imm->images.size == 0) {
+    return RET_OK;
+  }
+
+  iter = (bitmap_cache_t*)darray_pop(&(imm->images));
+  if (iter) {
+    log_debug("clear_cache_one: cma_mem_size=%u nr=%u\n", aic_cma_buf_get_size(),
+            imm->images.size);
+    bitmap_cache_destroy(iter);
+  }
+
+  return RET_OK;
+}
+#endif
+
 static ret_t image_manager_clear_cache(image_manager_t* imm) {
   bitmap_cache_t* iter = NULL;
   return_value_if_fail(imm != NULL, RET_BAD_PARAMS);
@@ -117,11 +148,16 @@ static ret_t image_manager_clear_cache(image_manager_t* imm) {
   do {
     iter = (bitmap_cache_t*)darray_pop(&(imm->images));
     bitmap_cache_destroy(iter);
-    log_debug("clear cache: mem_size_of_cached_images=%u nr=%u", imm->mem_size_of_cached_images,
+    log_debug("clear cache: mem_size_of_cached_images=%u nr=%u\n", imm->mem_size_of_cached_images,
               imm->images.size);
+#ifdef WITH_AIC_CACHE_OPTIMIZE
+  /* judging based on actual memory */
+  } while (imm->images.size > 0 &&
+           imm->mem_size_of_cached_images > aic_cma_buf_get_size());
+#else
   } while (imm->images.size > 0 &&
            imm->mem_size_of_cached_images > imm->max_mem_size_of_cached_images);
-
+#endif
   return RET_OK;
 }
 

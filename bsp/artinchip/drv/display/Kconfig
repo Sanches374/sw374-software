@@ -122,11 +122,18 @@ config AIC_DISP_COLOR_BLOCK
     depends on AIC_DISPLAY_DRV
 
 config AIC_DISPLAY_DITHER
-    bool "Enable Display Dither"
+    bool
+    depends on (AIC_LVDS_JEIDA_18BIT  || AIC_PRGB_18BIT_LD || \
+                AIC_PRGB_18BIT_HD     || AIC_PRGB_16BIT_LD || \
+                AIC_PRGB_16BIT_HD     || AICFB_ARGB8888    || \
+                AICFB_ABGR8888        || AICFB_XRGB8888    || \
+                AICFB_RGB888)         && (!AICFB_RGB565    && !AICFB_ARGB1555)
+
+config AIC_DISABLE_DITHER
+    bool "Disable Display Dither"
     default n
-    depends on AIC_LVDS_JEIDA_18BIT || AIC_PRGB_18BIT_LD || \
-               AIC_PRGB_18BIT_HD    || AIC_PRGB_16BIT_LD || \
-               AIC_PRGB_16BIT_HD
+    depends on AIC_DISPLAY_DITHER
+
 choice
     prompt "framebuffer rotation degree"
     default AICFB_ROTATE_0

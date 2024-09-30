@@ -440,16 +440,16 @@ static int spinand_reset(struct aic_spinand *flash)
 }
 
 const struct aic_spinand_info *
-spinand_match_and_init(u8 ID, const struct aic_spinand_info *table,
+spinand_match_and_init(u8 *devid, const struct aic_spinand_info *table,
                        u32 table_size)
 {
     u32 i;
 
     for (i = 0; i < table_size; i++) {
-        if (ID == table[i].devid) /* Match devid? */
-        {
-            return &table[i];
-        }
+        const struct aic_spinand_info *info = &table[i];
+        if (memcmp(devid, info->devid.id, info->devid.len))
+            continue;
+        return &table[i];
     }
     return NULL;
 }

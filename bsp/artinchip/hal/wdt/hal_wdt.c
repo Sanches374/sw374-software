@@ -111,7 +111,6 @@ void hal_wdt_reg_protect(u8 enable)
     if (enable) {
         val = readl(WDT_REG_CTL);
         writel(val | WDT_REG_WR_DIS, WDT_REG_CTL);
-
         /* wdt clock protect */
         val = 0;
         val = readl(CMU_BASE + CLK_WDT_REG);

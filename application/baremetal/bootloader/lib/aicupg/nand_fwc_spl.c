@@ -1,13 +1,16 @@
 /*
- * Copyright (c) 2023, Artinchip Technology Co., Ltd
+ * Copyright (c) 2023-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
- * Xiong Hao <hao.xiong@artinchip.com>
+ * Authors:  Xiong Hao <hao.xiong@artinchip.com>
  */
+
 #include <stdlib.h>
 #include <string.h>
 #include <aicupg.h>
+#include <aic_utils.h>
+#include <aic_crc32.h>
 #include <spinand.h>
 #include <spienc.h>
 #include <mtd.h>
@@ -348,20 +351,27 @@ out:
 /*
  * Write SPL image to flash blocks
  */
-static s32 nand_fwc_spl_program(struct aicupg_nand_spl *spl)
+static s32 nand_fwc_spl_program(struct fwc_info *fwc, struct aicupg_nand_spl *spl)
 {
-    u8 *page_data = NULL, *p, *end;
+    u8 *page_data = NULL, *rd_page_data = NULL, *p, *end;
     struct nand_page_table *pt = NULL;
     ulong offset;
     u32 data_size, blkidx, blkcnt, pa, pgidx, slice_size;
-    u32 trans_size;
+    u32 trans_size, trans_crc, partition_crc;
     u32 page_per_blk;
-    s32 ret, i;
+    s32 ret, i, calc_len;
 
     pt = malloc(PAGE_TABLE_USE_SIZE);
     page_data = malloc(PAGE_MAX_SIZE);
     if (!page_data) {
         pr_err("malloc page_data failed.\n");
+        ret = -ENOMEM;
+        goto out;
+    }
+
+    rd_page_data = malloc(PAGE_MAX_SIZE);
+    if (!rd_page_data) {
+        pr_err("malloc rd_page_data failed.\n");
         ret = -ENOMEM;
         goto out;
     }
@@ -409,8 +419,8 @@ static s32 nand_fwc_spl_program(struct aicupg_nand_spl *spl)
     }
 
     /* Write image data to page */
-
-    /* Write image data to page */
+    trans_crc = 0;
+    partition_crc = 0;
     trans_size = 0;
     p = spl->image_buf;
     end = p + spl->buf_size;
@@ -440,14 +450,42 @@ static s32 nand_fwc_spl_program(struct aicupg_nand_spl *spl)
             goto out;
         }
 
+        // Read data to calc crc
+        ret = mtd_read(spl->mtd, offset, rd_page_data, spl->mtd->writesize);
+        if (ret) {
+            pr_err("Read SPL page %d failed.\n", pgidx);
+            ret = -1;
+            goto out;
+        }
+
+        if ((trans_size + data_size) > fwc->meta.size)
+            calc_len = fwc->meta.size % slice_size;
+        else
+            calc_len = slice_size;
+
+        partition_crc = crc32(partition_crc, rd_page_data, calc_len);
+#ifdef AICUPG_SINGLE_TRANS_BURN_CRC32_VERIFY
+        trans_crc = crc32(trans_crc, page_data, calc_len);
+        if (trans_crc != partition_crc) {
+            pr_err("calc_len:%d\n", calc_len);
+            pr_err("crc err at trans len %u\n", trans_size);
+            pr_err("trans crc:0x%x, partition crc:0x%x\n", trans_crc, partition_crc);
+            ret = -1;
+            goto out;
+        }
+#endif
         trans_size += data_size;
     }
+    fwc->calc_partition_crc = partition_crc;
+    fwc->calc_trans_crc = trans_crc;
 
 out:
     if (page_data)
         free(page_data);
     if (pt)
         free(pt);
+    if (rd_page_data)
+        free(rd_page_data);
     return ret;
 }
 
@@ -619,7 +657,7 @@ s32 nand_fwc_spl_prepare(struct aicupg_nand_priv *priv, u32 datasiz, u32 blksiz)
  * Only write to RAM buffer, and begin to program NAND blocks when rx is
  * finished.
  */
-s32 nand_fwc_spl_write(u32 totalsiz, u8 *buf, s32 len)
+s32 nand_fwc_spl_write(struct fwc_info *fwc, u8 *buf, s32 len)
 {
     struct aicupg_nand_spl *spl = &g_nand_spl;
     s32 ret;
@@ -632,9 +670,9 @@ s32 nand_fwc_spl_write(u32 totalsiz, u8 *buf, s32 len)
     memcpy(dst, buf, len);
     spl->rx_size += len;
 
-    if (spl->rx_size >= totalsiz) {
+    if (spl->rx_size >= fwc->meta.size) {
         /* SPL image rx is finished, start to program */
-        ret = nand_fwc_spl_program(spl);
+        ret = nand_fwc_spl_program(fwc, spl);
         if (ret)
             return 0;
         ret = nand_fwc_spl_image_verify(spl);

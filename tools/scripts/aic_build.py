@@ -10,6 +10,7 @@ import sys
 import glob
 import platform
 import shutil
+import tarfile
 from SCons.Script import *
 
 COLOR_BEGIN = "\033["
@@ -40,6 +41,28 @@ def do_pipe(cmd):
     p = os.popen(cmd)
     return p.readlines()[0]
 
+def strip_component(member, strip_components):
+    parts = member.name.split('/')
+    if len(parts) > strip_components:
+        member.name = '/'.join(parts[strip_components:])
+        if member.islnk():
+            link_parts = member.linkname.split('/')
+            if len(link_parts) > strip_components:
+                member.linkname = '/'.join(link_parts[strip_components:])
+        return member
+    else:
+        return None
+
+def tar(abs_f, datadir, dirname):
+    with tarfile.open(abs_f, 'w:gz') as t:
+        t.add(os.path.join(datadir, dirname), dirname);
+
+def untar(tar_f, tardir, strip_components):
+    with tarfile.open(tar_f, 'r:gz') as t:
+        members = t.getmembers()
+        members = [strip_component(member, strip_components) for member in members]
+        members = [member for member in members if member]
+        t.extractall(tardir, members)
 
 def get_config(filename, key):
     if not os.path.exists(filename):
@@ -141,6 +164,7 @@ def update_defconfig(aic_root):
         dst = os.path.join(aic_root, '.config')
         shutil.copy(src, dst)
 
+
 # cmd-option: list defconfig without bootloader
 def list_noboot_def_cmd(aic_root):
     AddOption('--list-noboot', dest='list_noboot_defconfig', action='store_true',
@@ -155,6 +179,7 @@ def list_noboot_def_cmd(aic_root):
             print('%3d. %-*s' % (index, maxlen, d))
             index += 1
         exit(0)
+
 
 # cmd-option: apply defconfig without bootloader
 def apply_noboot_def_cmd(aic_root):
@@ -559,7 +584,7 @@ def chk_qemu_tool(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_defcon
                 os.mkdir(qemu_path)
 
                 pr_info('Extract ' + qemu_tar_name + ' ...')
-                os.system('tar -xzf ' + abs_f + ' -C ' + qemu_path)
+                untar(abs_f, qemu_path, 0)
                 break
 
 
@@ -1003,8 +1028,8 @@ def chk_prepare_toolchain(aic_root, prj_chip, prj_board, prj_kernel, prj_app, pr
     pr_info('Extract toolchain ' + tar_f + ' ...')
     if not os.path.exists(toolchain_bpath):
         os.mkdir(toolchain_bpath)
-    os.system('tar -xzf ' + abs_f
-              + ' --strip-components 1 -C ' + toolchain_bpath)
+    untar(abs_f, toolchain_bpath, 1)
+
     with open(ready_f, 'w') as f:
         f.write(platform.system() + "\n")
         f.write(toolchain_name)
@@ -1043,8 +1068,7 @@ def trim_toolchain(aic_root, tar_path, exec_path, tar_prefix, cross_prefix, marc
                 pr_info('Extract toolchain ' + f + ' ...')
                 if not os.path.exists(toolchain_xpath):
                     os.mkdir(toolchain_xpath)
-                os.system('tar -xzf ' + abs_f
-                          + ' --strip-components 1 -C ' + toolchain_xpath)
+                untar(abs_f, toolchain_xpath, 1)
                 pr_info('Trim toolchain ' + f + ' ...')
                 folder1 = os.path.join(toolchain_xpath, toolchain_cross + '/lib')
                 p_folder2 = os.path.join(toolchain_xpath, 'lib/gcc/' + toolchain_cross)
@@ -1056,7 +1080,7 @@ def trim_toolchain(aic_root, tar_path, exec_path, tar_prefix, cross_prefix, marc
                 abs_f = os.path.join(toolchain_ppath, toolchain_trimname)
                 if os.path.exists(abs_f):
                     os.remove(abs_f)
-                os.system('tar -czf ' + abs_f + ' -C ' + toolchain_ppath + ' ' + toolchain_name)
+                tar(abs_f, toolchain_ppath, toolchain_name)
                 shutil.rmtree(toolchain_xpath)
     if os.path.exists(toolchain_bpath):
         shutil.rmtree(toolchain_bpath)
@@ -1401,7 +1425,7 @@ def mkimage_prebuild(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_def
 
     eclipse_pre_build = PRE_ACTION
     eclipse_pre_build = eclipse_pre_build.replace(
-        'python3', '${ProjDirPath}/../../../tools/env/tools/Python39/python3')
+        'python3', '${ProjDirPath}/../../../tools/env/tools/Python38/python3')
     eclipse_pre_build = eclipse_pre_build.replace(prj_out_dir, '${ProjDirPath}/Debug/')
     eclipse_pre_build = eclipse_pre_build.replace(prj_out_dir_n, '${ProjDirPath}/Debug')
     eclipse_pre_build = eclipse_pre_build.replace(aic_root, '${ProjDirPath}/../../..')
@@ -1410,7 +1434,7 @@ def mkimage_prebuild(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_def
 
     eclipse_sdk_pre_build = PRE_ACTION
     eclipse_sdk_pre_build = eclipse_sdk_pre_build.replace(
-        'python3', '${ProjDirPath}/tools/Python39/python3')
+        'python3', '${ProjDirPath}/tools/Python38/python3')
     eclipse_sdk_pre_build = eclipse_sdk_pre_build.replace(prj_out_dir, '${ProjDirPath}/Debug/')
     eclipse_sdk_pre_build = eclipse_sdk_pre_build.replace(prj_out_dir_n, '${ProjDirPath}/Debug')
     eclipse_sdk_pre_build = eclipse_sdk_pre_build.replace(
@@ -1424,7 +1448,7 @@ def mkimage_prebuild(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_def
     eclipse_post_build = POST_ACTION
     eclipse_post_build = eclipse_post_build.replace('\n', ';')
     eclipse_post_build = eclipse_post_build.replace(
-        'python3', '${ProjDirPath}/../../../tools/env/tools/Python39/python3')
+        'python3', '${ProjDirPath}/../../../tools/env/tools/Python38/python3')
     eclipse_post_build = eclipse_post_build.replace(
         '@cp', '${ProjDirPath}/../../../tools/env/tools/bin/cp')
     eclipse_post_build = eclipse_post_build.replace(
@@ -1440,7 +1464,7 @@ def mkimage_prebuild(aic_root, prj_chip, prj_board, prj_kernel, prj_app, prj_def
     eclipse_sdk_post_build = POST_ACTION
     eclipse_sdk_post_build = eclipse_sdk_post_build.replace('\n', ';')
     eclipse_sdk_post_build = eclipse_sdk_post_build.replace(
-        'python3', '${ProjDirPath}/tools/Python39/python3')
+        'python3', '${ProjDirPath}/tools/Python38/python3')
     eclipse_sdk_post_build = eclipse_sdk_post_build.replace('@cp', '${ProjDirPath}/tools/bin/cp')
     eclipse_sdk_post_build = eclipse_sdk_post_build.replace(
         '@echo', '${ProjDirPath}/tools/bin/echo')

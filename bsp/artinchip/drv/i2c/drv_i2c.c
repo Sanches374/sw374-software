@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -29,24 +29,36 @@
 #ifndef AIC_DEV_SP_I2C_10BIT
 #define AIC_DEV_SP_I2C_10BIT 0
 #endif
+#ifndef AIC_DEV_R_I2C0_10BIT
+#define AIC_DEV_R_I2C0_10BIT 0
+#endif
+#ifndef AIC_DEV_R_I2C1_10BIT
+#define AIC_DEV_R_I2C1_10BIT 0
+#endif
 
-#ifndef AIC_DEV_I2C0_100K_SPEED
-#define AIC_DEV_I2C0_100K_SPEED    0
+#ifndef AIC_DEV_I2C0_SPEED
+#define AIC_DEV_I2C0_SPEED      400000
 #endif
-#ifndef AIC_DEV_I2C1_100K_SPEED
-#define AIC_DEV_I2C1_100K_SPEED    0
+#ifndef AIC_DEV_I2C1_SPEED
+#define AIC_DEV_I2C1_SPEED      400000
 #endif
-#ifndef AIC_DEV_I2C2_100K_SPEED
-#define AIC_DEV_I2C2_100K_SPEED    0
+#ifndef AIC_DEV_I2C2_SPEED
+#define AIC_DEV_I2C2_SPEED      400000
 #endif
-#ifndef AIC_DEV_I2C3_100K_SPEED
-#define AIC_DEV_I2C3_100K_SPEED    0
+#ifndef AIC_DEV_I2C3_SPEED
+#define AIC_DEV_I2C3_SPEED      400000
 #endif
-#ifndef AIC_DEV_I2C4_100K_SPEED
-#define AIC_DEV_I2C4_100K_SPEED    0
+#ifndef AIC_DEV_I2C4_SPEED
+#define AIC_DEV_I2C4_SPEED      400000
 #endif
-#ifndef AIC_DEV_SP_I2C_100K_SPEED
-#define AIC_DEV_SP_I2C_100K_SPEED  0
+#ifndef AIC_DEV_SP_I2C_SPEED
+#define AIC_DEV_SP_I2C_SPEED    400000
+#endif
+#ifndef AIC_DEV_R_I2C0_SPEED
+#define AIC_DEV_R_I2C0_SPEED    400000
+#endif
+#ifndef AIC_DEV_R_I2C1_SPEED
+#define AIC_DEV_R_I2C1_SPEED    400000
 #endif
 
 #ifndef AIC_DEV_I2C0_SLAVE_MODE
@@ -67,6 +79,12 @@
 #ifndef AIC_DEV_SP_I2C_SLAVE_MODE
 #define AIC_DEV_SP_I2C_SLAVE_MODE 0
 #endif
+#ifndef AIC_DEV_R_I2C0_SLAVE_MODE
+#define AIC_DEV_R_I2C0_SLAVE_MODE 0
+#endif
+#ifndef AIC_DEV_R_I2C1_SLAVE_MODE
+#define AIC_DEV_R_I2C1_SLAVE_MODE 0
+#endif
 
 #ifndef AIC_DEV_I2C0_SLAVE_ADDR
 #define AIC_DEV_I2C0_SLAVE_ADDR 0
@@ -85,6 +103,12 @@
 #endif
 #ifndef AIC_DEV_SP_I2C_SLAVE_ADDR
 #define AIC_DEV_SP_I2C_SLAVE_ADDR 0
+#endif
+#ifndef AIC_DEV_R_I2C0_SLAVE_ADDR
+#define AIC_DEV_R_I2C0_SLAVE_ADDR 0
+#endif
+#ifndef AIC_DEV_R_I2C1_SLAVE_ADDR
+#define AIC_DEV_R_I2C1_SLAVE_ADDR 0
 #endif
 
 struct aic_i2c_bus {
@@ -435,7 +459,8 @@ static rt_err_t aic_i2c_bus_control(struct rt_i2c_bus_device *bus,
     switch(cmd)
     {
     case RT_I2C_DEV_CTRL_CLK:
-        hal_i2c_speed_mode_select(i2c_dev, I2C_DEFALT_CLOCK, value);
+        i2c_dev->target_rate = value;
+        hal_i2c_set_speed(i2c_dev);
         break;
     default:
         return -RT_EIO;
@@ -460,9 +485,11 @@ static struct aic_i2c_bus aic_i2c_dev[] = {
             .reg_base = I2C0_BASE,
             .device_name = "i2c0",
             .addr_bit = AIC_DEV_I2C0_10BIT,
-            .speed_mode = AIC_DEV_I2C0_100K_SPEED,
+            .target_rate = AIC_DEV_I2C0_SPEED,
             .bus_mode = AIC_DEV_I2C0_SLAVE_MODE,
             .slave_addr = AIC_DEV_I2C0_SLAVE_ADDR,
+            .irq_index = I2C0_IRQn,
+            .clk_id = CLK_I2C0,
         },
     },
 #endif
@@ -475,9 +502,11 @@ static struct aic_i2c_bus aic_i2c_dev[] = {
             .reg_base = I2C1_BASE,
             .device_name = "i2c1",
             .addr_bit = AIC_DEV_I2C1_10BIT,
-            .speed_mode = AIC_DEV_I2C1_100K_SPEED,
+            .target_rate = AIC_DEV_I2C1_SPEED,
             .bus_mode = AIC_DEV_I2C1_SLAVE_MODE,
             .slave_addr = AIC_DEV_I2C1_SLAVE_ADDR,
+            .irq_index = I2C1_IRQn,
+            .clk_id = CLK_I2C1,
         },
     },
 #endif
@@ -490,9 +519,11 @@ static struct aic_i2c_bus aic_i2c_dev[] = {
             .reg_base = I2C2_BASE,
             .device_name = "i2c2",
             .addr_bit = AIC_DEV_I2C2_10BIT,
-            .speed_mode = AIC_DEV_I2C2_100K_SPEED,
+            .target_rate = AIC_DEV_I2C2_SPEED,
             .bus_mode = AIC_DEV_I2C2_SLAVE_MODE,
             .slave_addr = AIC_DEV_I2C2_SLAVE_ADDR,
+            .irq_index = I2C2_IRQn,
+            .clk_id = CLK_I2C2,
         },
     },
 #endif
@@ -505,9 +536,11 @@ static struct aic_i2c_bus aic_i2c_dev[] = {
             .reg_base = I2C3_BASE,
             .device_name = "i2c3",
             .addr_bit = AIC_DEV_I2C3_10BIT,
-            .speed_mode = AIC_DEV_I2C3_100K_SPEED,
+            .target_rate = AIC_DEV_I2C3_SPEED,
             .bus_mode = AIC_DEV_I2C3_SLAVE_MODE,
             .slave_addr = AIC_DEV_I2C3_SLAVE_ADDR,
+            .irq_index = I2C3_IRQn,
+            .clk_id = CLK_I2C3,
         },
     },
 #endif
@@ -520,9 +553,11 @@ static struct aic_i2c_bus aic_i2c_dev[] = {
             .reg_base = I2C4_BASE,
             .device_name = "i2c4",
             .addr_bit = AIC_DEV_I2C4_10BIT,
-            .speed_mode = AIC_DEV_I2C4_100K_SPEED,
+            .target_rate = AIC_DEV_I2C4_SPEED,
             .bus_mode = AIC_DEV_I2C4_SLAVE_MODE,
             .slave_addr = AIC_DEV_I2C4_SLAVE_ADDR,
+            .irq_index = I2C4_IRQn,
+            .clk_id = CLK_I2C4,
         },
     },
 #endif
@@ -535,9 +570,43 @@ static struct aic_i2c_bus aic_i2c_dev[] = {
             .reg_base = SP_I2C_BASE,
             .device_name = "sp_i2c",
             .addr_bit = AIC_DEV_SP_I2C_10BIT,
-            .speed_mode = AIC_DEV_SP_I2C_100K_SPEED,
+            .target_rate = AIC_DEV_SP_I2C_SPEED,
             .bus_mode = AIC_DEV_SP_I2C_SLAVE_MODE,
             .slave_addr = AIC_DEV_SP_I2C_SLAVE_ADDR,
+            .irq_index = SP_I2C_IRQn,
+            .clk_id = CLK_SP_I2C,
+        },
+    },
+#endif
+#ifdef AIC_USING_R_I2C0
+    {
+        .bus.ops = &i2c_ops,
+        .aic_bus = {
+            .index = 6,
+            .reg_base = R_I2C0_BASE,
+            .device_name = "r_i2c0",
+            .addr_bit = AIC_DEV_R_I2C0_10BIT,
+            .target_rate = AIC_DEV_R_I2C0_SPEED,
+            .bus_mode = AIC_DEV_R_I2C0_SLAVE_MODE,
+            .slave_addr = AIC_DEV_R_I2C0_SLAVE_ADDR,
+            .irq_index = R_I2C0_IRQn,
+            .clk_id = CLK_R_I2C0,
+        },
+    },
+#endif
+#ifdef AIC_USING_R_I2C1
+    {
+        .bus.ops = &i2c_ops,
+        .aic_bus = {
+            .index = 7,
+            .reg_base = R_I2C1_BASE,
+            .device_name = "r_i2c1",
+            .addr_bit = AIC_DEV_R_I2C1_10BIT,
+            .target_rate = AIC_DEV_R_I2C1_SPEED,
+            .bus_mode = AIC_DEV_R_I2C1_SLAVE_MODE,
+            .slave_addr = AIC_DEV_R_I2C1_SLAVE_ADDR,
+            .irq_index = R_I2C1_IRQn,
+            .clk_id = CLK_R_I2C1,
         },
     },
 #endif
@@ -551,18 +620,18 @@ static int aic_hw_i2c_register()
     for (uint8_t i = 0; i < ARRAY_SIZE(aic_i2c_dev); i++) {
         index = aic_i2c_dev[i].aic_bus.index;
         aic_i2c_dev[i].bus.parent.device_id = index;
-        g_aic_i2c_dev[index] = aic_i2c_dev[i];
 
         ret = hal_i2c_init(&aic_i2c_dev[i].aic_bus);
         if (ret) {
             return ret;
         }
+        g_aic_i2c_dev[index] = aic_i2c_dev[i];
 
 #ifdef AIC_I2C_INTERRUPT_MODE
-        aicos_request_irq(I2C0_IRQn + index, aic_i2c_irqhandler, 0, "i2c", NULL);
+        aicos_request_irq(aic_i2c_dev[i].aic_bus.irq_index, aic_i2c_irqhandler, 0, "i2c", NULL);
 #endif
         if (aic_i2c_dev[i].aic_bus.bus_mode) {
-            aicos_request_irq(I2C0_IRQn + index, aic_i2c_slave_irqhandler, 0, "i2c_slave", NULL);
+            aicos_request_irq(aic_i2c_dev[i].aic_bus.irq_index, aic_i2c_slave_irqhandler, 0, "i2c_slave", NULL);
         }
 
         ret = rt_i2c_bus_device_register(&aic_i2c_dev[i].bus,

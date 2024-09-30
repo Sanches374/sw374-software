@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020-2024 Artinchip Technology Co. Ltd
+ * Copyright (C) 2020-2024 ArtInChip Technology Co. Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -23,6 +23,7 @@
 struct mpp_decoder {
 	struct dec_ops *ops;
 	struct packet_manager* pm;
+	struct packet_allocator* pkt_allocator;
 	struct frame_manager* fm;
 	struct frame_allocator* allocator;
 	int rotmir_flag; // only used for jpeg

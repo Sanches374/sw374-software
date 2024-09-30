@@ -186,23 +186,41 @@ static const uint8_t default_sampling_freq_table[] = {
     AUDIO_SAMPLE_FREQ_4B(0x00),
 };
 
-#define TX_FIFO_PERIOD_COUNT            20
-#define TX_FIFO_SIZE                    AUDIO_OUT_PACKET*TX_FIFO_PERIOD_COUNT//3840
+#define TX_FIFO_PERIOD_COUNT    20
+#define TX_FIFO_SIZE            (AUDIO_OUT_PACKET * TX_FIFO_PERIOD_COUNT) // 3840
+
+#define UAC_CTRL_START          BIT(0)
+#define UAC_CTRL_STOP           BIT(1)
+#define UAC_CTRL_SET_VOLUME     BIT(2)
+#define UAC_CTRL_MUTE           BIT(3)
 
 void usbd_audio_iso_out_callback(uint8_t ep, uint32_t nbytes);
+void usbd_audio_data_process(uint8_t* read_buffer);
+void usbd_audio_config(aic_audio_ctrl *pcodec, uint32_t samplerate, uint32_t channel);
 
 struct audio_volume_mute {
-    int volume;
-    bool     mute;
+    int  volume;
+    u32  pa_group;
+    u32  pa_pin;
+    bool mute;
 } usbd_volume_mute;
+
+struct uac_msg {
+    u32 cmd;
+    u32 data;
+};
 
 uint8_t audio_fifo_tx[TX_FIFO_SIZE] __attribute__((aligned(64)));
 static USB_NOCACHE_RAM_SECTION USB_MEM_ALIGNX uint8_t read_buffer[AUDIO_OUT_PACKET];
 
-aic_audio_ctrl audio_ctrl0;
-volatile bool rx_flag = 0;
-uint32_t total_len = 0;
-uint8_t usbd_start_flag = 0;
+static aic_audio_ctrl audio_ctrl0;
+static uint32_t total_len = 0;
+static uint8_t usbd_start_flag = 0;
+static uint8_t g_suspend_state = 0;
+static uint8_t g_audio_started = 0;
+
+static char g_uac_mq_buf[128] = {0};
+static struct rt_messagequeue g_uac_mq = {0};
 
 static struct usbd_endpoint audio_out_ep = {
     .ep_cb = usbd_audio_iso_out_callback,
@@ -260,24 +278,71 @@ void usbd_event_handler(uint8_t event)
     }
 }
 
+static void usbd_audio_pa_init(void)
+{
+    unsigned int pa = 0;
+
+    pa = hal_gpio_name2pin(AIC_AUDIO_PA_ENABLE_GPIO);
+    usbd_volume_mute.pa_group = GPIO_GROUP(pa);
+    usbd_volume_mute.pa_pin   = GPIO_GROUP_PIN(pa);
+    hal_gpio_set_func(usbd_volume_mute.pa_group, usbd_volume_mute.pa_pin, 1);
+    hal_gpio_direction_output(usbd_volume_mute.pa_group, usbd_volume_mute.pa_pin);
+}
+
+static void usbd_audio_pa_enable(u32 enable)
+{
+#ifndef AIC_AUDIO_EN_PIN_HIGH
+    enable = !enable;
+#endif
+
+    if (enable)
+        hal_gpio_set_output(usbd_volume_mute.pa_group, usbd_volume_mute.pa_pin);
+    else
+        hal_gpio_clr_output(usbd_volume_mute.pa_group, usbd_volume_mute.pa_pin);
+}
+
+static void uac_audio_ctrl_set_volume(int volume)
+{
+    static int prev_volume = 0;
+    int hw_volume = 0;
+
+    if (g_suspend_state)
+        return;
+
+    if (prev_volume && (prev_volume == volume))
+        return;
+    prev_volume = volume;
+
+    USB_LOG_DBG("UAC set volume: %d percent\n", volume);
+    hw_volume = volume * (UAC_MAX_VOLUME - UAC_MIN_VOLUME) / 100 + UAC_MIN_VOLUME;
+
+    hal_audio_set_playback_volume(&audio_ctrl0, hw_volume);
+}
+
 void usbd_audio_set_volume(uint8_t ep, uint8_t ch, int volume)
 {
-    USB_LOG_DBG("set volume:%d\r\n", volume);
+    struct uac_msg msg = {UAC_CTRL_SET_VOLUME, volume};
+
     usbd_volume_mute.volume = volume;
+    rt_mq_send(&g_uac_mq, &msg, sizeof(struct uac_msg));
 }
 
 int usbd_audio_get_volume(uint8_t ep, uint8_t ch)
 {
-    int reg_volume;
-    USB_LOG_DBG("get volume:%d\r\n", usbd_volume_mute.volume);
-    reg_volume = usbd_volume_mute.volume * (UAC_MAX_VOLUME - UAC_MIN_VOLUME) / 100 + UAC_MIN_VOLUME;
-    hal_audio_set_playback_volume(&audio_ctrl0, reg_volume);
     return usbd_volume_mute.volume;
 }
 
 void usbd_audio_set_mute(uint8_t ep, uint8_t ch, bool mute)
 {
+    struct uac_msg msg = {UAC_CTRL_MUTE, 0};
+
+    if (usbd_volume_mute.mute == mute)
+        return;
+
+    USB_LOG_DBG("UAC Set mute: %d\n", mute);
     usbd_volume_mute.mute = mute;
+    if (mute)
+        rt_mq_send(&g_uac_mq, &msg, sizeof(struct uac_msg));
 }
 
 bool usbd_audio_get_mute(uint8_t ep, uint8_t ch)
@@ -285,25 +350,11 @@ bool usbd_audio_get_mute(uint8_t ep, uint8_t ch)
     return usbd_volume_mute.mute;
 }
 
-void usbd_audio_open(uint8_t intf)
-{
-    rx_flag = 1;
-    /* setup first out ep read transfer */
-    usbd_ep_start_read(audio_out_ep.ep_addr, read_buffer, AUDIO_OUT_PACKET);
-    USB_LOG_DBG("OPEN\r\n");
-}
-
-void usbd_audio_close(uint8_t intf)
-{
-    USB_LOG_DBG("CLOSE\r\n");
-    rx_flag = 0;
-}
-
-
 void usbd_audio_set_sampling_freq(uint8_t ep, uint32_t sampling_freq)
 {
     uint16_t packet_size = 0;
-    USB_LOG_DBG("usb device audio sampling_freq %ld,\r\n", sampling_freq);
+
+    USB_LOG_DBG("UAC set sampling rate %ld Hz\n", (long)sampling_freq);
     if (ep == audio_out_ep.ep_addr) {
         packet_size = ((sampling_freq * 2 * OUT_CHANNEL_NUM) / 1000);
         audio_v2_descriptor[18 + USB_AUDIO_CONFIG_DESC_SIZ - 11] = packet_size;
@@ -319,11 +370,72 @@ void usbd_audio_get_sampling_freq_table(uint8_t ep, uint8_t **sampling_freq_tabl
 }
 
 #if defined(KERNEL_RTTHREAD)
-struct rt_ringbuffer  ring_buf0;
+static struct rt_ringbuffer  ring_buf0;
+static rt_mutex_t usbd_uac_mutex;
+
 void audio_ringbuffer_init(void)
 {
     rt_ringbuffer_init(&ring_buf0, audio_fifo_tx, TX_FIFO_SIZE);
+
+    usbd_uac_mutex = rt_mutex_create("usbd_uac_mutex", RT_IPC_FLAG_PRIO);
+    if (usbd_uac_mutex == NULL) {
+        USB_LOG_ERR("COMP: create dynamic mutex falied.\n");
+        return;
+    }
 }
+
+static void uac_audio_ctrl_start(void)
+{
+    rt_mutex_take(usbd_uac_mutex, RT_WAITING_FOREVER);
+    if (g_suspend_state || g_audio_started) {
+        rt_mutex_release(usbd_uac_mutex);
+        return;
+    }
+
+    USB_LOG_DBG("UAC audio start\n");
+    usbd_audio_config(&audio_ctrl0, AUDIO_FREQ, OUT_CHANNEL_NUM);
+    usbd_audio_pa_enable(1);
+    /* Wait Power Amplifier stable */
+    rt_thread_mdelay(200);
+    total_len = 0;
+    usbd_start_flag = 0;
+    usbd_audio_data_process(read_buffer);
+
+    g_audio_started = 1;
+
+    rt_mutex_release(usbd_uac_mutex);
+}
+
+static void uac_audio_ctrl_stop(void)
+{
+    rt_mutex_take(usbd_uac_mutex, RT_WAITING_FOREVER);
+
+    if (!g_audio_started) {
+        rt_mutex_release(usbd_uac_mutex);
+        return;
+    }
+
+    USB_LOG_DBG("UAC audio stop\n");
+    rt_thread_mdelay(20);
+    usbd_audio_pa_enable(0);
+    hal_audio_playback_stop(&audio_ctrl0);
+    g_audio_started = 0;
+
+    rt_mutex_release(usbd_uac_mutex);
+}
+
+int uac_set_suspend(uint8_t status)
+{
+    g_suspend_state = status;
+    USB_LOG_DBG("UAC: Enter %s\n", status ? "suspend" : "resume");
+    if (status == 0)
+        uac_audio_ctrl_start();
+    else
+        uac_audio_ctrl_stop();
+
+    return 0;
+}
+
 #else
 ringbuf_t ring_buf0;
 void audio_ringbuffer_init(void)
@@ -335,6 +447,24 @@ void audio_ringbuffer_init(void)
     ring_buf0.data_len = 0;
 }
 #endif
+
+void usbd_audio_open(uint8_t intf)
+{
+    struct uac_msg msg = {UAC_CTRL_START, 0};
+
+    /* setup first out ep read transfer */
+    usbd_ep_start_read(audio_out_ep.ep_addr, read_buffer, AUDIO_OUT_PACKET);
+    USB_LOG_DBG("UAC OPEN\r\n");
+    rt_mq_send(&g_uac_mq, &msg, sizeof(struct uac_msg));
+}
+
+void usbd_audio_close(uint8_t intf)
+{
+    struct uac_msg msg = {UAC_CTRL_STOP, 0};
+
+    USB_LOG_DBG("UAC CLOSE\r\n");
+    rt_mq_send(&g_uac_mq, &msg, sizeof(struct uac_msg));
+}
 
 void usbd_audio_data_process(uint8_t* read_buffer)
 {
@@ -348,23 +478,26 @@ void usbd_audio_data_process(uint8_t* read_buffer)
         tmp_buf = read_buffer;
 
         #if defined(KERNEL_RTTHREAD)
-        wr_size = rt_ringbuffer_put(&ring_buf0, tmp_buf, length);
+        wr_size = rt_ringbuffer_put_force(&ring_buf0, tmp_buf, length);
         #else
         wr_size = ringbuf_in(&ring_buf0, tmp_buf, length);
         #endif
         total_len += wr_size;
+
         if (total_len >= TX_FIFO_SIZE)
         {
             usbd_start_flag = 1;
             hal_audio_playback_start(&audio_ctrl0);
         }
     } else {
-        tmp_buf = read_buffer;
-        #if defined(KERNEL_RTTHREAD)
-        wr_size = rt_ringbuffer_put_force(&ring_buf0, tmp_buf, length);
-        #else
-        wr_size = ringbuf_in(&ring_buf0, tmp_buf, length);
-        #endif
+        if (!g_suspend_state && g_audio_started) {
+            tmp_buf = read_buffer;
+            #if defined(KERNEL_RTTHREAD)
+            wr_size = rt_ringbuffer_put_force(&ring_buf0, tmp_buf, length);
+            #else
+            wr_size = ringbuf_in(&ring_buf0, tmp_buf, length);
+            #endif
+        }
     }
 }
 
@@ -430,24 +563,12 @@ void usbd_audio_config(aic_audio_ctrl *pcodec, uint32_t samplerate, uint32_t cha
 
 void usbd_audio_hal_init(void)
 {
-    unsigned int pa, group, pin;
+    usbd_audio_config(&audio_ctrl0, AUDIO_FREQ, OUT_CHANNEL_NUM);\
+    usbd_audio_pa_init();
+    usbd_audio_pa_enable(1);
 
-    usbd_audio_config(&audio_ctrl0, AUDIO_FREQ, OUT_CHANNEL_NUM);
-
-    pa = hal_gpio_name2pin(AIC_AUDIO_PA_ENABLE_GPIO);
-    group = GPIO_GROUP(pa);
-    pin = GPIO_GROUP_PIN(pa);
-    hal_gpio_set_func(group, pin, 1);
-    hal_gpio_direction_output(group, pin);
-
-#ifdef AIC_AUDIO_EN_PIN_HIGH
-    hal_gpio_set_output(group, pin);
-#else
-    hal_gpio_clr_output(group, pin);
-#endif
     hal_dma_init();
     aicos_request_irq(DMA_IRQn, hal_dma_irq, 0, NULL, NULL);
-
 }
 
 void usbd_audio_iso_out_callback(uint8_t ep, uint32_t nbytes)
@@ -456,6 +577,42 @@ void usbd_audio_iso_out_callback(uint8_t ep, uint32_t nbytes)
     usbd_ep_start_read(audio_out_ep.ep_addr, read_buffer, AUDIO_OUT_PACKET);
 }
 
+static void uac_thread_entry(void *arg)
+{
+    struct uac_msg msg = {0};
+    rt_err_t ret = RT_EOK;
+
+    while (1) {
+        ret = rt_mq_recv(&g_uac_mq, &msg, sizeof(struct uac_msg), RT_WAITING_FOREVER);
+        if (ret != RT_EOK) {
+            LOG_E("UAC: Failed to receive msg, return %d\n", ret);
+            continue;
+        }
+        USB_LOG_DBG("Recv msg: cmd 0x%x, data %d\n", msg.cmd, msg.data);
+
+        switch (msg.cmd) {
+        case UAC_CTRL_START:
+            // uac_audio_ctrl_start();
+            break;
+
+        case UAC_CTRL_STOP:
+            // uac_audio_ctrl_stop();
+            break;
+
+        case UAC_CTRL_SET_VOLUME:
+            uac_audio_ctrl_set_volume(msg.data);
+            break;
+
+        case UAC_CTRL_MUTE:
+            uac_audio_ctrl_set_volume(0);
+            break;
+
+        default:
+            USB_LOG_ERR("Invalid msg cmd: 0x%x\n", msg.cmd);
+            break;
+        }
+    }
+}
 
 #ifdef LPKG_CHERRYUSB_DEVICE_COMPOSITE
 #include "composite_template.h"
@@ -471,10 +628,28 @@ int usbd_comp_uac_init(uint8_t *ep_table, void *data)
 }
 #endif
 
-int audio_v2_init(void)
+int usbd_audio_v2_init(void)
 {
+#if defined(KERNEL_RTTHREAD)
+    rt_thread_t usb_audio_tid = RT_NULL;
+    int ret = 0;
+
+    ret = rt_mq_init(&g_uac_mq, "uac_mq", g_uac_mq_buf,
+                     sizeof(struct uac_msg), sizeof(g_uac_mq_buf),
+                     RT_IPC_FLAG_FIFO);
+    if (ret) {
+        LOG_E("Init UAC messagequeue failed\n");
+        return -1;
+    }
+
+    usb_audio_tid = rt_thread_create("uac", uac_thread_entry, RT_NULL, 2048, 10, 50);
+    if (usb_audio_tid != RT_NULL)
+        rt_thread_startup(usb_audio_tid);
+#endif
+
     audio_ringbuffer_init();
     usbd_audio_hal_init();
+    g_audio_started = 1;
 #ifndef LPKG_CHERRYUSB_DEVICE_COMPOSITE
     usbd_desc_register(audio_v2_descriptor);
     usbd_add_interface(usbd_audio_init_intf(&uac_intf0, 0x0200, audio_entity_table, 2));
@@ -486,24 +661,9 @@ int audio_v2_init(void)
                             usbd_comp_uac_event_handler,
                             usbd_comp_uac_init, NULL);
 #endif
-    return 0;
-}
 
-#if defined(KERNEL_RTTHREAD)
-rt_thread_t usb_audio_tid;
-
-void audio_usb_thread_entry(void *parameter) {
-   audio_v2_init();
-}
-
-int usbd_audio_v2_init(void)
-{
-    usb_audio_tid = rt_thread_create("usb-audio-test", audio_usb_thread_entry, RT_NULL, 2048, 10, 50);
-    if (usb_audio_tid != RT_NULL)
-        rt_thread_startup(usb_audio_tid);
     return 0;
 }
 #if !defined(LPKG_CHERRYUSB_DYNAMIC_REGISTRATION_MODE)
 INIT_APP_EXPORT(usbd_audio_v2_init);
-#endif
 #endif

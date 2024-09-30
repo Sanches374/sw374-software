@@ -19,11 +19,14 @@ irqreturn_t aic_wdt_irq(int irq, void *arg)
     return IRQ_HANDLED;
 }
 
-static void idle_hook(void)
+void wdt_feed_thread_entry(void *parameter)
 {
     rt_device_t wdt_dev = RT_NULL;
-    wdt_dev = rt_device_find("wdt");
-    rt_device_control(wdt_dev, RT_DEVICE_CTRL_WDT_KEEPALIVE, NULL);
+    do {
+        wdt_dev = rt_device_find("wdt");
+        rt_device_control(wdt_dev, RT_DEVICE_CTRL_WDT_KEEPALIVE, NULL);
+        rt_thread_mdelay(200);
+    } while (wdt_dev);
 }
 
 static void usage(char * program)
@@ -50,6 +53,7 @@ void test_wdt(int argc, char **argv)
     __unused int status;
     int wreg_switch,timeout = 0;
     rt_device_t wdt_dev = RT_NULL;
+    rt_thread_t wdt_thread = RT_NULL;
 
     wdt_dev =  rt_device_find("wdt");
     rt_device_init(wdt_dev);
@@ -79,8 +83,14 @@ void test_wdt(int argc, char **argv)
                 rt_kprintf("set pretimeout:%d\n", timeout);
                 break;
             case 'k':
-                rt_thread_idle_sethook(idle_hook);
-                rt_kprintf("feed the dog! \n");
+                wdt_thread = rt_thread_create("wdt_feed_thread", wdt_feed_thread_entry,
+                                            RT_NULL, 1024, 10, 10);
+                if (wdt_thread != RT_NULL) {
+                    rt_thread_startup(wdt_thread);
+                    rt_kprintf("keep feeding the dog!\n");
+                } else {
+                    rt_kprintf("wdt thread create fail!\n");
+                }
                 break;
             case 'r':
             #ifdef AIC_WDT_DRV_V11

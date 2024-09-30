@@ -130,7 +130,7 @@ typedef enum {
     ACTIVE_STATUS,
     WARNING_STATUS,
     PASSIVE_STATUS,
-    BUS_OFF,
+    BUS_OFF = 4,
 } can_state_t;
 
 struct can_bittiming_const {

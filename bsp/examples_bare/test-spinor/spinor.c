@@ -18,17 +18,18 @@
 
 #define SPINOR_HELP                           \
     "spinor read write command:\n"            \
-    "  spinor init <spi bus id>\n"            \
-    "  spinor dump  <offset> <size>\n"        \
-    "  spinor read  <addr> <offset> <size>\n" \
-    "  spinor erase <offset> <size>\n"        \
-    "  spinor write <addr> <offset> <size>\n" \
+    "  spinor init [spi bus id]\n"            \
+    "  spinor dump  [offset] [size]\n"        \
+    "  spinor read  [addr] [offset] [size]\n" \
+    "  spinor erase [offset] [size]\n"        \
+    "  spinor write [addr] [offset] [size]\n" \
     "  spinor regs\n"                         \
     "  spinor regwrite reg val\n"             \
-    "  spinor statuswrite val\n"             \
+    "  spinor statuswrite [reg] [val] <volatile>\n"             \
     "  spinor regread  reg\n"                 \
     "e.g.: \n"                                \
-    "  spinor read 0x40000000 0 256\n"
+    "  spinor read 0x40000000 0 256\n"        \
+    "  spinor statuswrite 0x05 0x60 non-volatile\n" \
 
 extern sfud_flash *sfud_probe(u32 spi_bus);
 
@@ -212,21 +213,40 @@ static int do_spinor_reg_write(int argc, char *argv[])
 
 static int do_spinor_status_write(int argc, char *argv[])
 {
-    sfud_err err;
+    sfud_err err = 0;
     sfud_flash *flash;
-    u8 status;
+    u8 val;
+    u32 reg;
+    bool is_volatile = true;
 
-    status = (u8)strtol(argv[1], NULL, 0);
+    if (argc < 3) {
+        spinor_help();
+        return 0;
+    }
+
+    reg = strtol(argv[1], NULL, 0);
+    val = (u8)strtol(argv[2], NULL, 0);
+
+    if (argc >= 4) {
+        if (!strncmp(argv[3], "non-volatile", 12))
+            is_volatile = false;
+    }
 
     flash = g_spinor_flash;
     if (flash == NULL) {
         printf("spinor init first.\n");
         return 0;
     }
-    err = sfud_write_status(flash, true, status);
+
+    err = sfud_write_status_ext(flash, is_volatile, reg, val);
     if (err)
         printf("Write Register failure.\n");
-    printf("Write status1 success, val: 0x%x\n", status);
+
+    val = 0;
+    err = sfud_read_reg(flash, reg, &val);
+    if (err)
+        printf("Read Register failure.\n");
+    printf("Write status 0x%x success, val: 0x%x\n", reg, val);
     return err;
 }
 

@@ -1,8 +1,9 @@
 /*
- * Copyright (c) 2024, Artinchip Technology Co., Ltd
+ * Copyright (c) 2024-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
+ * Authors:  Wu Dehuang <dehuang.wu@artinchip.com>
  */
 
 #include <rtconfig.h>
@@ -45,6 +46,7 @@ static struct mtd_dev *fat_direct_spinand_probe(u32 spi_id)
 static int fat_direct_spinand_write_boot(char *fpath, struct mtd_dev *mtd)
 {
     struct aicupg_nand_priv priv;
+    struct fwc_info fwc = { 0 };
     u32 soffset;
     ulong dolen, actread;
     int ret = 0, endflag = 0;
@@ -78,10 +80,12 @@ static int fat_direct_spinand_write_boot(char *fpath, struct mtd_dev *mtd)
             endflag = 1;
         soffset += actread;
         if (!endflag) {
-            nand_fwc_spl_write(MAX_SPL_SIZE, buf, actread);
+            fwc.meta.size = MAX_SPL_SIZE;
+            nand_fwc_spl_write(&fwc, buf, actread);
         } else {
             /* Set flag to tell writer, the data is end. */
-            nand_fwc_spl_write(0, buf, actread);
+            fwc.meta.size = 0;
+            nand_fwc_spl_write(&fwc, buf, actread);
             break;
         }
     }

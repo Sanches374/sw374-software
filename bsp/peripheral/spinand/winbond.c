@@ -32,8 +32,14 @@ int winbond_ecc_get_status(struct aic_spinand *flash, u8 status)
 const struct aic_spinand_info winbond_spinand_table[] = {
     /*devid page_size oob_size block_per_lun pages_per_eraseblock planes_per_lun
     is_die_select*/
-    { DEVID(0xAA), PAGESIZE(2048), OOBSIZE(64), BPL(1024), PPB(64), PLANENUM(1),
+    { DEVID(0xAA, 0x21), PAGESIZE(2048), OOBSIZE(64), BPL(1024), PPB(64), PLANENUM(1),
       DIE(0), "Winbond 128MB: 2048+64@64@1024", cmd_cfg_table,
+      winbond_ecc_get_status },
+    { DEVID(0xAA, 0x22), PAGESIZE(2048), OOBSIZE(128), BPL(2048), PPB(64), PLANENUM(1),
+      DIE(0), "W25N02KVxxIR/U Winbond 256MB: 2048+128@64@2048", cmd_cfg_table,
+      winbond_ecc_get_status },
+    { DEVID(0xAA, 0x23), PAGESIZE(2048), OOBSIZE(256), BPL(4096), PPB(64), PLANENUM(1),
+      DIE(0), "W25N04KVxxIR/U Winbond 512MB: 2048+256@64@4096", cmd_cfg_table,
       winbond_ecc_get_status },
     { DEVID(0xBF), PAGESIZE(2048), OOBSIZE(64), BPL(2048), PPB(64), PLANENUM(1),
       DIE(0), "Winbond 256MB: 2048+64@64@2048", cmd_cfg_table, NULL },
@@ -48,12 +54,12 @@ const struct aic_spinand_info winbond_spinand_table[] = {
 
 const struct aic_spinand_info *winbond_spinand_detect(struct aic_spinand *flash)
 {
-    u8 *Id = flash->id.data;
+    u8 *id = flash->id.data;
 
-    if (Id[0] != SPINAND_MFR_WINBOND)
+    if (id[0] != SPINAND_MFR_WINBOND)
         return NULL;
 
-    return spinand_match_and_init(Id[1], winbond_spinand_table,
+    return spinand_match_and_init(&id[1], winbond_spinand_table,
                                   ARRAY_SIZE(winbond_spinand_table));
 };
 

@@ -199,7 +199,7 @@ if __name__ == "__main__":
 
     if (imgsiz / sector_siz) < min_sect_cnt:
         imgsiz = min_sect_cnt * sector_siz
-    if imgsiz > part_size:
+    if part_size and imgsiz > part_size:
         print('Error, fatfs image size is larger than partition size: {}.'.format(args.outfile))
         sys.exit(1)
 

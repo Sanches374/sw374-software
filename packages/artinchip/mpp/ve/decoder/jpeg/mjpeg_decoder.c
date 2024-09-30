@@ -384,6 +384,9 @@ int mjpeg_decode_sof(struct mjpeg_dec_ctx *s)
         }
     }
 
+    s->scale_width  = s->rm_h_stride[0];
+    s->scale_height = s->rm_v_stride[0];
+
 #ifndef AIC_VE_DRV_V10
     if(s->pix_fmt == MPP_FMT_BGR_888 || s->pix_fmt == MPP_FMT_RGB_888) {
         s->rm_h_stride[0] = ALIGN_16B(s->rm_h_stride[0] * 3);
@@ -411,8 +414,8 @@ static void set_frame_info(struct mjpeg_dec_ctx *s)
     s->curr_frame->mpp_frame.buf.crop_en = 1;
     s->curr_frame->mpp_frame.buf.crop.x = 0;
     s->curr_frame->mpp_frame.buf.crop.y = 0;
-    s->curr_frame->mpp_frame.buf.crop.width = s->width;
-    s->curr_frame->mpp_frame.buf.crop.height = s->height;
+    s->curr_frame->mpp_frame.buf.crop.width = s->rm_h_real_size[0];
+    s->curr_frame->mpp_frame.buf.crop.height = s->rm_v_real_size[0];
     s->curr_frame->mpp_frame.pts = s->curr_packet->pts;
 }
 
@@ -473,8 +476,8 @@ int mjpeg_decode_sos(struct mjpeg_dec_ctx *s,
     if(s->decoder.fm == NULL) {
         struct frame_manager_init_cfg cfg;
         cfg.frame_count = 1 + s->extra_frame_num;
-        cfg.height = s->height;
-        cfg.width = s->width;
+        cfg.height = s->scale_height;
+        cfg.width = s->scale_width;
         cfg.height_align = s->rm_v_stride[0];
         cfg.stride = s->rm_h_stride[0];
         cfg.pixel_format = s->pix_fmt;
@@ -818,6 +821,7 @@ int __mjpeg_decode_init(struct mpp_decoder *ctx, struct decode_config *config)
     cfg.ve_buf_handle = s->ve_buf_handle;
     cfg.buffer_size = config->bitstream_buffer_size;
     cfg.packet_count = config->packet_count;
+    cfg.pkt_allocator = s->decoder.pkt_allocator;
     s->decoder.pm = pm_create(&cfg);
     if (!s->decoder.pm) {
         loge("pm_create error");

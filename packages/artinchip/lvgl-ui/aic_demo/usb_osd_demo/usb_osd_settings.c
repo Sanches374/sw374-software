@@ -4,14 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  *
  * Authors:  Huahui Mai <huahui.mai@artinchip.com>
- *
- * base on lv_example_menu_5.c
  */
 
 #include <dirent.h>
 
 #include "lv_tpc_run.h"
 #include "usb_osd_settings.h"
+#include "usb_osd_video.h"
 #include "usb_osd_ui.h"
 #include "mpp_fb.h"
 
@@ -27,7 +26,7 @@
 #define USB_OSD_SCREEN_BLANK_TIME_MS    0
 #endif
 
-#define USB_OSD_MENU_HIDE_TIME_MS   (6 * 1000)
+#define USB_OSD_MENU_HIDE_TIME_MS   (4 * 1000)
 
 #ifndef LVGL_STORAGE_PATH
 #define LVGL_STORAGE_PATH "/rodata/lvgl_data"
@@ -109,20 +108,6 @@ void lv_logo_screen_enable(bool enable)
         lv_obj_add_flag(g_logo_image, LV_OBJ_FLAG_HIDDEN);
 }
 
-static void back_pictures_screen(void)
-{
-    lv_logo_screen_enable(false);
-    lv_settings_menu_enable(false);
-    lv_pictures_screen_enable(true);
-}
-
-static void back_logo_screen(void)
-{
-    lv_logo_screen_enable(true);
-    lv_settings_menu_enable(false);
-    lv_pictures_screen_enable(false);
-}
-
 static void usb_osd_pic_callback(lv_timer_t *tmr)
 {
     lv_obj_t * settings_screen = tmr->user_data;
@@ -151,6 +136,40 @@ static void usb_osd_pic_callback(lv_timer_t *tmr)
     }
 }
 
+static unsigned int old_mode = 0;
+
+#ifdef LV_USB_OSD_SETTINGS_MENU
+static unsigned int long_press_end = 0;
+
+static void screen_global_alpha_set(void)
+{
+    struct aicfb_alpha_config alpha = {0};
+    int ret;
+
+    alpha.layer_id = AICFB_LAYER_TYPE_UI;
+    alpha.enable = 1;
+    alpha.mode = AICFB_GLOBAL_ALPHA_MODE;
+    alpha.value = 255;
+    ret = mpp_fb_ioctl(g_fb, AICFB_UPDATE_ALPHA_CONFIG, &alpha);
+    if (ret < 0)
+        printf("set alpha failed\n");
+}
+
+static void back_pictures_screen(void)
+{
+    lv_logo_screen_enable(false);
+    lv_pictures_screen_enable(true);
+    screen_global_alpha_set();
+}
+
+static void back_logo_screen(void)
+{
+    lv_logo_screen_enable(true);
+    lv_pictures_screen_enable(false);
+    screen_global_alpha_set();
+}
+#endif /* LV_USB_OSD_SETTINGS_MENU */
+
 static void menu_event_cb(lv_event_t * e)
 {
     lv_event_code_t code = (lv_event_code_t)lv_event_get_code(e);
@@ -172,14 +191,78 @@ static void menu_event_cb(lv_event_t * e)
         lv_img_set_src(g_image, image_str);
     }
 
-    /*
-     * show settings menu by tp long pressed event
-     * hide by back_event_handler()
-     */
+#ifdef LV_USB_OSD_SETTINGS_MENU
+    /* show settings menu by tp long pressed event */
     if (code == LV_EVENT_LONG_PRESSED) {
         if (!lv_settings_menu_is_enabled())
             lv_settings_menu_enable(true);
+
+        old_mode = lv_get_screen_lock_mode();
+        /*
+         * Normally, a LV_EVENT_CLICKED event will be generated after the
+         * LV_EVENT_LONG_PRESSED event ends, and we need to filter it out.
+         */
+        long_press_end = 1;
     }
+
+    if(code == LV_EVENT_CLICKED) {
+        if (lv_settings_menu_is_enabled()) {
+
+            /* Filter out a LV_EVENT_CLICKED event */
+            if (long_press_end == 1 || is_video_screen_switched()) {
+                long_press_end = 0;
+                video_screen_switched(false);
+                return;
+            }
+
+            lv_settings_menu_enable(false);
+        }
+
+        /* switch to video screen to display controls such as video progress bars */
+        if(lv_get_screen_lock_mode() == DISPLAY_VIDEO)
+            lv_load_video_screen();
+
+        if (is_usb_disp_suspend()) {
+            int new_mode = lv_get_screen_lock_mode();
+
+            if (old_mode == DISPLAY_VIDEO && new_mode != DISPLAY_VIDEO)
+                lv_video_stop();
+
+            if (old_mode == DISPLAY_VIDEO && new_mode == DISPLAY_VIDEO)
+                return;
+
+            old_mode = new_mode;
+
+            switch (new_mode) {
+            case DISPLAY_LOGO:
+                back_logo_screen();
+                break;
+            case DISPLAY_PICTURES:
+                back_pictures_screen();
+                break;
+            case BLANK_SCREEN:
+            {
+                lv_pictures_screen_enable(false);
+                lv_logo_screen_enable(false);
+
+                usb_osd_modify_blank_status(true);
+                break;
+            }
+            case DISPLAY_VIDEO:
+                back_video_screen();
+                break;
+            default:
+                printf("Invalid lock screen mode\n");
+                break;
+            }
+        } else {
+            lv_pictures_screen_enable(false);
+            lv_logo_screen_enable(false);
+            if (!is_usb_disp_suspend())
+                lvgl_put_tp();
+        }
+    }
+#endif /* LV_USB_OSD_SETTINGS_MENU */
 }
 
 /*
@@ -205,6 +288,15 @@ static void menu_hide_callback(lv_timer_t *tmr)
      */
     if (g_menu_draw_count == g_hide_time_count) {
         lv_settings_menu_enable(false);
+#if LVGL_VERSION_MAJOR == 8
+        lv_event_send(menu, LV_EVENT_CLICKED, NULL);
+#else
+        lv_obj_send_event(menu, LV_EVENT_CLICKED, NULL);
+#endif
+
+        if (!is_usb_disp_suspend())
+            lvgl_put_tp();
+
         g_hide_time_count = 0;
         g_menu_draw_count = 0;
         return;
@@ -268,49 +360,6 @@ static void recovery_btn_event_handler(lv_event_t * e)
 
         struct aicfb_disp_prop disp_prop = { 50, 50, 50, 50 };
         mpp_fb_ioctl(g_fb, AICFB_SET_DISP_PROP, &disp_prop);
-    }
-}
-
-static void blank_screen_delay_callback(lv_timer_t *tmr)
-{
-    mpp_fb_ioctl(g_fb, AICFB_POWEROFF, 0);
-}
-
-static void back_event_handler(lv_event_t * e)
-{
-    lv_obj_t * obj = lv_event_get_target(e);
-    lv_obj_t * menu = lv_event_get_user_data(e);
-
-    if(lv_menu_back_btn_is_root(menu, obj)) {
-        if (is_usb_disp_suspend()) {
-            int mode = lv_get_screen_lock_mode();
-
-            switch (mode) {
-            case DISPLAY_LOGO:
-                back_logo_screen();
-                break;
-            case DISPLAY_PICTURES:
-                back_pictures_screen();
-                break;
-            case BLANK_SCREEN:
-            {
-                lv_pictures_screen_enable(false);
-                lv_settings_menu_enable(false);
-                lv_logo_screen_enable(false);
-
-                lv_timer_t * blank_timer = lv_timer_create(blank_screen_delay_callback, 250, 0);
-                lv_timer_set_repeat_count(blank_timer, 1);
-                break;
-            }
-            default:
-                printf("Invalid lock screen mode\n");
-                break;
-            }
-        } else {
-                lv_pictures_screen_enable(false);
-                lv_settings_menu_enable(false);
-                lv_logo_screen_enable(false);
-        }
     }
 }
 
@@ -486,6 +535,9 @@ static lv_obj_t * creat_screen_lock_mode_dropdown(lv_obj_t * parent)
     lv_obj_t * dd = lv_dropdown_create(parent);
     lv_dropdown_set_options(dd, "LOGO \n"
                             "Pictures\n"
+#ifdef LV_USB_OSD_PLAY_VIDEO
+                            "Video\n"
+#endif
                             "Blank screen");
 
     lv_dropdown_set_selected(dd, USB_OSD_SCREEN_LOCK_MODE);
@@ -607,10 +659,6 @@ lv_obj_t * lv_settings_screen_creat(void)
     lv_obj_set_size(menu, USB_OSD_MENU_WIDTH, USB_OSD_MENU_HEIGHT);
     lv_obj_align(menu, LV_ALIGN_BOTTOM_MID, 0, 0);
 
-    /* back btn */
-    lv_menu_set_mode_root_back_btn(menu, LV_MENU_ROOT_BACK_BTN_ENABLED);
-    lv_obj_add_event_cb(menu, back_event_handler, LV_EVENT_CLICKED, menu);
-
     /* Create sub pages */
     lv_obj_t * cont;
     lv_obj_t * section;
@@ -680,6 +728,7 @@ lv_obj_t * lv_settings_screen_creat(void)
     creat_screen_lock_mode_dropdown(cont);
     /* sceen lock mode default by menuconfig */
     g_screen_lock_mode = USB_OSD_SCREEN_LOCK_MODE;
+    old_mode = USB_OSD_SCREEN_LOCK_MODE;
 
     cont = create_text(section, NULL, "Screen Blank After Lock", LV_MENU_ITEM_BUILDER_VARIANT_1);
     creat_screen_blank_delay_dropdown(cont);
@@ -713,7 +762,12 @@ lv_obj_t * lv_settings_screen_creat(void)
 
     lv_menu_set_sidebar_page(menu, root_page);
 
+#if LVGL_VERSION_MAJOR == 8
     lv_event_send(lv_obj_get_child(lv_obj_get_child(lv_menu_get_cur_sidebar_page(menu), 0), 0), LV_EVENT_CLICKED, NULL);
+#else
+    lv_obj_send_event(lv_obj_get_child(lv_obj_get_child(lv_menu_get_cur_sidebar_page(menu), 0), 0), LV_EVENT_CLICKED,
+                      NULL);
+#endif
 
     return settings_screen;
 }

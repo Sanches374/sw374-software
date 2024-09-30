@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  * Authors:  dwj <weijie.ding@artinchip.com>
@@ -121,6 +121,7 @@ void hal_cir_disable_receiver(aic_cir_ctrl_t * aic_cir_ctrl);
 irqreturn_t hal_cir_irq(int irq_num, void *arg);
 void hal_cir_attach_callback(aic_cir_ctrl_t * aic_cir_ctrl,
                              void *callback, void *arg);
+void hal_cir_detach_callback(aic_cir_ctrl_t * aic_cir_ctrl);
 void hal_cir_rx_reset_status(aic_cir_ctrl_t * aic_cir_ctrl);
 
 #endif /* _HAL_CIR_H_ */

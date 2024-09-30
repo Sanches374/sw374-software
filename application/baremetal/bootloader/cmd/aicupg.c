@@ -56,7 +56,7 @@ static void aicupg_help(void)
 extern struct usb_device usbupg_device;
 extern void stdio_unset_uart(int id);
 
-static int ctrlc(void)
+__USED static int ctrlc (void)
 {
     switch (getchar()) {
         case 0x03:              /* ^C - Control C */
@@ -130,6 +130,13 @@ static int do_uart_protocol_upg(int intf, char *mode)
         if (!strcmp(mode, "userid")) {
             need_ckmode = 1;
             init.mode_bits = INIT_MODE(UPG_MODE_BURN_USER_ID);
+#if defined(AICUPG_FORCE_UPGRADE_SUPPORT)
+            /* Enter burn USERID mode also support force burn image */
+            init.mode_bits |= INIT_MODE(UPG_MODE_BURN_IMG_FORCE);
+#endif
+        } else if (!strcmp(mode, "force")) {
+            need_ckmode = 1;
+            init.mode_bits = INIT_MODE(UPG_MODE_BURN_IMG_FORCE);
         }
     }
     aicupg_initialize(&init);
@@ -184,6 +191,13 @@ static int do_usb_protocol_upg(int intf, char *mode)
         if (!strcmp(mode, "userid")) {
             need_ckmode = 1;
             init.mode_bits = INIT_MODE(UPG_MODE_BURN_USER_ID);
+#if defined(AICUPG_FORCE_UPGRADE_SUPPORT)
+            /* Enter burn USERID mode also support force burn image */
+            init.mode_bits |= INIT_MODE(UPG_MODE_BURN_IMG_FORCE);
+#endif
+        } else if (!strcmp(mode, "force")) {
+            need_ckmode = 1;
+            init.mode_bits = INIT_MODE(UPG_MODE_BURN_IMG_FORCE);
         }
     }
     aicupg_initialize(&init);
@@ -217,7 +231,7 @@ static int do_usb_protocol_upg(int intf, char *mode)
     return ret;
 }
 
-static void fat_upg_progress(u32 percent)
+__USED static void fat_upg_progress(u32 percent)
 {
     /* Show to screen */
     aicfb_draw_bar(percent);
@@ -508,6 +522,7 @@ static int do_fat_upg(int intf, char *const blktype)
             ret = aic_fat_read_file("bootcfg.txt", (void *)file_buf, 0, 2048,
                                     &actread);
             if (actread == 0 || ret) {
+                aicos_mdelay(1000);
                 reboot_device();
             }
 

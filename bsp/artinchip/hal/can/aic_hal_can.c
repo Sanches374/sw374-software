@@ -300,7 +300,7 @@ static void hal_can_bus_error_msg(can_handle *phandle)
 
     for (i = 0; i < ARRAY_SIZE(bus_err_dir); i++) {
         if (errdir == bus_err_dir[i].code) {
-            hal_log_err("%s, ", bus_err_dir[i].msg);
+            hal_log_debug("%s, ", bus_err_dir[i].msg);
             if (i) {
                 phandle->status.recverrcnt++;
             } else {
@@ -314,7 +314,7 @@ static void hal_can_bus_error_msg(can_handle *phandle)
 
     for (i = 0; i < ARRAY_SIZE(bus_err_type); i++) {
         if (errtype == bus_err_type[i].code) {
-            hal_log_err("%s, ", bus_err_type[i].msg);
+            hal_log_debug("%s, ", bus_err_type[i].msg);
             switch (i) {
             case 0:
                 phandle->status.biterrcnt++;
@@ -335,7 +335,7 @@ static void hal_can_bus_error_msg(can_handle *phandle)
 
     for (i = 0; i < ARRAY_SIZE(bus_err_code); i++) {
         if (errcode == bus_err_code[i].code) {
-            hal_log_err("%s\n", bus_err_code[i].msg);
+            hal_log_debug("%s\n", bus_err_code[i].msg);
             switch (i) {
             case CAN_BUS_ERRCODE_CRCERRCNT:
                 phandle->status.crcerrcnt++;
@@ -357,7 +357,7 @@ static void hal_can_arblost_msg(can_handle *phandle)
 
     for (i = 0; i < ARRAY_SIZE(bus_arb_lost); i++) {
         if (arbinfo == bus_arb_lost[i].code) {
-            hal_log_err("%s, ", bus_arb_lost[i].msg);
+            hal_log_debug("%s, ", bus_arb_lost[i].msg);
             phandle->status.arblostcnt++;
             phandle->status.snderrcnt++;
             break;

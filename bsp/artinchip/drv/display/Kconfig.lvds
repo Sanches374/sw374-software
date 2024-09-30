@@ -18,6 +18,7 @@ config AIC_LVDS_JEIDA_24BIT
 
 config AIC_LVDS_JEIDA_18BIT
     bool "jeida-18"
+    select AIC_DISPLAY_DITHER if !(AICFB_RGB565 || AICFB_ARGB1555)
 endchoice
 
 config AIC_LVDS_MODE

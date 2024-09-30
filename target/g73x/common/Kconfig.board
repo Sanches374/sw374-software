@@ -35,7 +35,7 @@ config AIC_USING_UART2
     default n
     select AIC_UART_DRV
 
- config AIC_USING_UART3
+config AIC_USING_UART3
     bool "Using Uart3"
     default n
     select AIC_UART_DRV
@@ -67,17 +67,17 @@ source "bsp/artinchip/drv/uart/Kconfig.dev"
 #---------------------------
 
 config AIC_USING_I2C0
-    bool "Using I2c0"
+    bool "Using I2C0"
     default n
     select AIC_I2C_DRV
 
 config AIC_USING_I2C1
-    bool "Using I2c1"
+    bool "Using I2C1"
     default n
     select AIC_I2C_DRV
 
 config AIC_USING_I2C2
-    bool "Using I2c2"
+    bool "Using I2C2"
     default n
     select AIC_I2C_DRV
 
@@ -401,6 +401,11 @@ menu "SPI1 Parameter"
         default 2
         range 0 4
 
+    config AIC_QSPI1_DYNAMIC_DMA
+        depends on AIC_USING_DMA
+        bool "Dynamic DMA channel SPI1"
+        default n
+
 endmenu
 
 config AIC_USING_QSPI2
@@ -430,6 +435,11 @@ menu "SPI2 Parameter"
         int "RX Data Sample Delay"
         default 2
         range 0 4
+
+    config AIC_QSPI2_DYNAMIC_DMA
+        depends on AIC_USING_DMA
+        bool "Dynamic DMA channel SPI2"
+        default n
 
 endmenu
 
@@ -461,6 +471,11 @@ menu "SPI3 Parameter"
         default 2
         range 0 4
 
+    config AIC_QSPI3_DYNAMIC_DMA
+        depends on AIC_USING_DMA
+        bool "Dynamic DMA channel SPI3"
+        default n
+
 endmenu
 
 source "bsp/artinchip/drv/qspi/Kconfig.dev"
@@ -480,6 +495,17 @@ config AIC_USING_SDMC1
     select AIC_SDMC_DRV
 
 source "bsp/artinchip/drv/sdmc/Kconfig"
+
+#---------------------------
+# WLAN device global option
+#---------------------------
+comment "WLAN Related:"
+
+menuconfig AIC_WIRELESS_LAN
+        bool "Using Wireless LAN"
+        default n
+
+source "bsp/peripheral/wireless/Kconfig"
 
 #================================================
 # Analog Class
@@ -618,14 +644,6 @@ config AIC_USING_DVP
     default n
     select AIC_DVP_DRV
 
-#--------------------------------------------
-# Camera driver global option
-#--------------------------------------------
-
-menu "Camera Support"
-source "bsp/peripheral/camera/Kconfig"
-endmenu
-
 #---------------------------
 # I2S global option
 #---------------------------
@@ -643,7 +661,6 @@ config AIC_USING_AUDIO
     bool "Using Audio"
     default n
     select AIC_AUDIO_DRV
-    select AIC_USING_DMA
 
 source "bsp/artinchip/drv/audio/Kconfig"
 
@@ -718,70 +735,251 @@ config AIC_USING_WDT
 menu "Mem Options"
 
 # 1. sram region
-config AIC_SRAM_SIZE
-    hex "SRAM Size"
-    default 0x100000
+menu "SRAM parameter"
+    config AIC_SRAM_TOTAL_SIZE
+        hex "SRAM Total Size"
+        default 0x100000
 
-# 1.1 sram cma: section(".sram_cma_data") + sram_cma_heap "MEM_SRAM_CMA"
+    # 1.1 tcm region
+    # itcm: section(".tcm_code") + itcm_heap "MEM_ITCM"
+    # itcm: section(".tcm_data") + dtcm_heap "MEM_DTCM"
 
-config AIC_SRAM_CMA_EN
-    bool
-    default y if AIC_SRAM_SIZE > 0
+    config AIC_TCM_EN
+        bool "Enable TCM (Tightly Coupled Memory) "
+        default n
 
-# 1.2 sram sw: section(".sram_sw_data") + sram_sw_heap 'MEM_SRAM_SW'
-config AIC_SRAM_SW_SIZE
-    hex "Software size in SRAM"
-    range 0 AIC_SRAM_SIZE
-    default 0x0
+    config AIC_ITCM_SIZE
+        hex
+        range 0 AIC_SRAM_TOTAL_SIZE
+        default 0x0 if !AIC_TCM_EN
+        default 0x20000 if AIC_TCM_EN
 
-config AIC_SRAM_SW_EN
-    bool
-    default y if AIC_SRAM_SW_SIZE > 0
+    config AIC_DTCM_SIZE
+        hex
+        range 0 AIC_SRAM_TOTAL_SIZE
+        default 0x0 if !AIC_TCM_EN
+        default 0x20000 if AIC_TCM_EN
 
-## 2. psram region
-#
-#config AIC_PSRAM_SIZE
-#    hex "PSRAM size"
-#    default 0x800000
-#
-## 2.1 psram cma: section(".psram_cma_data") + psram_cma_heap ‘MEM_PSRAM_CMA’
-#
-#config AIC_PSRAM_CMA_EN
-#    bool
-#    default y if AIC_PSRAM_SIZE > 0
-#
-## 2.2 psram sw: section(".psram_sw_data") + psram_sw_heap ‘MEM_PSRAM_SW’
-#config AIC_PSRAM_SW_SIZE
-#    hex "Software size in PSRAM"
-#    range 0 AIC_PSRAM_SIZE
-#    default 0x100000
-#
-#config AIC_PSRAM_SW_EN
-#    bool
-#    default y if AIC_PSRAM_SW_SIZE > 0
+    # 1.2 sram_s0 region
+    # sram_sw: section(".text" + ".data" + ".bss") + sram_sw_heap ‘MEM_DEFAULT’
 
-config AIC_INTERRUPTSTACK_SIZE
-    int "Interrupt stack size reserve in '.section .bss'"
-    range 0 AIC_SRAM_SW_SIZE
-    default 4096
+    # 1.3 sram_s1 region
 
-config AIC_USING_SRAM
-    bool "Run code only in SRAM"
-    default n
+    choice
+        prompt "SRAM_S1 Size"
+        default AIC_SRAM_S1_SIZE_0K
+        help
+            Select the package version
+
+        config AIC_SRAM_S1_SIZE_0K
+            bool "0K"
+        config AIC_SRAM_S1_SIZE_128K
+            bool "128K"
+        config AIC_SRAM_S1_SIZE_256K
+            bool "256K"
+        config AIC_SRAM_S1_SIZE_384K
+            bool "384K"
+        config AIC_SRAM_S1_SIZE_512K
+            bool "512K"
+        config AIC_SRAM_S1_SIZE_640K
+            bool "640K"
+        config AIC_SRAM_S1_SIZE_768K
+            bool "768K"
+    endchoice
+
+    config AIC_SRAM_S1_SIZE
+       hex
+       range 0 AIC_SRAM_TOTAL_SIZE
+       default 0        if AIC_SRAM_S1_SIZE_0K
+       default 0x20000  if AIC_SRAM_S1_SIZE_128K
+       default 0x40000  if AIC_SRAM_S1_SIZE_256K
+       default 0x60000  if AIC_SRAM_S1_SIZE_384K
+       default 0x80000  if AIC_SRAM_S1_SIZE_512K
+       default 0xA0000  if AIC_SRAM_S1_SIZE_640K
+       default 0xC0000  if AIC_SRAM_S1_SIZE_768K
+
+    config AIC_SRAM_S1_REG_SIZE
+       hex
+       range 0 AIC_SRAM_TOTAL_SIZE
+       default 0x00  if AIC_SRAM_S1_SIZE_0K
+       default 0x10  if AIC_SRAM_S1_SIZE_128K
+       default 0x20  if AIC_SRAM_S1_SIZE_256K
+       default 0x30  if AIC_SRAM_S1_SIZE_384K
+       default 0x40  if AIC_SRAM_S1_SIZE_512K
+       default 0x50  if AIC_SRAM_S1_SIZE_640K
+       default 0x60  if AIC_SRAM_S1_SIZE_768K
+
+    config AIC_SRAM1_EN
+        bool
+        default y if !AIC_SRAM_S1_SIZE_0K
+        select AIC_SRAM1_CMA_EN
+
+    config AIC_SRAM1_CMA_EN
+        bool
+
+    config AIC_SRAM1_SW_SIZE
+        hex "Software size in SRAM_S1"
+        range 0 AIC_SRAM_S1_SIZE
+        default 0x0
+
+    config AIC_SRAM1_SW_EN
+        bool
+        default y if AIC_SRAM1_SW_SIZE > 0
+
+    config AIC_BOOTLOADER_RESERVE_SIZE
+        hex "Bootloader reserve size"
+        help
+            This area is used only during the boot phase and is used as the heap after boot.
+        range 0 AIC_SRAM_TOTAL_SIZE
+        default 0x40000
+endmenu
+
+# 2. psram region
+
+menu "PSRAM parameter"
+    config AIC_PSRAM_SIZE
+        hex "PSRAM size"
+        default 0x800000
+
+    # 2.1 psram cma: section(".psram_cma_data") + psram_cma_heap ‘MEM_PSRAM_CMA’
+
+    config AIC_PSRAM_CMA_EN
+        bool
+        default y if AIC_PSRAM_SIZE > 0
+
+    # 2.2 psram sw: section(".psram_sw_data") + psram_sw_heap ‘MEM_PSRAM_SW’
+    config AIC_PSRAM_SW_SIZE
+        hex "Software size in PSRAM"
+        range 0 AIC_PSRAM_SIZE
+        default 0x100000
+
+    config AIC_PSRAM_SW_EN
+        bool
+        default y if AIC_PSRAM_SW_SIZE > 0
+endmenu
+
+# 3. XIP
 
 config AIC_XIP
     bool "Enable XIP"
     default n
 
-#-----------------------------
-# XIP config parameter
-#-----------------------------
 menu "XIP parameter"
     depends on AIC_XIP
     config AIC_XIP_FW_OFFSET
     hex "XIP fw start addr"
     default 0x0
 endmenu
+
+# 4. Sections memory location
+
+menu "ELF Sections memory location"
+    choice
+        prompt "Section .text"
+        default AIC_SEC_TEXT_XIP if AIC_XIP
+        default AIC_SEC_TEXT_PSRAM if LPKG_USING_AWTK || AIC_MPP_PLAYER_INTERFACE || AIC_WIRELESS_LAN
+        help
+            Select the memory location for section .text.
+        config AIC_SEC_TEXT_SRAM_S0
+            bool "SRAM_S0"
+        config AIC_SEC_TEXT_SRAM_S1
+            depends on AIC_SRAM1_EN
+            bool "SRAM_S1"
+        config AIC_SEC_TEXT_PSRAM
+            depends on AIC_PSRAM_CMA_EN
+            bool "PSRAM"
+        config AIC_SEC_TEXT_XIP
+            depends on AIC_XIP
+            bool "XIP_FLASH"
+    endchoice
+
+    choice
+        prompt "Section .rodata"
+        default AIC_SEC_RODATA_XIP if AIC_XIP
+        default AIC_SEC_RODATA_PSRAM if LPKG_USING_AWTK || AIC_MPP_PLAYER_INTERFACE || AIC_WIRELESS_LAN
+        help
+            Select the memory location for section .rodata.
+        config AIC_SEC_RODATA_SRAM_S0
+            bool "SRAM_S0"
+        config AIC_SEC_RODATA_SRAM_S1
+            depends on AIC_SRAM1_EN
+            bool "SRAM_S1"
+        config AIC_SEC_RODATA_PSRAM
+            depends on AIC_PSRAM_CMA_EN
+            bool "PSRAM"
+        config AIC_SEC_RODATA_XIP
+            depends on AIC_XIP
+            bool "XIP_FLASH"
+    endchoice
+
+    choice
+        prompt "Section .data"
+        default AIC_SEC_DATA_PSRAM if LPKG_USING_AWTK || AIC_MPP_PLAYER_INTERFACE || AIC_WIRELESS_LAN
+        help
+            Select the memory location for section .data.
+        config AIC_SEC_DATA_SRAM_S0
+            bool "SRAM_S0"
+        config AIC_SEC_DATA_SRAM_S1
+            depends on AIC_SRAM1_EN
+            bool "SRAM_S1"
+        config AIC_SEC_DATA_PSRAM
+            depends on AIC_PSRAM_CMA_EN
+            bool "PSRAM"
+    endchoice
+
+    choice
+        prompt "Section .bss"
+        default AIC_SEC_BSS_PSRAM
+        default AIC_SEC_BSS_PSRAM if LPKG_USING_AWTK || AIC_MPP_PLAYER_INTERFACE || AIC_WIRELESS_LAN
+        help
+            Select the memory location for section .data.
+        config AIC_SEC_BSS_SRAM_S0
+            bool "SRAM_S0"
+        config AIC_SEC_BSS_SRAM_S1
+            depends on AIC_SRAM1_EN
+            bool "SRAM_S1"
+        config AIC_SEC_BSS_PSRAM
+            depends on AIC_PSRAM_CMA_EN
+            bool "PSRAM"
+    endchoice
+endmenu
+
+# 5. Interrupt Stack Size
+
+config AIC_INTERRUPTSTACK_SIZE
+    int "Interrupt stack size"
+    help
+        Interrupt stack size reserve in 'Section .bss'
+    range 0 AIC_SRAM_TOTAL_SIZE
+    default 4096
+
+# 6. Support seconed Flash
+
+    menu "Support another Flash"
+        choice
+            prompt "Number of Flash"
+            default AIC_FLASH_NUM_ONE
+            help
+                Whether support another flash
+            config AIC_FLASH_NUM_ONE
+                bool "only 1 flash"
+            config AIC_FLASH_NUM_TWO
+                bool "support 2 flashes"
+        endchoice
+        choice
+            prompt "Seconed Flash type"
+            depends on AIC_FLASH_NUM_TWO
+            default AIC_SECONED_FLASH_NOR
+            help
+                Type of seconed Flash
+            config AIC_SECONED_FLASH_NOR
+                bool "norflash"
+            config AIC_SECONED_FLASH_NAND
+                bool "nandflash"
+        endchoice
+
+    endmenu
+
 endmenu
 
 #---------------------------
@@ -834,17 +1032,41 @@ config AIC_USING_CLK_OUT0
     bool "Enable CLK_OUT0"
     default n
 
+if AIC_USING_CLK_OUT0
+    config AIC_CLK_OUT0_FREQ
+        int "Clk CLK_OUT0 frequence"
+        default 25000000
+endif
+
 config AIC_USING_CLK_OUT1
     bool "Enable CLK_OUT1"
     default n
+
+if AIC_USING_CLK_OUT1
+    config AIC_CLK_OUT1_FREQ
+        int "Clk CLK_OUT1 frequence"
+        default 24000000
+endif
 
 config AIC_USING_CLK_OUT2
     bool "Enable CLK_OUT2"
     default n
 
+if AIC_USING_CLK_OUT2
+    config AIC_CLK_OUT2_FREQ
+        int "Clk CLK_OUT2 frequence"
+        default 25000000
+endif
+
 config AIC_USING_CLK_OUT3
     bool "Enable CLK_OUT3"
     default n
+
+if AIC_USING_CLK_OUT3
+    config AIC_CLK_OUT3_FREQ
+        int "Clk CLK_OUT3 frequence"
+        default 25000000
+endif
 
 endmenu
 
@@ -918,7 +1140,6 @@ config AIC_USING_MTOP
     bool "Using MTOP"
     default n
     select AIC_MTOP_DRV
-
 
 #---------------------------
 # PSADC device global option
@@ -1015,5 +1236,4 @@ config AIC_USING_PSADC15
     select AIC_PSADC_DRV
 
 endmenu
-
 endmenu

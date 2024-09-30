@@ -8,6 +8,8 @@ CPPPATH = []
 
 if GetDepend('AIC_USING_CAMERA'):
     CPPPATH.append(cwd)
+    CPPPATH.append(cwd + '/common')
+    src += Glob('common/*.c')
 
 if GetDepend('AIC_USING_CAMERA_OV7670'):
     src += Glob('ov7670/*.c')
@@ -21,8 +23,17 @@ if GetDepend('AIC_USING_CAMERA_OV2659'):
 if GetDepend('AIC_USING_CAMERA_OV2640'):
     src += Glob('ov2640/*.c')
 
+if GetDepend('AIC_USING_CAMERA_GC0308'):
+    src += Glob('gc0308/*.c')
+
+if GetDepend('AIC_USING_CAMERA_GC032A'):
+    src += Glob('gc032a/*.c')
+
 if GetDepend('AIC_USING_CAMERA_GM7150'):
     src += Glob('gm7150/*.c')
+
+if GetDepend('AIC_USING_CAMERA_SC030IOT'):
+    src += Glob('sc030iot/*.c')
 
 if GetDepend('AIC_USING_CAMERA_TP2825'):
     src += Glob('tp2825b/tp2825bx.c')

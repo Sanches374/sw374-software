@@ -39,12 +39,12 @@ const struct aic_spinand_info xincun_spinand_table[] = {
 const struct aic_spinand_info *
 xincun_spinand_detect(struct aic_spinand *flash)
 {
-    u8 *Id = flash->id.data;
+    u8 *id = flash->id.data;
 
-    if (Id[0] != SPINAND_MFR_XINCUN)
+    if (id[0] != SPINAND_MFR_XINCUN)
         return NULL;
 
-    return spinand_match_and_init(Id[1], xincun_spinand_table,
+    return spinand_match_and_init(&id[1], xincun_spinand_table,
                                   ARRAY_SIZE(xincun_spinand_table));
 };
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Artinchip Technology Co., Ltd
+ * Copyright (c) 2021-2024, Artinchip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -86,7 +86,8 @@ typedef struct
     uint32_t RESERVED2[1];
     __IM uint32_t RFL;                  /* Offset: 0x084 (R/ )  UART rx fifo level register */
     __IOM uint32_t HSK;                 /* Offset: 0x088 (R/W)  UART dma hsk register */
-    uint32_t RESERVED3[6];
+    uint32_t RESERVED3[5];
+    __IOM uint32_t RXCTL;               /* Offset: 0x0A0 */
     __IOM uint32_t HALT;                /* Offset: 0x0A4 */
 } aic_usart_reg_t;
 
@@ -820,6 +821,27 @@ int32_t hal_usart_uninitialize(usart_handle_t handle)
 }
 
 /**
+  \brief       UART enable or disable receive data
+  \param[in]   handle  usart handle to operate.
+  \param[in]   switch  enable or disable rx
+  \return      error code
+*/
+int32_t hal_usart_rx_switch(usart_handle_t handle, bool rx_switch)
+{
+    USART_NULL_PARAM_CHK(handle);
+    aic_usart_priv_t *usart_priv = handle;
+    aic_usart_reg_t *addr = (aic_usart_reg_t *)(usart_priv->base);
+
+    if (rx_switch == 1)
+        /* UART enable receive data  */
+        addr->RXCTL |= AIC_RXCTL_SWITCH;
+    else
+        /* UART disable receive data  */
+        addr->RXCTL &= ~AIC_RXCTL_SWITCH;
+    return 0;
+}
+
+/**
   \brief       config usart mode.
   \param[in]   handle  usart handle to operate.
   \param[in]   baud      baud rate
@@ -893,6 +915,16 @@ int32_t hal_usart_config(usart_handle_t handle,
     {
         return ret;
     }
+
+#if defined(AIC_UART_DRV_V14)
+    /* control enable receive data*/
+    ret = hal_usart_rx_switch(handle, 1);
+
+    if (ret < 0)
+    {
+        return ret;
+    }
+#endif
 
     return 0;
 }

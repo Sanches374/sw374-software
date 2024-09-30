@@ -46,6 +46,12 @@ int jpeg_encode_test(int argc, char **argv)
 
 	int width = 176;
 	int height = 144;
+	int jpeg_phy_addr = 0;
+
+	if (argc < 2) {
+		print_help();
+		return -1;
+	}
 
 	while (1) {
 		opt = getopt(argc, argv, "i:q:w:g:h");
@@ -85,7 +91,20 @@ int jpeg_encode_test(int argc, char **argv)
 	}
 	fclose(fp);
 
+	struct mpp_encoder *p_encoder = mpp_encoder_create(MPP_CODEC_VIDEO_ENCODER_MJPEG);
+	if (!p_encoder) {
+		loge("create encoder failed.\n");
+		goto out;
+	}
+	struct encode_config config = {0};
+	config.quality = quality;
+	if (mpp_encoder_init(p_encoder, &config)) {
+		loge("initial encoder failed.\n");
+		goto out;
+	}
+
 	struct mpp_frame frame;
+	struct mpp_packet packet;
 	memset(&frame, 0, sizeof(struct mpp_frame));
 	frame.buf.phy_addr[0] = phy_addr[0];
 	frame.buf.phy_addr[1] = phy_addr[1];
@@ -93,25 +112,31 @@ int jpeg_encode_test(int argc, char **argv)
 	frame.buf.size.width = width;
 	frame.buf.size.height = height;
 	frame.buf.stride[0] = width;
-	frame.buf.stride[1] = frame.buf.stride[2] = width/2;
+	frame.buf.stride[1] = frame.buf.stride[2] = width / 2;
 	frame.buf.format = MPP_FMT_YUV420P;
 
 	int len = 0;
 	int buf_len = width * height * 4/5 * quality / 100;
-	int jpeg_phy_addr = mpp_phy_alloc(buf_len);
+	jpeg_phy_addr = mpp_phy_alloc(buf_len);
 	unsigned char* jpeg_vir_addr = (unsigned char*)(unsigned long)jpeg_phy_addr;
-	if (mpp_encode_jpeg(&frame, quality, jpeg_phy_addr, buf_len, &len) < 0) {
-		loge("encode failed");
+	packet.phy_addr = jpeg_phy_addr;
+	packet.size = buf_len;
+	if (mpp_encoder_encode(p_encoder, &frame, &packet) < 0) {
 		goto out;
 	}
 
 	logi("jpeg encode len: %d", len);
 	FILE* fp_save = fopen("/sdcard/save.jpg", "wb");
-	fwrite(jpeg_vir_addr, 1, len, fp_save);
+	fwrite(jpeg_vir_addr, 1, packet.len, fp_save);
 	fclose(fp_save);
 
 out:
-	mpp_phy_free(jpeg_phy_addr);
+	if (p_encoder)
+		mpp_encoder_destory(p_encoder);
+
+	if (jpeg_phy_addr)
+		mpp_phy_free(jpeg_phy_addr);
+
 	mpp_phy_free(phy_addr[0]);
 	mpp_phy_free(phy_addr[1]);
 	mpp_phy_free(phy_addr[2]);

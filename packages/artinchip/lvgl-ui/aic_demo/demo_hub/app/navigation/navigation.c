@@ -35,21 +35,6 @@ static sys_met_hub *sys_info;
 
 static int last_tabview_tab = 0;
 
-static void keypad_encoder_cb(lv_event_t * e)
-{
-    app_entrance(APP_KEYPAD_ENCODER, 1);
-}
-
-static void stress_cb(lv_event_t * e)
-{
-    app_entrance(APP_STRESS, 1);
-}
-
-static void benchmark_cb(lv_event_t * e)
-{
-    app_entrance(APP_BENCHMARK, 1);
-}
-
 static void widgets_example_cb(lv_event_t * e)
 {
     app_entrance(APP_WIDGETS, 1);
@@ -72,21 +57,38 @@ static void dashboard_ui_cb(lv_event_t * e)
 
 static void elevator_ui_cb(lv_event_t * e)
 {
+#if defined(AIC_CHIP_D12X)
+    if (LV_HOR_RES == 480)
+        return;
+#endif
     app_entrance(APP_ELEVATOR, 1);
 }
 
 static void aic_video_ui_cb(lv_event_t * e)
 {
+#if defined(AIC_CHIP_D12X)
+    if (LV_HOR_RES == 480)
+        return;
+#endif
     app_entrance(APP_VIDEO, 1);
 }
 
 static void aic_audio_ui_cb(lv_event_t * e)
 {
-    app_entrance(APP_AUDIO, 1);
+#if defined(AIC_CHIP_D13X)
+    if (LV_HOR_RES == 480)
+        app_entrance(APP_AUDIO, 1);
+#endif
 }
 
 static void camera_ui_cb(lv_event_t * e)
 {
+#if defined(AIC_CHIP_D12X)
+    if (LV_HOR_RES == 480)
+        return;
+    if (LV_HOR_RES == 1024)
+        return;
+#endif
     app_entrance(APP_CAMERA, 1);
 }
 
@@ -105,6 +107,11 @@ static void steam_box_ui_cb(lv_event_t * e)
     app_entrance(APP_STEAM_BOX, 1);
 }
 
+static void photo_frame_ui_cb(lv_event_t * e)
+{
+    app_entrance(APP_PHOTO_FRAME, 1);
+}
+
 static icon_app_list icon_list_480_272[] = {
     {LVGL_PATH(navigator/dashboard.png), LVGL_PATH(navigator/dashboard_selected.png), dashboard_ui_cb},
     {LVGL_PATH(navigator/elevator.png), LVGL_PATH(navigator/elevator_selected.png), elevator_ui_cb},
@@ -115,21 +122,21 @@ static icon_app_list icon_list_480_272[] = {
     {LVGL_PATH(navigator/stream.png), LVGL_PATH(navigator/stream_selected.png), steam_box_ui_cb},
     {LVGL_PATH(navigator/a86_box.png), LVGL_PATH(navigator/a86_box_selected.png), a_86box_ui_cb},
 
+    {LVGL_PATH(navigator/photo_frame.png), LVGL_PATH(navigator/photo_frame_selected.png), photo_frame_ui_cb},
     {LVGL_PATH(navigator/widgets.png), LVGL_PATH(navigator/widgets_selected.png), widgets_example_cb},
-    {LVGL_PATH(navigator/stress.png), LVGL_PATH(navigator/stress_selected.png), stress_cb},
-    {LVGL_PATH(navigator/benchmark.png), LVGL_PATH(navigator/benchmark_selected.png), benchmark_cb},
-    {LVGL_PATH(navigator/keypad_encoder.png), LVGL_PATH(navigator/keypad_encoder_selected.png), keypad_encoder_cb},
+    {LVGL_PATH(navigator/stress.png), LVGL_PATH(navigator/stress_selected.png), NULL},
+    {LVGL_PATH(navigator/benchmark.png), LVGL_PATH(navigator/benchmark_selected.png), NULL},
+    {LVGL_PATH(navigator/keypad_encoder.png), LVGL_PATH(navigator/keypad_encoder_selected.png), NULL},
     {LVGL_PATH(navigator/list.png), LVGL_PATH(navigator/list_selected.png), layout_list_ui_cb},
     {LVGL_PATH(navigator/table.png), LVGL_PATH(navigator/table_selected.png), layout_table_ui_cb},
     {LVGL_PATH(navigator/printer.png), LVGL_PATH(navigator/printer_selected.png), NULL},
-    {LVGL_PATH(navigator/weather.png), LVGL_PATH(navigator/weather_selected.png), NULL},
 
+    {LVGL_PATH(navigator/weather.png), LVGL_PATH(navigator/weather_selected.png), NULL},
     {LVGL_PATH(navigator/alarm_clock.png), LVGL_PATH(navigator/alarm_clock_selected.png), NULL},
     {LVGL_PATH(navigator/calculator.png), LVGL_PATH(navigator/calculator_selected.png), NULL},
     {LVGL_PATH(navigator/screen_casting.png), LVGL_PATH(navigator/screen_casting_selected.png), NULL},
     {LVGL_PATH(navigator/monitor.png), LVGL_PATH(navigator/monitor_selected.png), NULL},
     {LVGL_PATH(navigator/ebike.png), LVGL_PATH(navigator/ebike_selected.png), NULL},
-    {LVGL_PATH(navigator/photo_frame.png), LVGL_PATH(navigator/photo_frame_selected.png), NULL},
     {LVGL_PATH(navigator/gateway.png), LVGL_PATH(navigator/gateway_selected.png), NULL},
     {LVGL_PATH(navigator/charging_station.png), LVGL_PATH(navigator/charging_station_selected.png), NULL},
 };
@@ -144,21 +151,21 @@ static icon_app_list icon_list_1024_600[] = {
     {LVGL_PATH(navigator/stream.png), LVGL_PATH(navigator/stream_selected.png), steam_box_ui_cb},
     {LVGL_PATH(navigator/a86_box.png), LVGL_PATH(navigator/a86_box_selected.png), a_86box_ui_cb},
 
+    {LVGL_PATH(navigator/photo_frame.png), LVGL_PATH(navigator/photo_frame_selected.png), photo_frame_ui_cb},
     {LVGL_PATH(navigator/widgets.png), LVGL_PATH(navigator/widgets_selected.png), widgets_example_cb},
-    {LVGL_PATH(navigator/stress.png), LVGL_PATH(navigator/stress_selected.png), stress_cb},
-    {LVGL_PATH(navigator/benchmark.png), LVGL_PATH(navigator/benchmark_selected.png), benchmark_cb},
-    {LVGL_PATH(navigator/keypad_encoder.png), LVGL_PATH(navigator/keypad_encoder_selected.png), keypad_encoder_cb},
+    {LVGL_PATH(navigator/stress.png), LVGL_PATH(navigator/stress_selected.png), NULL},
+    {LVGL_PATH(navigator/benchmark.png), LVGL_PATH(navigator/benchmark_selected.png), NULL},
+    {LVGL_PATH(navigator/keypad_encoder.png), LVGL_PATH(navigator/keypad_encoder_selected.png), NULL},
     {LVGL_PATH(navigator/list.png), LVGL_PATH(navigator/list_selected.png), NULL},
     {LVGL_PATH(navigator/table.png), LVGL_PATH(navigator/table_selected.png), NULL},
     {LVGL_PATH(navigator/printer.png), LVGL_PATH(navigator/printer_selected.png), NULL},
-    {LVGL_PATH(navigator/weather.png), LVGL_PATH(navigator/weather_selected.png), NULL},
 
+    {LVGL_PATH(navigator/weather.png), LVGL_PATH(navigator/weather_selected.png), NULL},
     {LVGL_PATH(navigator/alarm_clock.png), LVGL_PATH(navigator/alarm_clock_selected.png), NULL},
     {LVGL_PATH(navigator/calculator.png), LVGL_PATH(navigator/calculator_selected.png), NULL},
     {LVGL_PATH(navigator/screen_casting.png), LVGL_PATH(navigator/screen_casting_selected.png), NULL},
     {LVGL_PATH(navigator/monitor.png), LVGL_PATH(navigator/monitor_selected.png), NULL},
     {LVGL_PATH(navigator/ebike.png), LVGL_PATH(navigator/ebike_selected.png), NULL},
-    {LVGL_PATH(navigator/photo_frame.png), LVGL_PATH(navigator/photo_frame_selected.png), NULL},
     {LVGL_PATH(navigator/gateway.png), LVGL_PATH(navigator/gateway_selected.png), NULL},
     {LVGL_PATH(navigator/charging_station.png), LVGL_PATH(navigator/charging_station_selected.png), NULL},
 };
@@ -226,7 +233,13 @@ void navigator_ui_init_impl(lv_obj_t *parent)
 {
     sys_info = sys_met_hub_create();
 
+#if LVGL_VERSION_MAJOR == 8
     lv_obj_t *tv_top = lv_tabview_create(parent, LV_DIR_TOP, 0);
+#else
+    lv_obj_t *tv_top = lv_tabview_create(parent);
+    lv_tabview_set_tab_bar_position(tv_top, LV_DIR_TOP);
+    lv_tabview_set_tab_bar_size(tv_top, 0);
+#endif
     lv_obj_set_size(tv_top, lv_pct(100), lv_pct(100));
     lv_obj_set_align(tv_top, LV_ALIGN_TOP_LEFT);
 
@@ -368,9 +381,10 @@ lv_obj_t *navigation_ui_init(void)
 
     lv_obj_t *ui_navigator = lv_obj_create(NULL);
     lv_obj_clear_flag(ui_navigator, LV_OBJ_FLAG_SCROLLABLE);
-    lv_img_cache_set_size(10);
-#ifdef AIC_CHIP_D21X
-    lv_img_cache_set_size(18);
+#if defined(AIC_CHIP_D21X)
+    lv_img_cache_set_size(20);
+#else
+    lv_img_cache_set_size(14);
 #endif
     navigator_ui_init_impl(ui_navigator); /* capable of adapting to screen size */
 

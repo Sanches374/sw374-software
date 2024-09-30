@@ -22,6 +22,7 @@ enum {
     APP_86BOX,
     APP_STRESS,
     APP_WIDGETS,
+    APP_PHOTO_FRAME,
     APP_NONE,
 };
 typedef int app_index_t;

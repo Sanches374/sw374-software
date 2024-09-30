@@ -177,7 +177,7 @@ void hal_epwm_ch_init(u32 ch, bool sync_mode, enum aic_epwm_mode mode, u32 defau
     }
 }
 
-static void hal_epwm_calculate_div(u32 ch, float tar_freq)
+static int hal_epwm_calculate_div(u32 ch, float tar_freq)
 {
     struct aic_epwm_arg *arg = &g_epwm_args[ch];
     int div1 = 0, div2 = 0;
@@ -209,12 +209,14 @@ static void hal_epwm_calculate_div(u32 ch, float tar_freq)
 
     if (div1 == 0 && div2 == 0) {
         hal_log_err("calculate div error,should adjust the EPWM_CLK_RATE.\n");
-        return;
+        return -1;
     }
 
     epwm_writel_bits(div1_index, EPWM_CLK_DIV1_MASK, EPWM_CLK_DIV1_SHIFT, EPWM_CNT_CONF(ch));
     epwm_writel_bits(div2_index, EPWM_CLK_DIV2_MASK, EPWM_CLK_DIV2_SHIFT, EPWM_CNT_CONF(ch));
     arg->tb_clk_rate = arg->clk_rate / (div1 * div2);
+
+    return 0;
 }
 
 int hal_epwm_set(u32 ch, u32 duty_ns, u32 period_ns, u32 output)
@@ -230,7 +232,8 @@ int hal_epwm_set(u32 ch, u32 duty_ns, u32 period_ns, u32 output)
 
     arg->freq = (float)NSEC_PER_SEC / period_ns;
 
-    hal_epwm_calculate_div(ch, arg->freq);
+    if (hal_epwm_calculate_div(ch, arg->freq) < 0)
+        return -ERANGE;
 
     prd = arg->tb_clk_rate / arg->freq;
 

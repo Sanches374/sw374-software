@@ -171,6 +171,7 @@ sfud_err sfud_read_status(const sfud_flash *flash, uint8_t *status);
  */
 sfud_err sfud_write_status(const sfud_flash *flash, bool is_volatile, uint8_t status);
 sfud_err sfud_write_status2(const sfud_flash *flash, uint8_t *status);
+sfud_err sfud_write_status_ext(const sfud_flash *flash, bool is_volatile, uint8_t reg, uint8_t stsval);
 
 /**
  * write status register

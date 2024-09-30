@@ -9,30 +9,66 @@
                 g73x Memory Layout
  ******************************************************************************
 
-            SRAM 1M
-0x30040000+----------+
-          |          |
-          | Software |
-          |    1M    |
-          |          |
-0x3013FFFF+----------+
+           配置(1)        配置(2)       配置(3)
+          SRAM_S1 OFF   SRAM_S1 OFF    SRAM_S1 ON
+              TCM ON        TCM OFF
+0x30040000+----------+  +----------+ +----------+
+          |   ITCM   |  |          | |          |
+          |   128K   |  |          | |   TCM    |
+0x30060000+----------+  |          | |    +     |
+          |   DTCM   |  |          | | SRAM_S0  |
+          |   128k   |  |  SRAM_S0 | |          |
+0x30080000+----------+  |    1M    | |1M-sram_s1|
+          |          |  |          | |   size   |
+          |          |  |          | |          |
+          |          |  |          | |          |
+          |  SRAM_S0 |  |          | +----------+
+          |   768K   |  |          |
+          |          |  |          |
+          |          |  |          |
+          |          |  |          |
+          |          |  |          |
+0x3013FFFF+----------+  +----------+
 
+0x40000000 ------------------------> +----------+
+- sram_s1 size                       |  SRAM_S1 |
+                                     |          |
+                                     |128K/256K/|
+                                     |384K/512K/|
+                                     |640K/768K |
+0x3FFFFFFF ------------------------> +----------+
+
+0x40000000+----------+
+          |          |
+          |  PSRAM   |
+          |  4M/8M   |
+          |          |
+          |          |
+          +----------+
+          |          |
+          | FPGA Ext |
+          |  PSRAM   |
+          | 64M-psram|
+          |     size |
+          |          |
+          |          |
+          |          |
+          |          |
+          |          |
+          |          |
+0x43FFFFFF+----------+
  */
 
 #include "rtconfig.h"
 
 MEMORY
 {
-    /* The last 256KB for bootloader */
     SRAM_SW     : ORIGIN = (AIC_BOOTLOADER_TEXT_BASE), LENGTH = AIC_BOOTLOADER_TEXT_SIZE
 }
 
-PROVIDE (__sram_start             = 0x30040000);
-PROVIDE (__sram_end               = 0x30040000 + AIC_SRAM_SIZE);
-
-PROVIDE (__min_heap_size           = 0x200);
 PROVIDE (__heap_start              = AIC_BOOTLOADER_HEAP_BASE);
 PROVIDE (__heap_end                = AIC_BOOTLOADER_HEAP_BASE + AIC_BOOTLOADER_HEAP_SIZE);
+
 REGION_ALIAS("REGION_TEXT"          , SRAM_SW);
 REGION_ALIAS("REGION_RODATA"        , SRAM_SW);
 REGION_ALIAS("REGION_DATA"          , SRAM_SW);

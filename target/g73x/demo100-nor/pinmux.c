@@ -9,14 +9,9 @@
 #include <aic_core.h>
 #include <aic_hal.h>
 #include "board.h"
-
-struct aic_pinmux
-{
-    unsigned char       func;
-    unsigned char       bias;
-    unsigned char       drive;
-    char *              name;
-};
+#include <libfdt.h>
+#include <of.h>
+#include <aic_utils.h>
 
 struct aic_pinmux aic_pinmux_config[] = {
 #ifdef AIC_USING_UART0
@@ -340,21 +335,4 @@ struct aic_pinmux aic_pinmux_config[] = {
 #endif
 };
 
-void aic_board_pinmux_init(void)
-{
-    uint32_t i = 0;
-    long pin = 0;
-    unsigned int g;
-    unsigned int p;
-
-    for (i=0; i<ARRAY_SIZE(aic_pinmux_config); i++) {
-        pin = hal_gpio_name2pin(aic_pinmux_config[i].name);
-        if (pin < 0)
-            continue;
-        g = GPIO_GROUP(pin);
-        p = GPIO_GROUP_PIN(pin);
-        hal_gpio_set_func(g, p, aic_pinmux_config[i].func);
-        hal_gpio_set_bias_pull(g, p, aic_pinmux_config[i].bias);
-        hal_gpio_set_drive_strength(g, p, aic_pinmux_config[i].drive);
-    }
-}
+uint32_t aic_pinmux_config_size = ARRAY_SIZE(aic_pinmux_config);

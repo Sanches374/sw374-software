@@ -227,6 +227,14 @@ if LPKG_USING_CHERRYUSB
                 config LPKG_CHERRYUSB_DEVICE_HID_REPORT_ID_TEMPLATE
                     bool "multiple report id keyboard"
             endchoice
+            config HID_TOUCHSCREEN_MODE
+                    depends on LPKG_CHERRYUSB_DEVICE_HID_TOUCH_TEMPLATE
+                    bool "HID_TOUCHSCREEN_MODE"
+                    default y
+            config HID_TOUCHPAD_MODE
+                    depends on LPKG_CHERRYUSB_DEVICE_HID_TOUCH_TEMPLATE
+                    bool "HID_TOUCHPAD_MODE"
+                    default n
             menu "Hid Touch Parameter"
                 depends on LPKG_CHERRYUSB_DEVICE_HID_TOUCH_TEMPLATE
                 config HID_TOUCH_INT_MODE
@@ -308,6 +316,9 @@ if LPKG_USING_CHERRYUSB
                         bool "USBD_MSC_STORAGE_USING_HOTPLUG"
                         default y
                 endif
+                config USBDEV_MSC_READ_ONLY
+                        bool "USBDEV_MSC_READ_ONLY"
+                        default n
                 config MSC_STORAGE_PATH
                     string "MSC_STORAGE_PATH"
                     default "/sdcard"
@@ -502,7 +513,7 @@ if LPKG_USING_CHERRYUSB
                     default 0
 
                 config AIC_USB_DISP_SW_GPIO_EN
-                    bool "Using switch LCD on/off gpio"
+                    bool "Using gpio switch"
                     default n
                 if AIC_USB_DISP_SW_GPIO_EN
                     config AIC_USB_DISP_SW_GPIO_NAME
@@ -521,7 +532,25 @@ if LPKG_USING_CHERRYUSB
                         int
                         default 0 if AIC_USB_DISP_SW_GPIO_ACT_LOW
                         default 1 if AIC_USB_DISP_SW_GPIO_ACT_HIGH
+
+                    choice
+                        prompt "Select switch mode"
+                        default AIC_USB_DISP_SW_GPIO_BACKLIGHT
+                        config AIC_USB_DISP_SW_GPIO_BACKLIGHT
+                            bool "Backlight Switch"
+                        config AIC_USB_DISP_SW_GPIO_USBDISPLAY
+                            bool "USB Display Switch"
+                    endchoice
+                    if AIC_USB_DISP_SW_GPIO_USBDISPLAY
+                        config AIC_USB_DISP_DEF_DIS
+                            bool "Default usb display disable"
+                            default n
+                    endif
                 endif
+
+                config AIC_USB_DISP_INIT_DELAY_MS
+                    int "Init delay ms"
+                    default 0
 
                 config LPKG_CHERRYUSB_DEVICE_DISPLAY_FPS
                     bool

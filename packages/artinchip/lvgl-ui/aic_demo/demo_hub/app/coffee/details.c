@@ -57,7 +57,11 @@ static struct coffeeParam coffeeParamData[] = {
 
 static lv_obj_t* bigImg;
 static lv_obj_t* bigImgLabel;
-static lv_point_t* line_points;
+#if LVGL_VERSION_MAJOR == 8
+    static lv_point_t* line_points;
+#else
+    static lv_point_precise_t* line_points;
+#endif
 
 static void subBtnEventCb(lv_event_t * e)
 {
@@ -200,7 +204,11 @@ static void createOperate(struct coffeeParam* data ,int x, int y)
 static void createOperates()
 {
     int count = sizeof(coffeeParamData) / sizeof(struct coffeeParam);
-    line_points = (lv_point_t*)malloc(sizeof(lv_point_t) * count * 4);
+#if LVGL_VERSION_MAJOR == 8
+    line_points = (lv_point_t*)lv_mem_alloc(sizeof(lv_point_t) * count * 4);
+#else
+    line_points = (lv_point_precise_t*)lv_mem_alloc(sizeof(lv_point_precise_t) * count * 4);
+#endif
     int i = 0;
     for(; i < count; i++)
     {
@@ -310,5 +318,5 @@ void showDetails()
 
 void detailDel()
 {
-    free(line_points);
+    lv_mem_free(line_points);
 }

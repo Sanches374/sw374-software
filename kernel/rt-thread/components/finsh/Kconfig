@@ -30,7 +30,7 @@ if RT_USING_MSH
 
     config FINSH_THREAD_STACK_SIZE
         int "The stack size for thread"
-        default 4096
+        default 8192
 
     config FINSH_USING_HISTORY
         bool "Enable command history feature"

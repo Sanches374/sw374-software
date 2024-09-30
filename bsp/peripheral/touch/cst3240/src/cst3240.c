@@ -57,55 +57,142 @@ static rt_err_t cst3240_read_regs(struct rt_i2c_client *dev, rt_uint8_t *reg,
     }
 }
 
-static rt_size_t cst3240_readpoint(struct rt_touch_device *touch, void *data, rt_size_t touch_num)
-{
-    rt_uint8_t buf[6];
-    rt_uint8_t reg[2];
-    rt_uint8_t cmd[3];
-    struct rt_touch_data *temp_data;
-    rt_uint8_t event = RT_TOUCH_EVENT_NONE;
-    rt_uint8_t point_num = 0;
-    static rt_uint16_t judge = 0;
+static int16_t pre_x[CST3240_MAX_TOUCH_NUM] = { -1, -1, -1, -1, -1 };
+static int16_t pre_y[CST3240_MAX_TOUCH_NUM] = { -1, -1, -1, -1, -1 };
+static rt_uint8_t s_tp_dowm[CST3240_MAX_TOUCH_NUM] = {0};
+static struct rt_touch_data *g_read_data = RT_NULL;
 
-    temp_data = (struct rt_touch_data *)data;
-    temp_data->event = RT_TOUCH_EVENT_NONE;
+static void cst3240_touch_up(void *buf, int8_t id)
+{
+    g_read_data = (struct rt_touch_data *)buf;
+
+    if (s_tp_dowm[id] == 1) {
+        s_tp_dowm[id] = 0;
+        g_read_data[id].event = RT_TOUCH_EVENT_UP;
+    } else {
+        g_read_data[id].event = RT_TOUCH_EVENT_NONE;
+    }
+
+    g_read_data[id].timestamp = rt_touch_get_ts();
+    g_read_data[id].x_coordinate = pre_x[id];
+    g_read_data[id].y_coordinate = pre_y[id];
+    g_read_data[id].track_id = id;
+
+    pre_x[id] = -1; /* last point is none */
+    pre_y[id] = -1;
+}
+
+static void cst3240_touch_down(void *buf, int8_t id, int16_t x, int16_t y)
+{
+    g_read_data = (struct rt_touch_data *)buf;
+
+    if (s_tp_dowm[id] == 1) {
+        g_read_data[id].event = RT_TOUCH_EVENT_MOVE;
+    } else {
+        g_read_data[id].event = RT_TOUCH_EVENT_DOWN;
+        s_tp_dowm[id] = 1;
+    }
+
+    g_read_data[id].timestamp = rt_touch_get_ts();
+    g_read_data[id].x_coordinate = x;
+    g_read_data[id].y_coordinate = y;
+    g_read_data[id].track_id = id;
+
+    pre_x[id] = x; /* save last point */
+    pre_y[id] = y;
+}
+static rt_size_t cst3240_readpoint(struct rt_touch_device *touch, void *buf, rt_size_t read_num)
+{
+    rt_uint8_t touch_num = 0;
+    rt_uint8_t reg[2];
+    rt_uint8_t read_buf[CST3240_INFO_LEN * CST3240_MAX_TOUCH_NUM + 2] = { 0 };
+    rt_uint8_t read_index, effective_fingers = 0;
+    rt_uint8_t cmd[3];
+    rt_uint8_t id[5] = {0};
+    int8_t read_id = 0;
+    int16_t input_x = 0;
+    int16_t input_y = 0;
+    static rt_uint8_t pre_touch = 0;
+    static int8_t pre_id[CST3240_MAX_TOUCH_NUM] = { 0 };
+
+    rt_memset(buf, 0, sizeof(struct rt_touch_data) * read_num);
 
     reg[0] = (rt_uint8_t)((CST3240_POINT1_REG >> 8) & 0xFF);
     reg[1] = (rt_uint8_t)(CST3240_POINT1_REG & 0xFF);
 
-    cst3240_read_regs(&cst3240_client, reg, buf, 6);
-
-    point_num = buf[5] & 0xF;
-    if (!point_num) {
-        return 0;
-    } else if (point_num >= 1) {
-        point_num = 1;
-    }
-    event = (buf[0] & 0xF) == 0x6 ? 1 : 0;      //0x6:down
-
-    if (event)
-        judge++;
-
-    if (event && judge == 1) {
-        temp_data->event = RT_TOUCH_EVENT_DOWN;
-    } else if (event && judge > 1) {
-        temp_data->event = RT_TOUCH_EVENT_MOVE;
-    } else if (!event) {
-        temp_data->event = RT_TOUCH_EVENT_UP;
-        judge = 0;
-    } else {
-        temp_data->event = RT_TOUCH_EVENT_NONE;
+    if (cst3240_read_regs(&cst3240_client, reg, read_buf, 5) != RT_EOK) {
+        LOG_D("read point failed\n");
+        read_num = 0;
+        goto __exit;
     }
 
-    temp_data->x_coordinate = ((buf[3] >> 4) & 0xF) | (buf[1] << 4);
-    temp_data->y_coordinate = (buf[3] & 0x0F) | (buf[2] << 4);
+    reg[0] = (rt_uint8_t)((CST3240_POINT2_REG >> 8) & 0xFF);
+    reg[1] = (rt_uint8_t)(CST3240_POINT2_REG & 0xFF);
 
+    if (cst3240_read_regs(&cst3240_client, reg, &read_buf[5], 20) != RT_EOK) {
+        LOG_D("read point failed\n");
+        read_num = 0;
+        goto __exit;
+    }
+
+    for (int i = 0; i < CST3240_MAX_TOUCH_NUM; i++) {
+        effective_fingers = ((read_buf[i * CST3240_MAX_TOUCH_NUM] & 0xf) == 0x6);
+        touch_num += effective_fingers;
+    }
+
+    for (int recombine_id = 0; recombine_id < touch_num; recombine_id++)
+        id[recombine_id] = recombine_id;
+
+    if (pre_touch > touch_num)
+    {
+        for (read_index = 0; read_index < pre_touch; read_index++) {
+            rt_uint8_t j;
+
+            for (j = 0; j < touch_num; j++)
+            {
+                read_id = id[read_index];
+
+                if (pre_id[read_index] == read_id)
+                    break;
+
+                if (j >= touch_num - 1) {
+                    rt_uint8_t up_id;
+                    up_id = pre_id[read_index];
+                    cst3240_touch_up(buf, up_id);
+                }
+            }
+        }
+    }
+
+    if (touch_num)
+    {
+        rt_uint8_t off_set;
+
+        for (read_index = 0; read_index < touch_num; read_index++) {
+            off_set = read_index * CST3240_INFO_LEN;
+            read_id = id[read_index];
+
+            pre_id[read_index] = read_id;
+            input_x = ((rt_uint16_t)read_buf[off_set + 1] << 4) | ((read_buf[off_set + 3] >> 4) & 0x0f);
+            input_y = ((rt_uint16_t)read_buf[off_set + 2] << 4) | (read_buf[off_set + 3] & 0x0f);
+
+            cst3240_touch_down(buf, read_id, input_x, input_y);
+        }
+    } else if (pre_touch) {
+        for (read_index = 0; read_index < pre_touch; read_index++) {
+            cst3240_touch_up(buf, pre_id[read_index]);
+        }
+    }
+
+    pre_touch = touch_num;
+
+__exit:
     cmd[0] = (rt_uint8_t)(CST3240_FIXED_REG >> 8);
     cmd[1] = (rt_uint8_t)(CST3240_FIXED_REG & 0xFF);
     cmd[2] = 0xAB;
     cst3240_write_reg(&cst3240_client, cmd, 3);
 
-    return point_num;
+    return read_num;
 }
 
 static rt_err_t cst3240_control(struct rt_touch_device *touch, int cmd, void *arg)
@@ -118,7 +205,10 @@ static rt_err_t cst3240_control(struct rt_touch_device *touch, int cmd, void *ar
         break;
     case RT_TOUCH_CTRL_GET_INFO:
         info = (struct rt_touch_info *)arg;
-        info->point_num = 1;
+        if (info == RT_NULL)
+            return -RT_EINVAL;
+
+        info->point_num = touch->info.point_num;
         info->range_x = touch->info.range_x;
         info->range_y = touch->info.range_y;
         info->type = touch->info.type;
@@ -148,6 +238,15 @@ const struct rt_touch_ops cst3240_touch_ops =
 {
     .touch_readpoint = cst3240_readpoint,
     .touch_control = cst3240_control,
+};
+
+struct rt_touch_info cst3240_info =
+{
+    RT_TOUCH_TYPE_CAPACITANCE,
+    RT_TOUCH_VENDOR_UNKNOWN,
+    5,
+    (rt_int32_t)AIC_TOUCH_X_COORDINATE_RANGE,
+    (rt_int32_t)AIC_TOUCH_Y_COORDINATE_RANGE,
 };
 
 int rt_hw_cst3240_init(const char *name, struct rt_touch_config *cfg)
@@ -187,8 +286,7 @@ int rt_hw_cst3240_init(const char *name, struct rt_touch_config *cfg)
     cst3240_client.client_addr = CST3240_SLAVE_ADDR;
 
     /* register touch device */
-    touch_device->info.type = RT_TOUCH_TYPE_CAPACITANCE;
-    touch_device->info.vendor = RT_TOUCH_VENDOR_UNKNOWN;
+    touch_device->info = cst3240_info;
     rt_memcpy(&touch_device->config, cfg, sizeof(struct rt_touch_config));
     touch_device->ops = &cst3240_touch_ops;
 

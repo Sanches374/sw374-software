@@ -6,6 +6,9 @@ choice
     config AIC_TOUCH_PANEL_AXS15260
         bool "AXS15260"
 
+    config AIC_TOUCH_PANEL_C145HAX01
+        bool "C145HAX01"
+
     config AIC_TOUCH_PANEL_CST826
         bool "CST826"
 
@@ -96,6 +99,7 @@ config AIC_TOUCH_REPORT_Y_COORDINATE
 config AIC_TOUCH_PANEL_NAME
     string
     default "axs15260"  if AIC_TOUCH_PANEL_AXS15260
+    default "c145hax01" if AIC_TOUCH_PANEL_C145HAX01
     default "cst826"    if AIC_TOUCH_PANEL_CST826
     default "cst3240"   if AIC_TOUCH_PANEL_CST3240
     default "ft7411"    if AIC_TOUCH_PANEL_FT7411

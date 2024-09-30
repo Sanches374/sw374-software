@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -50,9 +50,18 @@ rt_err_t drv_amic_init(struct rt_audio_device *audio)
 
 rt_err_t drv_amic_start(struct rt_audio_device *audio, int stream)
 {
+    struct aic_amic *p_amic_dev;
+    aic_audio_ctrl *pcodec;
+
+    p_amic_dev = (struct aic_amic *)audio;
+    pcodec = &p_amic_dev->codec;
+
     if (stream == AUDIO_STREAM_RECORD)
     {
-        /* May be need to do something for future */
+        /* 0db to amic record is too small,so default set 45db,
+         * this default value can be change according to the hardware circuit
+         */
+        hal_audio_set_amic_volume(pcodec, AIC_AMIC_DEF_VAL);
     }
     else
     {
@@ -267,7 +276,7 @@ static void drv_amic_callback(aic_audio_ctrl *pcodec, void *arg)
     {
     case AUDIO_RX_AMIC_PERIOD_INT:
         aicos_dcache_invalid_range((void *)amic_rx_fifo, RX_AMIC_FIFO_SIZE);
-        period_len = pcodec->dmic_info.buf_info.period_len;
+        period_len = pcodec->amic_info.buf_info.period_len;
         if (!p_amic_dev->index) {
             rt_audio_rx_done(audio, &amic_rx_fifo[0], period_len);
             p_amic_dev->index = 1;

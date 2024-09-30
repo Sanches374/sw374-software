@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -23,6 +23,7 @@ typedef enum
     DEVICE_SPINAND,
     DEVICE_SPINOR,
     DEVICE_XIPNOR,
+    DEVICE_RAM,
 } boot_dev_type;
 
 /**

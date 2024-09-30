@@ -33,6 +33,18 @@
 #define IMAGE_CATALOG   "/data"
 #define IMAGE_PATH_ROOT "/data/image"
 
+#ifdef AIC_STARTUP_UI_POS_X
+#define IMAGE_SCREEN_POS_X AIC_STARTUP_UI_POS_X
+#else
+#define IMAGE_SCREEN_POS_X 0
+#endif
+
+#ifdef AIC_STARTUP_UI_POS_Y
+#define IMAGE_SCREEN_POS_Y AIC_STARTUP_UI_POS_Y
+#else
+#define IMAGE_SCREEN_POS_Y 0
+#endif
+
 static struct startup_ui_fb startup_screen_info = {0};
 static char image_path[PATH_MAX];
 
@@ -156,9 +168,6 @@ static int ge_bitblt(struct ge_bitblt *blt)
 
 #if defined (AIC_PAN_DISPLAY) && !defined(USE_VE_FILL_FB)
 static u32 startup_fb_buf_index = 0;
-#ifdef AIC_CHIP_D21X
-static u32 g_fb_buf_index = 0;
-#endif
 #endif
 
 static struct aicfb_screeninfo *get_screen_info(void)
@@ -183,45 +192,10 @@ static struct aicfb_screeninfo *get_screen_info(void)
     return &startup_screen_info.startup_fb_data;
 }
 
-#if defined (AIC_PAN_DISPLAY) && defined(AIC_CHIP_D21X)
-static void ui_layer_buf_sync(void)
-{
-    struct ge_bitblt blt = {0};
-    struct aicfb_screeninfo *info = NULL;
-    uint8_t *src_buf = NULL, *dst_buf = NULL;
-
-    info = get_screen_info();
-    if (info == NULL)
-        return;
-
-    if (g_fb_buf_index) {
-        src_buf = info->framebuffer + info->smem_len;
-        dst_buf = info->framebuffer;
-    } else {
-        src_buf = info->framebuffer;
-        dst_buf = info->framebuffer + info->smem_len;
-    }
-
-    blt.src_buf.buf_type    = MPP_PHY_ADDR;
-    blt.src_buf.phy_addr[0] = (u32)(long)src_buf;
-    blt.src_buf.format      = info->format;
-    blt.src_buf.stride[0]   = info->stride;
-    blt.src_buf.size.width  = info->width;
-    blt.src_buf.size.height = info->height;
-    blt.dst_buf.buf_type    = MPP_PHY_ADDR;
-    blt.dst_buf.phy_addr[0] = (u32)(long)dst_buf;
-    blt.dst_buf.format      = info->format;
-    blt.dst_buf.stride[0]   = info->stride;
-    blt.dst_buf.size.width  = info->width;
-    blt.dst_buf.size.height = info->height;
-    ge_bitblt(&blt);
-}
-#endif
-
 #ifndef USE_VE_FILL_FB
 static void render_frame(struct mpp_fb* fb, struct mpp_frame* frame,
                          u32 offset_x, u32 offset_y, u32 width, u32 height,
-                         u32 layer_id, int is_first_img)
+                         u32 layer_id, bool is_first_img)
 {
     struct ge_bitblt blt;
     struct aicfb_screeninfo *info = NULL;
@@ -249,7 +223,7 @@ static void render_frame(struct mpp_fb* fb, struct mpp_frame* frame,
         fb0_buf_addr = (u32)(unsigned long)info->framebuffer;
         /* Switch the double-buffer */
         if (disp_buf_addr == fb0_buf_addr) {
-            dst_buf_addr = fb0_buf_addr + info->smem_len;
+            dst_buf_addr = is_first_img ? fb0_buf_addr : fb0_buf_addr + info->smem_len;
             startup_fb_buf_index = 1;
         } else {
             dst_buf_addr = fb0_buf_addr;
@@ -281,17 +255,16 @@ static void render_frame(struct mpp_fb* fb, struct mpp_frame* frame,
     ge_bitblt(&blt);
 
 #ifdef AIC_PAN_DISPLAY
-    mpp_fb_ioctl(fb, AICFB_PAN_DISPLAY, &startup_fb_buf_index);
     if(!is_first_img) {
+        mpp_fb_ioctl(fb, AICFB_PAN_DISPLAY, &startup_fb_buf_index);
         mpp_fb_ioctl(fb, AICFB_WAIT_FOR_VSYNC, NULL);
     }
-    ui_layer_buf_sync();
 #endif
 }
 #endif
 
 static int decode_pic_from_path(const char *path, u32 offset_x, u32 offset_y,
-                         u32 width, u32 height, u32 layer_id, int is_first_img)
+                         u32 width, u32 height, u32 layer_id, bool is_first_img)
 {
     struct mpp_fb *fb = mpp_fb_open();
     int ret = 0;
@@ -430,8 +403,8 @@ static void construct_imagepath(char *outputBuffer, int image_number)
 
 int startup_ui_show(void)
 {
-    int ret = 0;
-    int allimages = count_images(IMAGE_CATALOG);
+    int i, ret = 0;
+    int image_count = count_images(IMAGE_CATALOG);
     struct startup_ui_fb *startup_ui = malloc(sizeof(struct startup_ui_fb));
     startup_ui->startup_fb = mpp_fb_open();
 
@@ -453,15 +426,15 @@ int startup_ui_show(void)
     startup_ui->startup_fb_data.height * startup_ui->startup_fb_data.stride);
 #endif
 
-    for(int image_number = 0; image_number < allimages; image_number++) {
-        construct_imagepath(image_path, image_number);
-        int is_first_img = (image_number == 0) ? 1 : 0;
-        if(image_number == 0) {
-            decode_pic_from_path(image_path, 86, 60, 0, 0, AICFB_LAYER_TYPE_UI, is_first_img);
-        } else {
+    for(i = 0; i < image_count; i++) {
+        construct_imagepath(image_path, i);
+
+        if(i == 0) {
+            decode_pic_from_path(image_path, IMAGE_SCREEN_POS_X, IMAGE_SCREEN_POS_Y, 0, 0, AICFB_LAYER_TYPE_UI, true);
             mpp_fb_ioctl(startup_ui->startup_fb, AICFB_POWERON, 0);
+        } else {
             aic_mdelay(80);
-            decode_pic_from_path(image_path, 86, 60, 0, 0, AICFB_LAYER_TYPE_UI, is_first_img);
+            decode_pic_from_path(image_path, IMAGE_SCREEN_POS_X, IMAGE_SCREEN_POS_Y, 0, 0, AICFB_LAYER_TYPE_UI, false);
         }
     }
     free(startup_ui);

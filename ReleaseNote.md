@@ -1,3 +1,61 @@
+# V1.1.0 #
+## 新增 ##
+- 支持LVGL9，并适配了所有Demo
+- 支持Win7系统环境中编译
+- 支持UCOS-II内核
+- 支持在SDK之外的目录生成FS镜像
+- 增加强制升级模式
+- SPIENC：支持D13x的加密启动
+- 新增SoC型号：G730BDU
+- 新增方案支持：G73 demo68-nor、D215 demo88-nand/nor
+- 新增器件支持：
+- 屏幕：LCOS_HX7033
+- Touch：c145hax01、cst3240多点触摸
+- Camera：GC032A、GC0308、SC031IOT
+- BT：bt8852a
+- 新增第三方包：protobuf-c
+-test_efuse：增加eFuse烧写示例
+
+
+## 优化 ##
+- USB：
+- Touch功能适配Win11系统
+- 支持UAC和MPP之间动态切换
+- ACM支持模拟多路串口
+- USB副屏：
+  - 支持本地视频播放，并支持简单的播放控制
+  - 支持动态的开、关USB显示
+  - 支持动态的开、关UAC播放
+  - 完成多处兼容性改进
+  - 性能优化，包括USB零拷贝、减少旋转Buf
+- I2C：优化频率设置，支持更宽的频率范围
+- BootLoader：调整链接地址到尾部
+- NAND：支持变长的器件ID；完善512MB容量的处理
+- SPI：支持动态申请、释放DMA通道
+- ymodem：支持指定路径的文件传输
+- WRI：简化WRI和RTC模块的依赖关系
+- pinmux：重构pinmux.c，支持唤醒按键配置；并提供OneStep命令update来升级客户扩展的board代码
+- aicupg：增加数据的CRC校验；烧写进度条可配置
+- Camera：在menuconfig中的配置移至'Driver->peripheral'
+
+## 修改 ##
+- FAL：完善数据Buf的限制条件
+- Touch：修正cst3240 的数据异常
+- USB：UVC device修正Buf的申请个数限制
+- MPP：修正Jpeg缩放的size处理；完善PNG解码的错误处理；支持外部指定VE的输入Buf
+- Audio：修正AMIC的处理流程
+- Boot：
+  - 启动过程中会检查OS的size有效性
+  - 修正启动动画只有一幅图的处理
+- 可以通过menuconfig配置启动动画的坐标
+- AWTK：修正部分场景的内存分配和使用
+- Eclipse：修正MPP模块的编译脚本处理
+- CIR：修正NEC、RC5部分情况下的解码错误
+- FatFS：支持中文字符
+- RTT kernel：修正打开 RT_DEBUG 后的编译错误
+- test_wdt：创建单独线程来完成喂狗动作
+- OneStep：在Windows系统中列出所有defconfig（含BootLoader）
+
 
 # V1.0.6 #
 ## 新增 ##

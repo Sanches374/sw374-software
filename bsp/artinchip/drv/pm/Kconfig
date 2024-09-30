@@ -16,4 +16,8 @@ menu "PM configure"
             bool "deep sleep mode"
     endchoice
 
+    config AIC_BOARD_LEVEL_POWER_PIN
+        string "PM board level power switch"
+        default ""
+
 endmenu

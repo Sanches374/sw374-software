@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -16,7 +16,7 @@
 #include "tkc/utils.h"
 #include "aic_dec_asset.h"
 
-#define MAX_BUF_SIZE    200
+#define MAX_BUF_SIZE    400
 #define BYTE_ALIGN(x, byte) (((x) + ((byte) - 1))&(~((byte) - 1)))
 
 extern int lcd_size_get(void);
@@ -247,9 +247,13 @@ void aic_cma_buf_close(void) {
   aic_cma_buf_destroy();
 }
 
+unsigned int aic_cma_buf_get_size(void)
+{
+  return g_hash_map->cma_size;
+}
+
 void aic_cma_buf_debug(int flag) {
   int i = 0;
-  int sum_size = 0;
   cma_buffer_hash *cur_node = NULL;
   aic_dec_asset *ctx_data;
 
@@ -263,31 +267,28 @@ void aic_cma_buf_debug(int flag) {
       cur_node = g_hash_map->buckets[i];
       while(cur_node != NULL) {
         if (cur_node->data.type == FD_TYPE) {
-          log_debug("fd = %d, buf = 0x%08x, size = %d\n",
+          log_debug("aic_cma_buf_debug, fd = %d, buf = 0x%08x, size = %d\n",
                     cur_node->data.fd,
                     (unsigned int)cur_node->data.buf,
                     cur_node->data.size);
         } else if (cur_node->data.type == PHY_TYPE) {
-          log_debug("phy = 0x%08x, buf = 0x%08x, size = %d\n",
+          log_debug("aic_cma_buf_debug, phy = 0x%08x, buf = 0x%08x, size = %d\n",
                     (unsigned int)cur_node->data.phy_addr,
                     (unsigned int)cur_node->data.buf,
                     cur_node->data.size);
         } else {
           ctx_data = cur_node->data.data;
-          log_debug("name = %s, buf = 0x%08x, size = %d\n",
+          log_debug("aic_cma_buf_debug, name = %s, buf = 0x%08x, size = %d\n",
                     ctx_data->name, (unsigned int)cur_node->data.buf,
                     (unsigned int)cur_node->data.size);
         }
-        sum_size += cur_node->data.size;
         cur_node = cur_node->next;
       }
     }
   }
 
   if (flag & AIC_CMA_BUF_DEBUG_SIZE) {
-    log_debug("used_table_size = %d, used_mem_size = %d, sum_size = %d\n",
-               (g_hash_map->size - g_hash_map->cur_size),
-               g_hash_map->cma_size, (sum_size - lcd_size_get()));
+    log_debug("aic_cma_buf_debug, map node size = %d, cur size = %d, mem_size = %d\n",
+              g_hash_map->size, g_hash_map->cur_size, g_hash_map->cma_size);
   }
 }
-

@@ -47,6 +47,8 @@ typedef void *aicos_wqueue_t;
 #include "aic_osal_baremetal.h"
 #elif defined(KERNEL_RHINO)
 #include "aic_osal_rhino.h"
+#elif defined(KERNEL_UCOS_II)
+#include "aic_osal_ucos_ii.h"
 #else
 //--------------------------------------------------------------------+
 // Timeout Define
@@ -156,6 +158,9 @@ static inline void aicos_msleep(uint32_t delay) {}
  static inline void aicos_mdelay(unsigned long msecs) {}
  static inline void aicos_udelay(unsigned long usecs) {}
 #endif // PLATFORM_LUBANLITE
+
+// memory
+void *aicos_malloc_try_cma(size_t size);
 
 #ifdef __cplusplus
  }

@@ -15,6 +15,7 @@
 #endif
 
 
+#if defined(RT_USING_FINSH) || defined(AIC_CONSOLE_BARE_DRV)
 static char *show_size(u32 size)
 {
     static char str[32] = "";
@@ -122,6 +123,7 @@ static int cmd_meminfo(int argc, char **argv)
 
     return 0;
 }
+#endif
 #ifdef RT_USING_FINSH
 MSH_CMD_EXPORT_ALIAS(cmd_meminfo, meminfo, Show the memory information);
 #endif

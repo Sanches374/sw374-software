@@ -12,8 +12,10 @@
 #define DDR_PHY_BASE            0x18500000
 #define GTC_CNTV                0x19050008
 #define CMU_DDR_REG             0x18020210
+#define CMU_PLL_INT1_REG        0x18020004
 #define CMU_PLL_FRA0_REG        0x18020020
-#define CMU_PLL_INT1_REG	0x18020004
+#define CMU_PLL_IN_REG          0x180200A4
+#define SYSCFG_LDO25_REG        0x18000024
 
 .macro delay_200us
         li      a0, GTC_CNTV
@@ -137,13 +139,43 @@ check_ddr_enter_sr_status:
 	and	t2, t2, t3
 	sw	t2, (t1)
 
+        //disable XTAL_GM and XTAL_START
+        li      t1, CMU_PLL_IN_REG
+        lw      t2, (t1)
+        li      t3, 0x1fffffff
+        and     t2, t2, t3
+        sw      t2, (t1)
+
+        //disable LDO25
+        li      t1, SYSCFG_LDO25_REG
+        lw      t2, (t1)
+        li      t3, 0xfffffff7
+        and     t2, t2, t3
+        sw      t2, (t1)
+
         wfi
 
         //wakeup flow
-	//enable PLL_INT1
-	li	t3, 0x50000
-	or	t2, t2, t3
-	sw	t2, (t1)
+        //enable LDO25
+        li      t1, SYSCFG_LDO25_REG
+        lw      t2, (t1)
+        li      t3, 0x8
+        or      t2, t2, t3
+        sw      t2, (t1)
+
+        //enable XTAL_GM and XTAL_START
+        li      t1, CMU_PLL_IN_REG
+        lw      t2, (t1)
+        li      t3, 0xe0000000
+        or      t2, t2, t3
+        sw      t2, (t1)
+
+        //enable PLL_INT1
+        li      t1, CMU_PLL_INT1_REG
+        lw      t2, (t1)
+        li      t3, 0x50000
+        or      t2, t2, t3
+        sw      t2, (t1)
 
         //enable PLL_FRA0
 	li	t1, CMU_PLL_FRA0_REG

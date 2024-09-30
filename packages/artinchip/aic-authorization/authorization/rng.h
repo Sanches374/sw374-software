@@ -106,7 +106,7 @@ static inline int aic_rng_get_bytes(u8 *buf, unsigned int len)
     struct aic_rng_handle *handle;
     int ret = 0;
 
-    handle= aic_rng_init("trng", 0);
+    handle = aic_rng_init("trng", 0);
     if (handle == NULL) {
         return -1;
     }

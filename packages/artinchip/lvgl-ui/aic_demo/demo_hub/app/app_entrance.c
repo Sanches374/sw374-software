@@ -12,9 +12,6 @@
 #include "../demo_hub.h"
 
 extern lv_obj_t* navigation_ui_init(void);
-extern lv_obj_t* lv_demo_keypad_encoder(void);
-extern lv_obj_t *lv_demo_stress(void);
-extern lv_obj_t *lv_demo_benchmark(void);
 extern lv_obj_t *widgets_ui_init(void);
 extern lv_obj_t *layout_list_ui_init(void);
 extern lv_obj_t *layout_table_ui_init(void);
@@ -26,19 +23,9 @@ extern lv_obj_t *camera_ui_init(void);
 extern lv_obj_t *coffee_ui_init(void);
 extern lv_obj_t *steam_box_ui_init(void);
 extern lv_obj_t *a_86_box_ui_init(void);
+extern lv_obj_t *photo_frame_ui_init(void);
 
 static char cur_screen[64];
-
-static void lvgl_default_theme_set(lv_obj_t *obj, bool dark)
-{
-    lv_disp_t *disp = lv_disp_get_default();
-
-    lv_theme_default_init(disp, lv_palette_main(LV_PALETTE_BLUE), lv_palette_main(LV_PALETTE_RED), dark, LV_FONT_DEFAULT);
-    lv_theme_t *theme = lv_theme_default_get();
-    lv_theme_apply(obj);
-
-    lv_disp_set_theme(disp, theme);
-}
 
 static void demo_hub_default_theme_set(lv_obj_t *obj, bool dark)
 {
@@ -116,34 +103,21 @@ void app_entrance(app_index_t index, int auto_del)
             demo_hub_default_theme_set(scr, true);
             strncpy(cur_screen, "widget", sizeof(cur_screen));
             break;
-        case APP_STRESS:
-            scr = lv_demo_stress();
-            layer_sys_ui_visible(0);
-            lvgl_default_theme_set(scr, false);
-            strncpy(cur_screen, "stress", sizeof(cur_screen));
-            break;
-        case APP_BENCHMARK:
-            scr = lv_demo_benchmark();
-            layer_sys_ui_visible(0);
-            lvgl_default_theme_set(scr, false);
-            strncpy(cur_screen, "benchmark", sizeof(cur_screen));
-            break;
-        case APP_KEYPAD_ENCODER:
-            scr = lv_demo_keypad_encoder();
-            layer_sys_ui_visible(0);
-            lvgl_default_theme_set(scr, false);
-            strncpy(cur_screen, "keypad_encoder", sizeof(cur_screen));
-            break;
         case APP_LAYOUT_LIST_EXAMPLE:
             scr = layout_list_ui_init();
             demo_hub_default_theme_set(scr, true);
             strncpy(cur_screen, "layout_list", sizeof(cur_screen));
             break;
         case APP_LAYOUT_TABLE_EXAMPLE:
-            layer_sys_ui_visible(0);
             scr = layout_table_ui_init();
+            layer_sys_ui_visible(0);
             demo_hub_default_theme_set(scr, true);
             strncpy(cur_screen, "layout_table", sizeof(cur_screen));
+            break;
+        case APP_PHOTO_FRAME:
+            scr = photo_frame_ui_init();
+            demo_hub_default_theme_set(scr, false);
+            strncpy(cur_screen, "photo_frame", sizeof(cur_screen));
             break;
         default:
             break;

@@ -65,7 +65,7 @@ static void aic_board_heap_init(enum boot_device bd)
 {
     size_t heap_size, heap_start, real_ram_size = 0;
 
-#ifdef AIC_PSRAM_SIZE
+#if AIC_PSRAM_SIZE
     config_ram_size = AIC_PSRAM_SIZE;
 #elif AIC_DRAM_TOTAL_SIZE
     config_ram_size = AIC_DRAM_TOTAL_SIZE;

@@ -77,6 +77,7 @@ lv_obj_t *aic_video_ui_init(void)
     fb_dev_layer_set();
 
     player.ffmpeg = lv_ffmpeg_player_create(aic_video_ui);
+    lv_obj_set_size(player.ffmpeg, LV_HOR_RES, LV_VER_RES);
     player.list = media_list_create();
     media_list_init();
     media_list_get_info(player.list, &player.cur_info, MEDIA_TYPE_POS_OLDEST);
@@ -340,7 +341,11 @@ static void play_time_update_cb(lv_timer_t * timer)
 
     lv_ffmpeg_player_set_cmd_ex(player.ffmpeg, LV_FFMPEG_PLAYER_CMD_PLAY_END_EX, &play_end);
     if (play_end == true && (player.mode != PLAY_MODE_CIRCLE_ONE)) {
+#if LVGL_VERSION_MAJOR == 8
         lv_event_send(play_control_next, LV_EVENT_CLICKED, NULL); /* play next */
+#else
+        lv_obj_send_event(play_control_next, LV_EVENT_CLICKED, NULL); /* play next */
+#endif
         return;
     }
 

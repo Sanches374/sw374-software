@@ -850,6 +850,22 @@ static void mm_demuxer_state_change_to_loaded(mm_demuxer_data *p_demuxer_data)
             p_demuxer_data->eos = 0;
             p_demuxer_data->need_peek = 1;
         }
+        memset(&p_demuxer_data->s_media_info,0x00,
+            sizeof(struct aic_parser_av_media_info));
+        if (p_demuxer_data->extra_audio_pkt_flag) {
+            if (p_demuxer_data->extra_audio_pkt.data)
+                mpp_free(p_demuxer_data->extra_audio_pkt.data);
+            p_demuxer_data->extra_audio_pkt.data = NULL;
+            p_demuxer_data->extra_audio_pkt.size = 0;
+            p_demuxer_data->extra_audio_pkt_flag = MM_FALSE;
+        }
+        if (p_demuxer_data->extra_video_pkt_flag) {
+            if (p_demuxer_data->extra_video_pkt.data)
+                mpp_free(p_demuxer_data->extra_video_pkt.data);
+            p_demuxer_data->extra_video_pkt.data = NULL;
+            p_demuxer_data->extra_video_pkt.size = 0;
+            p_demuxer_data->extra_video_pkt_flag = MM_FALSE;
+        }
     } else {
         mm_demuxer_event_notify(p_demuxer_data, MM_EVENT_ERROR,
                                 MM_ERROR_INCORRECT_STATE_TRANSITION,

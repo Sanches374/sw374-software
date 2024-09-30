@@ -21,8 +21,8 @@ extern size_t __heap_start;
 extern size_t __heap_end;
 
 #ifdef RT_USING_MEMHEAP
-extern size_t __sram_cma_heap_start;
-extern size_t __sram_cma_heap_end;
+extern size_t __psram_cma_heap_start;
+extern size_t __psram_cma_heap_end;
 
 struct aic_memheap
 {
@@ -35,8 +35,24 @@ struct aic_memheap
 };
 
 struct aic_memheap aic_memheaps[] = {
-#ifdef AIC_SRAM_CMA_EN
-    {MEM_SRAM_CMA, "heap_cma", (void *)&__sram_cma_heap_start, (void *)&__sram_cma_heap_end},
+#ifdef AIC_TCM_EN
+    {MEM_ITCM, "heap_itcm", (void *)&__itcm_heap_start, (void *)&__itcm_heap_end},
+    {MEM_DTCM, "heap_dtcm", (void *)&__dtcm_heap_start, (void *)&__dtcm_heap_end},
+#endif
+#ifdef AIC_SRAM1_SW_EN
+    {MEM_SRAM1_SW, "heap_sram1_sw", (void *)&__sram_s1_sw_heap_start, (void *)&__sram_s1_sw_heap_end},
+#endif
+#ifdef AIC_SRAM1_CMA_EN
+    //{MEM_SRAM1_CMA, "heap_sram1_cma", (void *)&__sram_s1_cma_heap_start, (void *)&__sram_s1_cma_heap_end},
+#endif
+#ifdef AIC_PSRAM_SW_EN
+    {MEM_PSRAM_SW, "heap_psram_sw", (void *)&__psram_sw_heap_start, (void *)&__psram_sw_heap_end},
+#endif
+#ifdef AIC_PSRAM_CMA_EN
+    //{MEM_PSRAM_CMA, "heap_cma", (void *)&__psram_cma_heap_start, (void *)&__psram_cma_heap_end},
+#endif
+#if defined(AIC_PSRAM_CMA_EN) || defined(AIC_SRAM1_CMA_EN)
+    {MEM_CMA, "heap_cma", (void *)&__cma_heap_start, (void *)&__cma_heap_end},
 #endif
 };
 
@@ -106,15 +122,15 @@ void aic_memheap_free(int type, void *rmem)
  */
 void rt_hw_board_init(void)
 {
-    aic_board_sysclk_init();
-    aic_board_pinmux_init();
-
 #ifdef RT_USING_HEAP
     rt_system_heap_init((void *)&__heap_start, (void *)&__heap_end);
 #if (!defined(QEMU_RUN) && defined(RT_USING_MEMHEAP))
     aic_memheap_init();
 #endif
 #endif
+
+    aic_board_sysclk_init();
+    aic_board_pinmux_init();
 
 #ifdef RT_USING_COMPONENTS_INIT
     rt_components_board_init();
@@ -151,6 +167,9 @@ static const struct romfs_dirent _mountpoint_root[] =
     {ROMFS_DIRENT_DIR, "rodata", RT_NULL, 0},
     {ROMFS_DIRENT_DIR, "sdcard", RT_NULL, 0},
     {ROMFS_DIRENT_DIR, "udisk", RT_NULL, 0},
+#if defined(AIC_FLASH_NUM_TWO)
+    {ROMFS_DIRENT_DIR, "extra", RT_NULL, 0},
+#endif
 };
 const struct romfs_dirent romfs_root =
 {
@@ -180,6 +199,12 @@ const struct dfs_mount_tbl mount_table[] = {
 #endif
 #if (defined(AIC_USING_USB0_HOST) || defined(AIC_USING_USB0_OTG) || defined(AIC_USING_USB1_HOST))
     {"udisk", "/udisk", "elm", 0, 0, 0xFF},
+#endif
+#ifdef AIC_SECONED_FLASH_NOR
+    {"extra", "/extra", "lfs", 0, 0, 0},
+#endif
+#ifdef AIC_SECONED_FLASH_NAND
+    {"blk_extra", "/extra", "elm", 0, 0, 0},
 #endif
     {0}
 };

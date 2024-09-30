@@ -41,7 +41,11 @@ struct ffmpeg_context_s;
 extern const lv_obj_class_t lv_ffmpeg_player_class;
 
 typedef struct {
+#if LVGL_VERSION_MAJOR == 8
     lv_img_t img;
+#else
+    lv_image_t img;
+#endif
     lv_timer_t * timer;
     lv_img_dsc_t imgdsc;
     bool auto_restart;

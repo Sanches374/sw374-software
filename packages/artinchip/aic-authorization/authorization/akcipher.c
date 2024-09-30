@@ -105,6 +105,7 @@ static int aic_rsa_task_cfg(struct akcipher_request *req)
     return 0;
 }
 
+static void aic_akcipher_rsa_clear_key(struct aic_akcipher_tfm_ctx *ctx);
 static int aic_akcipher_unprepare_req(struct akcipher_tfm *tfm,
                                       struct akcipher_request *req)
 {
@@ -129,6 +130,9 @@ static int aic_akcipher_unprepare_req(struct akcipher_tfm *tfm,
         aic_ssram_free(rctx->ssram_addr, ctx->n_sz * 3);
         rctx->ssram_addr = 0;
     }
+
+    aic_akcipher_rsa_clear_key(ctx);
+
     return 0;
 }
 

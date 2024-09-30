@@ -1,10 +1,11 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  * Authors:  dwj <weijie.ding@artinchip.com>
  */
 
+#define LOG_TAG         "CIR"
 #include <stdio.h>
 #include <rtdevice.h>
 #include <rtthread.h>
@@ -21,8 +22,9 @@ aic_cir_t aic_cir_dev;
 
 void drv_cir_callback(aic_cir_ctrl_t *p_cir_ctrl, cir_event_t event, void *arg);
 
-rt_err_t drv_cir_init(rt_device_t pdev)
+rt_err_t drv_cir_open(rt_device_t pdev, rt_uint16_t oflag)
 {
+    RT_UNUSED(oflag);
     aic_cir_t *p_aic_cir = (aic_cir_t *)pdev;
     aic_cir_ctrl_t *p_cir_ctrl = &p_aic_cir->aic_cir_ctrl;
 
@@ -35,6 +37,18 @@ rt_err_t drv_cir_init(rt_device_t pdev)
     return RT_EOK;
 }
 
+rt_err_t drv_cir_close(rt_device_t pdev)
+{
+    aic_cir_t *p_aic_cir = (aic_cir_t *)pdev;
+    aic_cir_ctrl_t *p_cir_ctrl = &p_aic_cir->aic_cir_ctrl;
+
+    hal_cir_uninit(p_cir_ctrl);
+    hal_cir_detach_callback(p_cir_ctrl);
+    aicos_irq_disable(p_cir_ctrl->irq_num);
+
+    return RT_EOK;
+}
+
 rt_size_t drv_cir_read(rt_device_t pdev, rt_off_t pos, void *buffer,
                        rt_size_t size)
 {
@@ -43,6 +57,7 @@ rt_size_t drv_cir_read(rt_device_t pdev, rt_off_t pos, void *buffer,
     aic_cir_ctrl_t *p_cir_ctrl = &p_aic_cir->aic_cir_ctrl;
     cir_config_t *config = &p_aic_cir->config;
 
+    rt_mutex_take(&p_aic_cir->lock, RT_WAITING_FOREVER);
     ret = ir_raw_decode_scancode(config->protocol,
                                  (uint8_t *)&p_cir_ctrl->rx_data,
                                  p_cir_ctrl->rx_idx, (uint32_t *)buffer);
@@ -53,6 +68,7 @@ rt_size_t drv_cir_read(rt_device_t pdev, rt_off_t pos, void *buffer,
     }
 
     hal_cir_rx_reset_status(p_cir_ctrl);
+    rt_mutex_release(&p_aic_cir->lock);
 
     return size;
 }
@@ -67,6 +83,7 @@ rt_size_t drv_cir_write(rt_device_t pdev, rt_off_t pos, const void *buffer,
     cir_config_t *config = &p_aic_cir->config;
     void *tx_data = (void *)p_cir_ctrl->tx_data;
 
+    rt_mutex_take(&p_aic_cir->lock, RT_WAITING_FOREVER);
     encode_size = ir_raw_encode_scancode(config->protocol, scancode, tx_data,
                                          sizeof(p_cir_ctrl->tx_data));
     if (encode_size < 0)
@@ -77,6 +94,7 @@ rt_size_t drv_cir_write(rt_device_t pdev, rt_off_t pos, const void *buffer,
 
     hal_cir_enable_transmitter(p_cir_ctrl);
     hal_cir_send_data(p_cir_ctrl, tx_data, encode_size);
+    rt_mutex_release(&p_aic_cir->lock);
 
     return size;
 }
@@ -153,16 +171,18 @@ int rt_hw_aic_cir_init(void)
 #ifdef RT_USING_DEVICE_OPS
     aic_cir_dev.dev.ops = &aic_cir_ops;
 #else
-    aic_cir_dev.dev.init = drv_cir_init;
-    aic_cir_dev.dev.open = NULL;
-    aic_cir_dev.dev.close = NULL;
+    aic_cir_dev.dev.init = NULL;
+    aic_cir_dev.dev.open = drv_cir_open;
+    aic_cir_dev.dev.close = drv_cir_close;
     aic_cir_dev.dev.read = drv_cir_read;
     aic_cir_dev.dev.write = drv_cir_write;
     aic_cir_dev.dev.control = drv_cir_control;
     aic_cir_dev.dev.type = RT_Device_Class_Char;
 #endif
 
+    rt_mutex_init(&aic_cir_dev.lock, "cir_mutex", RT_IPC_FLAG_PRIO);
     rt_device_register(&aic_cir_dev.dev, "cir", 0);
+    LOG_I("ArtInChip CIR device register success\n");
 
     return 0;
 }

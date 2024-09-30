@@ -621,7 +621,7 @@ static int mm_process_audio_sync(mm_audio_render_data *p_audio_render_data,
             p_audio_render_data->pre_correct_media_time = timestamp.timestamp;
             timestamp.timestamp = real_audio_time;
             mm_set_config(p_bind_clock->p_bind_comp,
-                          MM_INDEX_CONFIG_TIME_CUR_VIDEO_REFERENCE, &timestamp);
+                          MM_INDEX_CONFIG_TIME_CUR_AUDIO_REFERENCE, &timestamp);
         }
     }
     data1 = (real_audio_time >> 32) & 0x00000000ffffffff;

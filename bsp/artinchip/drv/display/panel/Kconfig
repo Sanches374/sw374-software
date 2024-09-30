@@ -107,6 +107,14 @@ if !AIC_DISP_PQ_TOOL
     config AIC_PANEL_SRGB_HX8238
         bool "ArtInChip SRGB HX8238 panel"
         depends on AIC_DISP_RGB
+
+#
+# RGB Panel IIC Init
+#
+    config AIC_PANEL_LCOS_HX7033
+        bool "ArtInChip RGB HX7033 panel"
+        depends on AIC_I2C_DRV && AIC_DISP_RGB
+
 #
 # Bridge Panel
 #

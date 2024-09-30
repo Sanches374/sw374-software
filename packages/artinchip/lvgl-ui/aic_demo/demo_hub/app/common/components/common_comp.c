@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2023-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -9,6 +9,12 @@
 #include "common_comp.h"
 
 #define MAX_FREETYPE_STYLE 32
+
+#if LVGL_VERSION_MAJOR == 8
+#define lv_img_header_t         lv_img_header_t
+#else
+#define lv_img_header_t         lv_image_header_t
+#endif
 
 typedef enum {
     DISP_SMALL,
@@ -53,7 +59,7 @@ lv_obj_t *com_imgbtn_switch_comp(lv_obj_t *parent, void *img_src_0, void *img_sr
         lv_obj_set_ext_click_area(app_icon, 10);
 
     com_imgbtn = (com_imgbtn_switch_t *)lv_mem_alloc(sizeof(com_imgbtn_switch_t));
-    lv_memset_00(com_imgbtn, sizeof(com_imgbtn_switch_t));;
+    lv_memset(com_imgbtn, 0, sizeof(com_imgbtn_switch_t));;
     com_imgbtn->img_src_0 = img_src_0;
     com_imgbtn->img_src_1 = img_src_1;
 
@@ -258,7 +264,7 @@ static lv_ft_info_t *freetype_style_get_and_add_list(uint16_t weight, uint16_t s
         return &freetype_style->ft_info;
     /* initialize and join list */
     } else {
-        /* find a free location */
+        /* find a lv_mem_free location */
         for (i = 0; i < MAX_FREETYPE_STYLE; i++) {
             if (freetype_style_list[i].ft_info.name == NULL)
                 break;

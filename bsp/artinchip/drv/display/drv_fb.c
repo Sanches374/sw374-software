@@ -63,24 +63,6 @@ static inline void aicfb_set_drvdata(struct aicfb_info *fbi)
     g_aicfb_info = fbi;
 }
 
-#ifndef AIC_MPP_VIN_DEV
-static void *aicfb_malloc_align(size_t size, size_t align)
-{
-    size_t fb_size;
-    void *fb_start;
-
-    fb_size = size + align - 1;
-
-    fb_start = aicos_malloc(MEM_CMA, fb_size);
-    if (!fb_start) {
-        pr_err("alloc fb0 failed\n");
-        return NULL;
-    }
-
-    return (void *)ALIGN_UP((uintptr_t)fb_start, align);
-}
-#endif
-
 #ifdef AIC_FB_ROTATE_EN
 static int aicfb_rotate(struct aicfb_info *fbi, struct aicfb_layer_data *layer,
                 u32 buf_id)
@@ -967,7 +949,7 @@ int aicfb_probe(void)
 #ifndef AIC_MPP_VIN_DEV
     fb_size = aicfb_calc_fb_size(fbi);
     /* fb_start must be cache line align */
-    fbi->fb_start = aicfb_malloc_align(fb_size, CACHE_LINE_SIZE);
+    fbi->fb_start = aicos_malloc_align(MEM_CMA, fb_size, CACHE_LINE_SIZE);
     if (!fbi->fb_start)
     {
         ret = -ENOMEM;
@@ -1013,6 +995,12 @@ void aicfb_remove(void)
     struct aicfb_info *fbi = aicfb_get_drvdata();
 
     aicfb_probed = false;
-    free(fbi);
+
+    /*
+     * FIXME: We should release fbi and framebuffer at the same time.
+     * But we keep the fbi pointer to ensure that some ioctl still works properly.
+     */
+    if (fbi->fb_start)
+        aicos_free_align(MEM_CMA, fbi->fb_start);
 }
 

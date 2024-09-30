@@ -1,11 +1,17 @@
-﻿#include "i2c_utils.h"
+/*
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2019-2023 Wu Han
+ */
+
+#include "i2c_utils.h"
 
 static void i2c(int argc,char *argv[])
 {
     if(argc > 2)
     {
         #ifdef I2C_TOOLS_USE_SW_I2C
-            if( i2c_init( strtonum(argv[ARG_SDA_POS]), strtonum(argv[ARG_SCL_POS])) )
+            if( i2c_init(strtonum(argv[ARG_SDA_POS]), strtonum(argv[ARG_SCL_POS])) )
             {
                 rt_kprintf("[i2c] failed to find bus with sda=%s scl=%s\n", argv[ARG_SDA_POS], argv[ARG_SCL_POS]);
                 return;
@@ -62,23 +68,33 @@ static void i2c(int argc,char *argv[])
         if(!strcmp(argv[1], "read"))
         {
             rt_uint8_t buffer[I2C_TOOLS_BUFFER_SIZE];
+            rt_uint8_t reg = strtonum(argv[ARG_DATA_POS]);
             rt_uint8_t len = 1;
-            if( argc == ARG_READ_MAX)
+
+            if (argc == ARG_READ_MAX)
             {
                 len = atoi(argv[ARG_READ_MAX - 1]);
             }
-            if(i2c_read(strtonum(argv[ARG_ADDR_POS]), strtonum(argv[ARG_DATA_POS]), buffer, len) == len)
+            if (len > I2C_TOOLS_BUFFER_SIZE)
             {
-                rt_kprintf("[ ");
-                for(rt_uint8_t i = 0; i < len; i++)
+                rt_kprintf("The length %d is too long than the max %d\n",
+                           len, I2C_TOOLS_BUFFER_SIZE);
+                len = I2C_TOOLS_BUFFER_SIZE;
+            }
+            if (i2c_read(strtonum(argv[ARG_ADDR_POS]), reg, buffer, len) == len)
+            {
+                for (rt_uint8_t i = 0; i < len; i++, reg++)
                 {
-                    rt_kprintf("0x%02X", buffer[i]);
-                    if(i != (len-1))
-                    {
-                        rt_kprintf(", ");
-                    }
+                    if (i && (i % 16 == 0))
+                        rt_kprintf("\n");
+                    if (i % 16 == 0)
+                        rt_kprintf("0x%02X: ", reg);
+                    else if (i % 8 == 0)
+                        rt_kprintf("   ");
+
+                    rt_kprintf("%02X ", buffer[i]);
                 }
-                rt_kprintf(" ]\n");
+                rt_kprintf("\n");
             }
             else
             {

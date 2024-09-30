@@ -228,6 +228,15 @@ config AIC_HRTIMER_DRV_TEST
     default n
     depends on AIC_HRTIMER_DRV
 
+if KERNEL_BAREMETAL
+    menu "HRTIMER example option"
+        depends on AIC_HRTIMER_DRV_TEST
+        config GPIO_TEST_PIN
+            string "hrtimer toggle pin"
+            default "PA.4"
+    endmenu
+endif
+
 config AIC_QSPI_DRV_TEST
     bool "Enable SPI driver test command"
     default n

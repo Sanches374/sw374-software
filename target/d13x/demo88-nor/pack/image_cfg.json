@@ -6,7 +6,7 @@
             "env":        { "size": "128k" },
             "env_r":      { "size": "128k" },
             "os":         { "size": "2m" },
-            "rodata":     { "size": "10m" },
+            "rodata":     { "size": "12m" },
             "data":       { "size": "1m" }
         },
     },
@@ -82,8 +82,8 @@
                 "head_ver": "0x00010001",
                 "loader": {
                     "file": "bootloader.bin",
-                    "load address": "0x40200000",
-                    "entry point":  "0x40200100", // 256 byte aic header
+                    "load address": "0x40300000",
+                    "entry point":  "0x40300100", // 256 byte aic header
                 },
                 "resource": {
                     "private": "pbp_cfg.bin",

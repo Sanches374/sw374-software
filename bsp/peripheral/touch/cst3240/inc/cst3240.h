@@ -17,6 +17,7 @@
 
 #define CST3240_SLAVE_ADDR              0x5A
 #define CST3240_MAX_TOUCH_NUM           5
+#define CST3240_INFO_LEN                5
 
 #define CST3240_POINT1_REG              0xD000
 #define CST3240_FIXED_REG               0xD006

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  * Authors:  dwj <weijie.ding@artinchip.com>
@@ -7,6 +7,7 @@
 #include <rtthread.h>
 #include <rtdevice.h>
 #include <dfs_posix.h>
+#include "aic_common.h"
 
 #define BUFSZ   1024
 #define SOUND_DEVICE_NAME   "sound0"
@@ -49,12 +50,19 @@ struct wav_info
     struct DATA_BLOCK_DEF  data_block;
 };
 
+__WEAK int uac_set_suspend(uint8_t status)
+{
+    return 0;
+}
+
 int test_wavplay(int argc, char **argv)
 {
     int fd = -1, len, stream = 0, ret = RT_EOK;
     uint8_t *buffer = NULL;
     struct wav_info *info = NULL;
     struct rt_audio_caps caps = {0};
+
+    uac_set_suspend(1);
 
     if (argc < 2 || argc > 3)
     {
@@ -176,6 +184,7 @@ int test_wavplay(int argc, char **argv)
     }
 
     rt_device_close(snd_dev);
+    uac_set_suspend(0);
 
 __exit:
 

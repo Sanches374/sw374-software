@@ -63,6 +63,7 @@ extern struct aic_panel srgb_hx8238;
  * Bridge Panel
  */
 extern struct aic_panel bridge_lt8911;
+extern struct aic_panel lcos_hx7033;
 
 void panel_di_enable(struct aic_panel *panel, u32 ms);
 void panel_di_disable(struct aic_panel *panel, u32 ms);

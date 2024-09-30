@@ -73,6 +73,9 @@ static struct aic_panel *panels[] = {
 #ifdef AIC_PANEL_BRIDGE_LT8911
     &bridge_lt8911,
 #endif
+#ifdef AIC_PANEL_LCOS_HX7033
+    &lcos_hx7033,
+#endif
 };
 
 struct aic_panel *aic_find_panel(u32 connector_type)

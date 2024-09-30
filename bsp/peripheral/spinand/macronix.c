@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2023-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -25,12 +25,12 @@ const struct aic_spinand_info macronix_spinand_table[] = {
 const struct aic_spinand_info *
 macronix_spinand_detect(struct aic_spinand *flash)
 {
-    u8 *Id = flash->id.data;
+    u8 *id = flash->id.data;
 
-    if (Id[0] != SPINAND_MFR_MACRONIX)
+    if (id[0] != SPINAND_MFR_MACRONIX)
         return NULL;
 
-    return spinand_match_and_init(Id[1], macronix_spinand_table,
+    return spinand_match_and_init(&id[1], macronix_spinand_table,
                                   ARRAY_SIZE(macronix_spinand_table));
 };
 

@@ -123,6 +123,7 @@ struct usbd_storage_p {
     bool storage_exist;
     uint8_t is_inited;
     uint8_t is_forbidden;
+    uint8_t is_configured;
 };
 
 struct usbd_interface msc_intf0;
@@ -178,10 +179,13 @@ static void usbd_msc_suspend(void)
     if (usbd_storage == NULL || usbd_storage->fs == NULL)
         return;
 
+    if (usbd_storage->is_configured == false)
+        return;
+
     if ((FATFS *)usbd_storage->fs->data == NULL) {
 #if defined(KERNEL_RTTHREAD)
         usbd_storage->dev = rt_device_find(usbd_storage->dev_name);
-        if (usbd_storage->dev == NULL){
+        if (usbd_storage->dev == NULL) {
             usbd_storage->storage_exist = false;
             return;
         }
@@ -224,6 +228,7 @@ static void usbd_msc_configured(void)
     }
 #endif
     usbd_storage->storage_exist = true;
+    usbd_storage->is_configured = true;
 }
 
 void usbd_msc_get_cap(uint8_t lun, uint32_t *block_num, uint16_t *block_size)

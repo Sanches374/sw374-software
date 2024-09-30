@@ -6,6 +6,8 @@
 
 #if defined(KERNEL_RTTHREAD)
 #include <rtthread.h>
+#elif defined(KERNERL_UCOS_II)
+#include "ucos_ii.h"
 #endif
 #include <aic_core.h>
 
@@ -23,7 +25,7 @@ void SysTick_Handler(void)
     xPortSysTickHandler();
 #elif defined(KERNEL_RTTHREAD)
     rt_tick_increase();
-#elif defined(KERNEL_UCOS)
+#elif defined(KERNEL_UCOS_II)
     OSTimeTick();
 #elif defined(KERNEL_BAREMETAL)
 #endif

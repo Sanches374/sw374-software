@@ -61,6 +61,24 @@ uint32_t usb_disp_scale_down_y = AIC_USB_DISP_SCALE_DOWN_Y;
 uint32_t usb_disp_scale_down_y = 0;
 #endif
 
+#ifdef AIC_USB_DISP_DEF_DIS
+uint8_t usb_display_en = 0;
+#else
+uint8_t usb_display_en = 1;
+#endif
+
+#ifdef AIC_USB_DISP_INIT_DELAY_MS
+uint32_t usb_display_init_delay_ms = AIC_USB_DISP_INIT_DELAY_MS;
+#else
+uint32_t usb_display_init_delay_ms = 0;
+#endif
+
+#ifndef AIC_LVGL_USB_OSD_DEMO
+uint8_t usb_disp_free_framebuffer = 1;
+#else
+uint8_t usb_disp_free_framebuffer = 0;
+#endif
+
 static void usage_fps(char * program)
 {
     printf("\n");
@@ -167,7 +185,7 @@ extern int usbd_usb_display_init(void);
 INIT_COMPONENT_EXPORT(usbd_usb_display_init);
 
 #ifdef AIC_USB_DISP_SW_GPIO_EN
-static void aic_panel_backlight_enable(void)
+void aic_panel_backlight_enable(void)
 {
 #ifdef AIC_PANEL_ENABLE_GPIO
     unsigned int g, p;
@@ -198,7 +216,7 @@ static void aic_panel_backlight_enable(void)
 #endif
 }
 
-static void aic_panel_backlight_disable(void)
+void aic_panel_backlight_disable(void)
 {
 #ifdef AIC_PANEL_ENABLE_GPIO
     unsigned int g, p;
@@ -236,10 +254,19 @@ void lcd_sw_key_irq_callback(void *args)
 
     hal_gpio_get_value(g, p, &val);
 
+#if defined(AIC_USB_DISP_SW_GPIO_BACKLIGHT)
     if (val ^ AIC_USB_DISP_SW_GPIO_NAME_POLARITY)
         aic_panel_backlight_enable();
     else
         aic_panel_backlight_disable();
+#elif defined(AIC_USB_DISP_SW_GPIO_USBDISPLAY)
+    extern void usb_display_enable(void);
+    extern void usb_display_disable(void);
+    if (val ^ AIC_USB_DISP_SW_GPIO_NAME_POLARITY)
+        usb_display_enable();
+    else
+        usb_display_disable();
+#endif
 }
 
 int lcd_sw_key_init(void)

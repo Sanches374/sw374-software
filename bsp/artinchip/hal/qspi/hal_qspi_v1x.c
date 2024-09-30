@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Artinchip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -205,48 +205,6 @@ int hal_qspi_master_deinit(qspi_master_handle *h)
     qspi->async_rx_remain = 0;
     return 0;
 }
-
-#ifdef AIC_DMA_DRV
-int hal_qspi_master_dma_config(qspi_master_handle *h,
-                               struct qspi_master_dma_config *cfg)
-{
-    struct qspi_master_state *qspi;
-    struct aic_dma_chan *rx_chan, *tx_chan;
-
-    CHECK_PARAM(h, -EINVAL);
-    CHECK_PARAM(cfg, -EINVAL);
-
-    qspi = (struct qspi_master_state *)h;
-    if (qspi->dma_rx || qspi->dma_tx) {
-        hal_log_err("DMA already init for QSPI.\n");
-        return -EINVAL;
-    }
-
-    rx_chan = hal_request_dma_chan();
-    if (!rx_chan) {
-        hal_log_err("Request dma chan error.\n");
-        goto err;
-    }
-
-    tx_chan = hal_request_dma_chan();
-    if (!tx_chan) {
-        hal_log_err("Request dma chan error.\n");
-        goto err;
-    }
-
-    qspi->dma_rx = rx_chan;
-    qspi->dma_tx = tx_chan;
-    qspi->dma_cfg = *cfg;
-
-    qspi->dma_cfg.dev_max_burst = HAL_QSPI_DMA_DEV_MAXBURST;
-    qspi->dma_cfg.dev_bus_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-    qspi->dma_cfg.mem_max_burst = HAL_QSPI_DMA_MEM_MAXBURST;
-    qspi->dma_cfg.mem_bus_width = DMA_SLAVE_BUSWIDTH_UNDEFINED;
-    return 0;
-err:
-    return -ENODEV;
-}
-#endif
 
 int hal_qspi_master_set_cs(qspi_master_handle *h, u32 cs_num, bool enable)
 {
@@ -542,6 +500,109 @@ out:
 }
 
 #ifdef AIC_DMA_DRV
+const u32 dynamic_dma_table[] = {
+#ifdef AIC_QSPI1_DYNAMIC_DMA
+    1,
+#endif
+#ifdef AIC_QSPI2_DYNAMIC_DMA
+    2,
+#endif
+#ifdef AIC_QSPI3_DYNAMIC_DMA
+    3,
+#endif
+};
+static bool qspi_master_dynamic_dma(struct qspi_master_state *qspi)
+{
+    u32 i;
+    for (i = 0; i < ARRAY_SIZE(dynamic_dma_table); i++) {
+        if (dynamic_dma_table[i] == qspi->idx)
+            return true;
+    }
+    return false;
+}
+
+int hal_qspi_master_dma_config(qspi_master_handle *h,
+                               struct qspi_master_dma_config *cfg)
+{
+    struct aic_dma_chan *rx_chan, *tx_chan;
+    struct qspi_master_state *qspi;
+
+    CHECK_PARAM(h, -EINVAL);
+    CHECK_PARAM(cfg, -EINVAL);
+
+    qspi = (struct qspi_master_state *)h;
+    if (qspi->dma_rx || qspi->dma_tx) {
+        hal_log_err("DMA already init for QSPI.\n");
+        return -EINVAL;
+    }
+
+    if (qspi_master_dynamic_dma(qspi))
+        goto dma_dynamic;
+
+    rx_chan = hal_request_dma_chan();
+    if (!rx_chan) {
+        hal_log_err("Request dma chan error.\n");
+        goto err;
+    }
+
+    tx_chan = hal_request_dma_chan();
+    if (!tx_chan) {
+        hal_log_err("Request dma chan error.\n");
+        goto err;
+    }
+
+    qspi->dma_rx = rx_chan;
+    qspi->dma_tx = tx_chan;
+
+dma_dynamic:
+    qspi->dma_cfg = *cfg;
+    qspi->dma_cfg.dev_max_burst = HAL_QSPI_DMA_DEV_MAXBURST;
+    qspi->dma_cfg.dev_bus_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
+    qspi->dma_cfg.mem_max_burst = HAL_QSPI_DMA_MEM_MAXBURST;
+    qspi->dma_cfg.mem_bus_width = DMA_SLAVE_BUSWIDTH_UNDEFINED;
+
+    return 0;
+err:
+    return -ENODEV;
+}
+
+static int qspi_master_can_dma(struct qspi_master_state *qspi,
+                               struct qspi_transfer *t)
+{
+    if (t->data_len <= QSPI_FIFO_DEPTH)
+        return 0;
+    if (t->tx_data) {
+        /* Meet DMA's address align requirement. */
+        if (((unsigned long)t->tx_data) & (AIC_DMA_ALIGN_SIZE - 1))
+            return 0;
+    }
+    if (t->rx_data) {
+        /* Meet DMA's address align requirement. */
+        if (((unsigned long)t->rx_data) & (AIC_DMA_ALIGN_SIZE - 1))
+            return 0;
+    }
+
+    /* Request DMA channel while using it. */
+    if (qspi_master_dynamic_dma(qspi)) {
+        if (t->tx_data) {
+            qspi->dma_tx = hal_request_dma_chan();
+            if (qspi->dma_tx == NULL) {
+                hal_log_err("TX request dma chan failed.\n");
+                return 0;
+            }
+        }
+        if (t->rx_data) {
+            qspi->dma_rx = hal_request_dma_chan();
+            if (qspi->dma_rx == NULL) {
+                hal_log_err("RX request dma chan failed.\n");
+                return 0;
+            }
+        }
+    }
+
+    return 1;
+}
+
 static int qspi_master_wait_dma_done(struct aic_dma_chan *ch, u32 tmo)
 {
     u32 left, cnt = 0;
@@ -634,6 +695,8 @@ static int qspi_master_transfer_dma_sync(qspi_master_handle *h,
     tx_stop:
         qspi_hw_tx_dma_disable(base);
         hal_dma_chan_stop(dma_tx);
+        if (qspi_master_dynamic_dma(qspi))
+            hal_release_dma_chan(dma_tx);
     } else if (t->rx_data) {
         rxlen = t->data_len;
         qspi->work_mode = QSPI_WORK_MODE_SYNC_RX_CPU;
@@ -685,32 +748,13 @@ static int qspi_master_transfer_dma_sync(qspi_master_handle *h,
     rx_stop:
         qspi_hw_rx_dma_disable(base);
         hal_dma_chan_stop(dma_rx);
+        if (qspi_master_dynamic_dma(qspi))
+            hal_release_dma_chan(dma_rx);
     }
 out:
     qspi_hw_get_interrupt_status(base, &sts);
     qspi_hw_clear_interrupt_status(base, sts);
     return ret;
-}
-
-static int qspi_master_can_dma(struct qspi_master_state *qspi,
-                               struct qspi_transfer *t)
-{
-    if (qspi->dma_rx == NULL || qspi->dma_tx == NULL)
-        return 0;
-    if (t->data_len <= QSPI_FIFO_DEPTH)
-        return 0;
-    if (t->tx_data) {
-        /* Meet DMA's address align requirement */
-        if (((unsigned long)t->tx_data) & (AIC_DMA_ALIGN_SIZE - 1))
-            return 0;
-    }
-    if (t->rx_data) {
-        /* Meet DMA's address align requirement */
-        if (((unsigned long)t->rx_data) & (AIC_DMA_ALIGN_SIZE - 1))
-            return 0;
-    }
-
-    return 1;
 }
 #endif
 
@@ -802,6 +846,8 @@ static void qspi_master_dma_tx_callback(void *h)
         base = qspi_hw_index_to_base(qspi->idx);
         qspi_hw_tx_dma_disable(base);
         hal_dma_chan_stop(dma_tx);
+        if (qspi_master_dynamic_dma(qspi))
+            hal_release_dma_chan(dma_tx);
         if (qspi->cb)
             qspi->cb(h, qspi->cb_priv);
     }
@@ -818,6 +864,8 @@ static void qspi_master_dma_rx_callback(void *h)
         base = qspi_hw_index_to_base(qspi->idx);
         qspi_hw_rx_dma_disable(base);
         hal_dma_chan_stop(dma_rx);
+        if (qspi_master_dynamic_dma(qspi))
+            hal_release_dma_chan(dma_rx);
         if (qspi->cb)
             qspi->cb(h, qspi->cb_priv);
     }
@@ -986,10 +1034,16 @@ void hal_qspi_master_irq_handler(qspi_master_handle *h)
         qspi->status |= HAL_QSPI_STATUS_ASYNC_TDONE;
         if (QSPI_IS_ASYNC_ALL_DONE(qspi->status, qspi->done_mask)) {
 #ifdef AIC_DMA_DRV
-            if (qspi->work_mode == QSPI_WORK_MODE_ASYNC_TX_DMA)
+            if (qspi->work_mode == QSPI_WORK_MODE_ASYNC_TX_DMA) {
                 hal_dma_chan_stop(qspi->dma_tx);
-            if (qspi->work_mode == QSPI_WORK_MODE_ASYNC_RX_DMA)
+                if (qspi_master_dynamic_dma(qspi))
+                    hal_release_dma_chan(qspi->dma_tx);
+            }
+            if (qspi->work_mode == QSPI_WORK_MODE_ASYNC_RX_DMA) {
                 hal_dma_chan_stop(qspi->dma_rx);
+                if (qspi_master_dynamic_dma(qspi))
+                    hal_release_dma_chan(qspi->dma_rx);
+            }
 #endif
             if (qspi->cb)
                 qspi->cb(h, qspi->cb_priv);

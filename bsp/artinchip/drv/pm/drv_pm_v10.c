@@ -13,6 +13,7 @@
 #include <aic_drv.h>
 #include <string.h>
 #include <aic_osal.h>
+#include <aic_utils.h>
 
 uint64_t sleep_counter;
 uint64_t resume_counter;
@@ -21,6 +22,16 @@ uint64_t resume_counter;
 static void (*aic_suspend_resume_fn)();
 extern void aic_suspend_resume();
 extern u32 aic_suspend_resume_size;
+
+RT_WEAK void rt_pm_board_level_power_off(void)
+{
+    return;
+}
+
+RT_WEAK void rt_pm_board_level_power_on(void)
+{
+    return;
+}
 
 void aic_pm_enter_idle(void)
 {
@@ -79,6 +90,10 @@ void aic_pm_enter_deep_sleep(void)
     hal_clk_disable(CLK_PLL_INT1);
     /* disable PLL_INT0: cpu pll */
     hal_clk_disable(CLK_PLL_INT0);
+    /* Turn off board level power that can be controlled via GPIO */
+    rt_pm_board_level_power_off();
+    /* deinit all non-wakup pinmux configuration */
+    aic_board_pinmux_deinit();
 
     rt_memcpy((void *)AIC_SRAM_BASE, aic_suspend_resume,
               aic_suspend_resume_size);
@@ -92,6 +107,10 @@ void aic_pm_enter_deep_sleep(void)
     hal_clk_enable(CLK_PLL_INT0);
     /* change cpu frequency to pll */
     hal_clk_set_parent(CLK_CPU, CLK_CPU_SRC1);
+    /* restore all pinmux configuration */
+    aic_board_pinmux_init();
+    /* Turn on board level power that can be controlled via GPIO */
+    rt_pm_board_level_power_on();
     /* enable PLL_INT1: bus pll */
     hal_clk_enable(CLK_PLL_INT1);
     /* change bus frequency to pll */

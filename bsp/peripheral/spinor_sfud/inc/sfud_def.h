@@ -118,6 +118,10 @@ extern void sfud_log_info(const char *format, ...);
 #define SFUD_CMD_WRITE_STATUS2_REGISTER                0x31
 #endif
 
+#ifndef SFUD_CMD_WRITE_STATUS3_REGISTER
+#define SFUD_CMD_WRITE_STATUS3_REGISTER                0x11
+#endif
+
 #ifndef SFUD_CMD_PAGE_PROGRAM
 #define SFUD_CMD_PAGE_PROGRAM                          0x02
 #endif

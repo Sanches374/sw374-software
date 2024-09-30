@@ -67,6 +67,7 @@ function hmm()
 	_hline "rebuildall" "" "Clean and build all the *defconfig in target/configs"
 	_hline "addboard|ab" "" "Add new board *defconfig in target/configs"
 	_hline "aicupg" "" "Burn image file to target board"
+	_hline "update" "" "Manually update some files to be compatible with the new version of SDK."
 	echo ""
 }
 alias h=hmm
@@ -1001,6 +1002,12 @@ function _search_in_list()
 	_reset_terminal
 }
 
+function _sdk_update()
+{
+    python3 ${SDK_PRJ_TOP_DIR}/tools/scripts/sdk_update.py
+}
+alias update=_sdk_update
+
 _mark_topdir
 
 uname -a | grep MINGW  > /dev/null
@@ -1012,6 +1019,6 @@ if [ $? -eq 0 ]; then
 	export RTT_ROOT=$SDK_PRJ_TOP_DIR/kernel/rt-thread
 	export PATH=$ENV_ROOT/tools/Python27:$PATH
 	export PATH=$ENV_ROOT/tools/Python27/Scripts:$PATH
-	export PATH=$ENV_ROOT/tools/Python39:$PATH
+	export PATH=$ENV_ROOT/tools/Python38:$PATH
 	export PATH=$ENV_ROOT/tools/bin:$PATH
 fi

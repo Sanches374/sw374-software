@@ -8,10 +8,8 @@
 
 #include "aic_core.h"
 #include "aic_hal_clk.h"
-#include "aic_reboot_reason.h"
 
 #include "hal_rtc.h"
-#include "hal_wri.h"
 
 #define AIC_RTC_NAME                    "aic-rtc"
 

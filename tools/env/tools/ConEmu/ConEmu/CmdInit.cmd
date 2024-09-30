@@ -47,7 +47,7 @@ set PATH=%ENV_ROOT%\tools\MinGit-2.25.1-32-bit\cmd;%PATH%
 set PATH=%ENV_ROOT%\tools\bin;%PATH%
 set PATH=%RTT_EXEC_PATH%;%PATH%
 set PATH=%ENV_ROOT%\tools\Python27;%PATH%
-set PATH=%ENV_ROOT%\tools\Python39;%PATH%
+set PATH=%ENV_ROOT%\tools\Python38;%PATH%
 set PATH=%SCONS%;%PATH%
 set PATH=%ENV_ROOT%\tools\qemu\qemu32;%PATH%
 
@@ -77,6 +77,7 @@ doskey cr=cd /d %SDK_PRJ_TOP_DIR%
 doskey cb=cbuild
 doskey co=cout
 doskey ct=ctarget
+doskey update=sdk_update
 
 chcp 65001 > nul
 echo Luban-Lite Env Tool for Windows (V1.3.5)

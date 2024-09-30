@@ -154,8 +154,7 @@ static graphic_buffer_t* graphic_buffer_aic_create(uint32_t w, uint32_t h,
     buffer->graphic_buffer.vt = &s_graphic_buffer_aic_vtable;
     buffer->graphic_buffer.vt->get_line_length(&buffer->graphic_buffer);
 #ifdef AIC_GRAPHIC_BUFFER_DEBUG
-    aic_dec_asset_debug();
-    aic_cma_buf_debug(AIC_CMA_BUF_DEBUG_SIZE | AIC_CMA_BUF_DEBUG_CONTEXT);
+    aic_cma_buf_debug(AIC_CMA_BUF_DEBUG_SIZE);
 #endif
     return GRAPHIC_BUFFER(buffer);
   } else {
@@ -190,8 +189,7 @@ graphic_buffer_t* graphic_buffer_aic_create_with_data(void* data) {
   buffer->graphic_buffer.vt = &s_graphic_buffer_aic_vtable;
   buffer->graphic_buffer.vt->get_line_length(&buffer->graphic_buffer);
 #ifdef AIC_GRAPHIC_BUFFER_DEBUG
-  aic_dec_asset_debug();
-  aic_cma_buf_debug(AIC_CMA_BUF_DEBUG_SIZE | AIC_CMA_BUF_DEBUG_CONTEXT);
+  aic_cma_buf_debug(AIC_CMA_BUF_DEBUG_SIZE);
 #endif
   return GRAPHIC_BUFFER(buffer);
 }

@@ -1,14 +1,15 @@
 /*
- * Copyright (c) 2023, Artinchip Technology Co., Ltd
+ * Copyright (c) 2023-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
- * Wu Dehuang <dehuang.wu@artinchip.com>
+ * Authors:  Wu Dehuang <dehuang.wu@artinchip.com>
  */
 
 #include <string.h>
 #include <aicupg.h>
 #include <aic_core.h>
+#include <aic_crc32.h>
 #include "upg_internal.h"
 
 struct artinchip_image_info {
@@ -77,7 +78,7 @@ static s32 image_info_proc(struct fwc_info *fwc,
 {
     enum upg_dev_type type;
     s32 ret = 0;
-
+    (void)ret;
     type = get_device_type(info);
     pr_info("Write to: %s(%d)\n", get_current_device_name(type), type);
 #if defined(AICUPG_MMC_ARTINCHIP)
@@ -136,10 +137,7 @@ s32 ram_fwc_data_write(struct fwc_info *fwc, u8 *buf, s32 len)
     struct artinchip_image_info *info;
 
     fwc->trans_size += len;
-    //fwc->calc_partition_crc = crc32(fwc->calc_partition_crc, buf, len);
-    fwc->calc_partition_crc = fwc->meta.crc;
-    fwc->burn_result = 0;
-    fwc->run_result = 0;
+    fwc->calc_partition_crc = crc32(fwc->calc_partition_crc, buf, len);
 
     pr_debug("%s, data len %d, trans len %d\n", __func__, len, fwc->trans_size);
 

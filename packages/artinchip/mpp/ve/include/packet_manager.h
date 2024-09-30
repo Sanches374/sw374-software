@@ -1,8 +1,10 @@
 /*
-* Copyright (C) 2020-2022 Artinchip Technology Co. Ltd
+* Copyright (C) 2020-2024 Artinchip Technology Co. Ltd
 *
-*  author: <qi.xu@artinchip.com>
-*  Desc:  packet (video bitstream container) manager
+* SPDX-License-Identifier: Apache-2.0
+*
+* author: <qi.xu@artinchip.com>
+* Desc:  packet (video bitstream container) manager
 */
 
 #ifndef PACKET_MANAGER_H
@@ -26,6 +28,7 @@ struct packet_manager_init_cfg {
 	struct ve_buffer_allocator *ve_buf_handle;	// mpp buffer handle
 	size_t buffer_size;				// video bytestream size
 	int packet_count;				// packet buffer count
+	struct packet_allocator* pkt_allocator;
 };
 
 /*

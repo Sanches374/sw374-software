@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  * Authors:  dwj <weijie.ding@artinchip.com>
@@ -15,6 +15,7 @@
 
 rt_device_t cir_dev;
 struct rt_semaphore rx_sem;
+uint8_t cir_rx_inited = 0;
 
 static rt_err_t cir_rx_call(rt_device_t dev, rt_size_t size)
 {
@@ -34,7 +35,6 @@ static void cir_rx_thread(void *parameter)
         size = rt_device_read(cir_dev, 0, &scancode, sizeof(scancode));
 	    if (size)
             rt_kprintf("cir received scancode: %08x\n", scancode);
-        scancode = 0;
     }
 }
 
@@ -97,8 +97,6 @@ int test_cir(int argc, char *argv[])
     config.tx_duty = 33;
     config.rx_level = 1;
 
-    rt_sem_init(&rx_sem, "cir_sem", 0, RT_IPC_FLAG_PRIO);
-
     cir_dev = rt_device_find("cir");
     if (!cir_dev)
     {
@@ -110,22 +108,32 @@ int test_cir(int argc, char *argv[])
 
     rt_device_control(cir_dev, IOC_CIR_CONFIGURE, (void *)&config);
 
-    rt_device_set_rx_indicate(cir_dev, cir_rx_call);
+    if (!cir_rx_inited)
+    {
+        rt_sem_init(&rx_sem, "cir_sem", 0, RT_IPC_FLAG_PRIO);
+        rt_device_set_rx_indicate(cir_dev, cir_rx_call);
 
-    thread = rt_thread_create("cir_rx", cir_rx_thread, RT_NULL, 8192, 25, 10);
-    if (thread)
-    {
-        rt_thread_startup(thread);
-    }
-    else
-    {
-        rt_kprintf("create cir_rx thread failed!\n");
-        return -RT_ERROR;
+        thread = rt_thread_create("cir_rx", cir_rx_thread, RT_NULL, 8192, 25, 10);
+        if (thread)
+        {
+            rt_thread_startup(thread);
+        }
+        else
+        {
+            rt_kprintf("create cir_rx thread failed!\n");
+            goto __exit;
+        }
+
+        cir_rx_inited = 1;
     }
 
     rt_device_write(cir_dev, 0, &tx_code, sizeof(tx_code));
 
     return 0;
+
+__exit:
+    rt_device_close(cir_dev);
+    return -RT_ERROR;
 }
 
 MSH_CMD_EXPORT(test_cir, test cir send and receive data);

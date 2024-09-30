@@ -121,7 +121,6 @@ static rt_bool_t pm_check_device_wakeup_is_enabled(const struct rt_device *dev)
 {
     /* parameter check */
     RT_ASSERT(dev != RT_NULL);
-    RT_ASSERT(rt_object_get_type(&dev->parent) == RT_Object_Class_Device);
 
     if (dev->flag & RT_DEVICE_FLAG_WAKEUP)
         return RT_TRUE;

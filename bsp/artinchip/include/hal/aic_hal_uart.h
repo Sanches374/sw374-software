@@ -50,6 +50,9 @@ extern "C" {
 #define HALT_CHCFG_AT_BUSY      0x02
 #define HALT_CHANGE_UPDATE      0x04
 
+#define AIC_RXCTL_DLAB_ACEN     0X04	/* Receiver divisor latch access bit auto clear enable */
+#define AIC_RXCTL_SWITCH        0X01	/* Receiver switch */
+
 #define AIC_LSR_PFE             0x80
 #define AIC_LSR_TEMT            0x40
 #define AIC_LSR_THRE            0x40

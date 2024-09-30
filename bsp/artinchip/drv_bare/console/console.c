@@ -524,7 +524,7 @@ static int _console_loop(struct tiny_console *cons)
                 cons->display_prompt = 0;
             }
 
-#ifdef KERNEL_FREERTOS
+#if (defined(KERNEL_FREERTOS) || defined(KERNEL_UCOS_II))
             aicos_msleep(10);
 #endif
 

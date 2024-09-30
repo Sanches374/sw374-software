@@ -31,6 +31,8 @@ static void can_rx_thread(void *parameter)
     rt_size_t size;
     struct rt_can_msg rxmsg = {0};
 
+    rt_device_open(g_can_dev, RT_DEVICE_FLAG_INT_TX | RT_DEVICE_FLAG_INT_RX);
+
     rt_sem_take(&g_rx_sem, RT_WAITING_FOREVER);
 
     rxmsg.hdr = -1;
@@ -105,7 +107,7 @@ static void usage(char * program)
 
 int test_can_loopback(int argc, char *argv[])
 {
-    rt_err_t ret = 0;
+    rt_err_t ret = RT_EOK;
     struct rt_can_msg msg = {0};
     rt_thread_t thread;
 
@@ -164,7 +166,6 @@ int test_can_loopback(int argc, char *argv[])
     parse_msg_data(&msg, argv[2]);
     rt_device_write(g_can_dev, 0, &msg, sizeof(msg));
 
-    return RT_EOK;
 __exit:
     rt_device_close(g_can_dev);
     return ret;

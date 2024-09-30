@@ -162,7 +162,7 @@ unsigned int mpp_phy_alloc(size_t size)
     info[i].size = ALIGN_1024B(size);
     g_addr += info[total_cnt].size;
 #else
-    info[i].addr = (unsigned long)aicos_malloc(MEM_CMA, ALIGN_UP(size, CACHE_LINE_SIZE) + 1024);
+    info[i].addr = (unsigned long)aicos_malloc_try_cma(ALIGN_UP(size, CACHE_LINE_SIZE) + 1024);
     info[i].align_addr = ALIGN_1024B(info[i].addr);
     info[i].size = size;
 #endif

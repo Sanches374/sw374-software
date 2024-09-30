@@ -395,10 +395,10 @@ def TargetEclipse(env, sdk=False, update=False):
                 shutil.copytree(src_d, des_d)
             elif platform.system() == 'Windows':
                 shutil.copytree('\\\\?\\' + src_d, '\\\\?\\' + des_d)
-        # copy Python39
-        print('Copy Python39 file...')
-        src_d = os.path.join(aic_root, 'tools/env/tools/Python39')
-        des_d = os.path.join(prj_eclipse_dir, 'tools/Python39')
+        # copy Python38
+        print('Copy Python38 file...')
+        src_d = os.path.join(aic_root, 'tools/env/tools/Python38')
+        des_d = os.path.join(prj_eclipse_dir, 'tools/Python38')
         src_d = os.path.normpath(src_d);
         des_d = os.path.normpath(des_d);
         if not os.path.exists(des_d):
@@ -546,8 +546,8 @@ def TargetEclipse(env, sdk=False, update=False):
             post_build = post_build.replace(r';', '\n')
             des = aic_root + '/toolchain/riscv64-unknown-elf/bin/objcopy.exe'
             post_build = post_build.replace(r'${cross_prefix}${cross_objcopy}${cross_suffix}', des)
-            des = aic_root + '/tools/env/tools/Python39'
-            post_build = post_build.replace(r'${ProjDirPath}/tools/Python39', des)
+            des = aic_root + '/tools/env/tools/Python38'
+            post_build = post_build.replace(r'${ProjDirPath}/tools/Python38', des)
             des = aic_root + '/tools/env/tools/bin'
             post_build = post_build.replace(r'${ProjDirPath}/tools/bin', des)
             des = aic_root + '/' + prj_out_dir + prj_chip + '.elf'

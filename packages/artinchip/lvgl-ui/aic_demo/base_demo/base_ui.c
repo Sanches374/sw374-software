@@ -1,5 +1,8 @@
 /*
- * Copyright (C) 2022-2023 ArtinChip Technology Co., Ltd.
+ * Copyright (C) 2022-2024 ArtInChip Technology Co., Ltd.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
  * Authors:  Ning Fang <ning.fang@artinchip.com>
  */
 
@@ -24,9 +27,8 @@
 //#define FILE_LIST
 FAKE_IMAGE_DECLARE(bg_dark);
 
-LV_FONT_DECLARE(ui_font_Big);
-LV_FONT_DECLARE(ui_font_Title);
-LV_FONT_DECLARE(ui_font_H1);
+LV_FONT_DECLARE(ui_font_italic);
+LV_FONT_DECLARE(ui_font_regular);
 
 LV_IMG_DECLARE(circle_white);
 LV_IMG_DECLARE(circle_gray);
@@ -344,7 +346,7 @@ static void create_player(lv_obj_t * parent)
     //lv_style_set_border_color(&btn_style, lv_palette_main(LV_PALETTE_YELLOW));
     lv_style_set_bg_opa(&btn_style, LV_OPA_0);
 
-    lv_memset_00(&g_lvgl_player_ctx, sizeof(struct lvgl_player_context));
+    lv_memset(&g_lvgl_player_ctx, 0, sizeof(struct lvgl_player_context));
     g_lvgl_player_ctx.player = aic_player_create(NULL);
     if (g_lvgl_player_ctx.player == NULL) {
         printf("aic_player_create fail!!!!\n");
@@ -571,13 +573,16 @@ static void timer_callback(lv_timer_t *tmr)
 {
     char data_str[128];
     float value;
+    int fps = 0;
 
     (void)tmr;
 
+    fps = fbdev_draw_fps();
+
     /* frame rate */
-    ui_snprintf(data_str, "%2d fps", fbdev_draw_fps());
+    ui_snprintf(data_str, "%2d fps", fps);
     lv_label_set_text(fps_info, data_str);
-    ui_snprintf(data_str, "%2d FPS", fbdev_draw_fps());
+    ui_snprintf(data_str, "%2d FPS", fps);
     lv_label_set_text(bg_fps, data_str);
 
     /* cpu usage */
@@ -736,7 +741,13 @@ static void main_tapview_event(lv_event_t * e)
             lv_obj_add_flag(circle_3, LV_OBJ_FLAG_HIDDEN);
             lv_obj_add_flag(bg_fps, LV_OBJ_FLAG_HIDDEN);
             lv_obj_add_flag(bg_logo, LV_OBJ_FLAG_HIDDEN);
+
+#if LVGL_VERSION_MAJOR == 8
             lv_img_cache_invalidate_src(NULL);
+#else
+            lv_image_cache_drop(NULL);
+#endif
+
 #ifdef VIDEO_PLAYER
             alpha.mode = 0;
             mpp_fb_ioctl(fd_dev, AICFB_UPDATE_ALPHA_CONFIG, &alpha);
@@ -763,23 +774,30 @@ void base_ui_init()
     lv_obj_set_style_text_opa(main_title, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
 
 #if LV_USE_FREETYPE ==  1
+    static lv_style_t style;
+    lv_style_init(&style);
+#if LVGL_VERSION_MAJOR == 8
     static lv_ft_info_t info;
     // FreeType uses C standard file system, so no driver letter is required
     info.name = "/rodata/lvgl_data/font/Lato-Regular.ttf";
-    info.weight = 24;
+    info.weight = 22;
     info.style = FT_FONT_STYLE_NORMAL;
     info.mem = NULL;
     if(!lv_ft_font_init(&info)) {
         LV_LOG_ERROR("create failed.");
     }
-
-    /*Create style*/
-    static lv_style_t style;
-    lv_style_init(&style);
     lv_style_set_text_font(&style, info.font);
+#else
+    lv_font_t *font = lv_freetype_font_create("/rodata/lvgl_data/font/Lato-Regular.ttf",
+                                               LV_FREETYPE_FONT_RENDER_MODE_BITMAP,
+                                               24,
+                                               LV_FREETYPE_FONT_STYLE_NORMAL);
+    lv_style_set_text_font(&style, font);
+#endif //LVGL_VERSION_MAJOR
+
     lv_obj_add_style(main_title, &style, 0);
 #else
-    lv_obj_set_style_text_font(main_title, &ui_font_Title, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(main_title, &ui_font_regular, LV_PART_MAIN | LV_STATE_DEFAULT);
 #endif
 
     bg_fps = lv_label_create(img_bg);
@@ -790,7 +808,7 @@ void base_ui_init()
     lv_label_set_text(bg_fps, "");
     lv_obj_set_style_text_color(bg_fps, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(bg_fps, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(bg_fps, &ui_font_Title, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(bg_fps, &ui_font_regular, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     bg_logo = lv_label_create(img_bg);
     lv_obj_set_width(bg_logo, LV_SIZE_CONTENT);
@@ -800,7 +818,7 @@ void base_ui_init()
     lv_label_set_text(bg_logo, "ArtInChip");
     lv_obj_set_style_text_color(bg_logo, lv_color_hex(0x00FFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(bg_logo, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(bg_logo, &ui_font_Big, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(bg_logo, &ui_font_italic, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     if (only_two_tap) {
         circle_0 = lv_img_create(img_bg);
@@ -828,7 +846,14 @@ void base_ui_init()
         lv_obj_align(circle_3, LV_ALIGN_BOTTOM_MID, 48, -30);
     }
 
+#if LVGL_VERSION_MAJOR == 8
     lv_obj_t *main_tabview = lv_tabview_create(lv_scr_act(), LV_DIR_TOP, 0);
+#else
+    lv_obj_t *main_tabview = lv_tabview_create(lv_scr_act());
+
+    lv_tabview_set_tab_bar_position(main_tabview, LV_DIR_TOP);
+    lv_tabview_set_tab_bar_size(main_tabview, 0);
+#endif
 
     lv_obj_set_size(main_tabview, 1024, 600);
     lv_obj_set_pos(main_tabview, 0, 0);
@@ -855,7 +880,6 @@ void base_ui_init()
     lv_img_set_pivot(img_point, 12, 108);
     lv_img_set_angle(img_point, rot_angle * 10);
     lv_img_set_zoom(img_point, 300);
-    lv_img_set_antialias(img_point, 0);
 
     ui_speed = lv_label_create(main_tab0);
     lv_obj_set_width(ui_speed, LV_SIZE_CONTENT);
@@ -865,7 +889,7 @@ void base_ui_init()
     lv_label_set_text(ui_speed, "0");
     lv_obj_set_style_text_color(ui_speed, lv_color_hex(0xF9E09D), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_speed, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(ui_speed, &ui_font_Big, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_speed, &ui_font_italic, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     lv_obj_t *img_info = lv_img_create(main_tab0);
     lv_img_set_src(img_info, LVGL_PATH(meter_info.png));
@@ -878,7 +902,7 @@ void base_ui_init()
     lv_label_set_text(fps_title, "Frame rate");
     lv_obj_set_style_text_color(fps_title, lv_color_hex(0x00A0EF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(fps_title, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(fps_title, &ui_font_Title, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(fps_title, &ui_font_regular, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     cpu_title = lv_label_create(main_tab0);
     lv_obj_set_width(cpu_title, LV_SIZE_CONTENT);
@@ -887,7 +911,7 @@ void base_ui_init()
     lv_label_set_text(cpu_title, "CPU usage");
     lv_obj_set_style_text_color(cpu_title, lv_color_hex(0x00A0EF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(cpu_title, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(cpu_title, &ui_font_Title, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(cpu_title, &ui_font_regular, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     mem_title = lv_label_create(main_tab0);
     lv_obj_set_width(mem_title, LV_SIZE_CONTENT);
@@ -896,7 +920,7 @@ void base_ui_init()
     lv_label_set_text(mem_title, "Mem usage");
     lv_obj_set_style_text_color(mem_title, lv_color_hex(0x00A0EF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(mem_title, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(mem_title, &ui_font_Title, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(mem_title, &ui_font_regular, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     fps_info = lv_label_create(main_tab0);
     lv_obj_set_width(fps_info, LV_SIZE_CONTENT);
@@ -905,7 +929,7 @@ void base_ui_init()
     lv_label_set_text(fps_info, "0");
     lv_obj_set_style_text_color(fps_info, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(fps_info, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(fps_info, &ui_font_Big, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(fps_info, &ui_font_italic, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     cpu_info = lv_label_create(main_tab0);
     lv_obj_set_width(cpu_info, LV_SIZE_CONTENT);
@@ -914,7 +938,7 @@ void base_ui_init()
     lv_label_set_text(cpu_info, "0");
     lv_obj_set_style_text_color(cpu_info, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(cpu_info, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(cpu_info, &ui_font_Big, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(cpu_info, &ui_font_italic, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     mem_info = lv_label_create(main_tab0);
     lv_obj_set_width(mem_info, LV_SIZE_CONTENT);
@@ -923,7 +947,7 @@ void base_ui_init()
     lv_label_set_text(mem_info, "0");
     lv_obj_set_style_text_color(mem_info, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(mem_info, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(mem_info, &ui_font_Big, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(mem_info, &ui_font_italic, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     lv_obj_t *play_home_img = lv_img_create(main_tab1);
     lv_img_set_src(play_home_img, &play_home);
@@ -991,7 +1015,13 @@ void base_ui_init()
         lv_img_set_src(cook_buttom_img, LVGL_PATH(cook_buttom.png));
         lv_obj_set_pos(cook_buttom_img, 0, 430);
 
+#if LVGL_VERSION_MAJOR == 8
         tab_sub = lv_tabview_create(main_tab2, LV_DIR_TOP, 0);
+#else
+        tab_sub = lv_tabview_create(main_tab2);
+        lv_tabview_set_tab_bar_position(tab_sub, LV_DIR_TOP);
+        lv_tabview_set_tab_bar_size(tab_sub, 0);
+#endif
         lv_obj_set_pos(tab_sub, 0, 00);
         lv_obj_set_style_bg_opa(tab_sub, LV_OPA_0, 0);
 

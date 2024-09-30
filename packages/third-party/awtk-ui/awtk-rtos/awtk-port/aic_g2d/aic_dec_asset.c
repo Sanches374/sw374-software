@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -32,6 +32,7 @@ asset_info_t* aic_assets_manager_load_impl(assets_manager_t* am, asset_type_t ty
 
 static struct asset_list aic_dec_mgr_list_head;
 
+#ifdef WITH_AIC_AWTK_DEBUG
 void aic_dec_asset_debug(void) {
   int num = 0;
   int frame_size = 0;
@@ -46,6 +47,7 @@ void aic_dec_asset_debug(void) {
                (unsigned int)now_asset->frame.buf.phy_addr[0]);
   }
 }
+#endif
 
 static int aic_dec_asset_add(aic_dec_asset *asset, asset_info_t* info) {
   aic_dec_asset *new_asset;
@@ -53,6 +55,7 @@ static int aic_dec_asset_add(aic_dec_asset *asset, asset_info_t* info) {
   new_asset = TKMEM_ZALLOC(aic_dec_asset);
   memcpy(new_asset, asset, sizeof(aic_dec_asset));
   asset_list_add_tail(&new_asset->list, &aic_dec_mgr_list_head);
+  return 0;
 }
 
 int aic_decode_asset_init(void) {
@@ -128,8 +131,8 @@ static int get_expected_decode_format(int format, int is_png)
       return format;
     } else if (format >= MPP_FMT_RGB_565 && format <= MPP_FMT_BGR_565) {
       return MPP_FMT_RGB_888;
-    } else if (format >= MPP_FMT_ARGB_1555 && format <= MPP_FMT_BGRA_5551 ||
-               format >= MPP_FMT_ARGB_4444 && format <= MPP_FMT_BGRA_4444) {
+    } else if ((format >= MPP_FMT_ARGB_1555 && format <= MPP_FMT_BGRA_5551) ||
+               (format >= MPP_FMT_ARGB_4444 && format <= MPP_FMT_BGRA_4444)) {
       return MPP_FMT_ARGB_8888;
     } else {
       return -1;
@@ -143,8 +146,8 @@ static int get_expected_decode_format(int format, int is_png)
       return format;
     } else if (format >= MPP_FMT_RGB_565 && format <= MPP_FMT_BGR_565) {
       return MPP_FMT_RGB_888;
-    } else if (format >= MPP_FMT_ARGB_1555 && format <= MPP_FMT_BGRA_5551 ||
-               format >= MPP_FMT_ARGB_4444 && format <= MPP_FMT_BGRA_4444) {
+    } else if ((format >= MPP_FMT_ARGB_1555 && format <= MPP_FMT_BGRA_5551) ||
+               (format >= MPP_FMT_ARGB_4444 && format <= MPP_FMT_BGRA_4444)) {
       return MPP_FMT_ARGB_8888;
     } else {
       return -1;
@@ -172,16 +175,6 @@ static int get_expected_decode_format(int format, int is_png)
 
   return -1;
 }
-
-#ifdef AIC_DEC_ASSET_DEBUG
-static void save_image(void *data, int size, const char *name) {
-  char path[126] = {0};
-  snprintf(path, sizeof(path), "/sdcard/%s", name);
-  if (file_write(path, data, size) == RET_FAIL) {
-    log_debug("save image faile, path = %s\n", path);
-  }
-}
-#endif
 
 static asset_info_t* aic_asset_info_create(uint16_t type, uint16_t subtype, const char* name,
                                            int32_t size, aic_dec_asset *dec_asset, const char *path) {
@@ -314,17 +307,6 @@ static asset_info_t* aic_asset_info_create(uint16_t type, uint16_t subtype, cons
   mpp_decoder_put_frame(dec_asset->dec, &frame);
   decoder_get_frame = 0;
 
-#ifdef AIC_DEC_ASSET_DEBUG
-  if (strncmp(name, "bg_main",strlen("bg_main")) == 0)
-    save_image((void *)dec_asset->frame.buf.phy_addr[0],
-    dec_asset->frame.buf.stride[0] * dec_asset->frame.buf.size.height,
-    "bg_main.rgb");
-
-  log_debug("decode data path = %s, w = %d, h = %d, fmt = %d, stride = %d\n",
-    path,  dec_asset->frame.buf.size.width, dec_asset->frame.buf.size.height,
-    dec_asset->frame.buf.format, dec_asset->frame.buf.stride[0]);
-#endif
-
   mpp_decoder_destory(dec_asset->dec);
 
   return info;
@@ -424,11 +406,32 @@ static asset_info_t* aic_assets_manager_load(assets_manager_t* am, asset_type_t 
 
   /* currently, we are only reading images from the file system and decoding them. */
   if (aic_subtype == ASSET_TYPE_IMAGE_JPG || aic_subtype == ASSET_TYPE_IMAGE_PNG) {
+#ifdef WITH_AIC_CACHE_OPTIMIZE
+  extern ret_t image_manager_clear_cache_one(image_manager_t* imm);
+  extern ret_t image_manager_cache_sort(image_manager_t* imm);
+
+  int sort = 1;
+  image_manager_t* imm = image_manager();
+  do {
+    if (file_exist(path)) {
+      info = aic_load_asset_from_file(type, aic_subtype, path, name, &dec_asset);
+      if (info != NULL)
+        break;
+      if (sort) {
+        image_manager_cache_sort(imm);
+        sort = 0;
+      }
+      image_manager_clear_cache_one(imm);
+    } else {
+      break;
+    }
+  } while (info == NULL);
+#else
     info = aic_load_asset_from_file(type, aic_subtype, path, name, &dec_asset);
     if (info == NULL) {
       return NULL;
     }
-
+#endif
     /* add in aic dec asset manager */
     if (info != NULL) {
       aic_dec_asset_add(&dec_asset, info);

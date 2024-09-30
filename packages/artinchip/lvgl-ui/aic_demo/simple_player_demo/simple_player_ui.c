@@ -288,7 +288,7 @@ static void create_player(lv_obj_t * parent)
     //lv_style_set_border_color(&btn_style, lv_palette_main(LV_PALETTE_YELLOW));
     lv_style_set_bg_opa(&btn_style, LV_OPA_0);
 
-    lv_memset_00(&g_lvgl_player_ctx, sizeof(struct lvgl_player_context));
+    lv_memset(&g_lvgl_player_ctx, 0, sizeof(struct lvgl_player_context));
     g_lvgl_player_ctx.player = aic_player_create(NULL);
     if (g_lvgl_player_ctx.player == NULL) {
         printf("aic_player_create fail!!!!\n");

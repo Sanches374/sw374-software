@@ -159,7 +159,11 @@ static struct category _category[] = {
 
 static int currentPage = 0;
 static int endPage = -1;
-static lv_point_t* line_points[10];
+#if LVGL_VERSION_MAJOR == 8
+    static lv_point_t* line_points[10];
+#else
+    static lv_point_precise_t* line_points[10];
+#endif
 
 static void menuBtnEventCb(lv_event_t * e)
 {
@@ -280,7 +284,11 @@ void createPageLed(lv_obj_t* scr, int size, int pos)
     {
         if(i == pos)
         {
-            line_points[pos] = malloc(sizeof(lv_point_t)*2);
+#if LVGL_VERSION_MAJOR == 8
+            line_points[pos] = lv_mem_alloc(sizeof(lv_point_t)*2);
+#else
+            line_points[pos] = lv_mem_alloc(sizeof(lv_point_precise_t)*2);
+#endif
             line_points[pos][0].x = pos_width_conversion(x);
             line_points[pos][0].y = pos_height_conversion(y + 3);
             line_points[pos][1].x = pos_width_conversion(x + 18);
@@ -359,6 +367,6 @@ void menuDel()
 
     for (i = 0; i < 10; i++) {
         if (line_points[i])
-            free(line_points[i]);
+            lv_mem_free(line_points[i]);
     }
 }

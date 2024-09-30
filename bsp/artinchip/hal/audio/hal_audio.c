@@ -130,7 +130,6 @@ void hal_audio_set_samplerate(aic_audio_ctrl *codec, uint32_t samplerate)
     reg_val &= ~ADC_IF_CTRL_FS_ADC_IN_MASK;
     reg_val |= ADC_IF_CTRL_FS_ADC_IN(hw_rate);
     writel(reg_val, codec->reg_base + ADC_IF_CTRL_REG);
-
     module_freq = hal_audio_get_module_freq(codec, samplerate);
     pclk_id = hal_clk_get_parent(codec->clk_id);
 #ifdef AIC_AUDIO_DRV_V10
@@ -295,8 +294,9 @@ void hal_audio_set_amic_channel(aic_audio_ctrl *codec)
     reg_val |= ADC_HPF0_CTRL_HPF0_EN;
     writel(reg_val, codec->reg_base + ADC_HPF0_CTRL_REG);
     /* Enable MBIAS PGA ADC */
+    reg_val = readl(codec->reg_base + ADC_CTL1_REG);
     reg_val |= ADC_CTL1_ADC_EN | ADC_CTL1_PGA_EN | ADC_CTL1_MBIAS_EN;
-    writel(reg_val, codec->reg_base + ADC_HPF0_CTRL_REG);
+    writel(reg_val, codec->reg_base + ADC_CTL1_REG);
     /* Enable DF0 */
     reg_val = readl(codec->reg_base + ADC_IF_CTRL_REG);
     reg_val |= ADC_IF_CTRL_EN_DEC0_MASK;
@@ -309,6 +309,10 @@ void hal_audio_set_amic_channel(aic_audio_ctrl *codec)
     reg_val = readl(codec->reg_base + ADC_RXFIFO_CTRL_REG);
     reg_val |= ADC_RXFIFO_EN;
     writel(reg_val, codec->reg_base + ADC_RXFIFO_CTRL_REG);
+    /* Set PGA CTRL */
+    reg_val = readl(codec->reg_base + ADC_CTL2_REG);
+    reg_val |= ADC_CTL2_PGA_GAIN_SEL;
+    writel(reg_val, codec->reg_base + ADC_CTL2_REG);
 }
 
 static void dma_transfer_period_callback(void *arg)
@@ -445,7 +449,7 @@ void hal_audio_amic_start(aic_audio_ctrl *codec)
     struct aic_audio_transfer_info *info;
 
     config.direction = DMA_DEV_TO_MEM;
-    config.src_addr = codec->reg_base + DMIC_RXFIFO_DATA_REG;
+    config.src_addr = codec->reg_base + ADC_RXFIFO_DATA_REG;
     config.slave_id = 15;
     config.src_maxburst = 1;
     config.dst_maxburst = 1;

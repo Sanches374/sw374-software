@@ -100,7 +100,7 @@ save_boot_params_ret:
     jalr    a5
 #endif
 
-#if (defined(KERNEL_RTTHREAD) || defined(KERNEL_FREERTOS))
+#if (defined(KERNEL_RTTHREAD) || defined(KERNEL_FREERTOS) || defined(KERNEL_UCOS_II))
     la      a5, entry
     jalr    a5
 #else

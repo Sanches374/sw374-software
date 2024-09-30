@@ -45,7 +45,16 @@ if "%kernel%_%app%" == "baremetal_bootloader" (
 	goto exit_label
 )
 
-find "Luban-Lite is built successfully" %LOG_DIR%\%boot_defconfig%.log > nul
+:: Two cases:
+:: 1. Git bash is not included in ENV, use DOS find
+:: 2. Git bash is included in ENV, use grep, otherwise it will use find in the bash, but parameter
+::    is wrong
+where grep > nul 2>&1
+if not %errorlevel% equ 0 (
+	find "Luban-Lite is built successfully" %LOG_DIR%\%boot_defconfig%.log > nul
+) else (
+	grep "Luban-Lite is built successfully" %LOG_DIR%\%boot_defconfig%.log > nul
+)
 if not %errorlevel% equ 0 (
 	call scons --apply-def=%app_defconfig% -C %SDK_PRJ_TOP_DIR%
 	goto exit_label

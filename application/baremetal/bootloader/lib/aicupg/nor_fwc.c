@@ -1,13 +1,16 @@
 /*
- * Copyright (c) 2023, Artinchip Technology Co., Ltd
+ * Copyright (c) 2023-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
- * Xiong Hao <hao.xiong@artinchip.com>
+ * Authors:  Xiong Hao <hao.xiong@artinchip.com>
  */
+
 #include <stdlib.h>
 #include <string.h>
 #include <aic_core.h>
+#include <aic_utils.h>
+#include <aic_crc32.h>
 #include <aicupg.h>
 #include <mtd.h>
 #include <sfud.h>
@@ -114,8 +117,6 @@ void nor_fwc_start(struct fwc_info *fwc)
         spienc_select_tweak(AIC_SPIENC_HW_TWEAK);
 #endif
     fwc->block_size = 2048;
-    fwc->burn_result = 0;
-    fwc->run_result = 0;
 
     return;
 err:
@@ -133,7 +134,14 @@ s32 nor_fwc_data_write(struct fwc_info *fwc, u8 *buf, s32 len)
     struct aicupg_nor_priv *priv;
     struct mtd_dev *mtd;
     unsigned long offset, erase_offset;
-    int i, ret = 0;
+    int i, calc_len = 0, ret = 0;
+    u8 *rdbuf;
+
+    rdbuf = aicos_malloc_align(0, len, CACHE_LINE_SIZE);
+    if (!rdbuf) {
+        pr_err("Error: malloc buffer failed.\n");
+        return 0;
+    }
 
     priv = (struct aicupg_nor_priv *)fwc->priv;
     for (i = 0; i < MAX_DUPLICATED_PART; i++) {
@@ -144,7 +152,7 @@ s32 nor_fwc_data_write(struct fwc_info *fwc, u8 *buf, s32 len)
         offset = priv->start_offset[i];
         if ((offset + len) > (mtd->size)) {
             pr_err("Not enough space to write mtd %s\n", mtd->name);
-            return 0;
+            goto out;
         }
 
         /* erase 1 sector when offset+len more than erased address */
@@ -153,7 +161,7 @@ s32 nor_fwc_data_write(struct fwc_info *fwc, u8 *buf, s32 len)
             ret = mtd_erase(mtd, erase_offset, ROUNDUP(len, mtd->erasesize));
             if (ret) {
                 pr_err("MTD erase sector failed!\n");
-                return 0;
+                goto out;
             }
             priv->erase_offset[i] = erase_offset + ROUNDUP(len, mtd->erasesize);
             erase_offset = priv->erase_offset[i];
@@ -162,17 +170,44 @@ s32 nor_fwc_data_write(struct fwc_info *fwc, u8 *buf, s32 len)
         ret = mtd_write(mtd, offset, buf, len);
         if (ret) {
             pr_err("Write mtd %s error.\n", mtd->name);
-            return 0;
+            goto out;
+        }
+
+        // Read data to calc crc
+        ret = mtd_read(mtd, offset, rdbuf, len);
+        if (ret) {
+            pr_err("Read mtd %s error.\n", mtd->name);
+            goto out;
         }
         priv->start_offset[i] = offset + len;
     }
 
-    fwc->burn_result = 0;
-    fwc->run_result = 0;
+    if ((fwc->meta.size - fwc->trans_size) < len)
+        calc_len = fwc->meta.size - fwc->trans_size;
+    else
+        calc_len = len;
+
+    fwc->calc_partition_crc = crc32(fwc->calc_partition_crc, rdbuf, calc_len);
+#ifdef AICUPG_SINGLE_TRANS_BURN_CRC32_VERIFY
+    fwc->calc_trans_crc = crc32(fwc->calc_trans_crc, buf, calc_len);
+    if (fwc->calc_trans_crc != fwc->calc_partition_crc) {
+        pr_err("calc_len:%d\n", calc_len);
+        pr_err("crc err at trans len %u\n", fwc->trans_size);
+        pr_err("trans crc:0x%x, partition crc:0x%x\n", fwc->calc_trans_crc,
+                fwc->calc_partition_crc);
+    }
+#endif
+
     fwc->trans_size += len;
     pr_debug("%s, data len %d, trans len %d\n", __func__, len, fwc->trans_size);
 
+    aicos_free_align(0, rdbuf);
     return len;
+
+out:
+    if (rdbuf)
+        aicos_free_align(0, rdbuf);
+    return ret;
 }
 
 s32 nor_fwc_data_read(struct fwc_info *fwc, u8 *buf, s32 len)
@@ -195,8 +230,6 @@ s32 nor_fwc_data_read(struct fwc_info *fwc, u8 *buf, s32 len)
     }
     priv->start_offset[0] = offset + len;
 
-    fwc->burn_result = 0;
-    fwc->run_result = 0;
     fwc->trans_size += len;
     fwc->calc_partition_crc = fwc->meta.crc;
     pr_debug("%s, data len %d, trans len %d\n", __func__, len, fwc->trans_size);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -309,10 +309,11 @@ int show_color_block(int fd)
     struct aicfb_screeninfo s = {0};
 
     int i, j, color, step, blk_line, pixel_size, width, height, blk_height;
-    int colors24[] = {0xFF0000, 0x00FF00, 0x0000FF, 0xFFFFFF};
+    int colors24[] = {0xFFFF0000, 0xFF00FF00, 0xFF0000FF, 0xFFFFFFFF};
     int steps24[]  = {0x010000, 0x000100, 0x000001, 0x010101};
     int colors16[] = {0xF800, 0x07E0, 0x001F, 0xFFDF};
     int steps16[]  = {0x0800, 0x0020, 0x0001, 0x0841};
+    int color_zero = 0xFF000000;
     int *colors = colors24;
     int *steps  = steps24;
     char *fb_buf = NULL, *line1 = NULL, *line2 = NULL;
@@ -326,6 +327,7 @@ int show_color_block(int fd)
     if (pixel_size == 2) {
         colors = colors16;
         steps  = steps16;
+        color_zero = 0;
     }
 
     fb_buf = (char *)s.framebuffer;
@@ -357,7 +359,7 @@ int show_color_block(int fd)
                 color -= step;
             }
 
-            if (color == 0) {
+            if (color == color_zero) {
                 color = colors[blk_line];
                 if (pixel_size == 2)
                     j += (blk_line == 1 ? 4 : 8);

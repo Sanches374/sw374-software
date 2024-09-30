@@ -1391,8 +1391,10 @@ void USBD_IRQHandler(void)
                 uint32_t DiepintReg = AIC_UDC_REG->inepint[ep_idx];
                 AIC_UDC_REG->inepint[ep_idx] = DiepintReg;
 
-                if (epint & INTKNEPMIS)
+                if (epint & INTKNEPMIS) {
+                    aic_udelay(100);
                     usbd_npinep_rewrite(ep_idx);
+                }
 
                 if ((epint & TRANSFER_DONE) == TRANSFER_DONE) {
                     if (ep_idx == 0) {

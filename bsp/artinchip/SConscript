@@ -301,6 +301,13 @@ if GetDepend('AIC_PANEL_RGB_NT35560'):
 
 if GetDepend('AIC_PANEL_RGB_ST77922'):
     src += Glob('drv/display/panel/panel_rgb_st77922.c')
+
+#
+# RGB Panel Driver IIC Init
+#
+if GetDepend('AIC_PANEL_LCOS_HX7033'):
+    src += Glob('drv/display/panel/panel_lcos_hx7033.c')
+
 #
 # SRGB Panel Driver
 #
@@ -370,6 +377,8 @@ if GetDepend('AIC_PWM_DRV'):
         src += Glob('drv/pwm/*.c')
     if GetDepend('DRIVER_HAL_EN'):
         src += Glob('hal/pwm/*.c')
+
+        src += Glob('hal/xpwm/*.c')
 
 if GetDepend('AIC_HRTIMER_DRV_V12'):
     if GetDepend('DRIVER_DRV_EN'):

@@ -142,7 +142,7 @@ int lv_create_canvas_image(lv_obj_t *parent, int w, int h)
 {
     for(int i = 0; i < 2; i++) {
         canvas[i] = lv_aic_canvas_create(parent);
-        lv_aic_canvas_alloc_buffer(canvas[i], canvas_width, canvas_height, LV_IMG_CF_TRUE_COLOR_ALPHA);
+        lv_aic_canvas_alloc_buffer(canvas[i], canvas_width, canvas_height);
         lv_obj_add_flag(canvas[i], LV_OBJ_FLAG_HIDDEN);
     }
 
@@ -165,6 +165,7 @@ void lv_canvas_image_text(void)
     lv_obj_clear_flag(lv_scr_act(), LV_OBJ_FLAG_SCROLLABLE);
 
 #if LV_USE_FREETYPE ==  1
+#if LVGL_VERSION_MAJOR == 8
     static lv_ft_info_t info;
     info.name = "/rodata/lvgl_data/font/DroidSansFallback.ttf";
     info.weight = 40;
@@ -175,7 +176,13 @@ void lv_canvas_image_text(void)
         return;
     }
     font = info.font;
-#endif
+#else
+    font = lv_freetype_font_create("/rodata/lvgl_data/font/DroidSansFallback.ttf",
+                                    LV_FREETYPE_FONT_RENDER_MODE_BITMAP,
+                                    40,
+                                    LV_FREETYPE_FONT_STYLE_NORMAL);
+#endif //LVGL_VERSION_MAJOR
+#endif //LV_USE_FREETYPE
 
     lv_create_canvas_image(lv_scr_act(), canvas_width, canvas_height);
 

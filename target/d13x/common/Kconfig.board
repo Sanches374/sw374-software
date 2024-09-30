@@ -67,17 +67,17 @@ source "bsp/artinchip/drv/uart/Kconfig.dev"
 #---------------------------
 
 config AIC_USING_I2C0
-    bool "Using I2c0"
+    bool "Using I2C0"
     default n
     select AIC_I2C_DRV
 
 config AIC_USING_I2C1
-    bool "Using I2c1"
+    bool "Using I2C1"
     default n
     select AIC_I2C_DRV
 
 config AIC_USING_I2C2
-    bool "Using I2c2"
+    bool "Using I2C2"
     default n
     select AIC_I2C_DRV
 
@@ -401,6 +401,11 @@ menu "SPI1 Parameter"
         default 2
         range 0 4
 
+    config AIC_QSPI1_DYNAMIC_DMA
+        depends on AIC_USING_DMA
+        bool "Dynamic DMA channel SPI1"
+        default n
+
 endmenu
 
 config AIC_USING_QSPI2
@@ -431,6 +436,11 @@ menu "SPI2 Parameter"
         default 2
         range 0 4
 
+    config AIC_QSPI2_DYNAMIC_DMA
+        depends on AIC_USING_DMA
+        bool "Dynamic DMA channel SPI2"
+        default n
+
 endmenu
 
 config AIC_USING_QSPI3
@@ -460,6 +470,11 @@ menu "SPI3 Parameter"
         int "RX Data Sample Delay"
         default 2
         range 0 4
+
+    config AIC_QSPI3_DYNAMIC_DMA
+        depends on AIC_USING_DMA
+        bool "Dynamic DMA channel SPI3"
+        default n
 
 endmenu
 
@@ -629,14 +644,6 @@ config AIC_USING_DVP
     default n
     select AIC_DVP_DRV
 
-#--------------------------------------------
-# Camera driver global option
-#--------------------------------------------
-
-menu "Camera Support"
-source "bsp/peripheral/camera/Kconfig"
-endmenu
-
 #---------------------------
 # I2S global option
 #---------------------------
@@ -654,7 +661,6 @@ config AIC_USING_AUDIO
     bool "Using Audio"
     default n
     select AIC_AUDIO_DRV
-    select AIC_USING_DMA
 
 source "bsp/artinchip/drv/audio/Kconfig"
 
@@ -1056,7 +1062,7 @@ config AIC_USING_CLK_OUT3
     default n
 
 if AIC_USING_CLK_OUT3
-    config AIC_CLK_OUT2_FREQ
+    config AIC_CLK_OUT3_FREQ
         int "Clk CLK_OUT3 frequence"
         default 25000000
 endif

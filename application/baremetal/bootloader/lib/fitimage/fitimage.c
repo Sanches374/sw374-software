@@ -279,12 +279,12 @@ static int spl_read(struct spl_load_info *info, ulong offset, void *buf, int siz
         rdlen = info->bl_len * blkcnt;
         rdlen = min(rdlen, size);
 #endif
-    } else if (info->dev_type == DEVICE_XIPNOR) {
-        ulong xip_base = (ulong)info->priv;
+    } else if (info->dev_type == DEVICE_XIPNOR || info->dev_type == DEVICE_RAM) {
+        ulong addr_base = (ulong)info->priv;
         int i;
 
         for (i = 0; i < size; i++)
-            *(u8 *)(buf + i) = *(u8 *)(xip_base + offset + i);
+            *(u8 *)(buf + i) = *(u8 *)(addr_base + offset + i);
 
         rdlen = size;
     }
@@ -295,7 +295,7 @@ static int spl_read(struct spl_load_info *info, ulong offset, void *buf, int siz
 int spl_load_fit_image(struct spl_load_info *info, struct spl_fit_info *ctx, int node, ulong *entry_point)
 {
     ulong load_addr = 0;
-    unsigned int length;
+    unsigned int length, reserve_size;
     int ret, offset = 0;
     const void *fit = ctx->fit;
     bool external_data = false;
@@ -321,6 +321,13 @@ int spl_load_fit_image(struct spl_load_info *info, struct spl_fit_info *ctx, int
     {
         if (fit_image_get_data_size(fit, node, &length))
             goto __get_entry;
+
+        reserve_size = AIC_BOOTLOADER_TEXT_BASE - 0x100 - load_addr;
+        if (length > reserve_size)
+        {
+            printf("The %s size exceeds reservation size.", fit_get_name(fit, node, NULL));
+            return -1;
+        }
 
         if (info->dev_type == DEVICE_XIPNOR && load_addr >= 0x60000000)
             goto __get_entry;

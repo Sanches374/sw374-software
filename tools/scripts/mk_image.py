@@ -2290,7 +2290,7 @@ def build_pinmux_check(cfg, image_path):
 
     # Get all configured pins and multiplexed functions in the pre-processed file pinmux.i
     with open(preproc_path, 'r') as file:
-        pin_pattern = r'\{(\d+),\s*([^,]+),\s*(\d+),\s*("[^"]+"|[^,]+)\}'
+        pin_pattern = r'\{(\d+),\s*([^,]+),\s*(\d+),\s*("[^"]+"|[^,]+)(,\s*(\d+))?\}'
         for f in file:
             match = re.search(pin_pattern, f)
             if match:

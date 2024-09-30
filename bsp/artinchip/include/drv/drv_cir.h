@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  * Authors:  dwj <weijie.ding@artinchip.com>
@@ -26,6 +26,7 @@ typedef struct aic_cir
     struct rt_device    dev;
     aic_cir_ctrl_t      aic_cir_ctrl;
     cir_config_t        config;
+    struct rt_mutex     lock;
 } aic_cir_t;
 
 #define IOC_CIR_CONFIGURE		1

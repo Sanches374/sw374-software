@@ -25,4 +25,5 @@ echo   i             : Get current project's information.
 echo   buildall      : Build all the *defconfig in target/configs
 echo   rebuildall    : Clean and build all the *defconfig in target/configs
 echo   aicupg        : Burn image file to target board
+echo   update        : Manually update some files to be compatible with the new version of SDK.
 echo.

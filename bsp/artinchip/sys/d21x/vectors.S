@@ -110,6 +110,9 @@ Default_IRQHandler:
 #elif defined(KERNEL_FREERTOS)
     la      t0, aicos_irq_enter
     jalr    t0
+#elif defined(KERNEL_UCOS_II)
+    la      t0, OSIntEnter
+    jalr    t0
 #endif
 
     /* call isr */
@@ -156,6 +159,9 @@ Default_IRQHandler:
     jalr    t0
 #elif defined(KERNEL_FREERTOS)
     la      t0, aicos_irq_exit
+    jalr    t0
+#elif defined(KERNEL_UCOS_II)
+    la      t0, OSIntExit
     jalr    t0
 #endif
 

@@ -1,16 +1,19 @@
 /*
- * Copyright (c) 2023, Artinchip Technology Co., Ltd
+ * Copyright (c) 2023-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
- * Xiong Hao <hao.xiong@artinchip.com>
+ * Authors:  Xiong Hao <hao.xiong@artinchip.com>
  */
+
 #include <stdlib.h>
 #include <string.h>
 #include <aicupg.h>
 #include <spinand_port.h>
 #include <mtd.h>
 #include <aic_common.h>
+#include <aic_utils.h>
+#include <aic_crc32.h>
 #include "upg_internal.h"
 #include "nand_fwc_spl.h"
 #include <spienc.h>
@@ -170,9 +173,6 @@ void nand_fwc_start(struct fwc_info *fwc)
         priv->spl_flag = 1;
     }
 
-    fwc->burn_result = 0;
-    fwc->run_result = 0;
-
     return;
 out:
     if (priv)
@@ -292,6 +292,7 @@ s32 nand_fwc_uffs_write(struct fwc_info *fwc, u8 *buf, s32 len)
 
     pr_debug("%s, data len %d, trans len %d\n", __func__, len, fwc->trans_size);
 
+    fwc->calc_partition_crc = fwc->meta.crc;
     aicos_free_align(0, wbuf);
 
     return len;
@@ -339,9 +340,6 @@ erase_err:
             pr_err("Mark block is bad.\n");
         goto erase_err;
     }
-    buf += dolen;
-    priv->start_offset[i] += dolen;
-    priv->remain_len -= dolen;
     return 0;
 }
 
@@ -349,7 +347,14 @@ s32 nand_fwc_mtd_write(struct fwc_info *fwc, u8 *buf, s32 len)
 {
     struct aicupg_nand_priv *priv;
     struct mtd_dev *mtd;
-    int i;
+    int i, ret = 0, calc_len = 0;
+    u8 *rdbuf, *buf_to_write, *buf_to_read;
+
+    rdbuf = aicos_malloc_align(0, len, CACHE_LINE_SIZE);
+    if (!rdbuf) {
+        pr_err("Error: malloc buffer failed.\n");
+        return 0;
+    }
 
     priv = (struct aicupg_nand_priv *)fwc->priv;
     for (i = 0; i < MAX_DUPLICATED_PART; i++) {
@@ -359,9 +364,12 @@ s32 nand_fwc_mtd_write(struct fwc_info *fwc, u8 *buf, s32 len)
 
         if ((priv->start_offset[i] + len) > (mtd->size)) {
             pr_err("Not enough space to write mtd %s\n", mtd->name);
-            return 0;
+            goto out;
         }
         pr_debug("mtd: %s, len:%u, remain_len: %u\n", mtd->name, len, priv->remain_len);
+
+        buf_to_write = buf;
+        buf_to_read = rdbuf;
         u32 dolen = mtd->erasesize;
         u32 count = len / mtd->erasesize;
         int j = 0;
@@ -369,8 +377,12 @@ s32 nand_fwc_mtd_write(struct fwc_info *fwc, u8 *buf, s32 len)
         if (len > mtd->erasesize) {
             pr_debug("priv->erase_offset[i]: %lu, priv->start_offset[i]: %lu\n", priv->erase_offset[i], priv->start_offset[i]);
             for (j = 0; j < count; j++) {
-                nand_fwc_mtd_erase_write(dolen, mtd, priv, i, buf);
-                buf += dolen;
+                nand_fwc_mtd_erase_write(dolen, mtd, priv, i, buf_to_write);
+                mtd_read(mtd, priv->start_offset[i], buf_to_read, dolen);
+                buf_to_write += dolen;
+                buf_to_read += dolen;
+                priv->start_offset[i] += dolen;
+                priv->remain_len -= dolen;
             }
         }
 
@@ -378,16 +390,53 @@ s32 nand_fwc_mtd_write(struct fwc_info *fwc, u8 *buf, s32 len)
         if (len % mtd->erasesize && (priv->remain_len == len)) {
             pr_debug("priv->erase_offset[i]: %lu, priv->start_offset[i]: %lu\n", priv->erase_offset[i], priv->start_offset[i]);
             dolen = len - (count * mtd->erasesize);
-            nand_fwc_mtd_erase_write(dolen, mtd, priv, i, buf);
+            nand_fwc_mtd_erase_write(dolen, mtd, priv, i, buf_to_write);
+            mtd_read(mtd, priv->start_offset[i], buf_to_read, dolen);
+            buf_to_write += dolen;
+            buf_to_read += dolen;
+            priv->start_offset[i] += dolen;
+            priv->remain_len -= dolen;
         } else if (len % mtd->erasesize && (priv->remain_len != len)) {     /* data len is not enough a blocksize */
+            pr_debug("priv->erase_offset[i]: %lu, priv->start_offset[i]: %lu\n", priv->erase_offset[i], priv->start_offset[i]);
             dolen = len - (count * mtd->erasesize);
-            nand_fwc_mtd_erase_write(dolen, mtd, priv, i, buf);
+            nand_fwc_mtd_erase_write(dolen, mtd, priv, i, buf_to_write);
+            mtd_read(mtd, priv->start_offset[i], buf_to_read, dolen);
+            if (ret) {
+                pr_err("Read mtd %s error.\n", mtd->name);
+                goto out;
+            }
+            buf_to_write += dolen;
+            buf_to_read += dolen;
+            priv->start_offset[i] += dolen;
+            priv->remain_len -= dolen;
         }
     }
 
+    if ((fwc->meta.size - fwc->trans_size) < len)
+        calc_len = fwc->meta.size - fwc->trans_size;
+    else
+        calc_len = len;
+
+    fwc->calc_partition_crc = crc32(fwc->calc_partition_crc, rdbuf, calc_len);
+#ifdef AICUPG_SINGLE_TRANS_BURN_CRC32_VERIFY
+    fwc->calc_trans_crc = crc32(fwc->calc_trans_crc, buf, calc_len);
+    if (fwc->calc_trans_crc != fwc->calc_partition_crc) {
+        pr_err("calc_len:%d\n", calc_len);
+        pr_err("crc err at trans len %u\n", fwc->trans_size);
+        pr_err("trans crc:0x%x, partition crc:0x%x\n", fwc->calc_trans_crc,
+                fwc->calc_partition_crc);
+        goto out;
+    }
+#endif
+
     pr_debug("%s, data len %d, trans len %d\n", __func__, len, fwc->trans_size);
 
+    aicos_free_align(0, rdbuf);
     return len;
+out:
+    if (rdbuf)
+        aicos_free_align(0, rdbuf);
+    return 0;
 }
 
 #ifdef AIC_NFTL_SUPPORT
@@ -397,7 +446,14 @@ s32 nand_fwc_nftl_write(struct fwc_info *fwc, u8 *buf, s32 len)
     struct nftl_api_handler_t *nftl_handler;
     struct mtd_dev *mtd;
     unsigned long offset, erase_offset;
-    int i, ret = 0;
+    int i, calc_len = 0, ret = 0;
+    u8 *rdbuf;
+
+    rdbuf = aicos_malloc_align(0, len, CACHE_LINE_SIZE);
+    if (!rdbuf) {
+        pr_err("Error: malloc buffer failed.\n");
+        return 0;
+    }
 
     priv = (struct aicupg_nand_priv *)fwc->priv;
     int32_t start_offset, start_page, start_sector, sector_total;
@@ -413,7 +469,7 @@ s32 nand_fwc_nftl_write(struct fwc_info *fwc, u8 *buf, s32 len)
         offset = priv->start_offset[i];
         if ((offset + len) > (mtd->size)) {
             pr_err("Not enough space to write mtd %s\n", mtd->name);
-            return 0;
+            goto out;
         }
 
         /* erase 1 sector when offset+len more than erased address */
@@ -434,12 +490,36 @@ s32 nand_fwc_nftl_write(struct fwc_info *fwc, u8 *buf, s32 len)
         nftl_api_write_cache(nftl_handler, 0xffff);
         //nftl_handler->write_data(nftl_handler, start_sector, sector_total, buf);
         //nftl_handler->flush_write_cache(nftl_handler, 0xffff);
+
+        // Read data to calc crc
+        nftl_api_read(nftl_handler, start_sector, sector_total, rdbuf);
         priv->start_offset[i] = offset + len;
     }
 
+    if ((fwc->meta.size - fwc->trans_size) < len)
+        calc_len = fwc->meta.size - fwc->trans_size;
+    else
+        calc_len = len;
+
+    fwc->calc_partition_crc = crc32(fwc->calc_partition_crc, rdbuf, calc_len);
+#ifdef AICUPG_SINGLE_TRANS_BURN_CRC32_VERIFY
+    fwc->calc_trans_crc = crc32(fwc->calc_trans_crc, buf, calc_len);
+    if (fwc->calc_trans_crc != fwc->calc_partition_crc) {
+        pr_err("calc_len:%d\n", calc_len);
+        pr_err("crc err at trans len %u\n", fwc->trans_size);
+        pr_err("trans crc:0x%x, partition crc:0x%x\n", fwc->calc_trans_crc,
+                fwc->calc_partition_crc);
+    }
+#endif
+
     pr_debug("%s, data len %d, trans len %d\n", __func__, len, fwc->trans_size);
     (void)ret;
+    aicos_free_align(0, rdbuf);
     return len;
+out:
+    if (rdbuf)
+        aicos_free_align(0, rdbuf);
+    return 0;
 }
 #endif
 
@@ -456,7 +536,7 @@ s32 nand_fwc_data_write(struct fwc_info *fwc, u8 *buf, s32 len)
     } else if (aicupg_get_fwc_attr(fwc) & FWC_ATTR_DEV_MTD) {
         priv = (struct aicupg_nand_priv *)fwc->priv;
         if (priv->spl_flag)
-            len = nand_fwc_spl_write(fwc->meta.size, buf, len);
+            len = nand_fwc_spl_write(fwc, buf, len);
         else
             len = nand_fwc_mtd_write(fwc, buf, len);
     } else {
@@ -466,11 +546,8 @@ s32 nand_fwc_data_write(struct fwc_info *fwc, u8 *buf, s32 len)
     if (len < 0) {
         return -1;
     } else {
-        fwc->burn_result = 0;
-        fwc->run_result = 0;
         fwc->trans_size += len;
     }
-    fwc->calc_partition_crc = fwc->meta.crc;
 
     pr_debug("%s, data len %d, trans len %d\n", __func__, len, fwc->trans_size);
 

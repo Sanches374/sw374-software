@@ -80,7 +80,8 @@ struct mjpeg_dec_ctx {
 
     int nb_mcu_width;			// mcu aligned width
     int nb_mcu_height; 			// mcu aligned height
-    int width, height;
+    int width, height;             // width and height of original picture
+    int scale_width, scale_height; // width and height if scale down
     int nb_components;
     int component_id[MAX_COMPONENTS];
     int h_count[MAX_COMPONENTS]; 		// horizontal count for each component

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -56,8 +56,9 @@ int aic_cma_buf_add(cma_buffer *data);
 int aic_cma_buf_find(void *buf, cma_buffer *back);
 int aic_cma_buf_del(void *buf);
 
-void aic_cma_buf_debug(int flag);
+unsigned int aic_cma_buf_get_size(void);
 
+void aic_cma_buf_debug(int flag);
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

@@ -15,6 +15,14 @@
 #include "aic_audio_ui.h"
 #include "demo_hub.h"
 
+#if LVGL_VERSION_MAJOR == 8
+#define lv_img_header_t         lv_img_header_t
+#else
+#define lv_img_decoder_get_info lv_image_decoder_get_info
+#define lv_img_header_t         lv_image_header_t
+#define lv_img_t                lv_image_t
+#endif
+
 #define ANIMA_COVER_IN       0
 #define ANIMA_COVER_OUT      1
 
@@ -395,7 +403,11 @@ static void play_time_update_cb(lv_timer_t * timer)
 
     lv_ffmpeg_player_set_cmd_ex(play_cb->ffmpeg, LV_FFMPEG_PLAYER_CMD_PLAY_END_EX, &play_end);
     if (play_end && (play_cb->mode != PLAY_MODE_CIRCLE_ONE)) {
+#if LVGL_VERSION_MAJOR == 8
         lv_event_send(play_control_next, LV_EVENT_CLICKED, play_cb); /* play next */
+#else
+        lv_obj_send_event(play_control_next, LV_EVENT_CLICKED, play_cb);
+#endif
         return;
     }
 

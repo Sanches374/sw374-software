@@ -6,7 +6,7 @@
 
 #include <stdlib.h>
 #include <aic_core.h>
-
+#include <rtconfig.h>
 
 unsigned long g_aicos_irq_state = 0;
 unsigned int g_aicos_irq_nested_cnt = 0;
@@ -81,4 +81,23 @@ void _aicos_free_align_(void *ptr, unsigned int type, void *func)
         aicos_free2_t func2 = (aicos_free2_t)func;
         (*func2)(type, real_ptr);
     }
+}
+
+void *aicos_malloc_try_cma(size_t size)
+{
+#if defined(LPKG_USING_LVGL) && (defined(LVGL_V_9) || defined(LVGL_V_8))
+extern bool lv_drop_one_cached_image();
+    while (1) {
+        void *data = aicos_malloc(MEM_CMA, size);
+        if (data)
+            return data;
+
+        bool res = lv_drop_one_cached_image();
+        if (res == false) {
+            return NULL;
+        }
+    }
+#else
+    return aicos_malloc(MEM_CMA, size);
+#endif
 }

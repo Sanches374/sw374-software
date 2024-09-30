@@ -1,10 +1,11 @@
 /*
- * Copyright (c) 2023, Artinchip Technology Co., Ltd
+ * Copyright (c) 2023-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
- * Xiong Hao <hao.xiong@artinchip.com>
+ * Authors:  Xiong Hao <hao.xiong@artinchip.com>
  */
+
 #ifndef __AIC_UPG_NAND_FWC_SPL_H__
 #define __AIC_UPG_NAND_FWC_SPL_H__
 
@@ -85,7 +86,7 @@ struct nand_page_table {
 s32 nand_fwc_spl_reserve_blocks(struct aicupg_nand_priv *priv);
 s32 nand_fwc_spl_prepare(struct aicupg_nand_priv *priv, u32 datasiz,
                          u32 blksiz);
-s32 nand_fwc_spl_write(u32 totalsiz, u8 *buf, s32 len);
+s32 nand_fwc_spl_write(struct fwc_info *fwc, u8 *buf, s32 len);
 int nand_spl_get_candidate_blocks(u32 *blks, u32 size);
 
 #ifdef __cplusplus

@@ -239,7 +239,6 @@ config AIC_WRI_DRV_VER
 config AIC_RTC_DRV
     bool
     default n
-    select AIC_WRI_DRV
     select RT_USING_RTC   if DRIVER_DRV_EN
     select RT_USING_ALARM if DRIVER_DRV_EN
 

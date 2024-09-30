@@ -607,7 +607,7 @@ long list_memheap(void)
 
     maxlen = RT_NAME_MAX;
 
-    rt_kprintf("%-*.s  pool size  max used size available size\n", maxlen, item_title);
+    rt_kprintf("%-*.s pool size  max used size available size\n", maxlen, item_title);
     object_split(maxlen);
     rt_kprintf(" ---------- ------------- --------------\n");
     do

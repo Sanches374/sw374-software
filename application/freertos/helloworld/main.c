@@ -97,10 +97,24 @@ static int board_init(void)
 }
 
 #if LV_USE_LOG
+#if defined(LVGL_V_8)
 static void lv_rt_log(const char *buf)
 {
     printf("%s\n", buf);
 }
+#else
+static void lv_rt_log(lv_log_level_t level, const char *buf)
+{
+    (void)level;
+    printf("%s\n", buf);
+}
+
+static uint32_t lv_tick_get_ms(void)
+{
+    return (uint32_t)aic_get_time_ms();
+}
+
+#endif
 #endif /* LV_USE_LOG */
 
 extern void lwip_test_example_main_loop(void * data);
@@ -201,6 +215,9 @@ int main(void)
     lv_port_disp_init();
     lv_user_gui_init();
 
+#if defined(LVGL_V_9)
+    lv_tick_set_cb(&lv_tick_get_ms);
+#endif
     while(1)
     {
         lv_task_handler();

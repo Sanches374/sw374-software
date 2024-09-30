@@ -462,7 +462,6 @@ void rt_flowctrl_low_detect(struct rt_serial_device *serial, rt_size_t len, rt_s
     rt_size_t  temp = 0;
 
     RT_ASSERT(rx_fifo != RT_NULL);
-    RT_ASSERT(len <= rt_dma_calc_recved_len(serial));
 
     if ((rx_fifo->get_index <= rx_fifo->put_index) &&
         serial->config.flow_ctrl_suspend == 1)

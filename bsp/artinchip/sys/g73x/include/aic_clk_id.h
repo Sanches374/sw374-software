@@ -97,6 +97,7 @@ enum clk_id {
     CLK_OUT3,
     AIC_CLK_NUM,
 };
+
 /* frequence */
 
 #define CLOCK1_FREQ 48000000

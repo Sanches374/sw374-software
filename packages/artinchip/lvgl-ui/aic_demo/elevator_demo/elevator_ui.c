@@ -20,8 +20,8 @@
 
 FAKE_IMAGE_DECLARE(ELEVATOR_BG_WHITE)
 
-LV_FONT_DECLARE(ui_font_H1);
-LV_FONT_DECLARE(ui_font_Big);
+LV_FONT_DECLARE(ui_font_h1);
+LV_FONT_DECLARE(ui_font_regular);
 
 #define AIC_ELEVATOR_INSIDE 1
 
@@ -140,7 +140,7 @@ s32 aic_player_event_handle(void* app_data,s32 event,s32 data1,s32 data2)
 
 static void create_player(lv_obj_t * parent)
 {
-    lv_memset_00(&g_elevator_player_ctx, sizeof(struct elevator_player_context));
+    lv_memset(&g_elevator_player_ctx, 0, sizeof(struct elevator_player_context));
     g_elevator_player_ctx.player = aic_player_create(NULL);
     if (g_elevator_player_ctx.player == NULL) {
         printf("aic_player_create fail!!!!\n");
@@ -190,7 +190,7 @@ static void create_data_time(lv_obj_t *parament_obj)
     lv_obj_center(title_date);
     lv_obj_set_style_text_color(title_date, lv_color_hex(0xFFFFFF), 0);
     lv_obj_set_style_text_opa(title_date, 255, 0);
-    lv_obj_set_style_text_font(title_date, &ui_font_H1, 0);
+    lv_obj_set_style_text_font(title_date, &ui_font_h1, 0);
 }
 
 #ifndef LV_ELEVATOR_UART_COMMAND
@@ -410,7 +410,7 @@ void aic_elevator_create_main(lv_obj_t *tab)
     lv_obj_center(title_wel);
     lv_obj_set_style_text_color(title_wel, lv_color_hex(0xFFFFFF), 0);
     lv_obj_set_style_text_opa(title_wel, 255, 0);
-    lv_obj_set_style_text_font(title_wel, &ui_font_Big, 0);
+    lv_obj_set_style_text_font(title_wel, &ui_font_regular, 0);
 
     //117 x 121
     inside_up_down = lv_img_create(tab);

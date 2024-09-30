@@ -26,6 +26,8 @@ extern "C" {
 #define RT_I2C_NO_READ_ACK      (1u << 6)  /* when I2C reading, we do not ACK */
 #define RT_I2C_NO_STOP          (1u << 7)
 
+#define AIC_I2C_CMD_BUF_LEN      8
+
 struct rt_i2c_msg
 {
     rt_uint16_t addr;
@@ -92,6 +94,29 @@ rt_size_t rt_i2c_master_recv(struct rt_i2c_bus_device *bus,
                              rt_uint16_t               flags,
                              rt_uint8_t               *buf,
                              rt_uint32_t               count);
+
+#ifdef AIC_I2C_DRV
+rt_size_t rt_i2c_write_reg(struct rt_i2c_bus_device *bus,
+                           rt_uint16_t               addr,
+                           rt_uint8_t                reg,
+                           rt_uint8_t               *buf,
+                           rt_uint32_t               count);
+rt_size_t rt_i2c_write_reg16(struct rt_i2c_bus_device *bus,
+                             rt_uint16_t               addr,
+                             rt_uint16_t               reg,
+                             rt_uint8_t               *buf,
+                             rt_uint32_t               count);
+rt_size_t rt_i2c_read_reg(struct rt_i2c_bus_device *bus,
+                          rt_uint16_t               addr,
+                          rt_uint8_t                reg,
+                          rt_uint8_t               *buf,
+                          rt_uint32_t               count);
+rt_size_t rt_i2c_read_reg16(struct rt_i2c_bus_device *bus,
+                            rt_uint16_t               addr,
+                            rt_uint16_t               reg,
+                            rt_uint8_t               *buf,
+                            rt_uint32_t               count);
+#endif
 
 rt_inline rt_err_t rt_i2c_bus_lock(struct rt_i2c_bus_device *bus, rt_tick_t timeout)
 {

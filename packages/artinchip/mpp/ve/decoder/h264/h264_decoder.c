@@ -262,6 +262,7 @@ int __h264_decode_init(struct mpp_decoder *ctx, struct decode_config *config)
 	cfg.buffer_size = config->bitstream_buffer_size;
 	cfg.ve_buf_handle = s->ve_buf_handle;
 	cfg.packet_count = config->packet_count;
+	cfg.pkt_allocator = s->decoder.pkt_allocator;
 	s->decoder.pm = pm_create(&cfg);
 
 	s->pix_format = config->pix_fmt;

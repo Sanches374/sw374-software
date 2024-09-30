@@ -4,487 +4,68 @@
  * SPDX-License-Identifier: Apache-2.0
  *
  * Authors:  Huahui Mai <huahui.mai@artinchip.com>
- *
- * base on base_demo/base_ui.c
  */
 
 #include "usb_osd_video.h"
 #include "usb_osd_ui.h"
 #include "mpp_fb.h"
 
-#ifdef AIC_MPP_PLAYER_INTERFACE
-//#define VIDEO_PLAYER
-#endif
+#include "media_list.h"
+#include "aic_lv_ffmpeg.h"
 
-//#define FILE_LIST
+#define ALIGN_EVEN(x)   ((x) & (~1))
 
-#ifdef VIDEO_PLAYER
-LV_IMG_DECLARE(next_normal);
-LV_IMG_DECLARE(next_press);
-LV_IMG_DECLARE(pause_norma_1);
-LV_IMG_DECLARE(pause_press_1);
+static lv_obj_t *progress = NULL;
+static lv_obj_t *pass_time = NULL;
+static lv_obj_t *duration = NULL;
 
-LV_IMG_DECLARE(play_normal);
-LV_IMG_DECLARE(play_press);
-LV_IMG_DECLARE(pre_normal);
-LV_IMG_DECLARE(pre_press);
-#endif
+static lv_obj_t *play_control_next = NULL;
+static lv_obj_t *play_control_last = NULL;
+static lv_obj_t *play_control = NULL;
 
-#ifdef VIDEO_PLAYER
-#include "aic_player.h"
+static lv_obj_t *control_bg = NULL;
 
-#define LVGL_PLAYER_STATE_PLAY  1
-#define LVGL_PLAYER_STATE_PAUSE  2
-#define LVGL_PLAYER_STATE_STOP   3
+static lv_timer_t *play_time_timer = NULL;
 
-struct lvgl_player_context{
-    int file_cnt;
-    int file_index;
-    int player_state;
-    struct aic_player *player;
-    int sync_flag;
-    struct av_media_info media_info;
-    int demuxer_detected_flag;
-    int player_end;
-    struct mpp_size screen_size;
-    struct mpp_rect disp_rect;
-};
+#define GET_MINUTES(ms) (((ms / 1000) % (60 * 60)) / 60)
+#define GET_SECONDS(ms) (((ms / 1000) % 60))
 
-static char g_filename[][256] = {
-    LVGL_FILE_LIST_PATH(cartoon.mp4),
-};
+#define PLAY_MODE_CIRCLE     0
+#define PLAY_MODE_RANDOM     1
+#define PLAY_MODE_CIRCLE_ONE 2
 
-static struct lvgl_player_context g_lvgl_player_ctx;
-static lv_obj_t *g_btn_pre;
-static lv_obj_t *g_btn_next;
-static lv_obj_t *g_btn_pause_play;
-static lv_obj_t *g_btn_hide_show;
-static struct mpp_fb *fd_dev;
+typedef struct _easy_player {
+    lv_obj_t *ffmpeg;
+    media_list_t *list;
+    media_info_t cur_info;
+    int cur_pos;
+    int mode;
+    int play_status;
+} easy_player_t;
 
-#ifdef FILE_LIST
-static lv_obj_t * g_file_list;
-static lv_style_t g_style_scrollbar;
-static lv_style_t g_file_list_btn_style_def;
-static lv_style_t g_file_list_btn_style_pre;
-static lv_style_t g_file_list_btn_style_chk;
-#endif
-
-static int lvgl_stop(struct lvgl_player_context *ctx);
-
-void video_back_event_cb(lv_event_t *e)
-{
-    lv_event_code_t code = (lv_event_code_t)lv_event_get_code(e);
-    struct lvgl_player_context *ctx;
-
-    ctx = &g_lvgl_player_ctx;
-    if (code == LV_EVENT_CLICKED) {
-
-        lvgl_stop(ctx);
-        if (ctx->player_state != LVGL_PLAYER_STATE_STOP) {
-            ctx->player_state = LVGL_PLAYER_STATE_STOP;
-            lv_imgbtn_set_src(g_btn_pause_play, LV_IMGBTN_STATE_RELEASED , NULL, &play_normal, NULL);
-            lv_imgbtn_set_src(g_btn_pause_play, LV_IMGBTN_STATE_PRESSED , NULL, &play_press, NULL);
-        }
-        //back_logo_screen();
-    }
-}
-
-static s32 event_handle(void* app_data,s32 event,s32 data1,s32 data2)
-{
-    int ret = 0;
-    struct lvgl_player_context *ctx = (struct lvgl_player_context *)app_data;
-
-    switch (event) {
-        case AIC_PLAYER_EVENT_PLAY_END:
-            ctx->player_end = 1;
-        case AIC_PLAYER_EVENT_PLAY_TIME:
-            break;
-        case AIC_PLAYER_EVENT_DEMUXER_FORMAT_DETECTED:
-            if (AIC_PLAYER_PREPARE_ASYNC == ctx->sync_flag) {
-                ctx->demuxer_detected_flag = 1;
-            }
-            break;
-        case AIC_PLAYER_EVENT_DEMUXER_FORMAT_NOT_DETECTED:
-            if (AIC_PLAYER_PREPARE_ASYNC == ctx->sync_flag) {
-                ctx->player_end = 1;
-            }
-            break;
-        default:
-            break;
-    }
-    return ret;
-}
-
-static int lvgl_play(struct lvgl_player_context *ctx)
-{
-    int k = 0;
-    int ret = 0;
-
-    k  = ctx->file_index%ctx->file_cnt;
-    aic_player_set_uri(ctx->player,g_filename[k]);
-    ctx->sync_flag = AIC_PLAYER_PREPARE_SYNC;
-    if (ctx->sync_flag == AIC_PLAYER_PREPARE_ASYNC) {
-        ret = aic_player_prepare_async(ctx->player);
-    } else {
-        ret = aic_player_prepare_sync(ctx->player);
-    }
-    if (ret) {
-        return -1;
-    }
-    if (ctx->sync_flag == AIC_PLAYER_PREPARE_SYNC) {
-        ret = aic_player_start(ctx->player);
-        if(ret != 0) {
-            return -1;
-        }
-        aic_player_get_screen_size(ctx->player, &ctx->screen_size);
-        printf("screen_width:%d,screen_height:%d\n",ctx->screen_size.width,ctx->screen_size.height);
-#if 0
-        ctx->disp_rect.x = 324;
-        ctx->disp_rect.y = 20;
-        ctx->disp_rect.width = 600;
-        ctx->disp_rect.height = 450;
-
-        ret = aic_player_set_disp_rect(ctx->player, &ctx->disp_rect);
-        if(ret != 0) {
-            printf("aic_player_set_disp_rect error\n");
-            return -1;
-        }
-#endif
-        ret =  aic_player_get_media_info(ctx->player,&ctx->media_info);
-        if (ret != 0) {
-            return -1;
-        }
-        ret = aic_player_play(ctx->player);
-        if (ret != 0) {
-            return -1;
-        }
-    }
-    return 0;
-}
-
-static int lvgl_stop(struct lvgl_player_context *ctx)
-{
-    return aic_player_stop(ctx->player);
-}
-
-static int lvgl_pause(struct lvgl_player_context *ctx)
-{
-    return aic_player_pause(ctx->player);
-}
+static easy_player_t player;
 
 void lv_video_play(void)
 {
-    struct lvgl_player_context *ctx = &g_lvgl_player_ctx;
+    lv_ffmpeg_player_set_src(player.ffmpeg, player.cur_info.source);
+    lv_ffmpeg_player_set_cmd_ex(player.ffmpeg, LV_FFMPEG_PLAYER_CMD_START, NULL);
+    lv_ffmpeg_player_set_auto_restart(player.ffmpeg, true);
+    lv_timer_resume(play_time_timer);
 
-    printf("%s, %d\n", __func__, __LINE__);
-
-    lvgl_play(ctx);
-
-    lv_imgbtn_set_src(g_btn_pause_play, LV_IMGBTN_STATE_RELEASED , NULL, &pause_norma_1, NULL);
-    lv_imgbtn_set_src(g_btn_pause_play, LV_IMGBTN_STATE_PRESSED , NULL, &pause_press_1, NULL);
+    lv_imgbtn_set_src(play_control, LV_IMGBTN_STATE_RELEASED , NULL, LVGL_PATH(video_icon/pause.png), NULL);
+    lv_imgbtn_set_src(play_control, LV_IMGBTN_STATE_PRESSED , NULL, LVGL_PATH(video_icon/pause.png), NULL);
 }
 
 void lv_video_stop(void)
 {
-    struct lvgl_player_context *ctx = &g_lvgl_player_ctx;
-
-    printf("%s, %d\n", __func__, __LINE__);
-
-    lvgl_stop(ctx);
-    if (ctx->player_state != LVGL_PLAYER_STATE_STOP) {
-        ctx->player_state = LVGL_PLAYER_STATE_STOP;
-        lv_imgbtn_set_src(g_btn_pause_play, LV_IMGBTN_STATE_RELEASED , NULL, &play_normal, NULL);
-        lv_imgbtn_set_src(g_btn_pause_play, LV_IMGBTN_STATE_PRESSED , NULL, &play_press, NULL);
-    }
-
-    lv_imgbtn_set_src(g_btn_pause_play, LV_IMGBTN_STATE_RELEASED , NULL, &play_normal, NULL);
-    lv_imgbtn_set_src(g_btn_pause_play, LV_IMGBTN_STATE_PRESSED , NULL, &play_press, NULL);
+    printf("video stop \n");
+    lv_timer_pause(play_time_timer);
+    lv_ffmpeg_player_set_cmd_ex(player.ffmpeg, LV_FFMPEG_PLAYER_CMD_STOP, NULL);
+    lv_imgbtn_set_src(play_control, LV_IMGBTN_STATE_RELEASED , NULL, LVGL_PATH(video_icon/play.png), NULL);
+    lv_imgbtn_set_src(play_control, LV_IMGBTN_STATE_PRESSED , NULL, LVGL_PATH(video_icon/play.png), NULL);
 }
 
-static int lvgl_play_pre(struct lvgl_player_context *ctx)
-{
-    ctx->file_index--;
-    ctx->file_index = (ctx->file_index < 0) ? (ctx->file_cnt - 1) : ctx->file_index;
-    lvgl_stop(ctx);
-    if (lvgl_play(ctx) != 0) {
-        return -1;
-    }
-    return 0;
-}
-
-static int lvgl_play_next(struct lvgl_player_context *ctx)
-{
-    ctx->file_index++;
-    ctx->file_index = (ctx->file_index > ctx->file_cnt - 1) ? 0 : ctx->file_index;
-    lvgl_stop(ctx);
-    if (lvgl_play(ctx) != 0) {
-        return -1;
-    }
-    return 0;
-}
-
-static void btn_pause_play_event_cb(lv_event_t *e)
-{
-    lv_event_code_t code = (lv_event_code_t)lv_event_get_code(e);
-    lv_obj_t *btn = lv_event_get_target(e);
-    struct lvgl_player_context * ctx = (struct lvgl_player_context *)btn->user_data;
-    if (code == LV_EVENT_CLICKED) {
-        if (ctx->player_state == LVGL_PLAYER_STATE_STOP) {
-            if (lvgl_play(ctx) != 0) {//if play fail ,it is considered play finsh.play the next one
-                ctx->player_state = LVGL_PLAYER_STATE_STOP;
-                ctx->player_end = 1;
-                return;
-            }
-            ctx->player_end = 0;
-            ctx->player_state = LVGL_PLAYER_STATE_PLAY;
-            lv_imgbtn_set_src(g_btn_pause_play, LV_IMGBTN_STATE_RELEASED , NULL, &pause_norma_1, NULL);
-            lv_imgbtn_set_src(g_btn_pause_play, LV_IMGBTN_STATE_PRESSED , NULL, &pause_press_1, NULL);
-        } else if (ctx->player_state == LVGL_PLAYER_STATE_PLAY) {
-            lvgl_pause(ctx);
-            ctx->player_state = LVGL_PLAYER_STATE_PAUSE;
-            lv_imgbtn_set_src(g_btn_pause_play, LV_IMGBTN_STATE_RELEASED , NULL, &play_normal, NULL);
-            lv_imgbtn_set_src(g_btn_pause_play, LV_IMGBTN_STATE_PRESSED , NULL, &play_press, NULL);
-        } else if (ctx->player_state == LVGL_PLAYER_STATE_PAUSE) {
-            lvgl_pause(ctx);
-            ctx->player_state = LVGL_PLAYER_STATE_PLAY;
-            lv_imgbtn_set_src(g_btn_pause_play, LV_IMGBTN_STATE_RELEASED , NULL, &pause_norma_1, NULL);
-            lv_imgbtn_set_src(g_btn_pause_play, LV_IMGBTN_STATE_PRESSED , NULL, &pause_press_1, NULL);
-        }
-    }
-}
-
-static void btn_next_event_cb(lv_event_t *e)
-{
-    lv_event_code_t code = (lv_event_code_t)lv_event_get_code(e);
-    lv_obj_t *btn = lv_event_get_target(e);
-    struct lvgl_player_context * ctx = (struct lvgl_player_context *)btn->user_data;
-
-    if (code == LV_EVENT_CLICKED) {
-        if (lvgl_play_next(ctx) != 0) {//if play fail ,it is considered play finsh.play the next one
-            ctx->player_state =LVGL_PLAYER_STATE_STOP;
-            ctx->player_end = 1;
-        } else {
-            ctx->player_state =LVGL_PLAYER_STATE_PLAY;
-            ctx->player_end = 0;
-            lv_imgbtn_set_src(g_btn_pause_play, LV_IMGBTN_STATE_RELEASED , NULL, &pause_norma_1, NULL);
-            lv_imgbtn_set_src(g_btn_pause_play, LV_IMGBTN_STATE_PRESSED , NULL, &pause_press_1, NULL);
-
-        }
-    }
-}
-
-static void btn_pre_event_cb(lv_event_t *e)
-{
-    lv_event_code_t code = (lv_event_code_t)lv_event_get_code(e);
-    lv_obj_t *btn = lv_event_get_target(e);
-    struct lvgl_player_context * ctx = (struct lvgl_player_context *)btn->user_data;
-
-    if (code == LV_EVENT_CLICKED) {
-        if (lvgl_play_pre(ctx) != 0) {//if play fail ,it is considered play finsh.play the next one
-            ctx->player_state =LVGL_PLAYER_STATE_STOP;
-            ctx->player_end = 1;
-        } else {
-            ctx->player_state =LVGL_PLAYER_STATE_PLAY;
-            ctx->player_end = 0;
-            lv_imgbtn_set_src(g_btn_pause_play, LV_IMGBTN_STATE_RELEASED , NULL, &pause_norma_1, NULL);
-            lv_imgbtn_set_src(g_btn_pause_play, LV_IMGBTN_STATE_PRESSED , NULL, &pause_press_1, NULL);
-        }
-    }
-}
-
-static void btn_show_hide_event_cb(lv_event_t *e)
-{
-    static int show = 1;
-    lv_event_code_t code = (lv_event_code_t)lv_event_get_code(e);
-
-    if (code == LV_EVENT_RELEASED) {
-        printf("!!!!!btn_show_hide_event_cb!!!!!!!!!!!\n");
-        if (show) {
-            lv_obj_add_flag(g_btn_pre, LV_OBJ_FLAG_HIDDEN);
-            lv_obj_add_flag(g_btn_next, LV_OBJ_FLAG_HIDDEN);
-            lv_obj_add_flag(g_btn_pause_play, LV_OBJ_FLAG_HIDDEN);
-            #ifdef FILE_LIST
-            lv_obj_add_flag(g_file_list, LV_OBJ_FLAG_HIDDEN);
-            #endif
-
-            show = 0;
-        } else {
-            lv_obj_clear_flag(g_btn_pre, LV_OBJ_FLAG_HIDDEN);
-            lv_obj_clear_flag(g_btn_next, LV_OBJ_FLAG_HIDDEN);
-            lv_obj_clear_flag(g_btn_pause_play, LV_OBJ_FLAG_HIDDEN);
-            #ifdef FILE_LIST
-            lv_obj_clear_flag(g_file_list, LV_OBJ_FLAG_HIDDEN);
-            #endif
-            show = 1;
-        }
-    }
-}
-
-#ifdef FILE_LIST
-static void file_list_btn_click_event_cb(lv_event_t * e)
-{
-    lv_obj_t * btn = lv_event_get_target(e);
-    uint32_t idx = lv_obj_get_child_id(btn);
-    lv_event_code_t code = (lv_event_code_t)lv_event_get_code(e);
-    struct lvgl_player_context * ctx = (struct lvgl_player_context *)btn->user_data;
-
-    if (code == LV_EVENT_CLICKED) {
-        printf("idx=%u\n",idx);
-        ctx->file_index = idx;
-        lvgl_stop(ctx);
-        if (lvgl_play(ctx) != 0) {
-            ctx->player_end = 1;
-            ctx->player_state = LVGL_PLAYER_STATE_STOP;
-        } else {
-            ctx->player_end = 0;
-            ctx->player_state = LVGL_PLAYER_STATE_PLAY;
-        }
-    }
-}
-
-static lv_obj_t * add_file_list_btn(lv_obj_t * parent, uint32_t video_id)
-{
-    lv_obj_t * btn = lv_obj_create(parent);
-    lv_obj_t * title_label = lv_label_create(btn);
-    lv_obj_set_size(btn, lv_pct(95), 60);
-    btn->user_data = &g_lvgl_player_ctx;
-     lv_obj_add_style(btn, &g_file_list_btn_style_pre, LV_STATE_DEFAULT);
-    lv_obj_add_style(btn, &g_file_list_btn_style_def, LV_STATE_PRESSED);
-    lv_obj_add_style(btn, &g_file_list_btn_style_chk, LV_STATE_CHECKED);
-    lv_obj_add_event_cb(btn, file_list_btn_click_event_cb, LV_EVENT_CLICKED, NULL);
-    const char * title = (video_id >= sizeof(g_filename) / sizeof(g_filename[0]))?NULL:g_filename[video_id];
-    lv_label_set_text(title_label, title);
-    return btn;
-}
-#endif
-
-static void create_player(lv_obj_t * parent)
-{
-#ifdef FILE_LIST
-    int i = 0;
-#endif
-    static lv_style_t btn_style;
-    lv_style_init(&btn_style);
-    lv_style_set_radius(&btn_style, 0);
-    lv_style_set_border_width(&btn_style, 2);
-    //lv_style_set_border_color(&btn_style, lv_palette_main(LV_PALETTE_YELLOW));
-    lv_style_set_bg_opa(&btn_style, LV_OPA_0);
-
-    lv_memset_00(&g_lvgl_player_ctx, sizeof(struct lvgl_player_context));
-    g_lvgl_player_ctx.player = aic_player_create(NULL);
-    if (g_lvgl_player_ctx.player == NULL) {
-        printf("aic_player_create fail!!!!\n");
-        return;
-    }
-
-    g_lvgl_player_ctx.file_cnt =  sizeof(g_filename) / sizeof(g_filename[0]);
-    g_lvgl_player_ctx.file_index = 0;
-    g_lvgl_player_ctx.player_state = LVGL_PLAYER_STATE_STOP;
-    aic_player_set_event_callback(g_lvgl_player_ctx.player, &g_lvgl_player_ctx, event_handle);
-
-    g_btn_hide_show = lv_btn_create(parent);
-    g_btn_hide_show->user_data = &g_lvgl_player_ctx;
-    lv_obj_set_pos(g_btn_hide_show, 800, 40);
-    lv_obj_set_size(g_btn_hide_show, 180, 520);
-    lv_obj_add_event_cb(g_btn_hide_show,btn_show_hide_event_cb,LV_EVENT_ALL, NULL);
-    lv_obj_add_style(g_btn_hide_show,&btn_style, 0);
-    lv_obj_set_style_border_opa(g_btn_hide_show,LV_OPA_TRANSP, 0);
-    lv_obj_set_style_shadow_opa(g_btn_hide_show, LV_OPA_TRANSP, 0);
-
-    g_btn_pre = lv_imgbtn_create(parent);
-    lv_imgbtn_set_src(g_btn_pre, LV_IMGBTN_STATE_RELEASED , NULL, &pre_normal, NULL);
-    lv_imgbtn_set_src(g_btn_pre, LV_IMGBTN_STATE_PRESSED , NULL, &pre_press, NULL);
-    g_btn_pre->user_data = &g_lvgl_player_ctx;
-    lv_obj_set_pos(g_btn_pre, 200, 450);
-    lv_obj_set_size(g_btn_pre, 64, 64);
-    lv_obj_add_event_cb(g_btn_pre,btn_pre_event_cb,LV_EVENT_ALL, NULL);
-    lv_obj_add_style(g_btn_pre,&btn_style, 0);
-    lv_obj_set_style_border_opa(g_btn_pre,LV_OPA_TRANSP, 0);
-    lv_obj_set_style_shadow_opa(g_btn_pre, LV_OPA_TRANSP, 0);
-
-    lv_obj_add_flag(g_btn_pre, LV_OBJ_FLAG_HIDDEN); // FIXME
-
-    g_btn_pause_play = lv_imgbtn_create(parent);
-    lv_imgbtn_set_src(g_btn_pause_play, LV_IMGBTN_STATE_RELEASED , NULL, &play_normal, NULL);
-    lv_imgbtn_set_src(g_btn_pause_play, LV_IMGBTN_STATE_PRESSED , NULL, &play_press, NULL);
-    g_btn_pause_play->user_data = &g_lvgl_player_ctx;
-    lv_obj_set_pos(g_btn_pause_play, 450, 450);
-    lv_obj_set_size(g_btn_pause_play, 64, 64);
-    lv_obj_add_event_cb(g_btn_pause_play,btn_pause_play_event_cb,LV_EVENT_ALL, NULL);
-    lv_obj_add_style(g_btn_pause_play,&btn_style, 0);
-    lv_obj_set_style_border_opa(g_btn_pause_play,LV_OPA_TRANSP, 0);
-    lv_obj_set_style_shadow_opa(g_btn_pause_play, LV_OPA_TRANSP, 0);
-
-    lv_obj_add_flag(g_btn_pause_play, LV_OBJ_FLAG_HIDDEN); // FIXME
-
-    g_btn_next = lv_imgbtn_create(parent);
-    lv_imgbtn_set_src(g_btn_next, LV_IMGBTN_STATE_RELEASED , NULL, &next_normal, NULL);
-    lv_imgbtn_set_src(g_btn_next, LV_IMGBTN_STATE_PRESSED , NULL, &next_press, NULL);
-    g_btn_next->user_data = &g_lvgl_player_ctx;
-    lv_obj_set_pos(g_btn_next, 700, 450);
-    lv_obj_set_size(g_btn_next, 64, 64);
-    lv_obj_add_event_cb(g_btn_next,btn_next_event_cb,LV_EVENT_ALL, NULL);
-    lv_obj_add_style(g_btn_next,&btn_style, 0);
-    lv_obj_set_style_border_opa(g_btn_next,LV_OPA_TRANSP, 0);
-    lv_obj_set_style_shadow_opa(g_btn_next, LV_OPA_TRANSP, 0);
-
-    lv_obj_add_flag(g_btn_next, LV_OBJ_FLAG_HIDDEN); // FIXME
-
-#ifdef FILE_LIST
-    lv_style_init(&g_style_scrollbar);
-    lv_style_set_width(&g_style_scrollbar,  4);
-    lv_style_set_bg_opa(&g_style_scrollbar, LV_OPA_COVER);
-    lv_style_set_bg_color(&g_style_scrollbar, lv_color_hex3(0xeee));
-    lv_style_set_radius(&g_style_scrollbar, LV_RADIUS_CIRCLE);
-    lv_style_set_pad_right(&g_style_scrollbar, 4);
-
-    g_file_list = lv_obj_create(parent);
-    lv_obj_remove_style_all(g_file_list);
-    lv_obj_set_size(g_file_list, 300, 450);
-    lv_obj_set_y(g_file_list, 40);
-    lv_obj_add_style(g_file_list, &g_style_scrollbar, LV_PART_SCROLLBAR);
-    lv_obj_set_flex_flow(g_file_list, LV_FLEX_FLOW_COLUMN);
-
-    lv_style_init(&g_file_list_btn_style_def);
-    lv_style_set_bg_opa(&g_file_list_btn_style_def, LV_OPA_TRANSP);
-    lv_style_set_radius(&g_file_list_btn_style_def, 0);
-
-    lv_style_init(&g_file_list_btn_style_pre);
-    lv_style_set_bg_opa(&g_file_list_btn_style_pre, LV_OPA_COVER);
-    lv_style_set_bg_color(&g_file_list_btn_style_pre,  lv_color_hex(0x4c4965));
-    lv_style_set_radius(&g_file_list_btn_style_pre, 0);
-
-    lv_style_init(&g_file_list_btn_style_chk);
-    lv_style_set_bg_opa(&g_file_list_btn_style_chk, LV_OPA_COVER);
-    lv_style_set_bg_color(&g_file_list_btn_style_chk, lv_color_hex(0x4c4965));
-    lv_style_set_radius(&g_file_list_btn_style_chk, 0);
-
-    for (i = 0;i < sizeof(g_filename) / sizeof(g_filename[0]); i++) {
-        add_file_list_btn(g_file_list,i);
-    }
-#endif
-}
-
-static void player_callback(lv_timer_t *tmr)
-{
-    struct lvgl_player_context *ctx;
-
-    (void)tmr;
-
-    ctx = &g_lvgl_player_ctx;
-    if (ctx->player_end && ctx->player_state != LVGL_PLAYER_STATE_STOP) {
-        ctx->player_end = 0;
-        lvgl_stop(ctx);
-        ctx->player_state = LVGL_PLAYER_STATE_STOP;
-        lv_imgbtn_set_src(g_btn_pause_play, LV_IMGBTN_STATE_RELEASED , NULL, &play_normal, NULL);
-        lv_imgbtn_set_src(g_btn_pause_play, LV_IMGBTN_STATE_PRESSED , NULL, &play_press, NULL);
-    }
-
-    return;
-}
-#endif
-
-static void lv_bg_image_creat(lv_obj_t * parent)
+static void lv_bg_dark_set(lv_obj_t * parent)
 {
     struct mpp_fb * fb = mpp_fb_open();
     struct aicfb_screeninfo info;
@@ -500,34 +81,284 @@ static void lv_bg_image_creat(lv_obj_t * parent)
     mpp_fb_close(fb);
 }
 
+static void lv_get_hv_timing(unsigned int *hdisplay, unsigned int *vdisplay)
+{
+    struct mpp_fb * fb = mpp_fb_open();
+    struct aicfb_screeninfo info;
+
+    mpp_fb_ioctl(fb, AICFB_GET_SCREENINFO, &info);
+
+    *hdisplay = info.width;
+    *vdisplay = info.height;
+
+    mpp_fb_close(fb);
+}
+
+static bool long_press_end = 0;
+
+void video_screen_switched(bool e)
+{
+    long_press_end = e;
+}
+
+bool is_video_screen_switched(void)
+{
+    return long_press_end;
+}
+
+static void show_control_cb(lv_event_t *e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+    static int show = 0;
+
+    if (code == LV_EVENT_LONG_PRESSED) {
+        back_settings_screen();
+        /*
+         * Normally, a LV_EVENT_CLICKED event will be generated after the
+         * LV_EVENT_LONG_PRESSED event ends, and we need to filter it out.
+         */
+        video_screen_switched(true);
+    }
+
+    if (code == LV_EVENT_CLICKED) {
+        show = show == 0 ? 1 : 0;
+
+        if (show)
+            lv_obj_clear_flag(control_bg, LV_OBJ_FLAG_HIDDEN);
+        else
+            lv_obj_add_flag(control_bg, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
+static inline unsigned int control_bg_calc_height(unsigned int height)
+{
+    unsigned int h = ALIGN_EVEN(height / 6);
+
+    return h > 68 ? h: 68;
+}
+
+static inline unsigned int progress_calc_width(unsigned int width)
+{
+    return ALIGN_EVEN((width / 10) * 8);
+}
+
+static inline unsigned int progress_calc_xpos(unsigned int width)
+{
+    return ALIGN_EVEN(width / 10);
+}
+
+static void get_media_info_from_src(const char *src_path, media_info_t *info)
+{
+    struct av_media_info av_media;
+
+    lv_ffmpeg_player_set_src(player.ffmpeg, src_path);
+    lv_ffmpeg_player_set_cmd_ex(player.ffmpeg, LV_FFMPEG_PLAYER_CMD_GET_MEDIA_INFO_EX, &av_media);
+
+    info->duration_ms = av_media.duration / 1000;
+    info->file_size_bytes = av_media.file_size;
+    if (av_media.has_video)
+        info->type = MEDIA_TYPE_VIDEO;
+    else
+        info->type = MEDIA_TYPE_AUDIO;
+}
+
+static void media_list_init()
+{
+    media_info_t info;
+
+    strcpy(info.name, "Known 1");
+    strcpy(info.source, LVGL_PATH_ORI(video/cartoon.mp4));
+    get_media_info_from_src((const char *)info.source, &info);
+    media_list_add_info(player.list, &info);
+
+    strcpy(info.name, "Known 2");
+    strcpy(info.source,  LVGL_PATH_ORI(video/cartoon.mp4));
+    get_media_info_from_src((const char *)info.source, &info);
+    media_list_add_info(player.list, &info);
+}
+
+static void play_control_cb(lv_event_t *e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+
+    if (code == LV_EVENT_CLICKED) {
+        if (player.play_status == 0) {
+            lv_timer_resume(play_time_timer);
+            lv_ffmpeg_player_set_cmd_ex(player.ffmpeg, LV_FFMPEG_PLAYER_CMD_RESUME, NULL);
+            lv_imgbtn_set_src(play_control, LV_IMGBTN_STATE_RELEASED , NULL, LVGL_PATH(video_icon/pause.png), NULL);
+            lv_imgbtn_set_src(play_control, LV_IMGBTN_STATE_PRESSED , NULL, LVGL_PATH(video_icon/pause.png), NULL);
+        } else {
+            lv_timer_pause(play_time_timer);
+            lv_ffmpeg_player_set_cmd_ex(player.ffmpeg, LV_FFMPEG_PLAYER_CMD_PAUSE, NULL);
+            lv_imgbtn_set_src(play_control, LV_IMGBTN_STATE_RELEASED , NULL, LVGL_PATH(video_icon/play.png), NULL);
+            lv_imgbtn_set_src(play_control, LV_IMGBTN_STATE_PRESSED , NULL, LVGL_PATH(video_icon/play.png), NULL);
+        }
+        player.play_status = player.play_status == 1 ? 0 : 1;
+    }
+}
+
+static void updata_ui_info(char *last_src)
+{
+    u64 seek_time = 0;
+    media_list_get_info(player.list, &player.cur_info, player.cur_pos);
+    lv_bar_set_range(progress, 0, player.cur_info.duration_ms);
+    lv_bar_set_value(progress, 0, LV_ANIM_OFF);
+    lv_label_set_text_fmt(pass_time, "%02d:%02d", 0 ,0);
+    lv_label_set_text_fmt(duration, "%02ld:%02ld", GET_MINUTES(player.cur_info.duration_ms), GET_SECONDS(player.cur_info.duration_ms));
+
+    if (strcmp(last_src, player.cur_info.source) == 0)
+        lv_ffmpeg_player_set_cmd_ex(player.ffmpeg, LV_FFMPEG_PLAYER_CMD_SET_PLAY_TIME_EX, &seek_time);
+    else
+        lv_ffmpeg_player_set_src(player.ffmpeg, player.cur_info.source);
+}
+
+static void play_next_cb(lv_event_t *e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+    int info_num = media_list_get_info_num(player.list);
+    char last_src[256] = {0};
+
+    if (code == LV_EVENT_CLICKED) {
+        player.cur_pos++;
+        strcpy(last_src, player.cur_info.source);
+        if (player.cur_pos >= info_num)
+            player.cur_pos = 0;
+        updata_ui_info(last_src);
+
+        lv_imgbtn_set_src(play_control, LV_IMGBTN_STATE_RELEASED , NULL, LVGL_PATH(video_icon/pause.png), NULL);
+        lv_imgbtn_set_src(play_control, LV_IMGBTN_STATE_PRESSED , NULL, LVGL_PATH(video_icon/pause.png), NULL);
+        player.play_status = 1;
+    }
+}
+
+static void play_last_cb(lv_event_t *e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+    int info_num = media_list_get_info_num(player.list);
+    char last_src[256] = {0};
+
+    if (code == LV_EVENT_CLICKED) {
+        player.cur_pos--;
+        strcpy(last_src, player.cur_info.source);
+
+        if (player.cur_pos < 0)
+            player.cur_pos = info_num - 1;
+        updata_ui_info(last_src);
+
+        lv_imgbtn_set_src(play_control, LV_IMGBTN_STATE_RELEASED , NULL, LVGL_PATH(video_icon/pause.png), NULL);
+        lv_imgbtn_set_src(play_control, LV_IMGBTN_STATE_PRESSED , NULL, LVGL_PATH(video_icon/pause.png), NULL);
+        player.play_status = 1;
+    }
+}
+
+static void play_time_update_cb(lv_timer_t * timer)
+{
+    long escap_time = 0;
+    bool play_end = false;
+
+    lv_ffmpeg_player_set_cmd_ex(player.ffmpeg, LV_FFMPEG_PLAYER_CMD_PLAY_END_EX, &play_end);
+    if (play_end == true && (player.mode != PLAY_MODE_CIRCLE_ONE)) {
+#if LVGL_VERSION_MAJOR == 8
+        lv_event_send(play_control_next, LV_EVENT_CLICKED, NULL); /* auto play next */
+#else
+        lv_obj_send_event(play_control_next, LV_EVENT_CLICKED, NULL);
+#endif
+        return;
+    }
+
+    lv_ffmpeg_player_set_cmd_ex(player.ffmpeg, LV_FFMPEG_PLAYER_CMD_GET_PLAY_TIME_EX, &escap_time);
+
+    escap_time = escap_time / 1000;
+    lv_bar_set_value(progress, escap_time, LV_ANIM_ON);
+    lv_label_set_text_fmt(pass_time, "%02ld:%02ld", GET_MINUTES(escap_time), GET_SECONDS(escap_time));
+}
+
 lv_obj_t * lv_video_screen_creat(void)
 {
     lv_obj_t * video_src = lv_obj_create(NULL);
     lv_obj_clear_flag(video_src, LV_OBJ_FLAG_SCROLLABLE);
 
-    lv_bg_image_creat(video_src);
+    player.ffmpeg = lv_ffmpeg_player_create(video_src);
+    player.list = media_list_create();
+    media_list_init();
+    media_list_get_info(player.list, &player.cur_info, MEDIA_TYPE_POS_OLDEST);
+    player.mode = PLAY_MODE_CIRCLE;
+    player.play_status = 1;
+    lv_obj_add_flag(player.ffmpeg, LV_OBJ_FLAG_HIDDEN);
+
+    lv_bg_dark_set(video_src);
+    lv_obj_add_event_cb(video_src, show_control_cb, LV_EVENT_ALL, control_bg);
+
+    unsigned int hdisplay = 0;
+    unsigned int vdisplay = 0;
+    lv_get_hv_timing(&hdisplay, &vdisplay);
+
+    unsigned int control_bg_h = control_bg_calc_height(vdisplay);
+    unsigned int progress_x = progress_calc_xpos(hdisplay);
+    unsigned int progress_w = progress_calc_width(hdisplay);
+    unsigned int duration_x = progress_w + progress_x;
+
+    control_bg = lv_obj_create(video_src);
+    lv_obj_remove_style_all(control_bg);
+    lv_obj_set_style_bg_color(control_bg, lv_color_hex(0x0), 0);
+    lv_obj_set_style_bg_opa(control_bg, LV_OPA_100, 0);
+    lv_obj_set_size(control_bg, hdisplay, control_bg_h);
+    lv_obj_set_pos(control_bg, 0, vdisplay - control_bg_h);
+    lv_obj_add_flag(control_bg, LV_OBJ_FLAG_HIDDEN);
+
+    progress = lv_bar_create(control_bg);
+    lv_obj_set_pos(progress, progress_x, 10);
+    lv_bar_set_range(progress, 0, player.cur_info.duration_ms);
+    lv_bar_set_value(progress, 0, LV_ANIM_OFF);
+    lv_obj_set_size(progress, progress_w, 8);
+    lv_obj_set_style_width(progress, progress_w, LV_PART_INDICATOR);
+    lv_obj_set_style_height(progress, 8, LV_PART_INDICATOR);
+    lv_obj_set_style_bg_color(progress, lv_color_hex(0x8f8f8f), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(progress, LV_OPA_100, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(progress, lv_color_hex(0xffffff), LV_PART_INDICATOR);
+    lv_obj_set_style_bg_opa(progress, LV_OPA_100, LV_PART_INDICATOR);
+
+    pass_time = lv_label_create(control_bg);
+    lv_label_set_text_fmt(pass_time, "%02d:%02d", 0, 0);
+    lv_obj_set_pos(pass_time, progress_x, 30);
+    lv_obj_set_style_text_color(pass_time, lv_color_hex(0xffffff), LV_PART_MAIN);
+
+    duration = lv_label_create(control_bg);
+    lv_label_set_text_fmt(duration, "%02ld:%02ld", GET_MINUTES(player.cur_info.duration_ms), GET_SECONDS(player.cur_info.duration_ms));
+    lv_obj_set_pos(duration, duration_x, 30);
+    lv_obj_set_style_text_color(duration, lv_color_hex(0xffffff), LV_PART_MAIN);
 
     static lv_style_t style_pr;
     lv_style_init(&style_pr);
     lv_style_set_translate_x(&style_pr, 2);
     lv_style_set_translate_y(&style_pr, 2);
 
-    // video back btn
-    lv_obj_t *back_btn = lv_imgbtn_create(video_src);
-    lv_imgbtn_set_src(back_btn, LV_IMGBTN_STATE_RELEASED , NULL, LVGL_PATH(Back.png), NULL);
-    lv_imgbtn_set_src(back_btn, LV_IMGBTN_STATE_PRESSED , NULL, LVGL_PATH(Back.png), NULL);
-    //lv_obj_add_event_cb(back_btn, video_back_event_cb, LV_EVENT_ALL, NULL);
+    play_control_next = lv_imgbtn_create(control_bg);
+    lv_imgbtn_set_src(play_control_next, LV_IMGBTN_STATE_RELEASED , NULL, LVGL_PATH(video_icon/next.png), NULL);
+    lv_imgbtn_set_src(play_control_next, LV_IMGBTN_STATE_PRESSED , NULL, LVGL_PATH(video_icon/next.png), NULL);
+    lv_obj_set_pos(play_control_next, (hdisplay >> 1) + (hdisplay / 10), 30);
+    lv_obj_set_size(play_control_next, 48, 48);
+    lv_obj_add_style(play_control_next, &style_pr, LV_STATE_PRESSED);
+    lv_obj_add_event_cb(play_control_next, play_next_cb, LV_EVENT_ALL, NULL);
 
-    lv_obj_set_pos(back_btn, 10, 10);
-    lv_obj_set_size(back_btn, 32, 32);
-    lv_obj_add_style(back_btn, &style_pr, LV_STATE_PRESSED);
-    lv_obj_add_flag(back_btn, LV_OBJ_FLAG_HIDDEN); // FIXME
+    play_control_last = lv_imgbtn_create(control_bg);
+    lv_imgbtn_set_src(play_control_last, LV_IMGBTN_STATE_RELEASED , NULL, LVGL_PATH(video_icon/last.png), NULL);
+    lv_imgbtn_set_src(play_control_last, LV_IMGBTN_STATE_PRESSED , NULL, LVGL_PATH(video_icon/last.png), NULL);
+    lv_obj_set_pos(play_control_last, (hdisplay >> 1) - (hdisplay / 10 + 48), 30);
+    lv_obj_set_size(play_control_last, 48, 48);
+    lv_obj_add_style(play_control_last, &style_pr, LV_STATE_PRESSED);
+    lv_obj_add_event_cb(play_control_last, play_last_cb, LV_EVENT_ALL, NULL);
 
-#ifdef VIDEO_PLAYER
-    fd_dev = mpp_fb_open();
-    create_player(video_src);
-    lv_timer_create(player_callback, 20, 0);
-#endif
+    play_control = lv_imgbtn_create(control_bg);
+    lv_imgbtn_set_src(play_control, LV_IMGBTN_STATE_RELEASED , NULL, LVGL_PATH(video_icon/pause.png), NULL);
+    lv_imgbtn_set_src(play_control, LV_IMGBTN_STATE_PRESSED , NULL, LVGL_PATH(video_icon/pause.png), NULL);
+    lv_obj_set_pos(play_control, (hdisplay >> 1) - 24, 30);
+    lv_obj_set_size(play_control, 48, 48);
+    lv_obj_add_style(play_control, &style_pr, LV_STATE_PRESSED);
+    lv_obj_add_event_cb(play_control, play_control_cb, LV_EVENT_ALL, NULL);
+
+    play_time_timer = lv_timer_create(play_time_update_cb, 400 , NULL);
+    lv_timer_pause(play_time_timer);
 
     return video_src;
 }

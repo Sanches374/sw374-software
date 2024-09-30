@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2023-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -38,9 +38,25 @@ struct nand_bbt {
 
 struct aic_spinand;
 
+/*
+ * struct spinand_devid - SPI NAND device id structure
+ * @id: device id of current chip
+ * @len: number of bytes in device id
+*/
+struct spinand_devid {
+    const u8 *id;
+    const u8 len;
+};
+
+#define DEVID(...)                              \
+    {                                           \
+        .id = (const u8[]){ __VA_ARGS__ },      \
+        .len = sizeof((u8[]){ __VA_ARGS__ }),   \
+    }
+
 /* SPI NAND flash information */
 struct aic_spinand_info {
-    u16 devid;
+    struct spinand_devid devid;
     u16 page_size;
     u16 oob_size;
     u16 block_per_lun;
@@ -53,7 +69,6 @@ struct aic_spinand_info {
 };
 typedef struct aic_spinand_info *aic_spinand_info_t;
 
-#define DEVID(x)    (u16)(x)
 #define PAGESIZE(x) (u16)(x)
 #define OOBSIZE(x)  (u16)(x)
 #define BPL(x) (u16)(x)
@@ -250,7 +265,7 @@ extern const struct spinand_manufacturer xincun_spinand_manufacturer;
 extern struct spi_nand_cmd_cfg cmd_cfg_table[];
 
 const struct aic_spinand_info *
-spinand_match_and_init(u8 devid, const struct aic_spinand_info *table,
+spinand_match_and_init(u8 *devid, const struct aic_spinand_info *table,
                        u32 table_size);
 int aic_spinand_transfer_message(struct aic_spinand *flash,
                                  struct spi_nand_cmd_cfg *cfg, u32 addr,

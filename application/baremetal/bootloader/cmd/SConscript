@@ -6,12 +6,13 @@ Import('rtconfig')
 
 cwd     = GetCurrentDir()
 src     = Glob('run.c')
-src     += Glob('reset.c')
 src     += Glob('aicupg.c')
 src     += Glob('aicupg_detect.c')
 src     += Glob('aicupg_erase.c')
 src     += Glob('ram_boot.c')
 src     += Glob('crc32.c')
+if GetDepend('AIC_WDT_DRV') and GetDepend('AIC_WRI_DRV'):
+    src     += Glob('reset.c')
 if GetDepend('AIC_BOOTLOADER_CMD_PROGRESS_BAR'):
     src     += Glob('progress_bar.c')
 if GetDepend('AIC_BOOTLOADER_CMD_MEM'):

@@ -20,7 +20,11 @@ lv_obj_t* loadScr;
 
 void createTopTitle(lv_obj_t* scr)
 {
+#if LVGL_VERSION_MAJOR == 8
     static lv_point_t line_points[4] = { {56, 42}, {744, 42}, {351, 44}, {449, 44}};
+#else
+    static lv_point_precise_t line_points[4] = { {56, 42}, {744, 42}, {351, 44}, {449, 44}};
+#endif
     static lv_style_t style_line;
     if (style_line.prop_cnt > 1) {
         lv_style_reset(&style_line);

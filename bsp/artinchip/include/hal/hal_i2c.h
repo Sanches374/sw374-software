@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Artinchip Technology Co., Ltd
+ * Copyright (c) 2022-2024, Artinchip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -54,7 +54,7 @@ struct aic_i2c_ctrl
     char *device_name;
     unsigned long reg_base;
     uint32_t addr_bit;
-    uint32_t speed_mode;
+    uint32_t target_rate;
     uint32_t bus_mode;
     struct aic_i2c_msg *msg;
     struct aic_i2c_slave_info slave;
@@ -64,6 +64,9 @@ struct aic_i2c_ctrl
     uint32_t msg_err;
     uint32_t buf_write_idx;
     uint32_t buf_read_idx;
+    uint32_t irq_index;
+    uint32_t clk_id;
+    uint32_t module_clk;
     bool is_first_message;
     bool is_last_message;
 };
@@ -83,8 +86,6 @@ enum i2c_slave_event {
     I2C_SLAVE_WRITE_RECEIVED,
     I2C_SLAVE_STOP,
 };
-
-#define I2C_DEFALT_CLOCK      24000000
 
 #define I2C_CTL               0x00
 #define I2C_TAR               0x04
@@ -197,19 +198,12 @@ enum i2c_slave_event {
 #define I2C_TXFIFO_THRESHOLD    (I2C_FIFO_DEPTH / 2 - 1)
 #define I2C_RXFIFO_THRESHOLD    0
 
-#define FS_MIN_SCL_HIGH         600
-#define FS_MIN_SCL_LOW          1300
-#define SS_MIN_SCL_HIGH         4200
-#define SS_MIN_SCL_LOW          5210
-
 #define I2C_TIMEOUT_DEF_VAL     1000
 #define I2C_INTR_ERROR_RX       0x0001
 #define I2C_INTR_ERROR_ABRT     0x0002
 
 #define I2C_MASTER_MODE         0
 #define I2C_SLAVE_MODE          1
-#define I2C_400K_SPEED          0
-#define I2C_100K_SPEED          1
 #define I2C_7BIT_ADDR           0
 #define I2C_10BIT_ADDR          1
 
@@ -231,7 +225,7 @@ static inline void hal_i2c_module_enable(aic_i2c_ctrl *i2c_dev)
     uint32_t reg_val;
 
     reg_val = readl(i2c_dev->reg_base + I2C_ENABLE);
-    reg_val |= I2C_ENABLE_BIT;
+    reg_val |= I2C_ENABLE_BIT | I2C_SDA_STUCK_RECOVERY_ENABLE;
     writel(reg_val, i2c_dev->reg_base + I2C_ENABLE);
 }
 
@@ -422,6 +416,24 @@ static inline void hal_i2c_flags_mask(aic_i2c_ctrl *i2c_dev, unsigned long flags
     writel(flags, i2c_dev->reg_base + I2C_INTR_MASK);
 }
 
+static inline void hal_i2c_enable_sda_scl_stuck_timeout_restore(aic_i2c_ctrl *i2c_dev)
+{
+    uint32_t reg_val;
+
+    reg_val = readl(i2c_dev->reg_base + I2C_CTL);
+    reg_val |= I2C_CTL_BUS_CLEAR_FEATURE;
+    writel(reg_val, i2c_dev->reg_base + I2C_CTL);
+
+    reg_val = readl(i2c_dev->reg_base + I2C_ENABLE);
+    reg_val |= I2C_SDA_STUCK_RECOVERY_ENABLE;
+    writel(reg_val, i2c_dev->reg_base + I2C_ENABLE);
+}
+
+static inline void hal_i2c_set_sda_scl_stuck_time(aic_i2c_ctrl *i2c_dev)
+{
+    writel(0x1000, i2c_dev->reg_base + I2C_SCL_STUCK_TIMEOUT);
+    writel(0x1000, i2c_dev->reg_base + I2C_SDA_STUCK_TIMEOUT);
+}
 
 int hal_i2c_init(aic_i2c_ctrl *i2c_dev);
 int hal_i2c_clk_init(aic_i2c_ctrl *i2c_dev);
@@ -431,8 +443,7 @@ int hal_i2c_slave_10bit_addr(aic_i2c_ctrl *i2c_dev);
 int hal_i2c_slave_own_addr(aic_i2c_ctrl *i2c_dev, uint32_t addr);
 void hal_i2c_target_addr(aic_i2c_ctrl *i2c_dev, uint32_t addr);
 void hal_i2c_set_hold(aic_i2c_ctrl *i2c_dev, u32 val);
-int hal_i2c_speed_mode_select(aic_i2c_ctrl *i2c_dev,
-                                uint32_t clk_freq, uint8_t mode);
+int hal_i2c_set_speed(aic_i2c_ctrl *i2c_dev);
 int32_t hal_i2c_wait_bus_free(aic_i2c_ctrl *i2c_dev, uint32_t timeout);
 int32_t hal_i2c_master_send_msg(aic_i2c_ctrl *i2c_dev,
                                 struct aic_i2c_msg *msg, uint8_t is_last_message);

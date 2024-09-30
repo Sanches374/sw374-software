@@ -1,6 +1,7 @@
 /*
-* Copyright (C) 2020-2022 Artinchip Technology Co. Ltd
+* Copyright (C) 2020-2024 ArtInChip Technology Co. Ltd
 *
+*  SPDX-License-Identifier: Apache-2.0
 *  author: <qi.xu@artinchip.com>
 *  Desc: mpp_decoder interface
 */
@@ -22,8 +23,10 @@ struct mpp_decoder* mpp_decoder_create(enum mpp_codec_type type)
         return create_h264_decoder();
     else if (type == MPP_CODEC_VIDEO_DECODER_PNG)
         return create_png_decoder();
+#ifdef AIC_MPP_AICP_DEC_ENABLE
     else if (type == MPP_CODEC_VIDEO_DECODER_AICP)
         return create_aicp_decoder();
+#endif
     return NULL;
 }
 
@@ -75,6 +78,10 @@ int mpp_decoder_control(struct mpp_decoder* decoder, int cmd, void *param)
         decoder->crop_height = info->crop_height;
         decoder->output_x = info->crop_out_x;
         decoder->output_y = info->crop_out_y;
+        return 0;
+    } else if (cmd == MPP_DEC_INIT_CMD_SET_EXT_PACKET_ALLOCATOR) {
+        struct packet_allocator* allocator = (struct packet_allocator*)param;
+        decoder->pkt_allocator = allocator;
         return 0;
     }
     return decoder->ops->control(decoder, cmd, param);

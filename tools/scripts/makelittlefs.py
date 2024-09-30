@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # Dehuang.Wu
-# Copyright (C) 2021-2023 ArtInChip Technology Co., Ltd
+# Copyright (C) 2021-2024 ArtInChip Technology Co., Ltd
 
 import os
 import re
@@ -64,9 +64,15 @@ if __name__ == "__main__":
                         help="block size")
     parser.add_argument("-t", "--tooldir", type=str,
                         help="tool directory")
+    parser.add_argument("-g", "--imgsize", type=str,
+                        help="image size")
     args = parser.parse_args()
 
-    imgsize = mkimage_get_mtdpart_size(args.outfile)
+    if args.imgsize is not None:
+        imgsize = int(args.imgsize)
+    else:
+        imgsize = mkimage_get_mtdpart_size(args.outfile)
+
     if imgsize == 0:
         imgsize = mkimage_get_resource_size(args.inputdir, int(args.blocksize))
         # Add some free space

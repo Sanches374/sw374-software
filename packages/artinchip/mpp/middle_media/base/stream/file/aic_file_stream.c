@@ -85,7 +85,7 @@ s32 file_stream_open(const char* uri,struct aic_stream **stream, int flags)
 
 	memset(file_stream, 0x00, sizeof(struct aic_file_stream));
 
-	if (flags & O_RDONLY) {
+	if (flags == O_RDONLY) {
 		file_stream->cltbl = (uint32_t *)mpp_alloc(AIC_CLTBL_SIZE * sizeof(uint32_t));
 		if (file_stream->cltbl == NULL) {
 			loge("mpp_alloc fail !!!!!\n");
@@ -103,7 +103,7 @@ s32 file_stream_open(const char* uri,struct aic_stream **stream, int flags)
 
 	file_stream->file_size = lseek(file_stream->fd, 0, SEEK_END);
 	lseek(file_stream->fd, 0, SEEK_SET);
-	if (flags & O_RDONLY) {
+	if (flags == O_RDONLY) {
 		file_stream->cltbl[0] = AIC_CLTBL_SIZE;
 		fcntl(file_stream->fd, 0x52540001U, file_stream->cltbl);
 	}

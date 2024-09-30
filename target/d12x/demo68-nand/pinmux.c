@@ -13,16 +13,6 @@
 #include <of.h>
 #include <aic_utils.h>
 
-extern size_t __dtb_pos_f;
-
-struct aic_pinmux
-{
-    unsigned char       func;
-    unsigned char       bias;
-    unsigned char       drive;
-    char *              name;
-};
-
 struct aic_pinmux aic_pinmux_config[] = {
 #ifdef AIC_USING_UART0
     /* uart0 */
@@ -176,43 +166,12 @@ struct aic_pinmux aic_pinmux_config[] = {
     {1, PIN_PULL_DIS, 3, AIC_TOUCH_PANEL_RST_PIN},
     {1, PIN_PULL_DIS, 3, AIC_TOUCH_PANEL_INT_PIN},
 #endif
+#ifdef AIC_USING_PM
+    {1, PIN_PULL_DIS, 3, AIC_BOARD_LEVEL_POWER_PIN, FLAG_POWER_PIN},
+#ifdef AIC_PM_DEMO
+    {1, PIN_PULL_DIS, 3, AIC_PM_POWER_KEY_GPIO, FLAG_WAKEUP_SOURCE},
+#endif
+#endif
 };
 
-void aic_board_pinmux_init(void)
-{
-    uint32_t i = 0;
-    long pin = 0;
-    unsigned int g;
-    unsigned int p;
-
-    for (i=0; i<ARRAY_SIZE(aic_pinmux_config); i++) {
-        pin = hal_gpio_name2pin(aic_pinmux_config[i].name);
-        if (pin < 0)
-            continue;
-        g = GPIO_GROUP(pin);
-        p = GPIO_GROUP_PIN(pin);
-        hal_gpio_set_func(g, p, aic_pinmux_config[i].func);
-        hal_gpio_set_bias_pull(g, p, aic_pinmux_config[i].bias);
-        hal_gpio_set_drive_strength(g, p, aic_pinmux_config[i].drive);
-    }
-
-#ifndef AIC_BOOTLOADER
-    struct fdt_header *header;
-    uint32_t dtb_size;
-    void *dtb_pos_r;
-
-    header = (struct fdt_header *)(&__dtb_pos_f);
-
-    if (fdt_magic(header) == FDT_MAGIC)
-    {
-        dtb_size = fdt_totalsize(header);
-        dtb_pos_r = aicos_malloc(0, dtb_size);
-
-        aicos_memcpy(dtb_pos_r, (void *)(&__dtb_pos_f), dtb_size);
-
-        of_relocate_dtb((unsigned long)dtb_pos_r);
-
-        pinmux_fdt_parse();
-    }
-#endif
-}
+uint32_t aic_pinmux_config_size = ARRAY_SIZE(aic_pinmux_config);

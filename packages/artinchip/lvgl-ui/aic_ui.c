@@ -12,6 +12,7 @@
 #include "lvgl/demos/lv_demos.h"
 
 #ifdef AIC_USE_TOUCH_MONKEY_TEST
+#if LV_USE_MONKEY
 static void use_touch_monkey_test(void)
 {
     /*Create encoder monkey test*/
@@ -32,6 +33,7 @@ static void use_touch_monkey_test(void)
     /*Start monkey test*/
     lv_monkey_set_enable(monkey, true);
 }
+#endif
 #endif
 
 void aic_ui_init()

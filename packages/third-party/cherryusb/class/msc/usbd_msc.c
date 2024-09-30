@@ -55,7 +55,12 @@ USB_NOCACHE_RAM_SECTION struct usbd_msc_priv {
 static void usbd_msc_reset(void)
 {
     g_usbd_msc.stage = MSC_READ_CBW;
+
+    #ifdef USBDEV_MSC_READ_ONLY
+    g_usbd_msc.readonly = true;
+    #else
     g_usbd_msc.readonly = false;
+    #endif
 }
 
 __WEAK bool usbd_msc_check_storage(void)

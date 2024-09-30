@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (C) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -342,6 +342,10 @@ static void ge_rotate_thread(void *arg)
                 break;
         }
         aicos_msleep(1000);
+    }
+
+    if (fb_info->swap_flag == 0) {
+        fb_start_and_wait(fb_info);
     }
 
     printf("ge rotate test success\n");

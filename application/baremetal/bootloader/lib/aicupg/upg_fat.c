@@ -119,7 +119,7 @@ static s32 media_device_write(char *image_name, struct fwc_meta *pmeta)
             pr_err("Error:read file failed!\n");
             goto err;
         }
-        /*write data to media*/
+        /* write data to media */
         ret = media_data_write(fwc, buf, len);
         if (ret == 0) {
             pr_err("Error: media write failed!..\n");
@@ -134,10 +134,16 @@ static s32 media_device_write(char *image_name, struct fwc_meta *pmeta)
             g_progress_cb(percent);
     }
 
-    /*write data end*/
+    /* write data end */
     media_data_write_end(fwc);
+    /* check partition crc */
+    if (fwc->calc_partition_crc != pmeta->crc) {
+        pr_err("calc partition crc:0x%x, expect partition crc:0x%x\n",
+               fwc->calc_partition_crc, pmeta->crc);
+        goto err;
+    }
+    /* show burn time */
     start_us = aic_get_time_us() - start_us;
-    /*check data */
     printf("    Partition: %s programming done.\n", pmeta->partition);
     pr_info("    Used time: %lld.%lld sec, Speed: %lld.%lld MB/s.\n",
             start_us / 1000000, start_us / 1000 % 1000,
@@ -149,6 +155,7 @@ static s32 media_device_write(char *image_name, struct fwc_meta *pmeta)
 
     return total_len;
 err:
+    printf("    Partition: %s programming failed.\n", pmeta->partition);
     if (buf)
         upg_fat_free_align(buf);
     if (fwc)

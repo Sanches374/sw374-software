@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  * Authors:  dwj <weijie.ding@artinchip.com>
@@ -19,6 +19,7 @@
 #define NEC_TRAILER_PULSE   NEC_UNIT
 #define NEC_TRAILER_SPACE   (10 * NEC_UNIT) /* even longer in reality */
 #define NEC_MARGIN_CYCLES   8
+#define NEC_HEADER_MARGIN_CYCLES    25
 
 enum nec_state {
     STATE_INACTIVE,
@@ -29,7 +30,7 @@ enum nec_state {
     STATE_TRAILER_SPACE,
 };
 
-static inline uint32_t ir_nec_bytes_to_scancode(uint8_t address,
+static uint32_t ir_nec_bytes_to_scancode(uint8_t address,
                                                 uint8_t not_address,
                                                 uint8_t command,
                                                 uint8_t not_command)
@@ -37,7 +38,11 @@ static inline uint32_t ir_nec_bytes_to_scancode(uint8_t address,
     uint32_t scancode;
 
     /* Normal NEC */
-    scancode = address << 8 | command;
+    if (((address ^ not_address) != 0xff) || ((command ^ not_command) != 0xff))
+        return 0;
+    else
+        scancode = address << 8 | command;
+
     return scancode;
 }
 
@@ -57,12 +62,12 @@ int ir_nec_decode(uint8_t * rx_data, uint32_t size, uint32_t *scancode)
             switch(state) {
             case STATE_INACTIVE:
                 if (cir_check_in_range(tmp_data, NEC_HEADER_PULSE,
-                                       NEC_MARGIN_CYCLES))
+                                       NEC_HEADER_MARGIN_CYCLES))
                     state = STATE_HEADER_SPACE;
                 break;
             case STATE_HEADER_SPACE:
                 if (cir_check_in_range(tmp_data, NEC_HEADER_SPACE,
-                                       NEC_MARGIN_CYCLES))
+                                       NEC_HEADER_MARGIN_CYCLES))
                     state = STATE_BIT_PULSE;
                 else if (cir_check_in_range(tmp_data, NEC_REPEAT_SPACE,
                                        NEC_MARGIN_CYCLES))
@@ -80,7 +85,8 @@ int ir_nec_decode(uint8_t * rx_data, uint32_t size, uint32_t *scancode)
                     data |= 1;
                 else if (!cir_check_in_range(tmp_data, NEC_BIT_0_SPACE,
                                              NEC_MARGIN_CYCLES))
-                    break;
+                    goto __exit;
+
                 data_count++;
 
                 if (data_count == NEC_NBITS)
@@ -115,14 +121,20 @@ int ir_nec_decode(uint8_t * rx_data, uint32_t size, uint32_t *scancode)
 
             *scancode = ir_nec_bytes_to_scancode(address, not_address,
                                                  command, not_command);
-            last_scancode = *scancode;
-            return 0;
         } else {
             *scancode = last_scancode;
-            return 0;
         }
+
+        if (*scancode)
+            last_scancode = *scancode;
+        else
+            goto __exit;
+
+        return 0;
     }
 
+__exit:
+    last_scancode = 0;
     return -EINVAL;
 }
 

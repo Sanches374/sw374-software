@@ -156,7 +156,7 @@ static int aic_de_set_mode(struct aic_panel *panel)
 
     comp->timing = panel->timings;
 
-#ifdef AIC_DISPLAY_DITHER
+#if defined AIC_DISPLAY_DITHER && !defined AIC_DISABLE_DITHER
     if (comp->timing->hactive > DE_DITHER_WIDTH_MAX) {
         memset(&comp->dither, 0x00, sizeof(struct aic_de_dither));
         pr_err("Screen width is invalid, disable dither\n");
@@ -617,7 +617,7 @@ static int aic_de_probe(void)
     comp->config = &aic_de_cfg;
     comp->vsync_queue = aicos_wqueue_create();
 
-#ifdef AIC_DISPLAY_DITHER
+#if defined AIC_DISPLAY_DITHER && !defined AIC_DISABLE_DITHER
     switch (AIC_DISP_OUTPUT_DEPTH)
     {
     case DITHER_RGB565:

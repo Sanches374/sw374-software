@@ -7,9 +7,7 @@
  */
 
 #include "aic_core.h"
-#include "aic_reboot_reason.h"
 #include "hal_wri.h"
-#include "hal_rtc.h"
 
 #define  GTC_CNTVL       0x8
 #define  GTC_CLK_FREQ    4000000

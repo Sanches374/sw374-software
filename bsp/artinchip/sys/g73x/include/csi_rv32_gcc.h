@@ -1033,6 +1033,7 @@ __ALWAYS_STATIC_INLINE void __STOP(void)
 __ALWAYS_STATIC_INLINE void __ISB(void)
 {
     __ASM volatile("fence.i");
+    __ASM volatile("fence r, r");
 }
 
 
@@ -1043,7 +1044,10 @@ __ALWAYS_STATIC_INLINE void __ISB(void)
  */
 __ALWAYS_STATIC_INLINE void __DSB(void)
 {
-    __ASM volatile("fence");
+    __ASM volatile("fence iorw, iorw");
+#ifndef __riscv_xtheadse
+    __ASM volatile("sync");
+#endif
 }
 
 /**

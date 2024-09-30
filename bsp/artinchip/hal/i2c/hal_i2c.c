@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023, ArtInChip Technology Co., Ltd
+ * Copyright (c) 2022-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -17,9 +17,14 @@
 int hal_i2c_clk_init(aic_i2c_ctrl *i2c_dev)
 {
     int ret = 0;
-    ret = hal_clk_enable_deassertrst(CLK_I2C0 + i2c_dev->index);
-    if (ret < 0)
+    ret = hal_clk_enable_deassertrst(i2c_dev->clk_id);
+    if (ret < 0) {
         pr_err("I2C clock and reset init error\n");
+        return ret;
+    }
+
+    i2c_dev->module_clk = hal_clk_get_freq(i2c_dev->clk_id);
+
     return ret;
 }
 
@@ -84,72 +89,56 @@ int hal_i2c_slave_10bit_addr(aic_i2c_ctrl *i2c_dev)
     return 0;
 }
 
-static int hal_i2c_scl_cnt(uint32_t clk_freq, uint8_t is_standard_speed,
-                       uint16_t *hcnt, uint16_t *lcnt)
+int hal_i2c_set_speed(aic_i2c_ctrl *i2c_dev)
 {
-    uint16_t hcnt_tmp, lcnt_tmp;
-
-    CHECK_PARAM(hcnt, -EINVAL);
-    CHECK_PARAM(lcnt, -EINVAL);
-
-    if (is_standard_speed) {
-        /* Minimum value of tHIGH in standard mode is 4000ns
-                 * Plus 2 is just to increase the time of tHIGH, appropriately.
-                 * SS_MIN_SCL_HIGH * (clk_freq / 1000) is just to prevent 32bits
-                 * overflow. SS_MIN_SCL_HIGH * clk_freq will 32bits overflow.
-                 */
-        hcnt_tmp = SS_MIN_SCL_HIGH * (clk_freq / 1000) / 1000000 + 2;
-        lcnt_tmp = SS_MIN_SCL_LOW * (clk_freq / 1000) / 1000000 + 2;
-    } else {
-        /* If isStandardSpeed is false, set i2c to fast speed
-                 * Minimum value of tHIGH in fast mode is 600ns
-                 * Plus 3 is just to increase the time of tHIGH, appropriately.
-                 * FS_MIN_SCL_HIGH * (clk_freq / 1000)
-                 */
-        hcnt_tmp = FS_MIN_SCL_HIGH * (clk_freq / 1000) / 1000000 + 2;
-        lcnt_tmp = FS_MIN_SCL_LOW * (clk_freq / 1000) / 1000000 + 2;
-    }
-
-    *hcnt = hcnt_tmp;
-    *lcnt = lcnt_tmp;
-
-    return 0;
-}
-
-int hal_i2c_speed_mode_select(aic_i2c_ctrl *i2c_dev, uint32_t clk_freq, uint8_t mode)
-{
-    uint32_t reg_val;
+    uint32_t reg_val, temp, rate;
     uint16_t hcnt, lcnt;
-    int ret;
+    uint32_t spikelen = 3;
+    uint32_t duty_cycle = 50;   /* low / (low + high)time */
 
     CHECK_PARAM(i2c_dev, -EINVAL);
 
+    rate = i2c_dev->target_rate;
+
+    if (rate > 384000) {
+        /* When the freq large than 384KHz
+         * should change the duty cycle to need 1300ns
+         */
+        duty_cycle = (13 * rate) / 100000 + (((13 * rate) % 100000) ? 1 : 0);
+    }
+
+    temp = i2c_dev->module_clk / rate;
+
+    if (i2c_dev->module_clk < 24000000)
+        spikelen = 2;
+
+    lcnt = temp * duty_cycle / 100 + ((temp * duty_cycle % 100) ? 1 : 0) - 1;
+    hcnt = temp - lcnt - 8 - spikelen;
+
     reg_val = readl(gen_reg(i2c_dev->reg_base + I2C_CTL));
     reg_val &= ~I2C_CTL_SPEED_MODE_SELECT_MASK;
-    if (!mode) {
-        reg_val |= I2C_CTL_SPEED_MODE_FS;
-        /* Calculate fast speed HCNT and LCNT */
-        ret = hal_i2c_scl_cnt(clk_freq, false, &hcnt, &lcnt);
-        if (ret)
-            return ret;
 
+    if (rate >= 200 && rate <= 100000) {
+        reg_val |= I2C_CTL_SPEED_MODE_SS;
+        writel(hcnt, gen_reg(i2c_dev->reg_base + I2C_SS_SCL_HCNT));
+        writel(lcnt, gen_reg(i2c_dev->reg_base + I2C_SS_SCL_LCNT));
+
+    } else if (rate > 100000 && rate <= 400000) {
+        reg_val |= I2C_CTL_SPEED_MODE_FS;
         writel(hcnt, gen_reg(i2c_dev->reg_base + I2C_FS_SCL_HCNT));
         writel(lcnt, gen_reg(i2c_dev->reg_base + I2C_FS_SCL_LCNT));
     } else {
-        reg_val |= I2C_CTL_SPEED_MODE_SS;
-        /* Calculate standard speed HCNT and LCNT */
-        ret = hal_i2c_scl_cnt(clk_freq, true, &hcnt, &lcnt);
-        if (ret)
-            return ret;
-
-        writel(hcnt, gen_reg(i2c_dev->reg_base + I2C_SS_SCL_HCNT));
-        writel(lcnt, gen_reg(i2c_dev->reg_base + I2C_SS_SCL_LCNT));
+        reg_val |= I2C_CTL_SPEED_MODE_FS;
+        writel(hcnt, gen_reg(i2c_dev->reg_base + I2C_FS_SCL_HCNT));
+        writel(lcnt, gen_reg(i2c_dev->reg_base + I2C_FS_SCL_LCNT));
+        pr_err("Input param is out of range, now set to fast mode!\n");
     }
 
     writel(reg_val, gen_reg(i2c_dev->reg_base + I2C_CTL));
 
-    return 0;
+    return I2C_OK;
 }
+
 
 void hal_i2c_target_addr(aic_i2c_ctrl *i2c_dev, uint32_t addr)
 {
@@ -190,7 +179,8 @@ int hal_i2c_init(aic_i2c_ctrl *i2c_dev)
 #else
     hal_i2c_master_enable_irq(i2c_dev);
 #endif
-    ret = hal_i2c_speed_mode_select(i2c_dev, I2C_DEFALT_CLOCK, i2c_dev->speed_mode);
+
+    ret = hal_i2c_set_speed(i2c_dev);
     if (ret)
         return ret;
 
@@ -202,6 +192,9 @@ int hal_i2c_init(aic_i2c_ctrl *i2c_dev)
         hal_i2c_slave_own_addr(i2c_dev, i2c_dev->slave_addr);
         hal_i2c_module_enable(i2c_dev);
     }
+
+    hal_i2c_enable_sda_scl_stuck_timeout_restore(i2c_dev);
+    hal_i2c_set_sda_scl_stuck_time(i2c_dev);
 
     return ret;
 }

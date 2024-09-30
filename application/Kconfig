@@ -147,6 +147,16 @@ menuconfig LPKG_USING_LVGL
     default n
 
 if LPKG_USING_LVGL
+    choice
+        prompt "Select LVGL Version"
+        default LVGL_V_8
+
+        config LVGL_V_8
+            bool "LVGL V8"
+
+        config LVGL_V_9
+            bool "LVGL V9"
+    endchoice
 
     config LPKG_LVGL_PATH
         string
@@ -205,21 +215,11 @@ config AIC_LVGL_VSCODE_DEMO
     help
     "assets in packages/artinchip/lvgl-ui/aic_demo/vscode_simulator/hello_demo/lvgl_src"
 
-config AIC_LVGL_86BOX_DEMO
-    bool "LVGL demo with 86 box demo"
-    help
-        "Need to open freetype and set lvgl thread stack size to 98304"
-
 config AIC_LVGL_LAUNCHER_DEMO
     bool "LVGL launcher demo"
 
 config AIC_LVGL_DASHBOARD_DEMO
     bool "LVGL dashboard demo"
-
-config AIC_LVGL_DASHBOARD_SMALL_DEMO
-    bool "LVGL dashboard small demo"
-    help
-        "suitable for resolution 480 * 272"
 
 config AIC_LVGL_ELEVATOR_DEMO
     bool "LVGL elevator demo"
@@ -262,6 +262,38 @@ config LV_CACHE_IMG_NUM
     int "LVGL image cached number"
     default 2
     depends on LPKG_USING_LVGL
+
+config LV_DISPLAY_ROTATE_EN
+    bool "LVGL enable display rotation"
+    default n
+    depends on LPKG_USING_LVGL
+
+choice
+    prompt "LVGL rotation degree"
+    default LV_ROTATE_0
+    depends on LPKG_USING_LVGL
+    depends on LV_DISPLAY_ROTATE_EN
+
+config LV_ROTATE_0
+    bool "0"
+
+config LV_ROTATE_90
+    bool "90"
+
+config LV_ROTATE_180
+    bool "180"
+
+config LV_ROTATE_270
+    bool "270"
+endchoice
+
+config LV_ROTATE_DEGREE
+    int
+    default 0 if LV_ROTATE_0
+    default 90 if LV_ROTATE_90
+    default 180 if LV_ROTATE_180
+    default 270 if LV_ROTATE_270
+
 # Parameters for LVGL meter demo
 if AIC_LVGL_METER_DEMO
     config LV_METER_SIMPLE_POINT
@@ -314,8 +346,9 @@ if AIC_LVGL_USB_OSD_DEMO
             bool "Display LOGO"
         config LV_USB_OSD_SCREEN_LOCK_DISP_PIC
             bool "Display Pictures"
-        # config LV_USB_OSD_SCREEN_LOCK_DISP_VIDEO
-        #     bool "Display Video"
+        config LV_USB_OSD_SCREEN_LOCK_DISP_VIDEO
+            bool "Display Video"
+            depends on !AIC_SPINOR_DRV
         config LV_USB_OSD_SCREEN_LOCK_BLANK
             bool "Blank Screen"
     endchoice
@@ -324,7 +357,7 @@ if AIC_LVGL_USB_OSD_DEMO
         int
         default 0 if LV_USB_OSD_SCREEN_LOCK_DISP_LOGO
         default 1 if LV_USB_OSD_SCREEN_LOCK_DISP_PIC
-        #default 2 if LV_USB_OSD_SCREEN_LOCK_DISP_VIDEO
+        default 2 if LV_USB_OSD_SCREEN_LOCK_DISP_VIDEO
         default 3 if LV_USB_OSD_SCREEN_LOCK_BLANK
 
     if LV_USB_OSD_SCREEN_LOCK_DISP_LOGO
@@ -334,7 +367,7 @@ if AIC_LVGL_USB_OSD_DEMO
     endif #LV_USB_OSD_SCREEN_LOCK_DISP_LOGO
 
     config LV_USB_OSD_SETTINGS_MENU
-        bool "Enbale USB OSD Settings Menu"
+        bool "Enable USB OSD Settings Menu"
         default y
 
     if LV_USB_OSD_SETTINGS_MENU
@@ -342,6 +375,11 @@ if AIC_LVGL_USB_OSD_DEMO
             string "USB OSD Settings Menu Wakeup Key"
             default "PD.6"
     endif #LV_USB_OSD_SETTINGS_MENU
+
+    config LV_USB_OSD_PLAY_VIDEO
+        bool
+        default n if AIC_SPINOR_DRV
+        default y if AIC_SPINAND_DRV
 
 endif # AIC_LVGL_USB_OSD_DEMO
 

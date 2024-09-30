@@ -73,7 +73,7 @@ if PLATFORM == 'gcc':
     if CPUNAME == 'e906' or CPUNAME == 'e907':
         DEVICE = ' -march=rv32imac_xtheade -mabi=ilp32'
 
-    B_CFLAGS  = ' -c -g -ffunction-sections -fdata-sections -Wall -Werror -mcmodel=medlow'
+    B_CFLAGS  = ' -c -g -ffunction-sections -fdata-sections -Wall -mcmodel=medlow'
     B_AFLAGS  = ' -c' + ' -x assembler-with-cpp' + ' -D__ASSEMBLY__'
     CFLAGS  = DEVICE + B_CFLAGS + CFLAGS_DBG
     AFLAGS  = DEVICE + B_AFLAGS + AFLAGS_DBG

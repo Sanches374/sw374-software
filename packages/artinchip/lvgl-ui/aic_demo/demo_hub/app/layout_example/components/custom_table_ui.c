@@ -56,7 +56,13 @@ lv_obj_t *simple_table_create(lv_obj_t *parent)
     lv_obj_set_align(trash, LV_ALIGN_RIGHT_MID);
     lv_obj_add_flag(trash, LV_OBJ_FLAG_CLICKABLE);
 
+#if LVGL_VERSION_MAJOR == 8
     lv_obj_t *table_tv = lv_tabview_create(table, LV_DIR_TOP, 0);
+#else
+    lv_obj_t *table_tv = lv_tabview_create(table);
+    lv_tabview_set_tab_bar_position(table_tv, LV_DIR_TOP);
+    lv_tabview_set_tab_bar_size(table_tv, 0);
+#endif
     lv_obj_set_size(table_tv, LV_HOR_RES, LV_VER_RES * 0.85);
     lv_obj_set_pos(table_tv, 0, LV_VER_RES * 0.15);
     lv_obj_set_align(table_tv, LV_ALIGN_TOP_LEFT);
@@ -98,7 +104,11 @@ void simple_table_add(lv_obj_t *obj, char *context)
     if (tv_sub_create != now_tv_sub) {
         table_tv_sub = table_tv_sub_create(table_tv);
         footer_create(footer_container);
+#if LVGL_VERSION_MAJOR == 8
         lv_event_send(table_tv, LV_EVENT_VALUE_CHANGED, NULL);
+#else
+        lv_obj_send_event(table_tv, LV_EVENT_VALUE_CHANGED, NULL);
+#endif
         tv_sub_create = now_tv_sub;
     }
 

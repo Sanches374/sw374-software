@@ -23,7 +23,7 @@ static void back_event_cb(lv_event_t *e)
     lv_event_code_t code = (lv_event_code_t)lv_event_get_code(e);
 
     if (code == LV_EVENT_CLICKED) {
-#if defined(AIC_CHIP_D13X) || defined(AIC_CHIP_D21X)
+#if defined(AIC_DVP_TEST) && (defined(AIC_CHIP_D13X) || defined(AIC_CHIP_D21X))
         //release dvp resource
         extern void dvp_thread_stop();
         dvp_thread_stop();

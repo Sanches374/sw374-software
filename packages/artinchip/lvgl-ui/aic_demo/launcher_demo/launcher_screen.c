@@ -39,7 +39,7 @@ static void camera_event_cb(lv_event_t *e)
         // load camera screen
         lv_scr_load(scr_camera);
 
-#if defined(AIC_CHIP_D13X) || defined(AIC_CHIP_D21X)
+#if defined(AIC_DVP_TEST) && (defined(AIC_CHIP_D13X) || defined(AIC_CHIP_D21X))
         // open dvp
         char cmd[32] = {0};
         snprintf(cmd, sizeof(cmd), "test_dvp -c 0 \n");
@@ -57,7 +57,13 @@ lv_obj_t *launcher_screen_init(void)
     lv_img_set_src(img_bg, LVGL_PATH(bg.jpg));
     lv_obj_set_pos(img_bg, 0, 0);
 
+#if LVGL_VERSION_MAJOR == 8
     lv_obj_t *tab_sub = lv_tabview_create(scr_launcher, LV_DIR_TOP, 0);
+#else
+    lv_obj_t *tab_sub = lv_tabview_create(scr_launcher);
+    lv_tabview_set_tab_bar_position(tab_sub, LV_DIR_TOP);
+    lv_tabview_set_tab_bar_size(tab_sub, 0);
+#endif
     lv_obj_set_pos(tab_sub, 0, 0);
     lv_obj_set_style_bg_opa(tab_sub, LV_OPA_0, 0);
 

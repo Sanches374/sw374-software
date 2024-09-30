@@ -48,6 +48,7 @@ void coffee_ui_del(void)
     detailDel();
     menuDel();
     globalSrcDel();
+    lv_img_cache_invalidate_src(NULL);
 }
 
 static void dips_size_init()

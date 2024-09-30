@@ -52,7 +52,7 @@ static inline bool is_need_copy_dst(struct rng_request *req)
 
     rctx = rng_request_ctx(req);
     if ((u32)(uintptr_t)req->dst % rctx->seedsize) {
-        pr_debug("%s, offset(%d) is not aligned.\n", __func__, (u32)(uintptr_t)req->dst);
+        pr_debug("%s, offset(0x%x) is not aligned.\n", __func__, (u32)(uintptr_t)req->dst);
         return true;
     }
 
@@ -137,11 +137,11 @@ static int aic_rng_prepare_req(struct rng_tfm *tfm, struct rng_request *req)
         last_flag = ((i + 1) == task_cnt);
         bytelen = min(remain, rctx->seedsize);
         bytelen = ALIGN_UP(bytelen, rctx->seedsize);
-        aic_rng_task_cfg(task, rctx, dout, bytelen);
         if (last_flag)
             task->next = 0;
         else
             task->next = cpu_to_le32(next_addr);
+        aic_rng_task_cfg(task, rctx, dout, bytelen);
 
         dout += bytelen;
     }
@@ -252,6 +252,7 @@ static struct aic_rng_alg rng_algs[] = {
 
 void aic_rng_destroy(struct aic_rng_handle *handle)
 {
+    pr_debug("%s\n", __func__);
     if (handle->req->__ctx) {
         aicos_free(0, handle->req->__ctx);
         handle->req->__ctx = NULL;

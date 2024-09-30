@@ -222,9 +222,8 @@ rt_err_t rt_pwm_set_fifo_num(struct rt_device_pwm *device, int channel, rt_uint3
 
     return result;
 }
-
-#ifdef AIC_DMA_DRV
-rt_err_t rt_pwm_set_fifo(struct rt_device_pwm *device, int channel, rt_uint32_t *buf, rt_uint32_t buf_len)
+#ifdef AIC_USING_DMA
+rt_err_t rt_pwm_dma_set_fifo(struct rt_device_pwm *device, int channel, rt_uint32_t *buf, rt_uint32_t buf_len)
 {
     rt_err_t result = RT_EOK;
     struct rt_pwm_configuration configuration = {0};
@@ -237,11 +236,11 @@ rt_err_t rt_pwm_set_fifo(struct rt_device_pwm *device, int channel, rt_uint32_t 
     configuration.channel = (channel > 0) ? (channel) : (-channel);
     configuration.buf = buf;
     configuration.buf_len = buf_len;
-    result = rt_device_control(&device->parent, PWM_CMD_SET_FIFO, &configuration);
+    result = rt_device_control(&device->parent, PWM_CMD_DMA_SET_FIFO, &configuration);
 
     return result;
 }
-#else
+#endif
 rt_err_t rt_pwm_set_fifo(struct rt_device_pwm *device, int channel, rt_uint32_t fifo_index, rt_uint32_t period, rt_uint32_t pulse, rt_uint32_t pulse_cnt)
 {
     rt_err_t result = RT_EOK;
@@ -261,7 +260,6 @@ rt_err_t rt_pwm_set_fifo(struct rt_device_pwm *device, int channel, rt_uint32_t 
 
     return result;
 }
-#endif
 
 rt_err_t rt_pwm_get_fifo(struct rt_device_pwm *device, int channel)
 {
@@ -356,8 +354,8 @@ rt_err_t rt_pwm_set_pul(struct rt_device_pwm *device, int channel, rt_uint32_t i
 #include <string.h>
 #include <finsh.h>
 
-#if defined(AIC_XPWM_FIFO_MODE) && defined(AIC_DMA_DRV)
-rt_uint32_t buf[30] __attribute__((aligned(CACHE_LINE_SIZE))) = {0};
+#if defined(AIC_XPWM_DRV) && defined(AIC_USING_DMA)
+rt_uint32_t buf[8][30] __attribute__((aligned(CACHE_LINE_SIZE))) = {0};
 rt_uint32_t pul_num[10] = {2, 5, 2, 1, 2, 1, 2, 1, 2, 2};
 rt_uint32_t pul_prd[10] = {1000000, 500000, 800000, 1000000, 300000,
                            500000, 800000, 200000, 900000, 600000};
@@ -368,17 +366,17 @@ rt_uint32_t loop_times = 0;
 static rt_err_t xpwm_cb(rt_device_t dev, void *buff)
 {
     int i, j;
-    rt_uint32_t *p = (rt_uint32_t *)buff;
+    rt_uint8_t *p = (rt_uint8_t *)buff;
 
     static int loop = 1;
 
     if (loop < loop_times) {
         for (j = 0, i = 0; j < 10; j++, i+=3) {
-            buf[i] = pul_prd[j];
-            buf[i + 1] = pul_cmp[j];
-            buf[i + 2] = pul_num[j];
+            buf[p[0]][i] = pul_prd[j];
+            buf[p[0]][i + 1] = pul_cmp[j];
+            buf[p[0]][i + 2] = pul_num[j];
         }
-        rt_pwm_set_fifo((struct rt_device_pwm *)dev, p[0], buf, sizeof(buf));
+        rt_pwm_dma_set_fifo((struct rt_device_pwm *)dev, p[0], buf[p[0]], sizeof(buf[p[0]]));
         loop++;
     } else {
         loop = 1;
@@ -386,6 +384,7 @@ static rt_err_t xpwm_cb(rt_device_t dev, void *buff)
     return RT_EOK;
 }
 #endif
+
 static int pwm(int argc, char **argv)
 {
     rt_err_t result = -RT_ERROR;
@@ -515,19 +514,7 @@ static int pwm(int argc, char **argv)
             {
                 if (argc == 7)
                 {
-#ifdef AIC_XPWM_FIFO_MODE
-#ifdef AIC_DMA_DRV
-                    rt_uint32_t buf[3] __attribute__((aligned(CACHE_LINE_SIZE))) = {0};
-
-                    loop_times = 0;
-                    buf[0] = atoi(argv[4]);
-                    buf[1] = atoi(argv[5]);
-                    buf[2] = atoi(argv[6]);
-                    result = rt_pwm_set_fifo(pwm_device, atoi(argv[2]), buf, sizeof(buf));
-#else
                     result = rt_pwm_set_fifo(pwm_device, atoi(argv[2]), atoi(argv[3]), atoi(argv[4]), atoi(argv[5]), atoi(argv[6]));
-#endif
-#endif
                     rt_kprintf("pwm set fifo on %s at channel %d\n",pwm_device,atoi(argv[2]));
                 }
                 else
@@ -548,36 +535,55 @@ static int pwm(int argc, char **argv)
                     rt_kprintf("Usage: pwm get_fifo <channel>\n");
                 }
             }
-#if defined(AIC_XPWM_FIFO_MODE) && defined(AIC_DMA_DRV)
+#ifdef AIC_USING_DMA
+            else if (!strcmp(argv[1], "dma_set_fifo"))
+            {
+                if (argc == 6)
+                {
+                    rt_uint32_t buf[3] __attribute__((aligned(CACHE_LINE_SIZE))) = {0};
+
+                    loop_times = 0;
+                    buf[0] = atoi(argv[3]);
+                    buf[1] = atoi(argv[4]);
+                    buf[2] = atoi(argv[5]);
+
+                    result = rt_pwm_dma_set_fifo(pwm_device, atoi(argv[2]), buf, sizeof(buf));
+                }
+                else
+                {
+                    rt_kprintf("DMA set fifo of device: [%s] error\n", pwm_device);
+                    rt_kprintf("Usage: pwm dma_set_fifo <channel> <period> <pulse> <pulse cnt>\n");
+                }
+            }
             else if (!strcmp(argv[1], "dma_test"))
             {
-                    if (argc == 4)
+                if (argc == 4)
+                {
+                    int i, j;
+                    int ch = atoi(argv[2]);
+
+                    /* set callback function */
+                    rt_device_set_tx_complete(&pwm_device->parent, xpwm_cb);
+
+                    /* loop triggering will be reflected in the callback */
+                    loop_times = atoi(argv[3]);
+
+                    rt_kprintf("xpwm ch%d will loop %d times\n", ch, loop_times);
+
+                    for (j = 0, i = 0; j < 10; j++, i+=3)
                     {
-                        int i, j;
-
-                        /* set callback function */
-                        rt_device_set_tx_complete(&pwm_device->parent, xpwm_cb);
-
-                        rt_kprintf("xpwm ch%d will loop %d times\n", atoi(argv[2]), atoi(argv[3]));
-
-                        /* loop triggering will be reflected in the callback */
-                        loop_times = atoi(argv[3]);
-
-                        for (j = 0, i = 0; j < 10; j++, i+=3)
-                        {
-                            buf[i] = pul_prd[j];
-                            buf[i + 1] = pul_cmp[j];
-                            buf[i + 2] = pul_num[j];
-                        }
-                        /* trigger the first DMA transport */
-                        result = rt_pwm_set_fifo(pwm_device, atoi(argv[2]), buf, sizeof(buf));
-
+                        buf[ch][i] = pul_prd[j];
+                        buf[ch][i + 1] = pul_cmp[j];
+                        buf[ch][i + 2] = pul_num[j];
                     }
-                    else
-                    {
-                        rt_kprintf("xpwm dma test: [%s] error\n", pwm_device);
-                        rt_kprintf("Usage: pwm dma_test <channel> <loop_times>\n");
-                    }
+                    /* trigger the first DMA transport */
+                    result = rt_pwm_dma_set_fifo(pwm_device, ch, buf[ch], sizeof(buf[ch]));
+                }
+                else
+                {
+                    rt_kprintf("xpwm dma test: [%s] error\n", pwm_device);
+                    rt_kprintf("Usage: pwm dma_test <channel> <loop_times>\n");
+                }
             }
 #endif
 #endif
@@ -601,10 +607,9 @@ static int pwm(int argc, char **argv)
         rt_kprintf("pwm set          <channel> <period> <pulse> <pulse cnt>               - set pwm channel info\n");
         rt_kprintf("pwm set_fifo_num <channel> <fifo_num>                                 - set xpwm fifo count\n");
         rt_kprintf("pwm set_fifo     <channel> <fifo_index> <period> <pulse> <pulse cnt>  - set xpwm fifo info\n");
-        rt_kprintf("pwm get_fifo      <channel>                                           - get xpwm fifo info\n");
-#if defined(AIC_XPWM_FIFO_MODE) && defined(AIC_DMA_DRV)
+        rt_kprintf("pwm get_fifo     <channel>                                            - get xpwm fifo info\n");
+        rt_kprintf("pwm dma_set_fifo <channel> <period> <pulse> <pulse cnt>               - set xpwm dma fifo info\n");
         rt_kprintf("pwm dma_test     <channel> <loop_times>                               - xpwm dma test\n");
-#endif
 #else
         rt_kprintf("pwm set     <channel> <period> <pulse>                                - set pwm channel info\n");
 #endif

@@ -7,7 +7,7 @@
             "env_r":      { "size": "128k" },
             "userid":     { "size": "256k" }, // at least 16KB
             "os":         { "size": "2m" },
-            "rodata":     { "size": "10m" },
+            "rodata":     { "size": "9m" },
             "data":       { "size": "1m" }
         },
     },
@@ -83,8 +83,8 @@
                 "head_ver": "0x00010001",
                 "loader": {
                     "file": "bootloader.bin",
-                    "load address": "0x40200000",
-                    "entry point":  "0x40200100",
+                    "load address": "0x40300000",
+                    "entry point":  "0x40300100",
                 },
                 "resource": {
                     "private": "pbp_cfg.bin",

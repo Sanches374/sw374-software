@@ -18,8 +18,8 @@ extern "C" {
 
 /* Luban-Lite version information */
 #define LL_VERSION      1               /**< major version number */
-#define LL_SUBVERSION   0               /**< minor version number */
-#define LL_REVISION     6               /**< revise version number */
+#define LL_SUBVERSION   1               /**< minor version number */
+#define LL_REVISION     0               /**< revise version number */
 
 typedef __signed__ char     s8;
 typedef unsigned char       u8;
@@ -140,6 +140,11 @@ typedef unsigned long ptr_t;
 # define _IO(x, y)          (((x) << 8) | y)
 #endif
 
+#ifdef asm
+#undef asm
+#endif
+#define asm __asm__
+
 #define ARCH_DMA_MINALIGN   CACHE_LINE_SIZE
 
 #if defined(KERNEL_RTTHREAD)
@@ -152,6 +157,8 @@ typedef unsigned long ptr_t;
 #endif
 #elif defined(KERNEL_BAREMETAL)
 #define CONFIG_SYSTICK_HZ 100
+#elif defined(KERNEL_UCOS_II)
+#define CONFIG_SYSTICK_HZ UCOS_TICKS_PER_SEC
 #endif
 
 #undef offsetof

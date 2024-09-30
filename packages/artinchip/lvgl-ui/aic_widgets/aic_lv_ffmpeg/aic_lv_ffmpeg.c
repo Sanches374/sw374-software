@@ -57,7 +57,11 @@ const lv_obj_class_t lv_aic_player_class = {
     .constructor_cb = lv_ffmpeg_player_constructor,
     .destructor_cb = lv_ffmpeg_player_destructor,
     .instance_size = sizeof(lv_ffmpeg_player_t),
+#if LVGL_VERSION_MAJOR == 8
     .base_class = &lv_img_class
+#else
+    .base_class = &lv_image_class
+#endif
 };
 
 void lv_ffmpeg_init(void)
@@ -151,7 +155,7 @@ lv_res_t lv_ffmpeg_player_set_src(lv_obj_t * obj, const char *path)
     }
 
     snprintf(fake_image_name, 128, "L:/%dx%d_%d_%08x.fake",
-             width, height, 0, 0x00000000);
+             (int)width, (int)height, 0, 0x00000000);
     lv_img_set_src(&player->img.obj, fake_image_name);
 
     if (width == 0 && height == 0) {
@@ -347,12 +351,6 @@ static void lv_ffmpeg_player_frame_update_cb(lv_timer_t * timer)
     }
 
     lv_ffmpeg_player_get_disp_area(obj, &point, &width, &height, &rotation);
-    if (rotation != 90 || rotation != 180 || rotation != 270) {
-        LV_LOG_ERROR("aic_player only supported rotation angles, 90, 180, 270\n");
-        LV_LOG_ERROR("obj default rotation angle is set to 0\n");
-        lv_obj_set_style_transform_angle(obj, 0, LV_PART_MAIN);
-        goto update_cb_out;
-    }
 
     /* avoid repeatedly setting in callback functions */
     if (last_point.x != point.x || last_point.y != point.y ||
@@ -382,8 +380,8 @@ static void lv_ffmpeg_player_get_disp_area(lv_obj_t *obj, lv_point_t *pos,
 
     lv_obj_get_coords(obj, &coords);
 
-    *width = lv_obj_get_style_width(obj, 0);
-    *height = lv_obj_get_style_height(obj, 0);
+    *width = lv_obj_get_width(obj);
+    *height = lv_obj_get_height(obj);
 
     pos->x = coords.x1;
     pos->y = coords.y1;
@@ -398,12 +396,13 @@ static void lv_ffmpeg_player_set_disp_area(lv_obj_t *obj, lv_point_t pos,
     struct ffmpeg_context_s *ffmpeg_ctx = player->ffmpeg_ctx;
     lv_obj_t *mask_img = &player->img.obj;
     struct mpp_rect disp_rect = {0};
-	u32 mpp_rotation = MPP_ROTATION_0;
+    u32 mpp_rotation = MPP_ROTATION_0;
 
     int ret = -1;
     char fake_image_name[128] = {0};
+
     snprintf(fake_image_name, 128, "L:/%dx%d_%d_%08x.fake",
-             width, height, 0, 0x00000000);
+             (int)width, (int)height, 0, 0x00000000);
 
     /* use fake image to change the transparency of the relevant ui layer to 0,
      * so that the video player can not be affected.
@@ -447,12 +446,17 @@ static void lv_ffmpeg_player_protect_disp_area(lv_obj_t *obj, lv_point_t *pos,
 
     if (pos->x + *width > LV_HOR_RES) {
         *width = (LV_HOR_RES - pos->x);
-        LV_LOG_ERROR("lv obj width too large!");
+        LV_LOG_ERROR("lv obj width too large!\n");
     }
 
     if (pos->y + *height > LV_VER_RES) {
         *height = (LV_HOR_RES - pos->y);
         LV_LOG_ERROR("lv obj height too large!");
+    }
+
+    if (*rotation != 0 && *rotation != 90 && *rotation != 180 && *rotation != 270) {
+        LV_LOG_ERROR("aic_player only supported rotation angles, 0, 90, 180, 270, rotation set to 0\n");
+        *rotation = 0;
     }
 }
 

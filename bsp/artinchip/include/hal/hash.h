@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2020-2024 ArtInChip Technology Co., Ltd. All rights reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ */
 #ifndef HASH_H
 #define HASH_H
 
@@ -90,31 +96,32 @@ void hash_start_calculate(HASH_CTX *ctx);
 void hash_calc_blocks(HASH_CTX *ctx, const u8 *msg, u32 block_count);
 void hash_calc_rand_len_msg(HASH_CTX *ctx, const u8 *msg, u32 msg_bytes);
 
-u32 hash_init_with_iv_and_updated_length(HASH_CTX *ctx, HASH_ALG hash_alg, u32 *iv, 
+u32 hash_init_with_iv_and_updated_length(HASH_CTX *ctx, HASH_ALG hash_alg, u32 *iv,
         u32 byte_length_h, u32 byte_length_l);
 u32 hash_init(HASH_CTX *ctx, HASH_ALG hash_alg);
 u32 hash_update(HASH_CTX *ctx, const u8 *msg, u32 msg_bytes);
 u32 hash_final(HASH_CTX *ctx, u8 *digest);
 u32 hash(HASH_ALG hash_alg, u8 *msg, u32 msg_bytes, u8 *digest);
+u32 hash2(HASH_ALG hash_alg, u8 *msg0, u32 msg0_bytes, u8 *msg, u32 msg_bytes, u8 *digest);
 
 #ifdef AIC_HASH_NODE
 u32 hash_node_steps(HASH_ALG hash_alg, HASH_NODE *node, u32 node_num, u8 *digest);
 #endif
 
 #ifdef AIC_HASH_DMA
-u32 hash_dma_init_with_iv_and_updated_length(HASH_DMA_CTX *ctx, HASH_ALG hash_alg, u32 *iv, 
+u32 hash_dma_init_with_iv_and_updated_length(HASH_DMA_CTX *ctx, HASH_ALG hash_alg, u32 *iv,
         u32 byte_length_h, u32 byte_length_l, HASH_CALLBACK callback);
 u32 hash_dma_init(HASH_DMA_CTX *ctx, HASH_ALG hash_alg, HASH_CALLBACK callback);
 
 #ifdef AIC_HASH_ADDRESS_HIGH_LOW
 u32 hash_dma_update_blocks(HASH_DMA_CTX *ctx, u32 msg_h, u32 msg_l, u32 msg_bytes);
-u32 hash_dma_final(HASH_DMA_CTX *ctx, u32 remainder_msg_h, u32 remainder_msg_l, 
+u32 hash_dma_final(HASH_DMA_CTX *ctx, u32 remainder_msg_h, u32 remainder_msg_l,
         u32 remainder_bytes, u32 digest_h, u32 digest_l);
-u32 hash_dma(HASH_ALG hash_alg, u32 msg_h, u32 msg_l, u32 msg_bytes, u32 digest_h, 
+u32 hash_dma(HASH_ALG hash_alg, u32 msg_h, u32 msg_l, u32 msg_bytes, u32 digest_h,
         u32 digest_l, HASH_CALLBACK callback);
 
 #ifdef AIC_HASH_DMA_NODE
-u32 hash_dma_node_steps(HASH_ALG hash_alg, HASH_DMA_NODE *node, u32 node_num, u32 digest_h, 
+u32 hash_dma_node_steps(HASH_ALG hash_alg, HASH_DMA_NODE *node, u32 node_num, u32 digest_h,
         u32 digest_l, HASH_CALLBACK callback);
 #endif
 #else
@@ -123,7 +130,7 @@ u32 hash_dma_final(HASH_DMA_CTX *ctx, u32 *remainder_msg, u32 remainder_bytes, u
 u32 hash_dma(HASH_ALG hash_alg, u32 *msg, u32 msg_bytes, u32 *digest, HASH_CALLBACK callback);
 
 #ifdef AIC_HASH_DMA_NODE
-u32 hash_dma_node_steps(HASH_ALG hash_alg, HASH_DMA_NODE *node, u32 node_num, u32 *digest, 
+u32 hash_dma_node_steps(HASH_ALG hash_alg, HASH_DMA_NODE *node, u32 node_num, u32 *digest,
         HASH_CALLBACK callback);
 #endif
 #endif

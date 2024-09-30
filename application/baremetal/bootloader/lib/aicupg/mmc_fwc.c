@@ -1,14 +1,16 @@
 /*
- * Copyright (c) 2023, Artinchip Technology Co., Ltd
+ * Copyright (c) 2023-2024, ArtInChip Technology Co., Ltd
  *
  * SPDX-License-Identifier: Apache-2.0
  *
- * Xiong Hao <hao.xiong@artinchip.com>
+ * Authors:  Xiong Hao <hao.xiong@artinchip.com>
  */
 
 #include <string.h>
 #include <aic_common.h>
 #include <aic_core.h>
+#include <aic_utils.h>
+#include <aic_crc32.h>
 #include <aicupg.h>
 #include <sparse_format.h>
 #include <partition_table.h>
@@ -107,8 +109,6 @@ void mmc_fwc_start(struct fwc_info *fwc)
     }
     fwc->priv = priv;
     fwc->block_size = MMC_BLOCK_SIZE;
-    fwc->burn_result = 0;
-    fwc->run_result = 0;
 
     ops.blk_write = mmc_write;
     ops.blk_read = mmc_read;
@@ -385,6 +385,7 @@ s32 mmc_fwc_sparse_write(struct fwc_info *fwc, u8 *buf, s32 len)
         memcpy(priv->remain_data, wbuf, priv->remain_len);
     }
 
+    fwc->calc_partition_crc = fwc->meta.crc;
     fwc->trans_size += clen;
 
     pr_debug("%s, data len %d, trans len %d\n", __func__, len, fwc->trans_size);
@@ -399,8 +400,15 @@ s32 mmc_fwc_raw_write(struct fwc_info *fwc, u8 *buf, s32 len)
     struct aicupg_mmc_priv *priv;
     struct aic_partition *parts = NULL;
     u64 blkstart, blkcnt;
+    u8 *rdbuf;
     long n;
-    u32 clen = 0;
+    u32 clen = 0, calc_len = 0;
+
+    rdbuf = aicos_malloc_align(0, len, CACHE_LINE_SIZE);
+    if (!rdbuf) {
+        pr_err("Error: malloc buffer failed.\n");
+        return 0;
+    }
 
     priv = (struct aicupg_mmc_priv *)fwc->priv;
     if (!priv) {
@@ -426,17 +434,41 @@ s32 mmc_fwc_raw_write(struct fwc_info *fwc, u8 *buf, s32 len)
     n = mmc_bwrite(priv->host, (parts->start / MMC_BLOCK_SIZE) + blkstart, blkcnt, buf);
     if (n != blkcnt) {
         pr_err("Error, write to partition %s failed.\n", fwc->meta.partition);
-        fwc->burn_result += 1;
         clen = n * MMC_BLOCK_SIZE;
         fwc->trans_size += clen;
     }
 
+    // Read data to calc crc
+    n = mmc_bread(priv->host, (parts->start / MMC_BLOCK_SIZE) + blkstart, blkcnt, rdbuf);
+    if (n != blkcnt) {
+        pr_err("Error, read from  partition %s failed.\n", fwc->meta.partition);
+        clen = n * MMC_BLOCK_SIZE;
+        fwc->trans_size += clen;
+    }
+
+    if ((fwc->meta.size - fwc->trans_size) < len)
+        calc_len = fwc->meta.size - fwc->trans_size;
+    else
+        calc_len = len;
+
+    fwc->calc_partition_crc = crc32(fwc->calc_partition_crc, rdbuf, calc_len);
+#ifdef AICUPG_SINGLE_TRANS_BURN_CRC32_VERIFY
+    fwc->calc_trans_crc = crc32(fwc->calc_trans_crc, buf, calc_len);
+    if (fwc->calc_trans_crc != fwc->calc_partition_crc) {
+        pr_err("calc_len:%d\n", calc_len);
+        pr_err("crc err at trans len %u\n", fwc->trans_size);
+        pr_err("trans crc:0x%x, partition crc:0x%x\n", fwc->calc_trans_crc,
+                fwc->calc_partition_crc);
+    }
+#endif
+
     fwc->trans_size += clen;
 
-    pr_debug("%s, data len %d, trans len %d\n", __func__, len,
-            fwc->trans_size);
+    pr_debug("%s, data len %d, trans len %d\n", __func__, len, fwc->trans_size);
 
 out:
+    if (rdbuf)
+        aicos_free_align(0, rdbuf);
     return clen;
 }
 

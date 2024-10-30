@@ -1,0 +1,1 @@
+source "application/rt-thread/helloworld/user_led/Kconfig"

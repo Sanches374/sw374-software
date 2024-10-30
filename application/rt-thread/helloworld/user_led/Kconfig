@@ -1,0 +1,5 @@
+config USER_LED_ON
+    bool "Turn on the user LED flashing"
+    default n
+    help
+        More information is available at: https://wiki.lckfb.com/

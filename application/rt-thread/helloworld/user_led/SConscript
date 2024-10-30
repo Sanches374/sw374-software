@@ -1,0 +1,29 @@
+# 导入预定义的变量和函数
+Import('AIC_ROOT')  # 导入AIC_ROOT变量，通常用于表示项目根目录
+Import('rtconfig')  # 导入rtconfig变量，通常包含项目的配置信息
+
+# 导入Python模块
+import rtconfig  # 导入rtconfig模块，以便直接使用其中的配置
+from building import *  # 从building模块导入所有内容，可能包含自定义的构建函数和变量
+
+# 获取当前目录的路径
+cwd = GetCurrentDir()  # 获取当前SConscript文件所在的目录路径
+
+# 设置头文件搜索路径
+CPPPATH = [cwd]  # 将当前目录添加到编译器的头文件搜索路径中
+
+# 初始化源文件列表
+src = []  # 创建一个空列表，用于存放源文件
+
+# 如果在rtconfig中定义了USER_LED_ON，那么获取当前目录下所有的.c源文件，反之则不获取！
+if GetDepend('USER_LED_ON'):
+    src = Glob(os.path.join(cwd, '*.c'))  # 使用Glob函数查找当前目录下所有的.c文件，并将它们添加到src列表中
+
+# 定义构建组
+group = DefineGroup('lckfb-user-led', src, depend = [''], CPPPATH = CPPPATH)
+# 创建一个名为'lckfb-user-led'的构建组，包含src列表中的所有源文件
+# depend参数指定了构建这个组之前需要先构建的其他组或目标，这里为空字符串，表示没有依赖
+# CPPPATH参数设置了头文件搜索路径，这里使用了前面定义的CPPPATH
+
+# 返回构建组，供上层SConscript文件或其他SConscript文件使用
+Return('group')  # 将定义的构建组作为返回值，这样其他SConscript文件可以引用这个组

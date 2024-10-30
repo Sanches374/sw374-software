@@ -3,7 +3,7 @@
 		"PowerShell": {
 			"source": "PowerShell",
 			"icon": "terminal-powershell",
-			"args": ["${workspaceFolder}/win_cmd.bat"],
+			"args": ["-NoExit", "-Command", "cmd /c ${workspaceFolder}/win_cmd.bat"],
 		},
 		"Command Prompt": {
 			"path": [

@@ -1,0 +1,9 @@
+config SW374_WIFI_CONNECT
+    bool "Connet to the wifi using the wificonfig.conf"
+    default n
+#    help
+#        More information is available at: https://wiki.lckfb.com/
+
+#    if SW374_WIFI_CONNECT
+#    source "bsp/peripheral/wireless/realtek/Kconfig"
+#    endif

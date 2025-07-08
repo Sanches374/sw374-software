@@ -16,7 +16,7 @@ CPPPATH = [cwd]  # 将当前目录添加到编译器的头文件搜索路径中
 src = []  # 创建一个空列表，用于存放源文件
 
 # 如果在rtconfig中定义了USER_LED_ON，那么获取当前目录下所有的.c源文件，反之则不获取！
-if GetDepend('USER_LED_ON'):
+if GetDepend('USER_LED_ON') and GetDepend('USING_SW374'):
     src = Glob(os.path.join(cwd, '*.c'))  # 使用Glob函数查找当前目录下所有的.c文件，并将它们添加到src列表中
 
 # 定义构建组

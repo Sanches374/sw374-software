@@ -1,1 +1,22 @@
+comment "Steering Wheel Function Module Code by 374"
+
+menuconfig USING_SW374
+    bool "Select the modules need to enable"
+    default y
+#     help
+#         Official Website : www.lckfb.com
+
+# 如果使用立创开发板的模块移植代码则开启下面的选项
+if USING_SW374
 source "application/rt-thread/sw374/user_led/Kconfig"
+source "application/rt-thread/sw374/wifi_connect/Kconfig"
+
+# source "application/rt-thread/helloworld/user-bsp/rt_thread_class_cpp/Kconfig"
+# source "application/rt-thread/helloworld/user-bsp/ws2812-color-light/Kconfig"
+# source "application/rt-thread/helloworld/user-bsp/ec11/Kconfig"
+# source "application/rt-thread/helloworld/user-bsp/tcpserver/Kconfig"
+# source "application/rt-thread/helloworld/user-bsp/dataprocessor/Kconfig"
+# source "application/rt-thread/helloworld/user-bsp/nrf24l01/Kconfig"
+# source "application/rt-thread/helloworld/user-bsp/74hc165/Kconfig"
+
+endif # 结束

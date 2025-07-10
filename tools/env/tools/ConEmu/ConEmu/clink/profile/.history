@@ -29,3 +29,20 @@ me
 me
 sconss -j12
 scons -j12
+me
+sconss -j12
+scons -j12
+c
+me
+sconss -j12
+start_tcp_server
+scons -j12
+me
+c
+me
+sconss -j12
+start_tcp_server
+list
+lunch 0
+me
+scons -j12

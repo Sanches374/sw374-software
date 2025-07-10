@@ -22,7 +22,7 @@ int dfs_read_from_file(char *buf, size_t buf_size, const char * file_dir)
     // 打开文件以只读模式
     fd = open(file_dir, O_RDONLY);
     if (fd < 0) {
-        LOG_E("Failed to open /data/wifi_conf for reading, errno: %d", errno);
+        LOG_E("Failed to open %s for reading, errno: %d", file_dir, errno);
         return -1;
     }
 

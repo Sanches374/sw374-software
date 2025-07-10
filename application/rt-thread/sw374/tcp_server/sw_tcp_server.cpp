@@ -10,7 +10,7 @@
 #include <errno.h>
 #include <cJSON.h>
 
-#include "sw_TCP_server.h"
+#include "sw_tcp_server.h"
 
 // 配置文件
 #include "SW_conf.h"
@@ -24,7 +24,7 @@ struct cJson_msg {
 };
 
 // 声明全局消息队列 
-// extern rt_mq_t cJson_msg_queue;
+extern rt_mq_t cJson_msg_queue;
 
 
 
@@ -32,8 +32,9 @@ struct cJson_msg {
 // 线程入口函数 
 void tcp_server_thread_entry(void *parameter)
 {
-    int Port = *(int *)parameter;
-
+    int Port = (int)parameter;
+    LOG_I("Port:%d", Port);
+    // LOG_I("*Port:%d", *Port);
     char *recv_data;
     socklen_t sin_size;
     int sock, connected, bytes_received;
@@ -41,7 +42,8 @@ void tcp_server_thread_entry(void *parameter)
     rt_bool_t stop = RT_FALSE;
     int ret;
 
-    recv_data = rt_malloc(TcpServer_BUFSZ + 1);
+    recv_data = static_cast<char*>(rt_malloc(TcpServer_BUFSZ + 1)); // cpp
+    // recv_data = rt_malloc(TcpServer_BUFSZ + 1); //c
     if (recv_data == RT_NULL) {
         LOG_E("No memory");
         return;
@@ -106,9 +108,9 @@ void tcp_server_thread_entry(void *parameter)
             }
 
             recv_data[bytes_received] = '\0';
-// #ifdef TcpServerDebug
+#ifdef TcpServerDebug
             LOG_I("Received: %s\n", recv_data);
-// #endif
+#endif
             
             /* 命令处理 */
             if (strcmp(recv_data, "q") == 0 || strcmp(recv_data, "Q") == 0) {
@@ -126,10 +128,10 @@ void tcp_server_thread_entry(void *parameter)
                 msg.json = json;
 
                 // /* 发送到消息队列 - 失败时需自行释放 */
-                // if (rt_mq_send(cJson_msg_queue, &msg, sizeof(msg))) {
-                //     LOG_E("Failed to send to message queue");
-                //     cJSON_Delete(json);  // 发送失败时释放
-                // }
+                if (rt_mq_send(cJson_msg_queue, &msg, sizeof(msg))) {
+                    LOG_E("Failed to send to message queue");
+                    cJSON_Delete(json);  // 发送失败时释放
+                }
                 // 发送成功则接收方负责释放
             }
         }
@@ -145,13 +147,12 @@ void tcp_server_thread_entry(void *parameter)
 }
 
 /* 线程创建命令 */
-// static void start_tcp_server(int argc, char **argv)
 void start_tcp_server(int port)
 {
     rt_thread_t tid = rt_thread_create(
         "tcp_serv",
         tcp_server_thread_entry,  // 线程入口函数
-        &port,                    // 传递端口号的地址
+        (void*)port,                    // 传递端口号的地址
         TcpServer_THREAD_STACK_SIZE,
         TcpServer_THREAD_PRIORITY,
         TcpServer_THREAD_TIMESLICE
@@ -164,5 +165,3 @@ void start_tcp_server(int port)
         LOG_E("Failed to create thread");
     }
 }
-
-MSH_CMD_EXPORT(start_tcp_server, start TCP server thread);

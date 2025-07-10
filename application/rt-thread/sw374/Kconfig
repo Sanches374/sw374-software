@@ -14,8 +14,13 @@ source "application/rt-thread/sw374/dfs_file_config/Kconfig"
 # 根据配置文件连接wifi
 source "application/rt-thread/sw374/wifi_connect/Kconfig"
 # 根据配置文件建立TCPserver
-source "application/rt-thread/sw374/TCPserver/Kconfig"
+source "application/rt-thread/sw374/tcp_server/Kconfig"
+# 根据配置文件建立 遥测数据处理器telemetry_data_proccessor
+# source "application/rt-thread/sw374/telemetry_data_processor/Kconfig"
 
+
+# 屏幕驱动显示
+# source "application/rt-thread/sw374/lvgl_ui/Kconfig"
 # source "application/rt-thread/helloworld/user-bsp/rt_thread_class_cpp/Kconfig"
 # source "application/rt-thread/helloworld/user-bsp/ws2812-color-light/Kconfig"
 # source "application/rt-thread/helloworld/user-bsp/ec11/Kconfig"

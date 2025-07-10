@@ -17,7 +17,7 @@
 #endif
 
 #ifdef SW374_TCP_SERVER
-#include "sw_TCP_server.h"
+#include "sw_tcp_server.h"
 #endif
 
 
@@ -25,7 +25,12 @@
 #include <ulog.h>
 
 
-int main(void)
+/* 消息队列全局定义 */
+rt_mq_t cJson_msg_queue = RT_NULL;
+
+
+int main(void){}
+int sw374_main(void)
 {
 //  等待1秒后进入初始化
     char * wifissid = NULL;
@@ -55,9 +60,8 @@ int main(void)
 
 
 
-
-
     return 0;
 }
 
-MSH_CMD_EXPORT(main, main)
+MSH_CMD_EXPORT(sw374_main, sw374_main);
+INIT_APP_EXPORT(sw374_main);

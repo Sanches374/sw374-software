@@ -1,0 +1,6 @@
+config SW374_LVGL_UI
+    bool "Using LVGL UI"
+    default n
+#    help
+#        More information is available at: https://wiki.lckfb.com/
+

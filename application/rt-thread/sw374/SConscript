@@ -11,7 +11,9 @@ if GetDepend('SW374_DFS_FILE_CONFIG') and GetDepend('USING_SW374'):
 if GetDepend('SW374_WIFI_CONNECT') and GetDepend('USING_SW374'):
     CPPPATH.append(cwd + '/wifi_connect/')
 if GetDepend('SW374_TCP_SERVER') and GetDepend('USING_SW374'):
-    CPPPATH.append(cwd + '/TCPserver/')
+    CPPPATH.append(cwd + '/tcp_server/')
+if GetDepend('SW374_TELEMETRY_DATA_PROCESSOR') and GetDepend('USING_SW374'):
+    CPPPATH.append(cwd + '/telemetry_data_processor/')
 
 CFLAGS = ' -c -ffunction-sections'
 

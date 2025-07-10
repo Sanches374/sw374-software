@@ -1,0 +1,7 @@
+config SW374_DFS_FILE_CONFIG
+    bool "Using DFS to read/write the config file \'config.conf\'"
+    default y
+    help
+        More information is available at: https://wiki.lckfb.com/
+
+

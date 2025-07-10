@@ -4,7 +4,14 @@ from building import *
 
 cwd     = GetCurrentDir()
 src     = Glob('*.c')
-CPPPATH = [cwd, ]
+
+CPPPATH = [cwd]
+if GetDepend('SW374_DFS_FILE_CONFIG') and GetDepend('USING_SW374'):
+    CPPPATH.append(cwd + '/dfs_file_config/')
+if GetDepend('SW374_WIFI_CONNECT') and GetDepend('USING_SW374'):
+    CPPPATH.append(cwd + '/wifi_connect/')
+if GetDepend('SW374_TCP_SERVER') and GetDepend('USING_SW374'):
+    CPPPATH.append(cwd + '/TCPserver/')
 
 CFLAGS = ' -c -ffunction-sections'
 

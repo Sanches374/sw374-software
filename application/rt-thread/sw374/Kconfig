@@ -9,7 +9,12 @@ menuconfig USING_SW374
 # 如果使用立创开发板的模块移植代码则开启下面的选项
 if USING_SW374
 source "application/rt-thread/sw374/user_led/Kconfig"
+# 读取配置文件
+source "application/rt-thread/sw374/dfs_file_config/Kconfig"
+# 根据配置文件连接wifi
 source "application/rt-thread/sw374/wifi_connect/Kconfig"
+# 根据配置文件建立TCPserver
+source "application/rt-thread/sw374/TCPserver/Kconfig"
 
 # source "application/rt-thread/helloworld/user-bsp/rt_thread_class_cpp/Kconfig"
 # source "application/rt-thread/helloworld/user-bsp/ws2812-color-light/Kconfig"

@@ -1,0 +1,8 @@
+config SW374_TCP_SERVER
+    bool "Using TCP server"
+    select SW374_WIFI_CONNECT
+    default n
+    help
+        More information is available at: https://wiki.lckfb.com/
+
+

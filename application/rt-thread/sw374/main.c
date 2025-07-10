@@ -50,7 +50,7 @@ int main(void)
 // 建立TCPserver
 #ifdef SW374_TCP_SERVER
     LOG_I("TCP server is starting ...");
-    start_tcp_server();
+    start_tcp_server(10001);
 #endif
 
 

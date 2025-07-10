@@ -10,3 +10,22 @@ scons -j2
 c
 me
 scons -j12
+c
+me
+scons -j12
+me
+scons -j2
+scons -j2
+c
+me
+scons -j12
+c
+me
+me
+sconss -j12
+scons -j12
+c
+me
+me
+sconss -j12
+scons -j12

@@ -1,3 +1,14 @@
+
+// 配置ulog日志
+#define LOG_TAG "dfs_file_read"
+#include <ulog.h>
+
+// 文件系统相关
+#include <dfs_posix.h> 
+
+// 轻量json解析库
+#include <cJSON.h>
+
 #include "sw_dfs_file_read.h"
 
 const char file_dir[] = "/rodata/config.conf";

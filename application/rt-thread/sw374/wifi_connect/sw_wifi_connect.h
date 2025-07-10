@@ -1,23 +1,7 @@
 #ifndef WIFI_CONNECT_H
 #define WIFI_CONNECT_H
 
-#include <rtthread.h>
 
-// 配置ulog日志
-#define LOG_TAG "wifi_connect"
-#include <ulog.h>
-
-// Lwip
-#include <lwip/netif.h>
-#include <lwip/dhcp.h>
-#include <lwip/init.h>
-
-// wifi
-#include <wifi/wifi_conf.h>
-
-// #include <rtconfig.h>
-
-// 配置文件存放地址
 
 
 // 从文件系统中读取wifi配置文件内容

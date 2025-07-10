@@ -1,5 +1,20 @@
 #include "sw_wifi_connect.h"
-// #include "dfs_file_read.h"
+#include <rtthread.h>
+
+// 配置ulog日志
+#define LOG_TAG "wifi_connect"
+#include <ulog.h>
+
+// Lwip
+#include <lwip/netif.h>
+#include <lwip/dhcp.h>
+#include <lwip/init.h>
+
+// wifi
+#include <wifi/wifi_conf.h>
+
+// #include <rtconfig.h>
+
 
 // 通过dhcp获取ip
 int get_ip_via_dhcp(void)
@@ -43,17 +58,10 @@ int get_ip_via_dhcp(void)
     }
 }
 
-// char * ssid, char * pwd
+
 // wifi连接
 int sw374_wifi_connect(char * ssid, char * pwd)
 {
-    // char * ssid = NULL;
-    // char * pwd = NULL;
-    // char * version = NULL;
-    // get_config_info(&ssid, &pwd, &version);
-    // char *ssid = "Sanches";      // 替换为您的 SSID
-    // char *pwd = "Sanches374"; // 替换为您的密码
-
         rtw_security_t security = RTW_SECURITY_WPA2_AES_PSK; // 安全类型
         int ssid_len = strlen(ssid);
         int pwd_len = strlen(pwd);

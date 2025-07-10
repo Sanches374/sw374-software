@@ -1,12 +1,7 @@
 #ifndef _SW_CONF_H_
 #define _SW_CONF_H_
 
-#include <stdint.h>
-// #define LVGL_D133EBS 1
-
-// 网络配置
-// #define Wifi_SSID ""
-// #define Wifi_PWD ""
+// #include <stdint.h>
 
 // ------------------------------------  TcpServer 相关配置  ------------------------------------ //
 // 优先级

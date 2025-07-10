@@ -5,6 +5,7 @@ from building import *
 
 cwd = GetCurrentDir()
 CPPPATH = [cwd]
+CPPPATH.append(cwd + '/../')
 src = []
 
 

@@ -1,19 +1,23 @@
-#include "sw_TCP_server.h"
-
-
-
-// 配置文件
-#include "SW_conf.h"
-
 // 配置ulog
 #define LOG_TAG              "TcpServer"
 #include <ulog.h>
 
-// #define TcpServerPort 10001
+#include <rtthread.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#include <string.h>
+#include <finsh.h>
+#include <errno.h>
+#include <cJSON.h>
+
+#include "sw_TCP_server.h"
+
+// 配置文件
+#include "SW_conf.h"
+
 
 
 static const char send_data[] = "This is TCP Server from RT-Thread.\n";
-const int Port = TcpServerPort;
 
 struct cJson_msg {
     cJSON *json;
@@ -28,6 +32,7 @@ struct cJson_msg {
 // 线程入口函数 
 void tcp_server_thread_entry(void *parameter)
 {
+    int Port = *(int *)parameter;
 
     char *recv_data;
     socklen_t sin_size;
@@ -133,26 +138,30 @@ void tcp_server_thread_entry(void *parameter)
 
     /* 清理资源 */
     closesocket(sock);
+
+    // 5. 线程退出前释放参数内存（避免内存泄漏）
     rt_free(recv_data);
     LOG_I("TCP Server exit.");
 }
 
 /* 线程创建命令 */
 // static void start_tcp_server(int argc, char **argv)
-void start_tcp_server(void)
+void start_tcp_server(int port)
 {
-    rt_thread_t tid;
-    tid = rt_thread_create("tcp_serv", 
-                          tcp_server_thread_entry, 
-                          RT_NULL, 
-                          TcpServer_THREAD_STACK_SIZE, 
-                          TcpServer_THREAD_PRIORITY, 
-                          TcpServer_THREAD_TIMESLICE);
+    rt_thread_t tid = rt_thread_create(
+        "tcp_serv",
+        tcp_server_thread_entry,  // 线程入口函数
+        &port,                    // 传递端口号的地址
+        TcpServer_THREAD_STACK_SIZE,
+        TcpServer_THREAD_PRIORITY,
+        TcpServer_THREAD_TIMESLICE
+    );
+
     if (tid != RT_NULL) {
         rt_thread_startup(tid);
-        LOG_I("TCP server thread started.");
+        LOG_I("TCP server thread started with port: %d", port);
     } else {
-        LOG_E("Failed to create thread.");
+        LOG_E("Failed to create thread");
     }
 }
 

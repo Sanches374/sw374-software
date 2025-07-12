@@ -64,4 +64,4 @@ int sw374_main(void)
 }
 
 MSH_CMD_EXPORT(sw374_main, sw374_main);
-INIT_APP_EXPORT(sw374_main);
+// INIT_APP_EXPORT(sw374_main);

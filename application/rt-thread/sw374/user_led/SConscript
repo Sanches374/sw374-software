@@ -20,7 +20,7 @@ if GetDepend('USER_LED_ON') and GetDepend('USING_SW374'):
     src = Glob(os.path.join(cwd, '*.c'))  # 使用Glob函数查找当前目录下所有的.c文件，并将它们添加到src列表中
 
 # 定义构建组
-group = DefineGroup('lckfb-user-led', src, depend = [''], CPPPATH = CPPPATH)
+group = DefineGroup('lckfb-user-led', src, depend = ['USER_LED_ON'], CPPPATH = CPPPATH)
 # 创建一个名为'lckfb-user-led'的构建组，包含src列表中的所有源文件
 # depend参数指定了构建这个组之前需要先构建的其他组或目标，这里为空字符串，表示没有依赖
 # CPPPATH参数设置了头文件搜索路径，这里使用了前面定义的CPPPATH

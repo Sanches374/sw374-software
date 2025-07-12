@@ -3,7 +3,7 @@ Import('rtconfig')
 from building import *
 
 cwd     = GetCurrentDir()
-src     = Glob('*.c')
+src     = Glob('*.cpp')
 
 CPPPATH = [cwd]
 if GetDepend('SW374_DFS_FILE_CONFIG') and GetDepend('USING_SW374'):
@@ -14,10 +14,12 @@ if GetDepend('SW374_TCP_SERVER') and GetDepend('USING_SW374'):
     CPPPATH.append(cwd + '/tcp_server/')
 if GetDepend('SW374_TELEMETRY_DATA_PROCESSOR') and GetDepend('USING_SW374'):
     CPPPATH.append(cwd + '/telemetry_data_processor/')
+if GetDepend('SW374_LVGL_UI') and GetDepend('USING_SW374'):
+    CPPPATH.append(cwd + '/lvgl_ui/')
 
 CFLAGS = ' -c -ffunction-sections'
 
-group   = DefineGroup('Applications', src, depend = [''], CPPPATH = CPPPATH, CFLAGS=CFLAGS)
+group   = DefineGroup('Applications', src, depend = ['USING_SW374'], CPPPATH = CPPPATH, CFLAGS=CFLAGS)
 
 list = os.listdir(cwd)
 for item in list:

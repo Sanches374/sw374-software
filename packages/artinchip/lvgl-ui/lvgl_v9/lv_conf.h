@@ -11,7 +11,7 @@
 
 #include <rtconfig.h>
 
-#define LV_USE_LOG 1
+#define LV_USE_LOG 0
 #if LV_USE_LOG
 
     /*How important log should be added:
@@ -40,13 +40,13 @@
 #endif  /*LV_USE_LOG*/
 
 #ifndef LV_COLOR_DEPTH
-#define LV_COLOR_DEPTH          32
+#define LV_COLOR_DEPTH          16
 #endif
 
 #define LV_USE_MEM_MONITOR 0
 #define LV_USE_PERF_MONITOR 1
 #define LV_USE_SYSMON   1
-#define LV_INDEV_DEF_READ_PERIOD 10
+// #define LV_INDEV_DEF_READ_PERIOD 10
 
 #if defined(KERNEL_BAREMETAL)|| defined(KERNEL_FREERTOS)
 #define LV_USE_STDLIB_MALLOC    LV_STDLIB_CLIB
@@ -61,7 +61,7 @@
 #define LV_DISP_DEF_REFR_PERIOD 10
 #endif
 
-#define LV_USE_FS_POSIX 1
+#define LV_USE_FS_POSIX 0
 #if LV_USE_FS_POSIX
     #define LV_FS_POSIX_LETTER 'L'     /*Set an upper cased letter on which the drive will accessible (e.g. 'A')*/
     #define LV_FS_POSIX_PATH ""         /*Set the working directory. File/directory paths will be appended to it.*/
@@ -84,7 +84,7 @@
 #define LV_USE_DEMO_WIDGETS 1
 #endif
 
-#define LV_USE_DEMO_MUSIC 1
+#define LV_USE_DEMO_MUSIC 0
 #if LV_USE_DEMO_MUSIC == 1
 #define LV_FONT_MONTSERRAT_12       1
 #define LV_FONT_MONTSERRAT_16       1
@@ -101,7 +101,7 @@
     #define LV_FREETYPE_CACHE_FT_GLYPH_CNT 256
 #endif
 
-#define LV_USE_GIF 1
+#define LV_USE_GIF 0
 
 #define LV_CACHE_DEF_SIZE 10 * 1024 * 1024
 
@@ -115,5 +115,8 @@
 
 #define LV_DRAW_BUF_ALIGN CACHE_LINE_SIZE
 
-#define LV_USE_MONKEY 1
+#define LV_USE_MONKEY 0
+
+
+#define LV_FONT_FMT_TXT_LARGE 1
 #endif // LV_CONF_H

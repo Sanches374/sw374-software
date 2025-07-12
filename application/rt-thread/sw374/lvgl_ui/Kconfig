@@ -1,6 +1,7 @@
 config SW374_LVGL_UI
     bool "Using LVGL UI"
-    default n
+    select SW374_TELEMETRY_DATA_PROCESSOR
+    default y
 #    help
 #        More information is available at: https://wiki.lckfb.com/
 

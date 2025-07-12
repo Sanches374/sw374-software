@@ -11,34 +11,41 @@
 #include "aic_osal.h"
 #include "lvgl/demos/lv_demos.h"
 
-#ifdef AIC_USE_TOUCH_MONKEY_TEST
-#if LV_USE_MONKEY
-static void use_touch_monkey_test(void)
-{
-    /*Create encoder monkey test*/
-    lv_monkey_config_t config;
-    lv_monkey_config_init(&config);
-    config.type = LV_INDEV_TYPE_POINTER;
-    config.period_range.min = AIC_USE_TOUCH_MONKEY_TEST_PERIOD_RANG_MIN;
-    config.period_range.max = AIC_USE_TOUCH_MONKEY_TEST_PERIOD_RANG_MAX;
-    config.input_range.min = AIC_USE_TOUCH_MONKEY_TEST_INPUT_RANG_MAX;
-    config.input_range.max = AIC_USE_TOUCH_MONKEY_TEST_PERIOD_RANG_MAX;
-    lv_monkey_t * monkey = lv_monkey_create(&config);
-
-    /*Set the default group*/
-    lv_group_t * group = lv_group_create();
-    lv_indev_set_group(lv_monkey_get_indev(monkey), group);
-    lv_group_set_default(group);
-
-    /*Start monkey test*/
-    lv_monkey_set_enable(monkey, true);
-}
+#ifdef SW374_LVGL_UI
+    #include "lvgl_sw_thread.h"
 #endif
-#endif
+// #ifdef AIC_USE_TOUCH_MONKEY_TEST
+// #if LV_USE_MONKEY
+// static void use_touch_monkey_test(void)
+// {
+//     /*Create encoder monkey test*/
+//     lv_monkey_config_t config;
+//     lv_monkey_config_init(&config);
+//     config.type = LV_INDEV_TYPE_POINTER;
+//     config.period_range.min = AIC_USE_TOUCH_MONKEY_TEST_PERIOD_RANG_MIN;
+//     config.period_range.max = AIC_USE_TOUCH_MONKEY_TEST_PERIOD_RANG_MAX;
+//     config.input_range.min = AIC_USE_TOUCH_MONKEY_TEST_INPUT_RANG_MAX;
+//     config.input_range.max = AIC_USE_TOUCH_MONKEY_TEST_PERIOD_RANG_MAX;
+//     lv_monkey_t * monkey = lv_monkey_create(&config);
+
+//     /*Set the default group*/
+//     lv_group_t * group = lv_group_create();
+//     lv_indev_set_group(lv_monkey_get_indev(monkey), group);
+//     lv_group_set_default(group);
+
+//     /*Start monkey test*/
+//     lv_monkey_set_enable(monkey, true);
+// }
+// #endif
+// #endif
 
 void aic_ui_init()
 {
 /* qc test demo is only for aic internal qc testing, please ignore it. */
+
+#ifdef AIC_SW374_LVGL_UI
+    lvgl_sw_thread();
+#endif
 
 #ifdef AIC_LVGL_VSCODE_DEMO
     extern void vscode_ui_init();
@@ -123,8 +130,8 @@ void aic_ui_init()
     a_86_box_ui_init();
 #endif
 
-#ifdef AIC_USE_TOUCH_MONKEY_TEST
-    use_touch_monkey_test();
-#endif
+// #ifdef AIC_USE_TOUCH_MONKEY_TEST
+//     use_touch_monkey_test();
+// #endif
     return;
 }

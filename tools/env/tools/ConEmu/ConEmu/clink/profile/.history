@@ -46,3 +46,79 @@ list
 lunch 0
 me
 scons -j12
+scons -j12
+scons -j12
+me
+c
+me
+sconss -j12
+start_tcp_server
+list
+lunch 0
+scons -j12
+scons -j64
+scons -j12
+me
+scons -j64
+ls
+list
+mr
+quir
+quit
+lunch 0
+me
+scons -j12
+sconss -j12
+start_tcp_server
+list
+lunch 0
+me
+scons -j12
+scons -j12
+scons -j12
+me
+c
+me
+sconss -j12
+start_tcp_server
+list
+lunch 0
+scons -j12
+scons -j64
+scons -j12
+me
+scons -j64
+ls
+list
+mr
+quir
+quit
+lunch 0
+me
+scons -j12
+scons -j1
+me
+scons -j12
+scons -j12
+scons -j12
+me
+c
+me
+sconss -j12
+start_tcp_server
+list
+lunch 0
+scons -j12
+scons -j64
+scons -j12
+me
+scons -j64
+ls
+list
+mr
+quir
+quit
+lunch 0
+scons -j1
+me
+scons -j12

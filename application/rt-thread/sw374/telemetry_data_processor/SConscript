@@ -11,6 +11,6 @@ src = []
 if GetDepend('SW374_TELEMETRY_DATA_PROCESSOR') and GetDepend('USING_SW374'):
     src = Glob(os.path.join(cwd, '*.cpp'))
 
-group = DefineGroup('sw374-telemetry-data-processor', src, depend = [''], CPPPATH = CPPPATH)
+group = DefineGroup('sw374-telemetry-data-processor', src, depend = ['SW374_TELEMETRY_DATA_PROCESSOR'], CPPPATH = CPPPATH)
 
 Return('group')

@@ -11,4 +11,4 @@ void start_tcp_server(int);
 }
 #endif
 
-#endif // TCP_SERVER_H
+#endif // SW_TCP_SERVER_H

@@ -77,6 +77,11 @@ struct aic_pinmux aic_pinmux_config[] = {
     {2, PIN_PULL_DIS, 3, "PB.4"},
     {2, PIN_PULL_DIS, 3, "PB.5"},
 #endif
+#ifdef AIC_USING_QSPI1
+    /* qspi1 */
+    {3, PIN_PULL_DIS, 3, "PD.6"},
+#endif
+
 #ifdef AIC_USING_QSPI3
     /* qspi3 */
     {2, PIN_PULL_DIS, 3, "PC.8"},

@@ -1,7 +1,7 @@
 config SW374_WIFI_CONNECT
     bool "Connet to the wifi"
     select SW374_DFS_FILE_CONFIG
-    default n
+    default y
 #    help
 #        More information is available at: https://wiki.lckfb.com/
 

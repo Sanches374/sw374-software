@@ -2,12 +2,13 @@
 #define _SW_CONF_H_
 
 // #include <stdint.h>
-
+// Tcpserver接收到的数据是否输出到日志
+#define TcpServerDebug 
 // ------------------------------------  TcpServer 相关配置  ------------------------------------ //
 // 优先级
 #define TcpServer_THREAD_PRIORITY 25
 // 堆栈大小
-#define TcpServer_THREAD_STACK_SIZE 2048
+#define TcpServer_THREAD_STACK_SIZE 4096
 // 时间片
 #define TcpServer_THREAD_TIMESLICE 25
 // TcpServer接收数据的缓冲区大小

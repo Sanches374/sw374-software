@@ -1,0 +1,8 @@
+config SW374_RT_THREAD_CLASS
+    bool "Using my rt_thread cpp class"
+#    select AIC_USING_QSPI1
+    default y
+    help
+        More information is available at: https://wiki.lckfb.com/
+
+

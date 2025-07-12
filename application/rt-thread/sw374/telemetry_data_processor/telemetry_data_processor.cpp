@@ -1,30 +1,27 @@
+#define LOG_TAG "Telemetry_data_processor"
+#include <ulog.h>
+
 #include "telemetry_data_processor.h"
 
-#include "LVGL_SW_F1_Panel_1.h"
+#include "sw_ws2812_thread.h"
 
-#include "SW_conf.h"
 
-#ifdef __cplusplus  // 仅在C++编译时使用extern "C"
-extern "C" {
-#endif
-    
-    #include <math.h> 
-    #include <cJSON.h>
-    // 配置ulog
-    #define LOG_TAG "Telemetry_data_processor"
-    #include <ulog.h>
 
-}
+
 
 struct cJson_msg {
     cJSON *json;
 };
-#define cJson_Message_QUEUE_SIZE 32
+
+
+
+
 // 全局消息队列指针
 extern rt_mq_t cJson_msg_queue;
+extern DataProcessor data_processor;
 // 全局显示变量
 extern LVGL_SW_Base_Panel * p_pannel;
-// extern SW_WS2812 * p_SW_WS2812;
+extern SW_WS2812 * p_SW_WS2812;
 
 SW_DATA_TYPE::DiffLapTimeData convertDoubleToDiffLapTimeData(double diff) {
     SW_DATA_TYPE::DiffLapTimeData data;
@@ -94,47 +91,45 @@ SW_DATA_TYPE::LapTimeData convertDoubleToLapTimeData(const std::string& timeStr)
 }
 
 /* 速度处理线程类 */
-class DataProcessor {
-public:
-    DataProcessor() : thread_(RT_NULL) {}
-    
-    ~DataProcessor() {
-        if (thread_) {
-            rt_thread_delete(thread_);
-        }
-    }
-    
-    void start() {
-        thread_ = rt_thread_create("data_proc",
-                                  &DataProcessor::thread_entry,
-                                  this,
-                                  DataProcessor_THREAD_STACK_SIZE,
-                                  DataProcessor_THREAD_PRIORITY,
-                                  DataProcessor_THREAD_TIMESLICE);
-        if (thread_) {
-            rt_thread_startup(thread_);
-            LOG_I("Data processor started\n");
-        } else {
-            LOG_E("Failed to create Data processor\n");
-        }
-    }
-    
-private:
-    rt_thread_t thread_;
-    SW_DATA_TYPE::LVGL_SW_Pannel_Data data;
 
-    void run() {
-        struct cJson_msg msg;
-        
-        while (1) {
-            /* 从消息队列接收数据 */
-            if (rt_mq_recv(cJson_msg_queue, &msg, sizeof(msg), RT_WAITING_FOREVER) == RT_EOK) {
-                process_json(msg.json);
-            }
+DataProcessor::DataProcessor() : thread_(RT_NULL) {}
+
+DataProcessor::~DataProcessor() {
+    if (thread_) {
+        rt_thread_delete(thread_);
+    }
+}
+    
+void DataProcessor::start() {
+    thread_ = rt_thread_create("data_proc",
+                                &thread_entry,
+                                // &DataProcessor::thread_entry,
+                                this,
+                                DataProcessor_THREAD_STACK_SIZE,
+                                DataProcessor_THREAD_PRIORITY,
+                                DataProcessor_THREAD_TIMESLICE);
+    if (thread_) {
+        rt_thread_startup(thread_);
+        LOG_I("Data processor started\n");
+    } else {
+        LOG_E("Failed to create Data processor\n");
+    }
+}
+    
+
+
+void DataProcessor::run() {
+    struct cJson_msg msg;
+    
+    while (1) {
+        /* 从消息队列接收数据 */
+        if (rt_mq_recv(cJson_msg_queue, &msg, sizeof(msg), RT_WAITING_FOREVER) == RT_EOK) {
+            process_json(msg.json);
         }
     }
+}
     
-    void process_json(cJSON *json) {
+void DataProcessor::process_json(cJSON *json) {
         if (!json) {
             LOG_E("Invalid JSON pointer\n");
             return;
@@ -167,7 +162,7 @@ private:
                 // 实际处理逻辑
                 LOG_D("Processing rpm: %d\n", rpm_json);
                 this->data.RPM = rpm;
-                // p_SW_WS2812->set_rpm(rpm);
+                p_SW_WS2812->set_rpm(rpm);
             } 
             else {
                 LOG_E("Invalid rpm data\n");
@@ -447,21 +442,25 @@ private:
 
 
 //------------------------------------------------------------------------------//
-        p_pannel->setCurrentData(data);
+#ifdef SW374_LVGL_UI
+        p_pannel->setCurrentData(data);  
+#endif
+        
         cJSON_Delete(json);  // 关键：处理完成后释放内存
-    }
-    
-    static void thread_entry(void *param) {
-        DataProcessor *self = static_cast<DataProcessor*>(param);
-        self->run();
-    }
-};
+}
 
-/* 全局对象 */
-DataProcessor data_processor;
+
+void thread_entry(void *param) {
+// void DataProcessor::thread_entry(void *param) {
+    DataProcessor *self = static_cast<DataProcessor*>(param);
+    self->run();
+}
+
+
+
 
 /* 初始化函数 - 创建消息队列和启动处理器 */
-static int data_proc_system_init(void) {
+int data_proc_system_init(void) {
     // 创建消息队列
     cJson_msg_queue = rt_mq_create("cJson_msg_queue", 
                            sizeof(struct cJson_msg), 
@@ -476,7 +475,7 @@ static int data_proc_system_init(void) {
     data_processor.start();
     return 0;
 }
-INIT_APP_EXPORT(data_proc_system_init);  // 自动初始化
+
 
 
 

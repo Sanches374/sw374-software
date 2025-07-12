@@ -12,6 +12,6 @@ src = []
 if GetDepend('SW374_TCP_SERVER') and GetDepend('USING_SW374'):
     src = Glob(os.path.join(cwd, '*.cpp'))
 
-group = DefineGroup('sw374-tcp-server', src, depend = [''], CPPPATH = CPPPATH)
+group = DefineGroup('sw374-tcp-server', src, depend = ['SW374_TCP_SERVER'], CPPPATH = CPPPATH)
 
 Return('group')

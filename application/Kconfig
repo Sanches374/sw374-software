@@ -196,8 +196,12 @@ menuconfig AIC_LVGL_DEMO
 if AIC_LVGL_DEMO
 choice
     prompt "select LVGL demo"
-    default AIC_LVGL_BASE_DEMO
+    default AIC_SW374_LVGL_UI
     depends on AIC_LVGL_DEMO
+
+config AIC_SW374_LVGL_UI
+    bool "SW374 LVGL"
+    select SW374_LVGL_UI 
 
 config AIC_LVGL_BASE_DEMO
     bool "LVGL demo with basic function"

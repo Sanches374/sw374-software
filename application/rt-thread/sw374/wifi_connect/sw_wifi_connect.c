@@ -45,9 +45,8 @@ int get_ip_via_dhcp(void)
     while (dhcp_supplied_address(netif) == 0 && max_wait > 0) {
         rt_thread_mdelay(1000); // 等待 1 秒
         max_wait--;
-        rt_kprintf(".");
+        LOG_I(".");
     }
-    rt_kprintf("\n");
     
     if (dhcp_supplied_address(netif)) {
         LOG_I("Success! IP address: %s", ip4addr_ntoa(&netif->ip_addr));

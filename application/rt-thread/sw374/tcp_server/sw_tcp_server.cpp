@@ -123,7 +123,8 @@ void tcp_server_thread_entry(void *parameter)
             /* JSON 数据处理 */
             cJSON *json = cJSON_Parse(recv_data);
             if (json) {
-                LOG_I("JSON text: %s\n", cJSON_Print(json));
+            
+                
                 struct cJson_msg msg;
                 msg.json = json;
 

@@ -1,0 +1,9 @@
+config SW374_WS2812B
+    bool "Using ws2812 colorful lights"
+    select AIC_USING_QSPI1
+    select SW374_RT_THREAD_CLASS
+    default y
+    help
+        More information is available at: https://wiki.lckfb.com/
+
+

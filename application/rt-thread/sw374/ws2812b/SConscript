@@ -1,0 +1,23 @@
+Import('RTT_ROOT')
+Import('rtconfig')
+import rtconfig
+from building import *
+
+cwd = GetCurrentDir()
+CPPPATH = [cwd]
+# CPPPATH.append(cwd + '../rt_thread_class_cpp')
+
+src = []
+# src += Glob('*.c')
+# src += Glob('*.cpp')
+
+if GetDepend('SW374_WS2812B') and GetDepend('USING_SW374'):
+    src += Glob(os.path.join(cwd, '*.cpp'))
+    src += Glob(os.path.join(cwd, '*.c'))
+
+
+
+
+group = DefineGroup('sw374-ws2812b-color-light', src, depend = ['SW374_WS2812B'], CPPPATH = CPPPATH)
+
+Return('group')

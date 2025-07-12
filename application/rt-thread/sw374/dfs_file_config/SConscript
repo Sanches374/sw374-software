@@ -11,6 +11,6 @@ src = []
 if GetDepend('SW374_DFS_FILE_CONFIG') and GetDepend('USING_SW374'):
     src = Glob(os.path.join(cwd, '*.c'))
 
-group = DefineGroup('sw374-dfs-file-config', src, depend = [''], CPPPATH = CPPPATH)
+group = DefineGroup('sw374-dfs-file-config', src, depend = ['SW374_DFS_FILE_CONFIG'], CPPPATH = CPPPATH)
 
 Return('group')

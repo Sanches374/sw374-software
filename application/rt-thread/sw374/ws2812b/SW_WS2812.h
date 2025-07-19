@@ -2,6 +2,7 @@
 #define SW_WS2812_H
 
 #include "rt_thread_class.h"
+#include "SW_conf.h"
 #include "stdio.h"
 
 

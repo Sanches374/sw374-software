@@ -9,35 +9,31 @@
 
 // #include "test_ui.h"
 #include "lvgl_sw_thread.h"
-#include "LVGL_SW_F1_Panel_1.h"
+#include "LVGL_SW_Base_Panel.h"
 
 #define THREAD_PRIORITY 20
-#define THREAD_STACK_SIZE 8192
+#define THREAD_STACK_SIZE 8192 * 8
 #define THREAD_TIMESLICE 5
 
 
 #include "__dso_handle.h"
 
-using namespace SW_DATA_TYPE;
-
-
 static rt_thread_t tid1 = RT_NULL;
 
 
-LVGL_SW_Base_Panel * p_pannel = nullptr;
 
 void update_simulated_data(LVGL_SW_Base_Panel * SW_pannel) {
     static int frame_count = 0;
     frame_count++;
 
-LVGL_SW_Pannel_Data data = {
+SW_DATA_TYPE::LVGL_SW_Pannel_Data data = {
         .Laptime = {rand() % 2, 1, rand() % 60, rand() % 1000}, // 模拟单圈时间为1:20.123
         .RPM = 8000 + (rand() % 5000), // 模拟RPM在8000到13000之间
-        .Diff_self = {static_cast<DiffLapTimeData::DiffSign>(rand() % 3 - 1), rand() % 2, 1, rand() % 60, rand() % 1000}, // 模拟速度差
-        .Diff_front = {DiffLapTimeData::DiffSign::POSITIVE, rand() % 2, 1, rand() % 60, rand() % 1000}, // 模拟前方速度差
-        .Diff_after = {DiffLapTimeData::DiffSign::NEGATIVE, 0, 0, rand() % 60, rand() % 1000}, // 模拟后方速度差
+        .Diff_self = {static_cast<SW_DATA_TYPE::DiffLapTimeData::DiffSign>(rand() % 3 - 1), rand() % 2, 1, rand() % 60, rand() % 1000}, // 模拟速度差
+        .Diff_front = {SW_DATA_TYPE::DiffLapTimeData::DiffSign::POSITIVE, rand() % 2, 1, rand() % 60, rand() % 1000}, // 模拟前方速度差
+        .Diff_after = {SW_DATA_TYPE::DiffLapTimeData::DiffSign::NEGATIVE, 0, 0, rand() % 60, rand() % 1000}, // 模拟后方速度差
         .Speed = 100 + (rand() % 221), // 模拟车速在100到320之间
-        .Gear = static_cast<GearSet>((frame_count % 100) %10 - 1), // 模拟档位从0到8，-1表示倒档
+        .Gear = static_cast<SW_DATA_TYPE::GearSet>((frame_count % 100) %10 - 1), // 模拟档位从0到8，-1表示倒档
         .Laps = {(1 + frame_count % 6300 / 100), 63}, // 模拟完成的圈数
         .Pos = {(1 + frame_count % 4000 / 200), 20}, // 模拟位置
         .SOC = rand() % 101, // 模拟电池电量在0到100之间
@@ -158,7 +154,7 @@ LVGL_SW_Pannel_Data data = {
         SW_pannel.setOvertakeStatus(false); // 模拟超车状态为false
     }
     */
-SW_pannel->setCurrentData(data);
+    SW_pannel->setCurrentData(data);
 }
 
 
@@ -166,10 +162,9 @@ SW_pannel->setCurrentData(data);
 /* 线程1的入口函数 */
 static void lvgl_sw_thread_entry(void *parameter)
 {
-    p_pannel = new LVGL_SW_F1_Panel_1(); // 创建一个新的LVGL_SW_F1_Panel_1对象
     while (1)
     {
-        // update_simulated_data(p_pannel);
+        
         rt_thread_mdelay(5);
         // thread_count++;
         // rt_thread_mdelay(1000);

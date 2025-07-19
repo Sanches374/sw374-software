@@ -2,8 +2,7 @@
 #define RT_THREAD_CLASS_H
 
 #include <rtthread.h>
-#include "SW_conf.h"
-#include <ulog.h>
+// #include <ulog.h>
 #include <string>  // 如果支持C++标准库
 
 class thread {

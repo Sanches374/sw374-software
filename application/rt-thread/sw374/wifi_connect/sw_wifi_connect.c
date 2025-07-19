@@ -59,11 +59,11 @@ int get_ip_via_dhcp(void)
 
 
 // wifi连接
-int sw374_wifi_connect(char * ssid, char * pwd)
+int sw374_wifi_connect(char ** ssid, char ** pwd)
 {
         rtw_security_t security = RTW_SECURITY_WPA2_AES_PSK; // 安全类型
-        int ssid_len = strlen(ssid);
-        int pwd_len = strlen(pwd);
+        int ssid_len = strlen(*ssid);
+        int pwd_len = strlen(*pwd);
         int key_id = 0; // WEP 密钥索引（非 WEP 时设为 0）
         void *semaphore = RT_NULL; // 信号量（命令模式下可置空）
 
@@ -79,9 +79,9 @@ int sw374_wifi_connect(char * ssid, char * pwd)
 
         // 2. 执行连接操作
         int ret = wifi_connect(
-            ssid, 
+            *ssid, 
             security, 
-            pwd, 
+            *pwd, 
             ssid_len, 
             pwd_len, 
             key_id, 

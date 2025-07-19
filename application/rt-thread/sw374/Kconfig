@@ -6,8 +6,13 @@ menuconfig USING_SW374
 #     help
 #         Official Website : www.lckfb.com
 
+    
 # 如果使用立创开发板的模块移植代码则开启下面的选项
 if USING_SW374
+config SW374_JTAG_DEBUG_CONFIG
+bool "Using CKLink to Debug"
+    default y
+
 source "application/rt-thread/sw374/user_led/Kconfig"
 # 读取配置文件
 source "application/rt-thread/sw374/dfs_file_config/Kconfig"

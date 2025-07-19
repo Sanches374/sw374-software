@@ -3,11 +3,14 @@
 #include <sys/time.h>
 #include "rtdevice.h"
 #include <stdio.h>
-#include <ulog.h>
+
 
 
 #include "SW_conf.h"
 #include "sw_ws2812.h"
+
+#define LOG_TAG "WS2812B"
+#include <ulog.h>
 
 SW_WS2812::SW_WS2812() : 
 redlinerpm(6650), rpm_when_flashing(6790), rpm_when_truning_on(5250),

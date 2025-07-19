@@ -20,7 +20,7 @@ struct cJson_msg {
 extern rt_mq_t cJson_msg_queue;
 extern DataProcessor data_processor;
 // 全局显示变量
-extern LVGL_SW_Base_Panel * p_pannel;
+extern LVGL_SW_Base_Panel * p_panel;
 extern SW_WS2812 * p_SW_WS2812;
 
 SW_DATA_TYPE::DiffLapTimeData convertDoubleToDiffLapTimeData(double diff) {
@@ -162,7 +162,10 @@ void DataProcessor::process_json(cJSON *json) {
                 // 实际处理逻辑
                 LOG_D("Processing rpm: %d\n", rpm_json);
                 this->data.RPM = rpm;
-                p_SW_WS2812->set_rpm(rpm);
+#ifdef SW374_WS2812B
+                if (p_SW_WS2812)
+                    p_SW_WS2812->set_rpm(rpm);
+#endif
             } 
             else {
                 LOG_E("Invalid rpm data\n");
@@ -443,7 +446,10 @@ void DataProcessor::process_json(cJSON *json) {
 
 //------------------------------------------------------------------------------//
 #ifdef SW374_LVGL_UI
-        p_pannel->setCurrentData(data);  
+        if (p_panel)
+        {
+            p_panel->setCurrentData(data);  
+        }
 #endif
         
         cJSON_Delete(json);  // 关键：处理完成后释放内存

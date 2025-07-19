@@ -11,6 +11,8 @@ void Init_LVGL_SW_text_style() {
     lv_style_set_bg_opa(&LVGL_SW_text_style, LV_OPA_TRANSP);
     lv_style_set_pad_all(&LVGL_SW_text_style, 0);  // 无内边距
 }
+
+
 void Init_LVGL_SW_windows_style()
 {
     // 初始化弹出框样式
@@ -71,3 +73,7 @@ void LVGL_SW_text::setTextColor(uint32_t RGBcolor)
     lv_obj_set_style_text_color(label, lv_color_hex(RGBcolor), 0);
 }
 
+void LVGL_SW_text::setTextalignLeft(void)
+{
+    lv_obj_set_align(label, LV_ALIGN_LEFT_MID);
+}

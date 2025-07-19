@@ -5,6 +5,7 @@
 #include "rt_thread_class.h"
 #include "sw_ws2812.h"
 
+extern thread * SW_2812_thread; 
 
 class SW_WS2812_thread : public thread {
 private:

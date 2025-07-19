@@ -38,6 +38,8 @@ public:
     // 设置颜色
     void setTextColor(lv_color_t lvcolor);
     void setTextColor(uint32_t RGBcolor);
+    // 设置文字左对齐
+    void setTextalignLeft(void);
 };
 
 

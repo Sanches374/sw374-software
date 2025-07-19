@@ -8,6 +8,6 @@
 // int dfs_read_from_file(char *buf, size_t buf_size, const char * file_dir);
 // int get_wifi_info(char ** ssid, char ** pwd, char ** version);
 int get_ip_via_dhcp(void);
-int sw374_wifi_connect(char *, char *);
+int sw374_wifi_connect(char **, char **);
 
 #endif

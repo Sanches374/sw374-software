@@ -1,5 +1,8 @@
 #include "rt_thread_class.h"
-
+#include "SW_conf.h"
+#include <string>  // 如果支持C++标准库
+#define LOG_TAG "thread_cpp"
+#include <ulog.h>
 thread::thread(std::string name, rt_uint32_t stack_size, rt_uint8_t priority, rt_uint32_t tick) : 
 thread_(RT_NULL), 
 thread_name_(name),

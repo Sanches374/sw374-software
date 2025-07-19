@@ -153,6 +153,10 @@ const uint64_t PRM_FLASHING_CASE_15[] = {
 #define LVGL_SW_F1_PANNEL_COLOR_BLACK 0x000000
 #define LVGL_SW_F1_PANNEL_COLOR_BLUE 0x0000FF
 
+#define READ_CONFIG_FILE_MAX_TIME 5 // 最多允许读取配置文件失败的次数
 
+// 日志输出画面的参数
+#define MAX_LOG_MESSAGES 10
+#define MAX_MESSAGE_LENGTH 256
 
 #endif  // _SW_CONF_H_

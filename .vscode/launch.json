@@ -10,7 +10,7 @@
 			"type": "cppdbg",
 			"request": "launch",
 			"cwd": "${workspaceFolder}",
-			"program": "${cwd}/output/d13x_demo88-nand_rt-thread_helloworld/images/d13x.elf",	// FIXME
+			"program": "${cwd}/output/d13x_JLC_rt-thread_sw374/images/d13x.elf",	// FIXME
 			"args": [],
 			"stopAtEntry": false,
 			"environment": [],
@@ -39,19 +39,19 @@
 					"text": "mem 0x40000000 0x41ffffff rw"
 				},
 				{
-					"text": "target remote 172.16.x.x:3333"	// FIXME
+					"text": "target remote 192.168.37.50:1025"	// FIXME
 				},
 				{
 					// MUST use full path
-					"text": "load e:/workspace/luban-lite/output/d13x_demo88-nand_rt-thread_helloworld/images/d13x.elf"	// FIXME
+					"text": "load c:/Users/Sanches374/Desktop/SW/sw374/sw374-software/output/d13x_JLC_rt-thread_sw374/images/d13x.elf"	// FIXME
 				},
 				{
 					// MUST use full path
-					"text": "file e:/workspace/luban-lite/output/d13x_demo88-nand_rt-thread_helloworld/images/d13x.elf"	// FIXME
+					"text": "file c:/Users/Sanches374/Desktop/SW/sw374/sw374-software/output/d13x_JLC_rt-thread_sw374/images/d13x.elf"	// FIXME
 				},
 				{
 					// FIXME
-					"text": "b rt_hw_board_init"
+					"text": "b debug_enter"
 				}
 			]
 		},
@@ -60,7 +60,7 @@
 			"type": "cppdbg",
 			"request": "launch",
 			"cwd": "${workspaceFolder}",
-			"program": "${cwd}/output/d13x_demo88-nand_rt-thread_helloworld/images/d13x.elf",	// FIXME
+			"program": "${cwd}/output/d13x_JLC_rt-thread_sw374/images/d13x.elf",	// FIXME
 			"args": [],
 			"stopAtEntry": false,
 			"environment": [],
@@ -89,89 +89,15 @@
 					"text": "mem 0x40000000 0x41ffffff rw"
 				},
 				{
-					"text": "target remote 172.16.x.x:3333"	// FIXME
+					"text": "target remote 192.168.37.50:1025"	// FIXME
 				},
 				{
 					// MUST use full path
-					"text": "file e:/workspace/luban-lite/output/d13x_demo88-nand_rt-thread_helloworld/images/d13x.elf"	// FIXME
+					"text": "file c:/Users/Sanches374/Desktop/SW/sw374/sw374-software/output/d13x_JLC_rt-thread_sw374/images/d13x.elf"	// FIXME
 				},
 				{
 					// FIXME
-					"text": "b rt_hw_board_init"
-				}
-			]
-		},
-		{
-			"name": "D21x Load",
-			"type": "cppdbg",
-			"request": "launch",
-			"cwd": "${workspaceFolder}",
-			"program": "${cwd}/output/d21x_demo88-nand_rt-thread_helloworld/images/d21x.elf",	// FIXME
-			"args": [],
-			"stopAtEntry": false,
-			"environment": [],
-			"externalConsole": true,
-			"MIMode": "gdb",
-			"miDebuggerPath": "${cwd}/toolchain/bin/riscv64-unknown-elf-gdb.exe",
-			"setupCommands": [
-				{
-					"description": "Enable pretty-printing for gdb",
-					"text": "-enable-pretty-printing",
-					"ignoreFailures": true
-				},
-				{
-					"text": "set height 0"
-				},
-				{
-					"text": "target remote 172.16.x.x:3333"	// FIXME
-				},
-				{
-					// MUST use full path
-					"text": "load e:/workspace/luban-lite/output/d21x_demo88-nand_rt-thread_helloworld/images/d21x.elf"	// FIXME
-				},
-				{
-					// MUST use full path
-					"text": "file e:/workspace/luban-lite/output/d21x_demo88-nand_rt-thread_helloworld/images/d21x.elf"	// FIXME
-				},
-				{
-					// FIXME
-					"text": "b rt_hw_board_init"
-				}
-			]
-		},
-		{
-			"name": "D21x connect only",
-			"type": "cppdbg",
-			"request": "launch",
-			"cwd": "${workspaceFolder}",
-			"program": "${cwd}/output/d21x_demo88-nand_rt-thread_helloworld/images/d21x.elf",	// FIXME
-			"args": [],
-			"stopAtEntry": false,
-			"environment": [],
-			"externalConsole": true,
-			"MIMode": "gdb",
-			"miDebuggerPath": "${cwd}/toolchain/bin/riscv64-unknown-elf-gdb.exe",
-			"setupCommands": [
-				{
-					"description": "Enable pretty-printing for gdb",
-					"text": "-enable-pretty-printing",
-					"ignoreFailures": true
-				},
-				{
-					"text": "set height 0"
-				},
-				{
-					"text": "target remote 172.16.x.x:3333"	// FIXME
-				},
-				{
-					// MUST use full path
-					"text": "file e:/workspace/luban-lite/output/d21x_demo88-nand_rt-thread_helloworld/images/d21x.elf"	// FIXME
-				},
-				{
-					// FIXME
-					"text": "b rt_hw_board_init"
+					"text": "b debug_enter"
 				}
 			]
 		}
-	]
-}

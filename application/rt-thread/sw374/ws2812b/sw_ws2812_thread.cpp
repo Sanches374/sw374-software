@@ -7,18 +7,18 @@
 
 
 thread * SW_2812_thread = nullptr; 
-SW_WS2812 * p_SW_WS2812;
+extern SW_WS2812 * p_SW_WS2812;
 
-static int test_cpp_ws2812_module(void)
-{
-    SW_2812_thread = new SW_WS2812_thread("WS2812", WS2812_THREAD_STACK_SIZE, WS2812_THREAD_PRIORITY, WS2812_THREAD_TIMESLICE); // 动态创建
-    SW_2812_thread->start();
-    return 0;
-}
+// static int test_cpp_ws2812_module(void)
+// {
+//     SW_2812_thread = new SW_WS2812_thread("WS2812", WS2812_THREAD_STACK_SIZE, WS2812_THREAD_PRIORITY, WS2812_THREAD_TIMESLICE); // 动态创建
+//     SW_2812_thread->start();
+//     return 0;
+// }
 // 导出函数为命令
 // MSH_CMD_EXPORT(test_cpp_ws2812_module, ws2812 module test);
 
-INIT_APP_EXPORT(test_cpp_ws2812_module);
+// INIT_APP_EXPORT(test_cpp_ws2812_module);
 
 
 

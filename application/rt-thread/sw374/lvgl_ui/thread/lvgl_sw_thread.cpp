@@ -10,9 +10,10 @@
 // #include "test_ui.h"
 #include "lvgl_sw_thread.h"
 #include "LVGL_SW_Base_Panel.h"
+#include "LVGL_SW_Log_Panel.h"
 
 #define THREAD_PRIORITY 20
-#define THREAD_STACK_SIZE 8192 * 8
+#define THREAD_STACK_SIZE 8192
 #define THREAD_TIMESLICE 5
 
 
@@ -20,7 +21,7 @@
 
 static rt_thread_t tid1 = RT_NULL;
 
-
+extern LVGL_SW_Log_Panel * p_logpanel;
 
 void update_simulated_data(LVGL_SW_Base_Panel * SW_pannel) {
     static int frame_count = 0;
@@ -162,6 +163,7 @@ SW_DATA_TYPE::LVGL_SW_Pannel_Data data = {
 /* 线程1的入口函数 */
 static void lvgl_sw_thread_entry(void *parameter)
 {
+    // p_logpanel = new LVGL_SW_Log_Panel();
     while (1)
     {
         

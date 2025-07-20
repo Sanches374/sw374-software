@@ -17,14 +17,14 @@
 
 
 // 通过dhcp获取ip
-int get_ip_via_dhcp(void)
+int get_ip_via_dhcp(char *ip_buffer, int buffer_size)
 {
     // 1. 查找网络接口 (WL0 是示例接口名)
     struct netif *netif = netif_find("WL0");
     
     if (netif == NULL) {
         LOG_E("Network interface not found!");
-        return 0;
+        return -1;
     }
 
     // 2. 确保接口已启用
@@ -35,7 +35,7 @@ int get_ip_via_dhcp(void)
     
     if (err != ERR_OK) {
         LOG_E("Failed to start DHCP client: %d", err);
-        return 0;
+        return -1;
     }
     
     LOG_I("DHCP client started. Waiting for IP address...");
@@ -49,22 +49,30 @@ int get_ip_via_dhcp(void)
     }
     
     if (dhcp_supplied_address(netif)) {
-        LOG_I("Success! IP address: %s", ip4addr_ntoa(&netif->ip_addr));
-        return 1;
+    // 将 IP 地址复制到输出缓冲区
+        const char *ip_str = ip4addr_ntoa(&netif->ip_addr);
+        if (ip_str && ip_buffer && buffer_size > 0) {
+            strncpy(ip_buffer, ip_str, buffer_size - 1);
+            ip_buffer[buffer_size - 1] = '\0'; // 确保字符串终止
+        }
+        LOG_I("Success! IP address: %s", ip_buffer);
+        return 0;
     } else {
         LOG_E("\nFailed to get IP address within timeout!");
-        return 0;
+        return -1;
     }
 }
 
 
 // wifi连接
-int sw374_wifi_connect(char ** ssid, char ** pwd)
+int sw374_wifi_connect(char * ssid, char * pwd)
 {
         rtw_security_t security = RTW_SECURITY_WPA2_AES_PSK; // 安全类型
-        int ssid_len = strlen(*ssid);
-        int pwd_len = strlen(*pwd);
+        int ssid_len = strlen(ssid);
+        int pwd_len = strlen(pwd);
         int key_id = 0; // WEP 密钥索引（非 WEP 时设为 0）
+        LOG_I("len ssid: %s, %d, pwd: %s, %d!",ssid, ssid_len, pwd, pwd_len);
+
         void *semaphore = RT_NULL; // 信号量（命令模式下可置空）
 
         // 1. 开启 Wi-Fi 模块
@@ -79,9 +87,9 @@ int sw374_wifi_connect(char ** ssid, char ** pwd)
 
         // 2. 执行连接操作
         int ret = wifi_connect(
-            *ssid, 
+            ssid, 
             security, 
-            *pwd, 
+            pwd, 
             ssid_len, 
             pwd_len, 
             key_id, 
@@ -91,8 +99,7 @@ int sw374_wifi_connect(char ** ssid, char ** pwd)
         // 3. 检查连接结果
         if (ret == RTW_SUCCESS) {
             LOG_I("WiFi connected successfully!");
-            
-            get_ip_via_dhcp();
+            // get_ip_via_dhcp();
         } else {
             LOG_E("Connection failed! Code: %d", ret);
         }

@@ -129,6 +129,7 @@
 		"xutility": "cpp",
 		"netfwd": "cpp",
 		"string_view": "cpp",
-		"slist": "cpp"
+		"slist": "cpp",
+		"cjson.h": "c"
 	}
 }

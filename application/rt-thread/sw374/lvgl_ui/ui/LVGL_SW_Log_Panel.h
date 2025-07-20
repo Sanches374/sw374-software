@@ -6,10 +6,11 @@
 #include "LVGL_SW_box.h"
 #include "LVGL_SW_text.h"
 
+#include <string>
 
 #include "SW_conf.h"
 
-#define MAX_LOG_MESSAGE_LENGTH 32
+#define MAX_LOG_MESSAGE_LENGTH 128
 
 class LVGL_SW_Log_Panel {
 
@@ -18,15 +19,12 @@ private:
     int logIndex;
     LVGL_SW_box box;  // 外显示框
     LVGL_SW_text logText[16];
-    char* logMessages[16];;  // 用于保存日志信息
+    std::string logMessages[16];;  // 用于保存日志信息
 
 public:
     LVGL_SW_Log_Panel();
     ~LVGL_SW_Log_Panel();
-    void updateLogDisplay(char * logmessage);
-    void TimerUpdate(void);
-
-
+    void updateLogDisplay(std::string logmessage);
 };
 
 #endif //_LVGL_SW_INIT_Pannel_H_

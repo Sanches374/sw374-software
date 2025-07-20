@@ -88,10 +88,19 @@ void tcp_server_thread_entry(void *parameter)
             LOG_W("accept failed: %d", errno);
             continue;
         }
+// 发送连接成功消息
 
         LOG_I("Connection from: %s:%d\n", 
                    inet_ntoa(client_addr.sin_addr), 
                    ntohs(client_addr.sin_port));
+
+        extern rt_sem_t telemetry_data_connected_sem;
+        if (telemetry_data_connected_sem != RT_NULL)
+        {
+            if (rt_sem_release(telemetry_data_connected_sem) != RT_EOK) {
+                LOG_E("Failed to release telemetry data connected semaphore");
+            }
+        }
 
         while (!stop) {
             /* 发送欢迎消息 */

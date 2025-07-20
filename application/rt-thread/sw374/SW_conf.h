@@ -4,11 +4,12 @@
 // #include <stdint.h>
 // Tcpserver接收到的数据是否输出到日志
 #define TcpServerDebug 
+#define SW374_software_version "V1.0.0"
 // ------------------------------------  TcpServer 相关配置  ------------------------------------ //
 // 优先级
 #define TcpServer_THREAD_PRIORITY 25
 // 堆栈大小
-#define TcpServer_THREAD_STACK_SIZE 4096
+#define TcpServer_THREAD_STACK_SIZE 8192
 // 时间片
 #define TcpServer_THREAD_TIMESLICE 25
 // TcpServer接收数据的缓冲区大小
@@ -27,7 +28,7 @@
 
 // ------------------------------------  WS2812B 相关配置  ------------------------------------ //
 #define WS2812_THREAD_PRIORITY         25      // 线程优先级
-#define WS2812_THREAD_STACK_SIZE       4096    // 线程大小
+#define WS2812_THREAD_STACK_SIZE       8192    // 线程大小
 #define WS2812_THREAD_TIMESLICE        25      // 时间片
 
 

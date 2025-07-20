@@ -3,6 +3,8 @@
 #define LOG_TAG "dfs_file_read"
 #include <ulog.h>
 
+#include <string.h>
+
 // 文件系统相关
 #include <dfs_posix.h> 
 
@@ -12,6 +14,8 @@
 #include "sw_dfs_file_read.h"
 
 const char file_dir[] = "/rodata/config.conf";
+
+
 
 // 从wifi_conf文件读取数据
 int dfs_read_from_file(char *buf, size_t buf_size, const char * file_dir)
@@ -78,8 +82,8 @@ int get_config_info(char ** ssid, char ** pwd, int * tcpserver_port, char ** ver
     cJSON * wifi_json = cJSON_GetObjectItem(config_json, "wifi");
     if (cJSON_IsString(cJSON_GetObjectItem(wifi_json, "ssid")))
     {
-        *ssid = cJSON_GetObjectItem(wifi_json, "ssid")->valuestring;
-        LOG_I("wifi_ssid: %s", *ssid);
+        *ssid = strdup(cJSON_GetObjectItem(wifi_json, "ssid")->valuestring);      
+        LOG_I("wifi_ssid: %s, len: %d", *ssid, strlen(*ssid));
     }
     else {
         LOG_E("Invalid WIFI SSID data");
@@ -88,8 +92,8 @@ int get_config_info(char ** ssid, char ** pwd, int * tcpserver_port, char ** ver
 
     if (cJSON_IsString(cJSON_GetObjectItem(wifi_json, "pwd")))
     {
-        *pwd = cJSON_GetObjectItem(wifi_json, "pwd")->valuestring;
-        LOG_I("wifi_pwd: %s", *pwd);
+        *pwd = strdup(cJSON_GetObjectItem(wifi_json, "pwd")->valuestring);
+        LOG_I("wifi_pwd: %s, len: %d", *pwd, strlen(*pwd));
     }
     else {
         LOG_E("Invalid WIFI password data");
@@ -109,7 +113,7 @@ int get_config_info(char ** ssid, char ** pwd, int * tcpserver_port, char ** ver
 
     if (cJSON_IsString(cJSON_GetObjectItem(config_json, "version")))
     {
-        *version = cJSON_GetObjectItem(config_json, "version")->valuestring;
+        *version = strdup(cJSON_GetObjectItem(config_json, "version")->valuestring);
         LOG_I("version: %s", *version);
     }
     else

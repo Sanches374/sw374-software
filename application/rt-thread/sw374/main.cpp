@@ -271,8 +271,8 @@ int sw374_main(void)
 
 // 建立TCPserver
 #ifdef SW374_TCP_SERVER
-    LOG_I("Starting TCP server on port %d", tcp_port);
-    if (p_logpanel) p_logpanel->updateLogDisplay(std::string("Starting TCP server on port") + std::to_string(tcp_port));
+    LOG_I("Starting TCP server on port : %d", tcp_port);
+    if (p_logpanel) p_logpanel->updateLogDisplay(std::string("Starting TCP server on port : ") + std::to_string(tcp_port));
     start_tcp_server(tcp_port);
     LOG_I("TCP server started successfully!");
     if (p_logpanel) p_logpanel->updateLogDisplay("TCP server started successfully!");

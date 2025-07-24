@@ -194,3 +194,205 @@ list
 lunch 0
 me
 scons -j12
+me
+scons -j2
+scons -j2
+c
+me
+scons -j12
+me
+scons -j2
+scons -j2
+c
+me
+scons -j12
+c
+me
+scons -j12
+me
+scons -j2
+scons -j2
+c
+me
+scons -j12
+c
+me
+me
+sconss -j12
+scons -j12
+c
+me
+me
+sconss -j12
+scons -j12
+me
+sconss -j12
+scons -j12
+c
+me
+sconss -j12
+start_tcp_server
+scons -j12
+me
+c
+me
+sconss -j12
+start_tcp_server
+list
+lunch 0
+me
+scons -j12
+scons -j12
+scons -j12
+me
+c
+me
+sconss -j12
+start_tcp_server
+list
+lunch 0
+scons -j12
+scons -j64
+scons -j12
+me
+scons -j64
+ls
+list
+mr
+quir
+quit
+lunch 0
+me
+scons -j12
+sconss -j12
+start_tcp_server
+list
+lunch 0
+me
+scons -j12
+scons -j12
+scons -j12
+me
+c
+me
+sconss -j12
+start_tcp_server
+list
+lunch 0
+scons -j12
+scons -j64
+scons -j12
+me
+scons -j64
+ls
+list
+mr
+quir
+quit
+lunch 0
+me
+scons -j12
+scons -j1
+me
+scons -j12
+scons -j12
+scons -j12
+me
+c
+me
+sconss -j12
+start_tcp_server
+list
+lunch 0
+scons -j12
+scons -j64
+scons -j12
+me
+scons -j64
+ls
+list
+mr
+quir
+quit
+lunch 0
+scons -j1
+me
+scons -j12
+quir
+quit
+lunch 0
+me
+scons -j12
+scons -j1
+me
+scons -j12
+scons -j12
+scons -j12
+me
+me
+sconss -j12
+start_tcp_server
+list
+lunch 0
+scons -j12
+scons -j64
+scons -j12
+me
+scons -j64
+ls
+list
+mr
+quir
+quit
+lunch 0
+scons -j1
+me
+scons -j12
+ls
+list
+mr
+quir
+quit
+lunch 0
+scons -j1
+me
+scons -j12
+mr
+quir
+quit
+lunch 0
+scons -j1
+me
+scons -j12
+lunch 0
+scons -j1
+me
+scons -j12
+ls
+mr
+quir
+quit
+lunch 0
+scons -j1
+me
+scons -j12
+mr
+quir
+quit
+scons -j1
+list
+lunch 0
+me
+scons -j12
+scons -j1
+list
+lunch 0
+c
+scons -j12\
+me
+scons -j12
+me
+scons -j12
+me
+scons -j12
+me

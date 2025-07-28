@@ -1,0 +1,16 @@
+Import('RTT_ROOT')
+Import('rtconfig')
+import rtconfig
+from building import *
+
+cwd = GetCurrentDir()
+CPPPATH = [cwd]
+src = []
+
+
+if GetDepend('SW374_74HC165') and GetDepend('USING_SW374'):
+    src = Glob(os.path.join(cwd, '*.c'))
+
+group = DefineGroup('sw374-74hc165', src, depend = ['SW374_74HC165'], CPPPATH = CPPPATH)
+
+Return('group')

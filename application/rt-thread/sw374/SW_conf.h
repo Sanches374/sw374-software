@@ -7,9 +7,9 @@
 #define SW374_software_version "V1.0.0"
 // ------------------------------------  TcpServer 相关配置  ------------------------------------ //
 // 优先级
-#define TcpServer_THREAD_PRIORITY 25
+#define TcpServer_THREAD_PRIORITY 20
 // 堆栈大小
-#define TcpServer_THREAD_STACK_SIZE 8192
+#define TcpServer_THREAD_STACK_SIZE 8192 * 2
 // 时间片
 #define TcpServer_THREAD_TIMESLICE 25
 // TcpServer接收数据的缓冲区大小
@@ -21,7 +21,7 @@
 // 优先级
 #define DataProcessor_THREAD_PRIORITY 20
 // 堆栈大小
-#define DataProcessor_THREAD_STACK_SIZE 8192
+#define DataProcessor_THREAD_STACK_SIZE 8192 * 2
 // 时间片
 #define DataProcessor_THREAD_TIMESLICE 25
 

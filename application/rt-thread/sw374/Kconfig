@@ -11,8 +11,10 @@ menuconfig USING_SW374
 if USING_SW374
 config SW374_JTAG_DEBUG_CONFIG
 bool "Using CKLink to Debug"
+    default n
+config SW374_USE_USB_STORAGE
+bool "Using USB strorage"
     default y
-
 source "application/rt-thread/sw374/user_led/Kconfig"
 # 读取配置文件
 source "application/rt-thread/sw374/dfs_file_config/Kconfig"
@@ -28,6 +30,8 @@ source "application/rt-thread/sw374/lvgl_ui/Kconfig"
 source "application/rt-thread/sw374/ws2812b/Kconfig"
 # rt_thread_class_cpp
 source "application/rt-thread/sw374/rt_thread_class_cpp/Kconfig"
+# 按键检测
+source "application/rt-thread/sw374/74hc165/Kconfig"
 
 # 屏幕驱动显示
 # source "application/rt-thread/sw374/lvgl_ui/Kconfig"

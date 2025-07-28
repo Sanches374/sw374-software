@@ -27,8 +27,10 @@ extern "C" {
 #include "sw_wifi_connect.h"
 #endif
 
+// 其他需要的
 extern int lvgl_thread_init(void);
-
+extern int usbd_msc_detection(void);
+extern int msc_storage_deinit();
 #ifdef __cplusplus
 }
 #endif
@@ -58,6 +60,8 @@ extern int lvgl_thread_init(void);
 
 // 配置参数
 #include "SW_conf.h"
+
+
 
 //----------------------------全局变量定义区------------------------------------//
 // 消息队列全局定义
@@ -143,7 +147,6 @@ int sw374_main(void)
     rt_thread_mdelay(1000); // 等待 1 秒
     LOG_I("Steering Wheel 374 now is initializing ...");
     
-
 #ifdef SW374_JTAG_DEBUG_CONFIG
     // 调试模式按键检测
     LOG_I("GPIO PA2 debug pin detection enabled");
@@ -171,16 +174,9 @@ int sw374_main(void)
     p_logpanel = new LVGL_SW_Log_Panel();
     LOG_I("LVGL display initialized successfully!");
     if (p_logpanel) p_logpanel->updateLogDisplay("LVGL display initialized successfully!");
-
-
-
-    // delete p_logpanel;
-    // p_panel = new LVGL_SW_F1_Panel_1(); // 创建一个新的LVGL_SW_F1_Panel_1对象
-    // delete p_panel;
-    // p_panel = nullptr;
-    // p_logpanel = new LVGL_SW_Log_Panel();
-    
 #endif
+
+
 
 // WS2812 启动
 #ifdef SW374_WS2812B
@@ -209,8 +205,14 @@ int sw374_main(void)
             if (p_logpanel) 
             {
                 p_logpanel->updateLogDisplay(std::string("Failed to read config file after ") + std::to_string(int(READ_CONFIG_FILE_MAX_TIME)) + std::string(" attempts!")); //
-                p_logpanel->updateLogDisplay(std::string("SW374_main exit! Please verify the configuration file and reset the board."));
+                p_logpanel->updateLogDisplay(std::string("SW374_main exit!"));
+                p_logpanel->updateLogDisplay(std::string("Please verify the configuration file and reset the board."));
             }
+#ifdef SW374_USE_USB_STORAGE
+            LOG_I("Initializing USB storage system ...");
+            if (p_logpanel) p_logpanel->updateLogDisplay("Initializing USB storage system ...");
+            usbd_msc_detection();
+#endif
             goto cleanup;
         }
     }
@@ -225,6 +227,20 @@ int sw374_main(void)
     // LOG_I("WiFi password: %s", wifipwd);
     // if (p_logpanel) p_logpanel->updateLogDisplay(std::string("WiFi password:") + std::string(wifipwd));
 #endif
+
+// 需要线读取配置文件再开启USB设备
+#ifdef SW374_USE_USB_STORAGE
+    // rt_thread_mdelay(1000);
+    LOG_I("Initializing USB storage system ...");
+    if (p_logpanel) p_logpanel->updateLogDisplay("Initializing USB storage system ...");
+    usbd_msc_detection();
+    // delete p_logpanel;
+    // p_panel = new LVGL_SW_F1_Panel_1(); // 创建一个新的LVGL_SW_F1_Panel_1对象
+    // delete p_panel;
+    // p_panel = nullptr;
+    // p_logpanel = new LVGL_SW_Log_Panel();
+#endif
+
 
 // 连接wifi
 #ifdef SW374_WIFI_CONNECT
@@ -324,6 +340,7 @@ int sw374_main(void)
 
     delete p_logpanel;
     p_panel = new LVGL_SW_F1_Panel_1(); // 创建一个新的LVGL_SW_F1_Panel_1对象
+    msc_storage_deinit();
     return 0;
 
 cleanup:

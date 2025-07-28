@@ -130,6 +130,7 @@
 		"netfwd": "cpp",
 		"string_view": "cpp",
 		"slist": "cpp",
-		"cjson.h": "c"
+		"cjson.h": "c",
+		"kconfig": "c"
 	}
 }

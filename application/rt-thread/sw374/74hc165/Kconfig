@@ -1,0 +1,6 @@
+config SW374_74HC165
+    bool "USE 74HC165"
+    depends on !AIC_USING_I2C0
+    default y
+
+

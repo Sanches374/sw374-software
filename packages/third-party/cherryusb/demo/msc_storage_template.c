@@ -151,7 +151,7 @@ void usbd_event_handler(uint8_t event)
             break;
         case USBD_EVENT_CONFIGURED:
 #if !defined(KERNEL_RTTHREAD)
-            usbd_msc_configured();
+            usbd_msc_co7nfigured();
 #endif
             break;
         case USBD_EVENT_SET_REMOTE_WAKEUP:
@@ -506,6 +506,7 @@ int usbd_msc_detection(void)
     return RT_EOK;
 }
 #if !defined(LPKG_CHERRYUSB_DYNAMIC_REGISTRATION_MODE)
-INIT_APP_EXPORT(usbd_msc_detection);
+// INIT_APP_EXPORT(usbd_msc_detection);
+// MSH_CMD_EXPORT(usbd_msc_detection, usbd_msc_detection);
 #endif
 #endif
